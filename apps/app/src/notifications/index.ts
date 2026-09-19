@@ -7,3 +7,4 @@
 export * from './templates';
 export * from './send';
 export * from './grouping';
+export * from './telegram';

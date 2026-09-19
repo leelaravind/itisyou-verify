@@ -17,8 +17,8 @@ them either blocks a harmless public site for months or ships a commerce system 
 strength of "the home page looks fine".
 
 - **Gate A — COMMERCE.** Everything that must hold before a real card is charged, a real
-  credential is stored, or a real customer's data enters the system. **Three things are
-  not passing: A-20, A-21 and F15.** Do not take money.
+  credential is stored, or a real customer's data enters the system. **Four things are
+  not passing: A-20, A-21, F15 and F16.** Do not take money.
 - **Gate B — PUBLIC SITE.** Everything that must hold for a public site with no customer
   data and nothing for sale. **This gate is passing, and the site is already live.** I
   verified it by fetching it, not by reading the source.
@@ -29,12 +29,14 @@ is red means it should.
 ## Commands, and what they actually returned
 
 ```
-npx vitest run tests/security          → 221 cases: 220 pass, 1 FAIL   (the one finding still open)
+npx vitest run tests/security          → 226 cases: 224 pass, 2 FAIL   (the two findings still open)
 npx tsc -p tsconfig.json --noEmit      → 0 errors
-node scripts/scan-secrets.mjs --history → clean. 377 tracked files, full history.
+node scripts/scan-secrets.mjs           → clean. 377 tracked files.
+node scripts/scan-secrets.mjs --history → FAILS: 7 hits, all synthetic fixtures in
+                                          already-committed blobs. See F16.
 ```
 
-Three findings were raised in this pass. A06 and A02/A09 closed two of them while the
+Four findings were raised in this pass. A06 and A02/A09 closed two of them while the
 review was still running, so the numbers above are the end state, not the worst state.
 The middle of the pass looked like this, and it is recorded because it is the honest
 account of what was found:
@@ -107,7 +109,8 @@ This gate was assessed against **the deployed site**, by fetching it on 2026-09-
 | **B-17** | A model cannot mint an approval: the hash is over the server's payload. | `SEC-720`, `SEC-721`, `SEC-722` | **PASS.** A model-written summary is not part of the binding. |
 | **B-18** | Every outbound URL passes the SSRF guard. | `SEC-001`–`SEC-022`, `SEC-602`, `SEC-603` | **PASS.** A04 adopted the reference verbatim and tightened it (`allowSubdomains: false`, three hosts). |
 | **B-19** | CI holds no deployment secret, never uses `pull_request_target`, pins `contents: read` and every action to a SHA. | `SEC-620`–`SEC-623` | **PASS** |
-| **B-20** | The repository and its full history contain no secret. | `SEC-610`, `SEC-611`, `SEC-624` | **PASS.** `scan:secrets — clean. 362 tracked files, full history.` Closes pass one's SEC-ACC-27 — the lead fixed the fixture and taught the scanner to honour a marker on the preceding line. |
+| **B-20** | The tracked working tree contains no secret. | `SEC-631`, `SEC-633`, `SEC-634` | **PASS.** `scan:secrets — clean. 377 tracked files.` Closes pass one's SEC-ACC-27 — the lead fixed the fixture and taught the scanner to honour a marker on the preceding line. |
+| **B-22** | The **full-history** scan that CI runs on every pull request is clean. | `SEC-632`, `SEC-635` | **FAIL.** 7 hits, every one a synthetic fixture in an already-committed blob. Finding F16. Does not block Gate B — nothing real is exposed — but it makes CI permanently red, which is how the control gets deleted. |
 | **B-21** | `tsc --noEmit` is clean. | — | **1 error**, in A07's in-flight `routes/owner/index.ts` (`'pairing' is declared but never read`). Not a security defect and not mine. |
 
 **Gate B verdict: PASS.** The live site is safe to leave up. B-13 is the only red row and
@@ -121,7 +124,8 @@ it is doubly mitigated; it is carried into Gate A.
 | --- | --- | --- | --- | --- | --- |
 | **F13** | **Any unknown webhook endpoint id accepted a forged event.** The route fell back to a hardcoded `DECOY_SECRET` when `resolveEndpointSecret` returned null, then acted on the result if the signature verified. The repository is public, so the constant was not a secret: sign a body with it, POST to `/api/v1/webhooks/stripe/<invented-id>`, and a fabricated `checkout.session.completed` or `invoice.paid` reached the real handler. Reproduced: **expected 400, got 200.** | **CRITICAL** | A06 | `SEC-431`, `SEC-432` | **CLOSED** 10:51. Never live — the route was not mounted. The fix fails closed on the lookup and derives the fallback per deployment. |
 | **F14** | 4 statements satisfied the tenant-scope check only because `workspace_id` appeared in their SELECT column list, not their predicate. All 4 were correct cross-tenant sweeps; none was declared. | **Medium** | A02/A09 | `SEC-206` | **CLOSED.** Per-statement markers added. |
-| **F15** | `packages/ui` interpolates `href` with no scheme guard, so `javascript:` survives intact. Mitigated twice today (every href is a literal; the CSP blocks it) and live the moment a link target comes from a CRM value, a report link or a campaign destination. | **Medium** | A05 | `SEC-1214` | **OPEN** — the one red test. |
+| **F15** | `packages/ui` interpolates `href` with no scheme guard, so `javascript:` survives intact. Mitigated twice today (every href is a literal; the CSP blocks it) and live the moment a link target comes from a CRM value, a report link or a campaign destination. | **Medium** | A05 | `SEC-1214` | **OPEN** |
+| **F16** | **`scan-secrets --history` is permanently red on committed synthetic fixtures** — 7 hits across 5 files and 4 agents, including 2 from A10's own earlier revision. None is a real credential. `secret-scan:allow` cannot fix it: a committed blob is immutable. CI runs this on every pull request, so every PR is red, and the obvious "fix" is to delete the step — removing the one control that catches a credential committed and then deleted. | **Medium** | lead | `SEC-632` | **OPEN** |
 
 ### F13, and why `SEC-431` now tests something stronger
 
@@ -186,16 +190,26 @@ Each is a real gap we are choosing to carry, and saying so.
 | --- | --- | --- | --- | --- | --- | --- |
 | 2026-09-19 09:35 | A10 pass 1 | 0 errors | 156: 150 pass, 6 fail | 1 hit (A02 fixture) | — | — |
 | 2026-09-19 10:35 | A10 pass 2 (mid) | 1 error (A07, in flight) | 221: 217 pass, 4 fail | clean, 362 files | FAIL | PASS |
-| **2026-09-19 10:55** | **A10 pass 2 (final)** | **0 errors** | **221: 220 pass, 1 fail** | **clean, 377 files** | **FAIL** (A-20, A-21, F15) | **PASS** |
+| **2026-09-19 11:05** | **A10 pass 2 (final)** | **0 errors** | **226: 224 pass, 2 fail** | tree **clean, 377 files**; `--history` **7 hits (F16)** | **FAIL** (A-20, A-21, F15, F16) | **PASS** |
 | | | | | | | |
 
-**The one remaining failure:**
+**The two remaining failures:**
 
 ```
 SEC-1214  javascript: survives into an href                    F15, Medium, A05
+SEC-632   --history red on committed synthetic fixtures        F16, Medium, lead
 ```
 
-**Do not make it green by weakening the test.** `SEC-1215` beside it already tests the fix
-target: route every non-literal href through a scheme allowlist — or better, a branded
-`Url` type that only the guard can produce, so an unguarded string cannot reach an `href`
-at all.
+**Do not make either green by weakening the test.**
+
+For F15, `SEC-1215` beside it already tests the fix target: route every non-literal href
+through a scheme allowlist — or better, a branded `Url` type that only the guard can
+produce, so an unguarded string cannot reach an `href` at all.
+
+For F16 the fix is **not** to drop `--history` from CI and **not** to loosen the
+`stripe-webhook-secret` rule, which is the rule that would catch the real thing. It is:
+(1) stop shaping fixtures like real secrets — Stripe treats the endpoint secret as an
+opaque ASCII string and Svix needs only valid base64 after the prefix, so no test needs a
+literal `whsec_` prefix, and `SEC-633` now enforces that going forward; and (2) for the
+blobs already committed, a small committed allowlist of blob SHAs that `--history`
+consults — a SHA is a precise, auditable exemption in a way a pattern is not.

@@ -23,7 +23,13 @@
  * unique key. A second approval of the same refund therefore reaches Stripe with the same
  * key and returns the original refund object instead of moving money twice.
  */
-import { AppError } from '@verify/contracts';
+import { AppError, type Currency } from '@verify/contracts';
+import {
+  checkOwnerApproval,
+  explainApprovalRejection,
+  type OwnerApproval,
+  type OwnerApprovalPayload,
+} from '../owner/approvals';
 import type { RefundRecord, RefundState } from './port';
 import type { BillingRuntime } from './runtime';
 
@@ -136,6 +142,102 @@ export function recommendRefund(input: {
 }
 
 // ---------------------------------------------------------------------------
+// the owner queue and its approval binding
+// ---------------------------------------------------------------------------
+
+/**
+ * The published refund rules an owner may cite. A closed set, not free text, so "which
+ * rule was applied" is answerable later from the approval alone.
+ *
+ * Until the founder approves a deterministic automatic policy, none of these authorise
+ * anything by themselves — they record the reasoning behind a human decision.
+ */
+export const REFUND_POLICY_RULES = [
+  'unused_period_within_14_days',
+  'service_unavailable_over_24_hours',
+  'duplicate_charge',
+  'billing_error_our_fault',
+  'goodwill_owner_discretion',
+] as const;
+
+export type RefundPolicyRule = (typeof REFUND_POLICY_RULES)[number];
+
+export function isRefundPolicyRule(value: string): value is RefundPolicyRule {
+  return (REFUND_POLICY_RULES as readonly string[]).includes(value);
+}
+
+/**
+ * The exact payload an owner approval must be bound to.
+ *
+ * **Derived from the stored refund row, never from the caller.** That is the whole
+ * mechanism: the hash the owner approved is compared against the hash of what we hold, so
+ * a request that differs by one penny hashes differently and authorises nothing. A caller
+ * cannot smuggle a different amount past an approval by passing it as an argument, because
+ * there is no argument to pass it as.
+ */
+export function refundApprovalPayload(
+  refund: RefundRecord,
+  policyRule: RefundPolicyRule,
+): OwnerApprovalPayload {
+  return {
+    action_type: 'refund_issue',
+    payload: {
+      workspace_id: refund.workspaceId,
+      order_id: refund.orderId ?? '',
+      amount_minor: refund.amountMinor,
+      currency: refund.currency as Currency,
+      policy_rule: policyRule,
+      reason: refund.reason ?? '',
+    },
+  };
+}
+
+export interface RefundQueueItem {
+  readonly refund: RefundRecord;
+  /** What the owner is being asked to authorise, in plain language. */
+  readonly summary: string;
+  /**
+   * The maximum the approval should carry. Exactly the refund amount — an approval that
+   * allows more than the thing it was granted for is not an approval of that thing.
+   */
+  readonly maximumAmountMinor: number;
+  readonly currency: string;
+  /** The advisory recommendation. Nothing consumes it to act. */
+  readonly recommendation: RefundRecommendation;
+}
+
+/**
+ * The owner queue: every refund awaiting a decision, with what an approval must cover.
+ *
+ * A07's panel renders these, grants an approval bound to
+ * `refundApprovalPayload(item.refund, rule)`, and passes the granted approval back to
+ * `decideRefund`.
+ */
+export async function listRefundQueue(
+  deps: BillingRuntime,
+  options: { readonly limit?: number } = {},
+): Promise<readonly RefundQueueItem[]> {
+  const refunds = await deps.data.listRefundsAwaitingOwner(
+    Math.min(Math.max(options.limit ?? 50, 1), 200),
+  );
+  return refunds.map((refund) => ({
+    refund,
+    summary:
+      `Refund ${formatMinor(refund.amountMinor, refund.currency)} on order ` +
+      `${refund.orderId ?? 'unknown'} for workspace ${refund.workspaceId}` +
+      (refund.reason === null ? '' : ` — "${refund.reason}"`),
+    maximumAmountMinor: refund.amountMinor,
+    currency: refund.currency,
+    recommendation: 'no_recommendation',
+  }));
+}
+
+function formatMinor(amountMinor: number, currency: string): string {
+  const symbol = currency.toUpperCase() === 'GBP' ? '£' : '';
+  return `${symbol}${Math.floor(amountMinor / 100)}.${String(amountMinor % 100).padStart(2, '0')}`;
+}
+
+// ---------------------------------------------------------------------------
 // orchestration
 // ---------------------------------------------------------------------------
 
@@ -242,10 +344,13 @@ export interface OwnerDecisionParams {
   readonly refundId: string;
   readonly decision: 'approve' | 'reject';
   /**
-   * The row id of the owner's recorded approval (`approvals` table). Required to approve.
-   * There is no "auto" value and no default.
+   * The owner's recorded approval. Required to approve — there is no "auto" value, no
+   * default, and no id-only variant. An id alone would only prove that *an* approval
+   * exists; the record is what lets us check it was granted for **this exact payload**.
    */
-  readonly approvalId?: string;
+  readonly approval?: OwnerApproval;
+  /** Which published rule the owner applied. Part of the hashed payload. */
+  readonly policyRule?: RefundPolicyRule;
   /** Stripe needs one of these to know what to refund against. */
   readonly paymentIntentId?: string;
   readonly chargeId?: string;
@@ -283,19 +388,44 @@ export async function decideRefund(
         workspaceId: params.workspaceId,
         refundId: refund.id,
         state: transition.next,
-        ...(params.approvalId === undefined ? {} : { approvalId: params.approvalId }),
+        ...(params.approval === undefined ? {} : { approvalId: params.approval.id }),
         at,
       })) ?? refund
     );
   }
 
-  if (params.approvalId === undefined || params.approvalId.length === 0) {
+  if (params.approval === undefined) {
     throw new AppError(
       422,
       'REFUND_APPROVAL_REQUIRED',
       'A refund can only be submitted against a recorded owner approval.',
     );
   }
+  if (params.policyRule === undefined || !isRefundPolicyRule(params.policyRule)) {
+    throw new AppError(
+      422,
+      'REFUND_POLICY_RULE_REQUIRED',
+      'A refund approval must name which published refund rule was applied.',
+    );
+  }
+
+  // The binding. The payload is rebuilt from OUR stored row and hashed; the owner's
+  // approval carries the hash of what they actually read. A refund whose amount, order,
+  // workspace, reason or cited rule differs from the approved one — by a penny or by a
+  // character — hashes differently and authorises nothing.
+  const check = await checkOwnerApproval(
+    params.approval,
+    refundApprovalPayload(refund, params.policyRule),
+    new Date(at),
+  );
+  if (!check.valid) {
+    throw new AppError(
+      403,
+      'REFUND_APPROVAL_INVALID',
+      `This approval does not authorise this refund: ${explainApprovalRejection(check.reason)}`,
+    );
+  }
+
   if ((params.paymentIntentId === undefined) === (params.chargeId === undefined)) {
     throw new AppError(
       422,
@@ -313,7 +443,7 @@ export async function decideRefund(
       workspaceId: params.workspaceId,
       refundId: refund.id,
       state: approved.next,
-      approvalId: params.approvalId,
+      approvalId: params.approval.id,
       at,
     })) ?? refund;
 

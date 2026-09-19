@@ -34,6 +34,7 @@ import type {
   PurgeTarget,
   RetentionTarget,
   SettleNotificationParams,
+  StalePendingQuery,
   SupportCaseListQuery,
   SupportCasePage,
   SupportCaseRecord,
@@ -72,6 +73,9 @@ export class InMemorySupportData implements SupportDataPort {
     expiredReportLinks: 0,
     evidenceBroughtForward: 0,
     markedDeleted: 0,
+    /** The instant the caller passed, so a time-frozen test can pin it. */
+    revokedSessionsAt: null as string | null,
+    revokedCredentialsAt: null as string | null,
   };
 
   /** Seedable counts for the retained-data statement. */
@@ -191,6 +195,23 @@ export class InMemorySupportData implements SupportDataPort {
     return Promise.resolve(rows);
   }
 
+  listStalePendingNotifications(
+    query: StalePendingQuery,
+  ): Promise<readonly NotificationDeliveryRecord[]> {
+    const rows = [...this.notifications.values()]
+      .filter((n) => n.state === 'pending')
+      .filter((n) => n.createdAt <= query.createdBefore)
+      .filter((n) =>
+        query.channel === undefined ? true : n.channel === query.channel,
+      )
+      .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+      .filter((n) =>
+        query.afterId === undefined || query.afterId === null ? true : n.id > query.afterId,
+      )
+      .slice(0, query.limit);
+    return Promise.resolve(rows);
+  }
+
   /* ---------------------------------------------------------------------- */
   /* retention                                                              */
   /* ---------------------------------------------------------------------- */
@@ -302,13 +323,15 @@ export class InMemorySupportData implements SupportDataPort {
     return Promise.resolve(this.workspaces.get(workspaceId) ?? null);
   }
 
-  revokeSessions(_workspaceId: string): Promise<number> {
+  revokeSessions(_workspaceId: string, at: string): Promise<number> {
     this.effects.revokedSessions += 1;
+    this.effects.revokedSessionsAt = at;
     return Promise.resolve(1);
   }
 
-  revokeCredentials(_workspaceId: string): Promise<number> {
+  revokeCredentials(_workspaceId: string, at: string): Promise<number> {
     this.effects.revokedCredentials += 1;
+    this.effects.revokedCredentialsAt = at;
     return Promise.resolve(1);
   }
 

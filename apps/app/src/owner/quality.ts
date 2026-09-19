@@ -401,8 +401,14 @@ export interface StoredArtifact {
  */
 export interface QualityArtifactStore {
   get(id: QualityArtifactId): Promise<StoredArtifact | null>;
-  /** Why the store is empty, when it is. Rendered on the page. */
-  unavailableReason(): string | null;
+  /**
+   * Why the store has nothing, when it has nothing — `null` when it is working.
+   *
+   * Async because a real store has to ask something. The page renders this string verbatim,
+   * and it is the only thing standing between the owner and a download button that silently
+   * does nothing.
+   */
+  unavailableReason(): Promise<string | null>;
 }
 
 /** The honest default: no pack is bound to this deployment, and the page says so. */
@@ -411,7 +417,7 @@ export class UnboundQualityArtifactStore implements QualityArtifactStore {
     return null;
   }
 
-  unavailableReason(): string {
+  async unavailableReason(): Promise<string> {
     return (
       'No test evidence pack is attached to this deployment. The files are produced by ' +
       '`scripts/build-test-report.mjs` on a machine that can run the suite, and they have not been uploaded here. ' +
@@ -432,9 +438,120 @@ export class StaticQualityArtifactStore implements QualityArtifactStore {
     return this.#items.get(id) ?? null;
   }
 
-  unavailableReason(): string | null {
-    return this.#items.size === 0
-      ? 'The evidence pack attached to this deployment is empty.'
-      : null;
+  async unavailableReason(): Promise<string | null> {
+    return this.#items.size === 0 ? 'The evidence pack attached to this deployment is empty.' : null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// The D1-backed store
+// ---------------------------------------------------------------------------
+
+/**
+ * Where the evidence pack should live, and why.
+ *
+ * `apps/app/public` is served straight to the internet, and these files name failing case
+ * ids, internal file paths and the release decision — publishing them there would make
+ * "authenticated download" a fiction. D1 is already bound to the Worker, needs no new
+ * account resource and no new binding, and the pack is small: the largest file today is
+ * `test-results.json` at roughly 270KB.
+ *
+ * The table does not exist yet. `migrations/` is the lead's, and this is the exact DDL
+ * being requested:
+ *
+ * ```sql
+ * CREATE TABLE quality_artifacts (
+ *   id           TEXT NOT NULL,       -- 'test-report.md', 'junit.xml', …
+ *   part         INTEGER NOT NULL,    -- 0-based; a large file is stored in ordered parts
+ *   body         TEXT NOT NULL,
+ *   commit_sha   TEXT,
+ *   generated_at TEXT,
+ *   uploaded_at  TEXT NOT NULL,
+ *   PRIMARY KEY (id, part)
+ * );
+ * ```
+ *
+ * `part` exists because a single row is not a safe home for an unbounded blob. The pack is
+ * written in ordered chunks of {@link MAX_ARTIFACT_PART_CHARS} and reassembled here, so the
+ * store does not quietly start failing the first time the suite grows.
+ */
+export const QUALITY_ARTIFACT_TABLE = 'quality_artifacts';
+
+/** Chunk size for a stored artifact. Comfortably inside any per-row limit. */
+export const MAX_ARTIFACT_PART_CHARS = 256 * 1024;
+
+export const QUALITY_ARTIFACTS_MIGRATION_HINT =
+  'The evidence pack is stored in the quality_artifacts table, and this deployment has no such table. ' +
+  'It needs the migration that creates it, and then an upload of a pack produced by scripts/build-test-report.mjs. ' +
+  'Nothing is being hidden from you — there is genuinely nothing stored here to download.';
+
+/** The narrow slice of D1 this store needs, typed structurally so a test can supply it. */
+export interface ArtifactQueryable {
+  prepare(sql: string): {
+    bind(...values: unknown[]): {
+      all<T>(): Promise<{ results: T[] }>;
+    };
+  };
+}
+
+interface ArtifactPartRow {
+  readonly body: string;
+  readonly commit_sha: string | null;
+  readonly generated_at: string | null;
+}
+
+/**
+ * Reads the pack out of D1, and says precisely what is missing when nothing comes back.
+ *
+ * The distinction it keeps: **"the table is not there" and "the table is empty" are
+ * different sentences.** An owner can act on the second (upload a pack) but has to escalate
+ * the first (a migration has not run). Collapsing both into "no reports" sends them looking
+ * in the wrong place.
+ */
+export class D1QualityArtifactStore implements QualityArtifactStore {
+  readonly #db: ArtifactQueryable;
+
+  constructor(db: ArtifactQueryable) {
+    this.#db = db;
+  }
+
+  async get(id: QualityArtifactId): Promise<StoredArtifact | null> {
+    let rows: ArtifactPartRow[];
+    try {
+      const result = await this.#db
+        .prepare(
+          `SELECT body, commit_sha, generated_at FROM ${QUALITY_ARTIFACT_TABLE} WHERE id = ? ORDER BY part ASC`,
+        )
+        .bind(id)
+        .all<ArtifactPartRow>();
+      rows = result.results;
+    } catch {
+      // The table is absent. Reported by `unavailableReason`, never as an empty file.
+      return null;
+    }
+    const first = rows[0];
+    if (first === undefined) return null;
+    return {
+      id,
+      body: rows.map((row) => row.body).join(''),
+      generatedAt: first.generated_at,
+      commitSha: first.commit_sha,
+    };
+  }
+
+  async unavailableReason(): Promise<string | null> {
+    try {
+      const result = await this.#db
+        .prepare(`SELECT body, commit_sha, generated_at FROM ${QUALITY_ARTIFACT_TABLE} LIMIT 1`)
+        .bind()
+        .all<ArtifactPartRow>();
+      if (result.results.length > 0) return null;
+      return (
+        'No evidence pack has been uploaded to this deployment yet. Run scripts/build-test-report.mjs on a machine ' +
+        'that can run the suite, and upload what it produces. Nothing here is out of date — there is nothing here.'
+      );
+    } catch {
+      return QUALITY_ARTIFACTS_MIGRATION_HINT;
+    }
   }
 }

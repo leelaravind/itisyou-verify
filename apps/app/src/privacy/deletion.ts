@@ -63,10 +63,20 @@ export type DeletionStep = (typeof DELETION_STEP)[number];
 /**
  * Tables emptied for the workspace, and the step that empties each.
  *
- * The order in `DELETION_STEP` is a foreign-key order, not a preference. `runs` points at
- * `workflow_versions` without a cascade, so the runs have to go — which they do when
- * `source_events` goes — before `workflows` can be removed. Getting this backwards fails
- * on a constraint halfway through a deletion, which is the worst possible moment.
+ * The order in `DELETION_STEP` is load-bearing, and the reason is not the one it is easy
+ * to assume. A02 checked the schema and corrected an earlier comment here that claimed a
+ * mis-ordered deletion would abort on a foreign-key constraint. **It would not.**
+ *
+ * `workflows` cascades to `runs`, and deleting the runs removes the last reference to
+ * `workflow_versions`, so the `NO ACTION` clause on `runs.workflow_version_id` is never
+ * reached and the delete succeeds. What actually happens when `workflows` is purged first
+ * is quieter and much worse: `source_events` has **no foreign key to `workflows` at all**,
+ * so its rows are simply left behind — the customer's enquiry payloads survive a deletion
+ * that then reports success.
+ *
+ * So: purge `source_events` first, which takes the runs with it, and only then
+ * `workflows`. Nobody should be waiting for a loud failure here, because there is not
+ * going to be one. `API-370` pins the order.
  */
 const PURGE_TARGETS: Readonly<Partial<Record<DeletionStep, PurgeTarget>>> = {
   purge_evidence: 'evidence',
@@ -280,9 +290,9 @@ async function runSingleShotStep(
 ): Promise<number> {
   switch (step) {
     case 'revoke_sessions':
-      return port.revokeSessions(context.workspaceId);
+      return port.revokeSessions(context.workspaceId, toIso(context.now));
     case 'revoke_credentials':
-      return port.revokeCredentials(context.workspaceId);
+      return port.revokeCredentials(context.workspaceId, toIso(context.now));
     case 'stop_scheduled_work':
       return port.stopScheduledWork(context.workspaceId);
     case 'expire_report_links':

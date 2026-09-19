@@ -6,6 +6,11 @@
  * approved campaign honest afterwards.
  */
 export * from './approval';
+export * from './port';
+export * from './memory';
+export * from './visits';
+export * from './launchMetrics';
+export * from './sync';
 export * from './lifecycle';
 export * from './stops';
 export * from './analytics';

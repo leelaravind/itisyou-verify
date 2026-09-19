@@ -120,9 +120,12 @@ describe('workspace deletion', () => {
     expect(port.workspaces.get('ws_1')?.status).toBe('deleted');
   });
 
-  it('API-370 the runs are gone before the workflow versions they point at', () => {
-    // `runs.workflow_version_id` has no cascade, so purging `workflows` before
-    // `source_events` would fail on a constraint halfway through a deletion.
+  it('API-370 source events are purged before workflows, or they are stranded', () => {
+    // Not because the wrong order aborts — it does not. `workflows` cascades to `runs`,
+    // which removes the last reference to `workflow_versions`, so the delete succeeds.
+    // `source_events` has no foreign key to `workflows` at all, so the wrong order leaves
+    // the customer's enquiry payloads behind and still reports success. Nobody gets a
+    // loud failure; this ordering is the only thing preventing it.
     const steps = [...DELETION_STEP];
     expect(steps.indexOf('purge_source_events')).toBeLessThan(steps.indexOf('purge_workflows'));
     expect(steps.indexOf('purge_workflows')).toBeLessThan(steps.indexOf('mark_workspace_deleted'));

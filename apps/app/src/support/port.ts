@@ -122,12 +122,23 @@ export interface TransitionCaseParams {
 export const NOTIFICATION_STATE = ['pending', 'sent', 'failed', 'suppressed'] as const;
 export type NotificationState = (typeof NOTIFICATION_STATE)[number];
 
+/**
+ * Where a notification went.
+ *
+ * `notification_deliveries.channel` is an unconstrained `TEXT` column, so this union is
+ * the only thing keeping it from acquiring a second spelling. `telegram` is the owner's
+ * private channel and carries a deliberately narrow set of alerts — see
+ * `notifications/telegram.ts`.
+ */
+export const NOTIFICATION_CHANNEL = ['email', 'telegram'] as const;
+export type NotificationChannel = (typeof NOTIFICATION_CHANNEL)[number];
+
 export interface NotificationDeliveryRecord {
   readonly id: string;
   readonly workspaceId: string | null;
   /** The idempotency key. `UNIQUE` in the schema; this is the whole defence. */
   readonly notificationKey: string;
-  readonly channel: 'email';
+  readonly channel: NotificationChannel;
   /** Hashed, never the address. `recipient_hash` in the schema. */
   readonly recipientHash: string;
   readonly template: string;
@@ -146,7 +157,7 @@ export interface ClaimNotificationParams {
   readonly id: string;
   readonly workspaceId: string | null;
   readonly notificationKey: string;
-  readonly channel: 'email';
+  readonly channel: NotificationChannel;
   readonly recipientHash: string;
   readonly template: string;
   readonly createdAt: string;
@@ -173,6 +184,24 @@ export interface NotificationHistoryQuery {
   readonly since: string;
   /** Optional narrowing, used by grouping to find "the notification for *this* outage". */
   readonly keyPrefix?: string;
+}
+
+/**
+ * Deliveries stuck in `pending` — claimed, never settled.
+ *
+ * Sending is at-most-once by design: if a worker dies between claiming a notification key
+ * and recording the outcome, the row stays `pending` and no later duplicate will send it.
+ * That is the right trade (a second "your data has been deleted" email is worse than a
+ * missing one), but it is only the right trade if somebody can *see* the missing one.
+ * This is that read, for A07's owner queue.
+ */
+export interface StalePendingQuery {
+  /** Only rows created at or before this instant. A few minutes old is not stuck. */
+  readonly createdBefore: string;
+  readonly limit: number;
+  /** Keyset position over `id`. `null` starts at the beginning. */
+  readonly afterId?: string | null;
+  readonly channel?: NotificationChannel;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -322,6 +351,17 @@ export interface SupportDataPort {
     query: NotificationHistoryQuery,
   ): Promise<readonly NotificationDeliveryRecord[]>;
 
+  /**
+   * Deliveries claimed but never settled. Ordered by `id`, a bounded keyset page.
+   *
+   * `WHERE state = 'pending' AND created_at <= ? AND id > ? ORDER BY id LIMIT ?`. This is
+   * the one read that makes at-most-once sending honest rather than merely quiet: A07's
+   * queue shows these, and the owner resends by hand under a new key.
+   */
+  listStalePendingNotifications(
+    query: StalePendingQuery,
+  ): Promise<readonly NotificationDeliveryRecord[]>;
+
   /* --- retention --- */
 
   listExpired(params: ListExpiredParams): Promise<readonly ExpiredRowRef[]>;
@@ -351,11 +391,19 @@ export interface SupportDataPort {
 
   getWorkspace(workspaceId: string): Promise<WorkspaceSummary | null>;
 
-  /** Revoke every session for every member of this workspace. Returns rows affected. */
-  revokeSessions(workspaceId: string): Promise<number>;
+  /**
+   * Revoke every session for every member of this workspace. Returns rows affected.
+   *
+   * `at` is the instant to stamp, supplied by the caller rather than read from the
+   * implementation's own clock — A02 asked for this, and they are right: a function that
+   * reads `Date.now()` internally cannot be pinned in a time-frozen test, and a deletion
+   * report that says it revoked sessions at one instant while the rows say another is a
+   * discrepancy nobody can explain a year later.
+   */
+  revokeSessions(workspaceId: string, at: string): Promise<number>;
 
   /** Retire every stored credential envelope for this workspace's connections. */
-  revokeCredentials(workspaceId: string): Promise<number>;
+  revokeCredentials(workspaceId: string, at: string): Promise<number>;
 
   /** Clear `runs.next_check_at` and drain pending outbox rows so nothing runs again. */
   stopScheduledWork(workspaceId: string): Promise<number>;
@@ -407,6 +455,15 @@ export interface OutboundMessage {
   readonly subject: string;
   readonly text: string;
   readonly html: string;
+  /**
+   * What kind of thing this is, for a transport that enforces a content policy.
+   *
+   * The email transport ignores it. The Telegram transport **default-denies** on it: a
+   * message with no kind, or a kind outside the owner-alert allowlist, is refused rather
+   * than sent. That is why it lives on the message rather than in a constructor argument
+   * — a caller cannot forget to configure the policy, only fail it.
+   */
+  readonly kind?: string;
 }
 
 /**
@@ -415,6 +472,11 @@ export interface OutboundMessage {
  * `providerStatus` is the sending service's own word. There is deliberately no
  * `delivered` field: this layer cannot observe delivery, and the product's entire thesis
  * is that we do not claim things we cannot observe.
+ *
+ * A transport must never put a credential into `providerStatus`. The Telegram transport
+ * redacts a bot-token shape from everything it returns, because an HTTP client that puts
+ * the request URL into a failure message will otherwise hand the token to the first log
+ * line written after the network drops.
  */
 export interface TransportResult {
   readonly accepted: boolean;

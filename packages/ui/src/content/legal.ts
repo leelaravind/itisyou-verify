@@ -49,7 +49,7 @@ export const DATA_FLOW: readonly DataFlowStage[] = [
     order: 4,
     stage: 'Resend',
     description:
-      'We read message status events back from your Resend account to check whether the acknowledgement email reached the point your rules require.',
+      'We read message status events back from your connected Resend account to check whether the acknowledgement email reached the point your rules require. Resend is also the service we use to send our own transactional emails to you — sign-in links, failure notices, deletion confirmations.',
   },
   {
     order: 5,
@@ -67,6 +67,16 @@ export const DATA_FLOW: readonly DataFlowStage[] = [
 
 export const EVIDENCE_RETENTION_NOTE =
   'Evidence we retrieve from HubSpot and Resend is kept for 30 days by default, then removed. This retention period is a fixed system limit, not a per-customer setting.';
+
+/**
+ * The backup caveat. Added because deletion and retention claims are meaningless without
+ * it: a promise to remove data that a backup still holds is only true going forward, not
+ * retroactively, and pretending otherwise is the kind of claim this document exists to
+ * prevent. Matches docs/privacy-retention.md §"Backups — the honest part" (A09) verbatim
+ * in substance.
+ */
+export const BACKUP_NOTE =
+  'Our database is backed up. A backup taken before a deletion still contains the deleted data until that backup expires on its own schedule — we do not rewrite backups to remove individual records, because doing that reliably is not something we can honestly promise. We would rather say this than claim data is gone from everywhere the moment you ask.';
 
 export interface Subprocessor {
   readonly name: string;
@@ -88,8 +98,9 @@ export const SUBPROCESSORS: readonly Subprocessor[] = [
   },
   {
     name: 'Resend',
-    role: 'Customer-connected email evidence source (read access only)',
-    dataInvolved: 'Message status events for the acknowledgement email your workflow rules reference',
+    role: 'Customer-connected email evidence source (read access only), and our own transactional email sender',
+    dataInvolved:
+      'Message status events for the acknowledgement email your workflow rules reference; the transactional messages we send you (sign-in links, failure notices, deletion confirmations)',
   },
   {
     name: 'Stripe',

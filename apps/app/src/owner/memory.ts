@@ -42,6 +42,11 @@ import {
   OWNERSHIP_TAG,
 } from './cleanup.js';
 import { dispatchQualityRun, type ExecutorAvailability, type QualityRun } from './quality.js';
+import {
+  NOTIFICATION_STUCK_AFTER_SECONDS,
+  NotificationHealthUnavailable,
+  type NotificationHealthPort,
+} from './notifications.js';
 import { AssistantOff, OfflineRunner, type AssistantStatusPort, type MaintenanceRunnerPort } from './runner.js';
 import {
   DEFAULT_ACCESS_MODE,
@@ -123,7 +128,13 @@ export interface MemoryOwnerPortOptions {
   readonly now?: () => Date;
   readonly runner?: MaintenanceRunnerPort;
   readonly assistant?: AssistantStatusPort;
+  /**
+   * Overrides executor availability. Omit it and availability is derived from the runner
+   * port — which is the point: with A08's `D1MaintenanceRunnerPort` bound, "can this
+   * deployment run a test suite" stops being a constant and becomes a real read.
+   */
   readonly executor?: ExecutorAvailability;
+  readonly notifications?: NotificationHealthPort;
   /** Extra inventory items the cleanup preview should find, on top of the built-in ones. */
   readonly extraCleanupItems?: readonly InventoryItem[];
 }
@@ -135,7 +146,8 @@ export class MemoryOwnerDataPort implements OwnerDataPort {
   readonly #now: () => Date;
   readonly #runner: MaintenanceRunnerPort;
   readonly #assistant: AssistantStatusPort;
-  readonly #executor: ExecutorAvailability;
+  readonly #executor: ExecutorAvailability | null;
+  readonly #notifications: NotificationHealthPort;
 
   #controls: Controls = defaultControls();
   #approvals: OwnerApproval[] = [];
@@ -164,12 +176,8 @@ export class MemoryOwnerDataPort implements OwnerDataPort {
     this.#principal = options.principal ?? ANONYMOUS_PRINCIPAL;
     this.#runner = options.runner ?? new OfflineRunner();
     this.#assistant = options.assistant ?? new AssistantOff();
-    this.#executor = options.executor ?? {
-      executor: 'local_runner',
-      available: false,
-      reason:
-        'No test executor is paired with this deployment. A Cloudflare Worker cannot run a test suite itself, so the job waits for a runner.',
-    };
+    this.#executor = options.executor ?? null;
+    this.#notifications = options.notifications ?? new NotificationHealthUnavailable();
     this.#alerts = [
       {
         id: 'alr_1',
@@ -266,8 +274,15 @@ export class MemoryOwnerDataPort implements OwnerDataPort {
       health: this.#health(now),
       customersActive: 0,
       customersTotal: 0,
-      launchVisits: null,
-      launchVisitsObservedAt: null,
+      // Four separate figures, none of them measured on this deployment. A12's visit
+      // counter supplies the first two and the customer/billing reads the last two; until
+      // then every one of them is honestly unknown rather than a confident zero.
+      launch: {
+        totalVisits: { value: null, observedAt: null },
+        adAttributedVisits: { value: null, observedAt: null },
+        qualifiedSignups: { value: null, observedAt: null },
+        payingCustomers: { value: null, observedAt: null },
+      },
       pendingApprovals: this.#approvals.filter((a) => approvalStanding(a, now) === 'usable').length,
       openSupportCases: 0,
       runsLast24h: 0,
@@ -499,7 +514,46 @@ export class MemoryOwnerDataPort implements OwnerDataPort {
       runner: await this.#runner.status(),
       maintenanceJobs: await this.#runner.listJobs(10),
       assistant: await this.#assistant.status(),
+      notifications: await this.#notifications.health({
+        now,
+        stuckAfterSeconds: NOTIFICATION_STUCK_AFTER_SECONDS,
+      }),
     };
+  }
+
+  /**
+   * Queue a typed maintenance job.
+   *
+   * A real action the moment a runner is paired: the job row is written, the runner claims
+   * it on its next poll, and the result comes back. With no runner it is still written —
+   * `awaiting_runner` with the reason — which is a queue, not a pretence.
+   */
+  async enqueueMaintenance(ctx: ActionContext, kind: string): Promise<OwnerWriteResult> {
+    const denied = this.#denied(ctx);
+    if (denied !== null) return denied;
+
+    const outcome = await this.#runner.enqueue({
+      kind,
+      requestedBy: ctx.principal.userId ?? 'unknown',
+      at: ctx.now.toISOString(),
+      idempotencyKey: `${kind}:${ctx.now.toISOString()}:${ctx.principal.userId ?? 'unknown'}`,
+    });
+    if (!outcome.ok) {
+      return outcome.reason === 'kind_not_allowed'
+        ? writeFailed(outcome.detail)
+        : writeBlocked(outcome.detail);
+    }
+    this.#record(ctx, 'owner.maintenance.enqueue', outcome.job.id, {
+      kind,
+      deduplicated: outcome.deduplicated,
+    });
+    if (outcome.job.blockedReason !== null) {
+      return writeBlocked(
+        outcome.job.blockedReason,
+        `Saved as job ${outcome.job.id}. It will run when a runner is connected; nothing has run yet.`,
+      );
+    }
+    return writeOk('/owner/operations', `Queued as job ${outcome.job.id}.`);
   }
 
   async acknowledgeAlert(ctx: ActionContext, alertId: string): Promise<OwnerWriteResult> {
@@ -637,6 +691,29 @@ export class MemoryOwnerDataPort implements OwnerDataPort {
 
   /* ------------------------------------------------------------------ quality */
 
+  /**
+   * Can anything actually run a suite right now?
+   *
+   * Derived from the runner rather than hard-coded, so binding A08's D1 port turns this
+   * from a permanent "no executor" into the truth. A paired, heartbeating runner makes a
+   * dispatch a genuine queue; an absent one keeps the honest `awaiting_runner` with the
+   * runner's own reason attached rather than a sentence this file made up.
+   */
+  async #availability(): Promise<ExecutorAvailability> {
+    if (this.#executor !== null) return this.#executor;
+    const status = await this.#runner.status();
+    if (status.connected) {
+      return { executor: 'local_runner', available: true, reason: null };
+    }
+    return {
+      executor: 'local_runner',
+      available: false,
+      reason:
+        status.unavailableReason ??
+        'No test executor is connected to this deployment. A Cloudflare Worker cannot run a test suite itself, so the job waits for a runner.',
+    };
+  }
+
   async qualityRuns(limit: number): Promise<readonly QualityRun[]> {
     return this.#qualityRuns.slice(0, Math.max(0, limit));
   }
@@ -658,7 +735,7 @@ export class MemoryOwnerDataPort implements OwnerDataPort {
       },
       {
         findLive: async (key) => this.#qualityRuns.find((r) => r.dedupeKey === key) ?? null,
-        availability: async () => this.#executor,
+        availability: () => this.#availability(),
         persist: async (run) => {
           this.#qualityRuns.unshift(run);
         },
@@ -676,6 +753,30 @@ export class MemoryOwnerDataPort implements OwnerDataPort {
     if (result.deduplicated) {
       return {
         ...writeOk('/owner/quality', 'That suite is already queued for this commit, so this is the same request, not a second one.'),
+        runState: result.run.state,
+      };
+    }
+
+    // A queued run is only queued if something was actually asked to run it. The runner
+    // job is the real artefact; the `quality_runs` row is our record of having asked.
+    if (result.run.state === 'queued') {
+      const queued = await this.#runner.enqueue({
+        kind: 'run_test_suite',
+        requestedBy: ctx.principal.userId ?? 'unknown',
+        at: ctx.now.toISOString(),
+        idempotencyKey: result.run.dedupeKey,
+      });
+      if (!queued.ok) {
+        return {
+          ...writeBlocked(
+            queued.detail,
+            'The run is recorded, but nothing has picked it up. Nothing has been tested.',
+          ),
+          runState: 'awaiting_runner',
+        };
+      }
+      return {
+        ...writeOk('/owner/quality', `Queued as maintenance job ${queued.job.id}.`),
         runState: result.run.state,
       };
     }

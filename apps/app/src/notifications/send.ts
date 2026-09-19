@@ -28,7 +28,13 @@
 import { hashToken } from '@verify/security';
 import { newId, ID_PREFIX } from '../lib/ids';
 import { addSecondsIso, toIso } from '../lib/time';
-import type { NotificationState, NotificationTransport, SupportDataPort } from '../support/port';
+import type {
+  NotificationChannel,
+  NotificationState,
+  NotificationTransport,
+  OutboundMessage,
+  SupportDataPort,
+} from '../support/port';
 import { renderNotification, type NotificationTemplate, type TemplateVariables } from './templates';
 
 /* -------------------------------------------------------------------------- */
@@ -46,7 +52,9 @@ export const RECORDED_STATUS = [
   'sending_service_unavailable',
   'send_attempts_exhausted',
   'no_email_transport_configured',
+  'no_telegram_transport_configured',
   'recipient_address_unusable',
+  'refused_by_content_policy',
   'transport_error',
   'suppressed_by_grouping',
   'suppressed_by_preference',
@@ -93,6 +101,10 @@ export const STATUS_STATEMENT: Readonly<Record<RecordedStatus, string>> = {
     'We tried the allowed number of times and the sending service never accepted this message.',
   no_email_transport_configured:
     'No email sending service is configured, so nothing was sent. The message and the reason are recorded, and no part of the service depends on it having gone out.',
+  no_telegram_transport_configured:
+    'The owner’s Telegram channel is not configured, so nothing was sent there. The message and the reason are recorded, and nothing waits on it.',
+  refused_by_content_policy:
+    'This message was refused before it was sent, because its content or its kind is not permitted on the channel it was addressed to.',
   recipient_address_unusable:
     'The sending service would not accept this recipient address, so nothing was sent.',
   transport_error:
@@ -181,14 +193,48 @@ const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 /* -------------------------------------------------------------------------- */
 
 /**
- * Claim the key, render, send with bounded retries, record the outcome.
+ * A channel-agnostic dispatch: an already-rendered message, addressed and keyed.
+ *
+ * `sendNotification` is the email-shaped wrapper around this. Owner alerts on Telegram go
+ * through the same function, which is the point — at-most-once on `notification_key`,
+ * bounded retries, and "accepted, never delivered" are properties of *sending*, not
+ * properties of email, and duplicating them per channel is how one channel quietly loses
+ * one of them.
+ */
+export interface DispatchRequest {
+  readonly notificationKey: string;
+  readonly workspaceId: string | null;
+  readonly channel: NotificationChannel;
+  /**
+   * The addressee, hashed before storage. An email address, or the owner's chat
+   * reference. Never stored in the clear.
+   */
+  readonly recipient: string;
+  /** Recorded verbatim in the `template` column. */
+  readonly template: string;
+  readonly message: OutboundMessage;
+  /** Validates the addressee for this channel. Defaults to "non-empty". */
+  readonly recipientIsUsable?: (recipient: string) => boolean;
+  readonly suppress?: Extract<
+    RecordedStatus,
+    'suppressed_by_grouping' | 'suppressed_by_preference'
+  >;
+  /** Status recorded when no transport is configured. Names the missing channel. */
+  readonly noTransportStatus?: Extract<
+    RecordedStatus,
+    'no_email_transport_configured' | 'no_telegram_transport_configured'
+  >;
+}
+
+/**
+ * Claim the key, send with bounded retries, record the outcome.
  *
  * Never throws. Every exit path returns a `SendResult` and leaves exactly one row in
  * `notification_deliveries` for this key.
  */
-export async function sendNotification<T extends NotificationTemplate>(
+export async function dispatchNotification(
   deps: SendDependencies,
-  request: SendRequest<T>,
+  request: DispatchRequest,
 ): Promise<SendResult> {
   const now = deps.now ?? (() => new Date());
   const wait = deps.wait ?? realWait;
@@ -197,14 +243,14 @@ export async function sendNotification<T extends NotificationTemplate>(
   let claim;
   try {
     const recipientHash = await hashToken(
-      request.recipientEmail.trim().toLowerCase(),
+      request.recipient.trim().toLowerCase(),
       'notification-recipient',
     );
     claim = await deps.port.claimNotification({
       id: newId(ID_PREFIX.notification),
       workspaceId: request.workspaceId,
       notificationKey: request.notificationKey,
-      channel: 'email',
+      channel: request.channel,
       recipientHash,
       template: request.template,
       createdAt,
@@ -247,17 +293,18 @@ export async function sendNotification<T extends NotificationTemplate>(
       request.notificationKey,
       'suppressed',
       0,
-      'no_email_transport_configured',
+      request.noTransportStatus ?? 'no_email_transport_configured',
       now,
     );
   }
 
-  const recipient = request.recipientEmail.trim();
-  if (!EMAIL_SHAPE.test(recipient)) {
+  const recipient = request.recipient.trim();
+  const usable = request.recipientIsUsable ?? ((value: string) => value.length > 0);
+  if (!usable(recipient)) {
     return settle(deps, request.notificationKey, 'failed', 0, 'recipient_address_unusable', now);
   }
 
-  const rendered = renderNotification(request.template, request.vars);
+  const outbound: OutboundMessage = { ...request.message, to: recipient };
 
   let attempt = 0;
   let last: RecordedStatus = 'send_attempts_exhausted';
@@ -266,12 +313,7 @@ export async function sendNotification<T extends NotificationTemplate>(
     attempt += 1;
     let result;
     try {
-      result = await deps.transport.send({
-        to: recipient,
-        subject: rendered.subject,
-        text: rendered.text,
-        html: rendered.html,
-      });
+      result = await deps.transport.send(outbound);
     } catch {
       last = 'transport_error';
       if (attempt >= MAX_SEND_ATTEMPTS) break;
@@ -290,6 +332,35 @@ export async function sendNotification<T extends NotificationTemplate>(
   }
 
   return settle(deps, request.notificationKey, 'failed', attempt, last, now);
+}
+
+/**
+ * Send one of the twelve customer templates by email.
+ *
+ * A thin wrapper: it renders, then hands the rendered message to `dispatchNotification`.
+ * Every guarantee lives in that function, so email and Telegram cannot drift apart.
+ */
+export async function sendNotification<T extends NotificationTemplate>(
+  deps: SendDependencies,
+  request: SendRequest<T>,
+): Promise<SendResult> {
+  const rendered = renderNotification(request.template, request.vars);
+  return dispatchNotification(deps, {
+    notificationKey: request.notificationKey,
+    workspaceId: request.workspaceId,
+    channel: 'email',
+    recipient: request.recipientEmail,
+    template: request.template,
+    message: {
+      to: request.recipientEmail,
+      subject: rendered.subject,
+      text: rendered.text,
+      html: rendered.html,
+    },
+    recipientIsUsable: (value) => EMAIL_SHAPE.test(value),
+    ...(request.suppress === undefined ? {} : { suppress: request.suppress }),
+    noTransportStatus: 'no_email_transport_configured',
+  });
 }
 
 function asRecordedStatus(value: string | null): RecordedStatus | null {

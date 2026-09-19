@@ -42,6 +42,35 @@ const RULES = [
 /** Lines carrying this marker are intentional fixtures and are exempt. */
 const ALLOW_MARKER = 'secret-scan:allow';
 
+/**
+ * Historical blobs known to contain synthetic fixtures, pinned by full SHA.
+ *
+ * `secret-scan:allow` cannot help here: a marker added today does not change a blob
+ * that was committed yesterday, and the only other ways to make `--history` green are
+ * rewriting public history — which this project forbids — or deleting the history step
+ * from CI, which would remove the one control that catches a credential committed and
+ * then quietly deleted. That is the trade being avoided: a check that is permanently red
+ * gets switched off, and a switched-off check protects nothing.
+ *
+ * Pinning the full SHA is what keeps this honest. A blob's SHA is its content, so these
+ * six entries exempt exactly six known files and nothing else. A new historical hit — or
+ * an edit to any of these files — produces a different SHA and still fails the scan. The
+ * list cannot rot into a blanket exemption.
+ *
+ * Every entry was inspected before being added. All six are test or synthetic-demo
+ * fixtures for Stripe webhook signing, none was ever a live credential, and the fixtures
+ * in the current tree have since been rewritten to assemble at runtime so no NEW blob of
+ * this shape can be created.
+ */
+const ALLOWED_HISTORY_BLOBS = new Map([
+  ['7ef9fb239981c51cfab0497ab3abd54caaa7cdd3', 'syntheticPort.ts — demo signing-key hint, never a real secret'],
+  ['720b3586c5ebf6681c087f8188f7124f227178d2', 'webhook-route.test.ts — wrong-secret fixture for a rejection case'],
+  ['ef02dcd65deb70ed9263067e0fb1df78753a75ec', 'stripe.ts — the removed DECOY_SECRET constant (finding F13)'],
+  ['b649bc0c6ce7340eac043c1407360985b1e0e5ae', 'billing/harness.ts — test webhook secret'],
+  ['fec29ff953f114ec6479c8a9d6359ceb7861962d', 'billing/webhooks.test.ts — wrong-secret fixture'],
+  ['966d4b11d18203124eecdc2464233c671cd7214c', 'webhook-route.test.ts — earlier revision of the same fixture'],
+]);
+
 const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', 'build', 'coverage', '.wrangler', '.turbo']);
 const BINARY_EXT = new Set([
   '.png', '.jpg', '.jpeg', '.gif', '.webp', '.ico', '.pdf', '.zip', '.gz', '.woff', '.woff2',
@@ -134,6 +163,7 @@ function walk(dir) {
 for (const p of extraPaths) walk(p);
 
 // 3. Full history: every blob ever committed.
+let exemptedBlobs = 0;
 if (scanHistory) {
   let objects = '';
   try {
@@ -150,6 +180,10 @@ if (scanHistory) {
     if (!path || seen.has(sha)) continue;
     seen.add(sha);
     if (BINARY_EXT.has(extname(path).toLowerCase())) continue;
+    if (ALLOWED_HISTORY_BLOBS.has(sha)) {
+      exemptedBlobs += 1;
+      continue;
+    }
     try {
       const type = git(['cat-file', '-t', sha]).trim();
       if (type !== 'blob') continue;
@@ -166,6 +200,13 @@ if (findings.length === 0) {
   console.log(
     `scan:secrets — clean. ${tracked.length} tracked files${extraPaths.length ? `, extra paths: ${extraPaths.join(', ')}` : ''}${scanHistory ? ', full history' : ''}.`,
   );
+  if (exemptedBlobs > 0) {
+    // Printed on every clean run on purpose. An exemption nobody sees is an exemption
+    // nobody reviews, and that is how an allowlist quietly becomes a blind spot.
+    console.log(
+      `  ${exemptedBlobs} historical blob(s) skipped by the pinned allowlist — see ALLOWED_HISTORY_BLOBS.`,
+    );
+  }
   process.exit(0);
 }
 

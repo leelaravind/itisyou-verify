@@ -33,6 +33,7 @@ import type { OwnerApproval } from './approvals.js';
 import type { QualityRun } from './quality.js';
 import type { CleanupInventory, CleanupReport } from './cleanup.js';
 import type { AssistantStatus, RunnerStatus, RunnerJobView } from './runner.js';
+import type { NotificationHealth } from './notifications.js';
 
 /* ------------------------------------------------------------------ write results */
 
@@ -84,15 +85,40 @@ export interface ServiceHealthView {
   readonly observedAt: string | null;
 }
 
+/**
+ * The launch funnel, as four separate numbers that are never added together.
+ *
+ * The founder was explicit about this and the interface enforces it rather than relying on
+ * whoever writes the next page: **a visit is not interest, and interest is not a customer.**
+ * A single "launch" figure would let the largest and least meaningful of the four stand in
+ * for the business, which is exactly the flattering mistake this product exists to refuse.
+ *
+ * Every one of them is `number | null`, and `null` renders as "unknown" — never as zero.
+ */
+export interface LaunchMetric {
+  readonly value: number | null;
+  readonly observedAt: string | null;
+}
+
+export interface LaunchMetrics {
+  /** Everyone who arrived, excluding our own traffic and suspected bots. */
+  readonly totalVisits: LaunchMetric;
+  /** Of those, the ones carrying a campaign attribution. A subset, not a separate total. */
+  readonly adAttributedVisits: LaunchMetric;
+  /** People who created a workspace and connected something. Interest, not revenue. */
+  readonly qualifiedSignups: LaunchMetric;
+  /** People who are actually paying. The only one of the four that is income. */
+  readonly payingCustomers: LaunchMetric;
+}
+
 export interface OverviewView {
   readonly finance: FinanceInputs;
   readonly health: readonly ServiceHealthView[];
   /** Paying, active workspaces. Null when the figure has not been computed. */
   readonly customersActive: number | null;
   readonly customersTotal: number | null;
-  /** External visits since launch. Internal and suspected-bot traffic is excluded. */
-  readonly launchVisits: number | null;
-  readonly launchVisitsObservedAt: string | null;
+  /** The four launch numbers, kept apart on purpose. See {@link LaunchMetrics}. */
+  readonly launch: LaunchMetrics;
   readonly pendingApprovals: number;
   readonly openSupportCases: number | null;
   readonly runsLast24h: number | null;
@@ -255,6 +281,8 @@ export interface OperationsView {
   readonly runner: RunnerStatus;
   readonly maintenanceJobs: readonly RunnerJobView[];
   readonly assistant: AssistantStatus;
+  /** Messages that claimed a row and never reported an outcome. The owner is the retry. */
+  readonly notifications: NotificationHealth;
 }
 
 /* ----------------------------------------------------------------------- audit */
@@ -310,6 +338,12 @@ export interface OwnerDataPort {
   /* operations */
   operations(now: Date): Promise<OperationsView>;
   acknowledgeAlert(ctx: ActionContext, alertId: string): Promise<OwnerWriteResult>;
+  /**
+   * Queue a typed maintenance job. `kind` is one of A08's closed vocabulary and never a
+   * command — the runner maps a kind to a compiled-in recipe, and nothing in this call
+   * becomes part of a shell string.
+   */
+  enqueueMaintenance(ctx: ActionContext, kind: string): Promise<OwnerWriteResult>;
 
   /* controls */
   controls(): Promise<Controls>;
