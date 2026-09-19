@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="ITISYOU Verify">
+  <title>ITISYOU Verify</title>
+  <!--
+    A tick held inside brackets: the claim is only worth something within the bounds
+    we can actually evidence. Drawn with heavy strokes and no fine detail so it stays
+    legible at 16px in a browser tab.
+  -->
+  <rect width="32" height="32" rx="7" fill="#12312A" />
+  <g fill="none" stroke="#7FD1B9" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+    <!-- left bracket -->
+    <path d="M10 8 H7 V24 H10" />
+    <!-- right bracket -->
+    <path d="M22 8 H25 V24 H22" />
+    <!-- the tick -->
+    <path d="M12 16.4 L15 19.4 L20.5 12.5" />
+  </g>
+</svg>
