@@ -12,6 +12,13 @@ import { sha256Hex, stableStringify } from '@verify/security';
 import { auditEvents } from '../db/index.js';
 import type { Db } from '../db/d1.js';
 import { newId } from '../lib/ids.js';
+import { approvalStanding, consumeApproval, type OwnerApproval } from '../owner/approvals.js';
+import {
+  createD1ReleaseApprovalAuthority,
+  type ReleaseApprovalAuthority,
+  type ReleaseApprovalRejection,
+  type ReleasePayload,
+} from './approvalAuthority.js';
 import {
   APPROVAL_REQUIRED_KINDS,
   CODING_AGENT_KINDS,
@@ -37,6 +44,14 @@ export type EnqueueRefusal =
   | { readonly code: 'INVALID_KIND'; readonly detail: string }
   | { readonly code: 'INVALID_PAYLOAD'; readonly detail: string }
   | { readonly code: 'APPROVAL_REQUIRED'; readonly detail: string }
+  /** The caller bound one approval id while the payload names another. */
+  | { readonly code: 'APPROVAL_MISMATCH'; readonly detail: string }
+  /** The named approval is absent, not standing, or does not cover this job. */
+  | {
+      readonly code: 'APPROVAL_INVALID';
+      readonly reason: ReleaseApprovalRejection;
+      readonly detail: string;
+    }
   | { readonly code: 'BRIEF_NOT_REVIEWED'; readonly detail: string };
 
 export type EnqueueResult =
@@ -47,6 +62,8 @@ export type EnqueueResult =
       readonly payloadHash: string;
       /** Plain language for the UI when the job is queued rather than dispatched. */
       readonly queuedBecause: string | null;
+      /** When the bound approval was spent, for approval-required kinds; `null` otherwise. */
+      readonly approvalConsumedAt: string | null;
     }
   | { readonly ok: false; readonly refusal: EnqueueRefusal };
 
@@ -57,9 +74,15 @@ export interface EnqueueParams {
   readonly requestedBy: string;
   readonly now: string;
   readonly priority?: number;
-  /** A granted approval whose canonical hash the caller has already bound. */
+  /**
+   * The approval that authorises an approval-required kind. It is loaded, checked for
+   * standing and coverage, and **spent** here, before the job row is written. Supplying
+   * the id is a claim; this function is where the claim is tested.
+   */
   readonly approvalId?: string | null;
   readonly requestId?: string;
+  /** The approvals store. Defaults to the live D1 authority over `db`; tests inject a wrapper. */
+  readonly approvals?: ReleaseApprovalAuthority;
 }
 
 /**
@@ -87,14 +110,27 @@ export async function enqueueJob(params: EnqueueParams): Promise<EnqueueResult> 
   const payload = validation.payload;
   const kind = payload.kind;
 
-  if (APPROVAL_REQUIRED_KINDS.has(kind) && (params.approvalId ?? null) === null) {
-    return {
-      ok: false,
-      refusal: {
-        code: 'APPROVAL_REQUIRED',
-        detail: `${kind} cannot be queued without a bound approval`,
-      },
-    };
+  // An approval-required kind is refused unless a real, standing approval that covers
+  // exactly this job is named. Nothing is spent yet: every refusal below this point must
+  // leave the owner's approval intact, so consumption is the last step before the write.
+  let approvalToSpend: OwnerApproval | null = null;
+  let authority: ReleaseApprovalAuthority | null = null;
+  if (APPROVAL_REQUIRED_KINDS.has(kind)) {
+    if (payload.kind !== 'execute_approved_release') {
+      // A kind added to APPROVAL_REQUIRED_KINDS without a binding here has no way to be
+      // authorised, and must not fall through to the unbound path.
+      return {
+        ok: false,
+        refusal: {
+          code: 'INVALID_KIND',
+          detail: `${kind} is approval-required but has no approval binding; it cannot be queued`,
+        },
+      };
+    }
+    authority = params.approvals ?? createD1ReleaseApprovalAuthority(params.db);
+    const gate = await releaseApprovalGate(params, payload, authority);
+    if (!gate.ok) return { ok: false, refusal: gate.refusal };
+    approvalToSpend = gate.approval;
   }
 
   // A coding-agent job carries a brief. A brief nobody has read is not a job; it is a
@@ -115,6 +151,33 @@ export async function enqueueJob(params: EnqueueParams): Promise<EnqueueResult> 
   const availability = await runnerAvailability(params.db, params.now);
   const state: MaintenanceJobState = availability.online ? 'awaiting_runner' : 'queued';
 
+  // Spend the approval BEFORE the job row exists. `meta.changes === 1` is the permission;
+  // a double-submit, a retried request or a racing caller finds zero rows and stops here
+  // with no job. A crash between this statement and the insert leaves an approval spent on
+  // a job that never existed — visible, recoverable by granting another, and wrong in the
+  // safe direction. The reverse order would leave a spendable approval beside a queued
+  // release, which is the one combination that lets one authorisation act twice.
+  let approvalConsumedAt: string | null = null;
+  if (approvalToSpend !== null && authority !== null) {
+    const spent = await consumeApproval(authority.claims, {
+      approvalId: approvalToSpend.id,
+      at: params.now,
+    });
+    if (!spent) {
+      return {
+        ok: false,
+        refusal: {
+          code: 'APPROVAL_INVALID',
+          reason: 'already_consumed',
+          detail:
+            `approval ${approvalToSpend.id} was spent by another request between being checked and being ` +
+            'claimed. It authorises one action once, so this attempt stops here and no job has been queued.',
+        },
+      };
+    }
+    approvalConsumedAt = params.now;
+  }
+
   const jobId = newId('mjb');
   const payloadHash = await sha256Hex(stableStringify(payload));
   await maintenanceJobs.insert(params.db, {
@@ -134,7 +197,14 @@ export async function enqueueJob(params: EnqueueParams): Promise<EnqueueResult> 
     action: 'maintenance.job.enqueued',
     target: jobId,
     at: params.now,
-    metadata: { typed_kind: kind, state, payload_hash: payloadHash.slice(0, 16) },
+    metadata: {
+      typed_kind: kind,
+      state,
+      payload_hash: payloadHash.slice(0, 16),
+      ...(approvalToSpend === null || approvalConsumedAt === null
+        ? {}
+        : { approval_id: approvalToSpend.id, approval_consumed_at: approvalConsumedAt }),
+    },
     ...(params.requestId === undefined ? {} : { requestId: params.requestId }),
   });
 
@@ -144,7 +214,83 @@ export async function enqueueJob(params: EnqueueParams): Promise<EnqueueResult> 
     state,
     payloadHash,
     queuedBecause: availability.online ? null : availability.reason,
+    approvalConsumedAt,
   };
+}
+
+/**
+ * Steps 1-3 of authorising a release: present, matching, loaded, standing, covering. Pure
+ * with respect to the approval — nothing here spends it. Step 4 is in `enqueueJob`, after
+ * every other refusal, immediately before the insert.
+ */
+async function releaseApprovalGate(
+  params: EnqueueParams,
+  payload: ReleasePayload,
+  authority: ReleaseApprovalAuthority,
+): Promise<
+  | { readonly ok: true; readonly approval: OwnerApproval }
+  | { readonly ok: false; readonly refusal: EnqueueRefusal }
+> {
+  const supplied = params.approvalId ?? null;
+  if (supplied === null) {
+    return {
+      ok: false,
+      refusal: {
+        code: 'APPROVAL_REQUIRED',
+        detail: `${payload.kind} cannot be queued without a bound approval`,
+      },
+    };
+  }
+  if (supplied !== payload.approval_id) {
+    return {
+      ok: false,
+      refusal: {
+        code: 'APPROVAL_MISMATCH',
+        detail: `the payload names approval ${payload.approval_id} but the caller bound ${supplied}; one job carries one approval`,
+      },
+    };
+  }
+
+  const approval = await authority.load(supplied);
+  if (approval === null) {
+    return {
+      ok: false,
+      refusal: {
+        code: 'APPROVAL_INVALID',
+        reason: 'not_found',
+        detail: `there is no approval with id ${supplied}, so nothing authorises this job`,
+      },
+    };
+  }
+
+  const standing = approvalStanding(approval, new Date(params.now));
+  if (standing !== 'usable' || approval.status !== 'granted') {
+    const reason: ReleaseApprovalRejection =
+      standing === 'used'
+        ? 'already_consumed'
+        : standing === 'withdrawn'
+          ? 'withdrawn'
+          : standing === 'expired'
+            ? 'expired'
+            : 'status_not_granted';
+    return {
+      ok: false,
+      refusal: {
+        code: 'APPROVAL_INVALID',
+        reason,
+        detail: `approval ${approval.id} is ${standing === 'usable' ? approval.status : standing} and does not authorise this job`,
+      },
+    };
+  }
+
+  const coverage = await authority.covers(approval, payload);
+  if (!coverage.covers) {
+    return {
+      ok: false,
+      refusal: { code: 'APPROVAL_INVALID', reason: coverage.reason, detail: coverage.detail },
+    };
+  }
+  return { ok: true, approval };
 }
 
 function clampPriority(value: number | undefined): number {

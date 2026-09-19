@@ -115,6 +115,7 @@ import { auditEvents, settings } from './audit';
 import { orders as ordersRepo, refunds as refundsRepo, subscriptions } from './commerce';
 import { connections } from './connections';
 import type { Db } from './d1';
+import { moneyPathReadiness } from '../money/mount';
 import { sessions } from './index';
 import { runs } from './runs';
 
@@ -137,6 +138,31 @@ const ADS_AUTHORISED_BUT_UNSUBMITTED =
   'approved recorded against it. Nothing has been created at an advertising platform, because no advertising ' +
   'provider is connected to this deployment — no money can be spent by this action. Submitting is a separate ' +
   'step that needs a connected platform.';
+
+/**
+ * Why the ordinary settings save refuses one key.
+ *
+ * `owner.budget_limits` is the only entry in `SETTINGS_KEY` that names an amount of money
+ * the platform is allowed to spend — including `platform:advertising`, which is the owner's
+ * reserved £15 allocation. `owner/settings.ts` already documents it as "bound to an
+ * approval… it does not share the ordinary settings save path", but nothing enforced that:
+ * the key sat in the same allowlist as the business address, so any caller of
+ * `writeSetting` — a new route, a future form, a mistake — could raise a ceiling with no
+ * approval, no consumption and no audit fact beyond "a setting was written".
+ *
+ * There is today **no** approval-bound path that writes this key: `budget_limit_change` is
+ * a declared `OwnerActionType` with a canonical payload and a maximum check, and it has no
+ * action behind it. So the honest state is that a ceiling cannot be changed from the panel
+ * at all, and this refusal is what makes that true rather than merely unrouted. Failing
+ * closed is the correct direction for a control that governs spending: an owner who cannot
+ * raise a ceiling loses nothing that money depends on, and one who can raise it silently
+ * loses the only gate on it.
+ */
+const BUDGET_LIMIT_NEEDS_APPROVAL =
+  'A spending ceiling cannot be changed through the ordinary settings save — it is the one setting on this page ' +
+  'that decides how much money the platform may spend, so it needs an approval granted for that exact change. ' +
+  'Nothing has been saved and the current ceilings still stand. There is no approval-bound path for this on ' +
+  'this deployment yet, so today the answer is that a ceiling cannot be raised from the panel at all.';
 
 /** Cleanup categories are scanned here; a category with no scanner returns nothing at all. */
 const CLEANUP_STALE_QUALITY_RUN_SECONDS = 90 * 24 * 60 * 60;
@@ -282,6 +308,10 @@ export class D1OwnerDataPort implements OwnerDataPort {
         unknownHealth('database', 'No health probe is wired to this deployment.'),
         unknownHealth('stripe', 'Commerce is not configured on this deployment.'),
         unknownHealth('resend', 'Email is not configured on this deployment.'),
+        // The one row here that is a measurement rather than an absence. It is on the
+        // overview because this is the health list the owner's pages actually render —
+        // `OperationsView.health` is rendered by nothing today, which is worth knowing.
+        this.#moneyPathHealth(now),
       ],
       customersActive: customers.active,
       customersTotal: customers.total,
@@ -353,6 +383,7 @@ export class D1OwnerDataPort implements OwnerDataPort {
     return Number(row?.n ?? 0);
   }
 
+  /** tenant-scope:exempt platform-wide owner metric across every workspace. */
   async #openSupportCases(): Promise<number | null> {
     const row = await this.#db
       .prepare(
@@ -569,6 +600,7 @@ export class D1OwnerDataPort implements OwnerDataPort {
       });
     }
 
+    // tenant-scope:exempt owner exception queue; rows carry their own workspace_id.
     const escalated = await this.#db
       .prepare(
         `SELECT id, workspace_id, subject, updated_at FROM support_cases
@@ -1061,6 +1093,7 @@ export class D1OwnerDataPort implements OwnerDataPort {
       health: [
         unknownHealth('worker', 'No health probe is wired to this deployment.'),
         unknownHealth('database', 'No health probe is wired to this deployment.'),
+        this.#moneyPathHealth(now),
       ],
       deployments: [],
       alerts: [],
@@ -1076,6 +1109,53 @@ export class D1OwnerDataPort implements OwnerDataPort {
   }
 
   /**
+   * Can this deployment actually take money and admit an event?
+   *
+   * `moneyPathReadiness` documented itself as "used by `/health` and by the owner's
+   * operations view". It was used by neither — the third instance this week of correct,
+   * tested code that nothing calls, and the second where the code's own comment named a
+   * caller that did not exist. This is the half of that claim I own.
+   *
+   * It is a **configuration read, not a probe**: it says what the running Worker is able to
+   * do, which is a different and more reliable fact than whether a request succeeded a
+   * moment ago. So `observedAt` is stamped — this was read now — while the state is never
+   * `ok` with a secret missing. An owner looking at this page after `wrangler secret put`
+   * should see the change; an owner looking at it before should not see "fine".
+   */
+  #moneyPathHealth(now: Date): ServiceHealthView {
+    const readiness = moneyPathReadiness(this.#env as never);
+    if (readiness.missingSecrets.length === 0) {
+      return {
+        component: 'money_path',
+        state: 'ok',
+        detail:
+          'The signed-event intake is mounted, signatures can be verified and payment is configured.',
+        observedAt: nowIso(now),
+      };
+    }
+    // Which capability is lost is the part an owner can act on; the list of names is not.
+    const lost: string[] = [];
+    if (!readiness.canVerifySignatures) {
+      lost.push(
+        'no signed event can be verified, so the intake answers 503 to every customer request',
+      );
+    }
+    if (!readiness.canTakePayment) {
+      lost.push('nobody can hold a subscription, so no workspace can be admitted');
+    }
+    return {
+      component: 'money_path',
+      // `degraded`, not `down`: the route is mounted and answers correctly — it refuses.
+      state: 'degraded',
+      detail:
+        `The intake is mounted and answering, but ${lost.join(', and ')}. ` +
+        `Missing: ${readiness.missingSecrets.join(', ')}. These are provisioned with ` +
+        '`wrangler secret put` per environment and cannot be set from this panel.',
+      observedAt: nowIso(now),
+    };
+  }
+
+  /**
    * Deliveries that claimed a row and never reported an outcome.
    *
    * Messages are sent at most once by design, so a send interrupted halfway is never
@@ -1085,6 +1165,8 @@ export class D1OwnerDataPort implements OwnerDataPort {
   async #notificationHealth(now: Date): Promise<NotificationHealth> {
     const stuckAfterSeconds = 15 * 60;
     const cutoff = addSecondsIso(now, -stuckAfterSeconds);
+    // tenant-scope:exempt owner health metric across every workspace; each stuck row
+    // carries its own workspace_id.
     const stuck = await this.#db
       .prepare(
         `SELECT id, workspace_id, template, channel, attempt_count, provider_status, created_at
@@ -1102,6 +1184,7 @@ export class D1OwnerDataPort implements OwnerDataPort {
         provider_status: string | null;
         created_at: string;
       }>();
+    // tenant-scope:exempt platform-wide owner metric across every workspace.
     const inFlight = await this.#db
       .prepare(
         "SELECT COUNT(*) AS n FROM notification_deliveries WHERE state = 'pending' AND created_at > ?",
@@ -1354,6 +1437,7 @@ export class D1OwnerDataPort implements OwnerDataPort {
   ): Promise<OwnerWriteResult> {
     const allowed = new Set<string>(Object.values(SETTINGS_KEY));
     if (!allowed.has(key)) return writeFailed('That is not a setting this panel owns.');
+    if (key === SETTINGS_KEY.budgetLimits) return writeFailed(BUDGET_LIMIT_NEEDS_APPROVAL);
     try {
       JSON.parse(valueJson);
     } catch {

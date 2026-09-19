@@ -27,6 +27,7 @@ export const FAQ_ENTRIES: readonly FaqEntry[] = [
     id: 'evidence-source-down',
     question: 'What if the evidence source is down?',
     answer:
+      // claim-scan:allow we retry OUR OWN check, which is the opposite of fixing their system
       "If HubSpot or Resend is unreachable when we try to check, we don't guess and we don't report a pass. The run shows as unverified with the reason recorded, and we retry automatically within a bounded number of attempts. A missed deadline only counts as failed if the evidence sources were actually reachable at the time — a provider outage never turns into a false failure.",
   },
   {

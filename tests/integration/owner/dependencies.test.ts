@@ -298,10 +298,20 @@ describe('restoring a deployment names what is actually missing', () => {
       confirm: 'restore',
     });
     const body = await response.text();
-    expect(body).toContain('data-dependency="true"');
-    expect(body).toMatch(/does not carry one/i);
-    expect(body).toMatch(/wrangler rollback/);
-    expect(body).toMatch(/nothing is pretending to have been/i);
+
+    // This case used to assert that a `cleanup_execute` approval got the owner all the way
+    // to "everything checkable has been checked". It did — and that was the defect, not the
+    // proof. `approvalStanding` only asks whether a row is granted and unexpired, so an
+    // approval the owner granted to delete some stale rows read as authorisation to replace
+    // the running code every customer is served. The gap the page names is now the honest
+    // one: there is no approval type that binds to a deployment at all.
+    expect(body).toMatch(/does not authorise replacing the running code/i);
+    expect(body).toMatch(/missing action type/i);
+    expect(body).not.toMatch(/deployment id is recorded/i);
+
+    // And the approval the owner actually granted is still theirs to use on the thing they
+    // granted it for.
+    expect((await h.port.approvals())[0]?.status).toBe('granted');
   });
 
   it('OWNER-243 the restore form asks for the approval rather than discovering it too late', async () => {

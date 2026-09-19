@@ -45,6 +45,7 @@ import type {
   EmailEventEvidence,
   EmailStatus,
   EvidenceGap,
+  EvidenceTransport,
 } from '@verify/contracts';
 import {
   ConnectorTransportError,
@@ -426,6 +427,9 @@ export function normaliseResendEvent(
   const evidence: EmailEventEvidence = {
     kind: 'email_event',
     origin: ctx.origin,
+    // See the matching comment in `hubspot.ts`: absent stays absent rather than defaulted,
+    // so an explicit `'unknown'` is never confused with a connector that never checked.
+    ...(ctx.transport === undefined ? {} : { transport: ctx.transport }),
     provider: RESEND_PROVIDER,
     provider_account_id: ctx.provider_account_id,
     message_id: messageId,
@@ -501,7 +505,7 @@ const RESEND_CAPABILITIES: ConnectorCapabilities = Object.freeze({
 // ---------------------------------------------------------------------------
 
 type ReadOutcome =
-  | { readonly kind: 'found'; readonly payload: unknown }
+  | { readonly kind: 'found'; readonly payload: unknown; readonly transport: EvidenceTransport }
   | { readonly kind: 'absent'; readonly gap: EvidenceGap }
   | { readonly kind: 'error'; readonly error: ClassifiedError };
 
@@ -693,6 +697,7 @@ export class ResendConnector implements WebhookCapableConnector {
       {
         provider_account_id: accountId,
         origin: 'provider_readback',
+        transport: outcome.transport,
         observedAt: input.now,
       },
     );
@@ -769,7 +774,7 @@ export class ResendConnector implements WebhookCapableConnector {
         error: classifyResendError({ status: response.status, bodyText: response.bodyText, now }),
       };
     }
-    return { kind: 'found', payload: body };
+    return { kind: 'found', payload: body, transport: response.transport };
   }
 
   /**
@@ -829,6 +834,14 @@ export class ResendConnector implements WebhookCapableConnector {
         // The signature proves Resend sent this, so it is independent evidence — but only
         // of what the payload says, and only for the connection whose secret verified it.
         origin: 'provider_webhook',
+        // Deliberately not set. A valid Svix signature proves the bytes were signed with
+        // the shared secret and are fresh and unreplayed — it does not prove this call
+        // arrived over a real inbound HTTP request rather than being constructed in-process
+        // (every webhook unit test computes a genuinely valid signature over a synthetic
+        // event, which is exactly the laundering this field exists to prevent). Only the
+        // route that actually receives the request from the platform
+        // (`apps/app/src/routes/webhooks/resend.ts`) knows that, so `transport` for a
+        // webhook must be decided there, not here. Left absent, this reads as `unknown`.
         observedAt: input.now,
       },
     );

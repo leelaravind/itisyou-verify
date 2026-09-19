@@ -317,6 +317,12 @@ owner and a dated reason in the ledger's `status`, and it counts zero.
 
 `--strict` exits 1 while any of these stand. 56 before this pass, 53 after.
 
+**A11b, reading at `25a41fc` (§f, §g below):** `--strict` reconciliation defects now 49 (down
+from the 53 above, but a different pass, on a tree that gained ~150 files in between — not a
+like-for-like improvement, just the current count). Plain-mode ledger integrity failures are
+0, down from 2 (`API-312`, `API-313`), fixed in §g. Both figures are readings of the working
+tree at that commit, not gate numbers; see §2b.
+
 ### a. The `SEC-` prefix — ruled, and applied
 
 **Ruling: `SEC` joins the allowlist, but not as a blanket prefix mapping.**
@@ -448,6 +454,71 @@ A07 reported them missing. They are present, at `tests/e2e/ads.spec.ts:48` and `
 `status: "skipped"` and `countable: true`. They do not count **because they are skipped**,
 not because they are absent — they will count the moment the automation identity is seeded
 in the run.
+
+### f. Nine new duplicate ids, introduced after `66b8d38` and not in §6b above
+
+A11b (this pass), reading at `25a41fc`. §6b's "36 ids in 6 groups" table was built against
+`66b8d38`. Commit `5b7c450` then added four new test files in one 310-file, 30k-line
+change — `tests/integration/customer/colour-alone.test.ts`, `tests/integration/customer/
+states.test.ts`, `tests/integration/support/notification-wiring.test.ts` and
+`tests/unit/support/notification-transport.test.ts` did not exist at `66b8d38` (`git show
+66b8d38:<path>` is `fatal: … exists on disk, but not in '66b8d38'` for each). Two of them
+collide with the other two on `CUST` numbers that were free when §6b was written. **These
+are not the "eight self-collisions" from the roster brief** — verified against content and
+each file's own header, not assumed: they are two unrelated feature pairs, so they need
+their owning agents, not a unilateral rename.
+
+Both `colour-alone.test.ts` and `states.test.ts` open with a doc comment declaring their own
+range (`CUST-360..CUST-363`, `CUST-370..CUST-376`) — a deliberate reservation. Neither
+`notification-wiring.test.ts` nor `notification-transport.test.ts` declares a range
+anywhere; they used the numbers ad hoc. On that basis the customer-UI files keep the ids and
+the notification files move — the same rule §6b already used ("the id stays where it was
+declared as a range; the other side moves").
+
+| Ids                    | Keeps the id                                                        | Moves                                                | Proposed new ids     | Needs               |
+| ---------------------- | -------------------------------------------------------------------- | ----------------------------------------------------- | --------------------- | ------------------- |
+| `CUST-360`–`363` (4)   | `integration/customer/colour-alone.test.ts` (declares the range)     | `integration/support/notification-wiring.test.ts`      | `CUST-500`–`503`      | owner of `notification-wiring.test.ts` |
+| `CUST-370`–`374` (5)   | `integration/customer/states.test.ts` (declares the range, through `CUST-376`) | `unit/support/notification-transport.test.ts` | `CUST-510`–`514`      | owner of `notification-transport.test.ts` |
+
+`CUST-500`–`503` and `CUST-510`–`514` are free in both the tree and the ledger as of
+`25a41fc` (checked against every `CUST-\d{3}` token in `tests/` and every `CUST-*` id in
+`docs/test-cases.json`). Neither pair is in the ledger yet (both are "in tree, not ledger"),
+so no ledger entry needs renumbering to match — only the test source, by its owner.
+
+This makes the honest total **10 duplicate ids currently in the tree** (these 9, plus the
+`A-20` group `§6b` already tracks), not the 8-self/5-other split the roster brief assumed.
+The self-collision side of that brief's arithmetic is not stale in a way that leaves work
+undone — §6b's own 4 self-collision groups (21 ids) are already fixed in the tree (verified:
+`AUTH-314`–`317`, `AUTH-332`–`335`, `AUTH-406`–`409`, `AUTH-412`/`413`, `SEC-231`–`237` all
+present, no `AUTH-3xx`/`SEC-201`–`207` duplicates remain) — it is short by these 9, which
+did not exist when it was written.
+
+### g. Ledger drift from A02's unprompted rename — fixed here
+
+§6b flagged that A02 renamed `API-300`–`313` to `API-600`–`613` in `tests/unit/security/
+totp.test.ts` "uncommitted at `66b8d38`," landing the other way round from the proposal, and
+noted the ledger would need regenerating for those 14 entries once it landed. It landed in
+`5b7c450`. Left unfixed, the ledger's `API-312`/`313` entries pointed at ids no longer
+declared anywhere (`--strict` and even the plain run failed: `FAIL [API-312] status is
+'passing' but no test title in tests/ carries this id`, same for `API-313`) — and
+`API-300`–`311` looked reconciled only by coincidence, because `tests/unit/support/
+csv.test.ts` independently reused that exact number range for twelve unrelated CSV-injection
+cases (§6b's other resolution: "A09 keeps `API-300`–`311`"). The ledger's own `API-300`–`311`
+rows would have counted as "in tree" against the wrong test.
+
+Fixed here: all 13 ledger rows describing `tests/unit/security/totp.test.ts` (`API-300`–
+`308`, `310`–`313` — there is no `API-309`) renumbered to `API-600`–`608`, `610`–`613`, with
+`implementation_ref` line numbers corrected to the renamed file's current line numbers.
+Requirement text was matched one-for-one against the new `it(...)` titles before renumbering
+(e.g. old `API-312` "forgives case, spaces and hyphens…" = new `API-612`, same wording).
+Zero requirement text changed; only `id` and `implementation_ref` did. `node
+scripts/verify-test-cases.mjs` now exits 0 with no ledger integrity failures (`docs/test-
+cases.json` diff: 13 ids changed, 26 lines total — `git diff --stat` confirms).
+
+`tests/unit/support/csv.test.ts`'s own twelve cases (`API-300`–`311`, the real ones) remain
+absent from the ledger — part of the pre-existing 187 "in tree, not ledger" gap, not
+something this fix could close without inventing new required fields (`risk`, `setup`,
+`expected`, `owner_agent`) on A09's behalf. Flagged, not silently left implied.
 
 ---
 

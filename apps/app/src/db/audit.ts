@@ -89,7 +89,12 @@ export const auditEvents = {
     return buildPage(result.results, limit);
   },
 
-  /** Platform-wide trail for the owner dashboard. Deliberately not workspace-scoped. */
+  /**
+   * Platform-wide trail for the owner dashboard. Deliberately not workspace-scoped.
+   *
+   * tenant-scope:exempt owner-only cross-tenant audit trail; see `listForWorkspace` above
+   * for the customer-facing, workspace-scoped read.
+   */
   async listPlatform(db: Db, limit = 50): Promise<AuditEventRow[]> {
     const result = await db
       .prepare(`SELECT ${AUDIT_COLUMNS} FROM audit_events ORDER BY occurred_at DESC LIMIT ?`)

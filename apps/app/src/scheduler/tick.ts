@@ -29,6 +29,8 @@ import { runMoneyMaintenance, type MoneyMaintenanceReport } from '../money/maint
 import { checkBillingSecrets, createBillingRuntime } from '../billing/mount';
 import { createStripeClient } from '@verify/connectors/stripe';
 import { D1AllowanceRepair } from '../db/allowanceRepair';
+import { runDueWorkspaceDeletions, type DueDeletionOutcome } from '../privacy/requests';
+import { createNotificationDelivery } from '../notifications/delivery';
 import type { NotificationDelivery, DeliveryLog } from '../notifications/delivery';
 import type { SubscriptionPeriodSource } from '../billing/period';
 import type { Db } from '../db/d1';
@@ -98,6 +100,14 @@ export interface TickReport {
    * an absence to shrug at.
    */
   readonly money?: MoneyMaintenanceReport | undefined;
+  /**
+   * Workspace deletions carried out this tick.
+   *
+   * Each outcome carries its own report; a deletion that did not complete is retried on a
+   * later tick and is deliberately NOT announced to the customer. Telling someone their
+   * data is gone while some of it remains is the one failure this message must not have.
+   */
+  readonly deletions?: readonly DueDeletionOutcome[] | undefined;
 }
 
 export interface TickDeps {
@@ -461,6 +471,41 @@ export async function handleScheduled(
     PUBLIC_BASE_URL: env.PUBLIC_BASE_URL ?? '',
   };
 
+  /*
+   * Due workspace deletions.
+   *
+   * `deletion_completed` is announced from here and nowhere else, and only when the purge
+   * reports itself complete — a partial purge is retried and stays silent, because telling
+   * a customer their data is gone while some of it remains is the one failure mode this
+   * particular message must never have.
+   *
+   * Runs before the money pass on purpose: a deletion that is due has already waited out
+   * its grace period, and a billing pass that runs long must not be what delays it.
+   *
+   * Bounded. Ten per tick, so a large backlog is drained across minutes rather than
+   * risking a Worker invocation being killed mid-purge.
+   */
+  let deletions: readonly DueDeletionOutcome[] = [];
+  if ((env.PUBLIC_BASE_URL ?? '').length > 0) {
+    try {
+      const supportPort = new D1SupportDataPort(db);
+      deletions = await runDueWorkspaceDeletions({
+        port: supportPort,
+        notifications: createNotificationDelivery(billingEnv, supportPort, {
+          now: () => now,
+        }),
+        baseUrl: env.PUBLIC_BASE_URL ?? '',
+        now: () => now,
+      });
+    } catch (caught) {
+      // A tick must not reject. Nothing here is destructive on the failure path: a purge
+      // that did not finish is simply still due on the next tick.
+      (options.logger ?? SILENT_LOGGER).warn('scheduler.deletions.failed', {
+        message: caught instanceof Error ? caught.message : String(caught),
+      });
+    }
+  }
+
   let money: MoneyMaintenanceReport | null = null;
   if (checkBillingSecrets(billingEnv).ready) {
     try {
@@ -507,7 +552,12 @@ export async function handleScheduled(
     ...(money?.billing === undefined ? {} : { maintenance: money.billing }),
   });
 
-  return { ...report, billing, ...(money === null ? {} : { money }) };
+  return {
+    ...report,
+    billing,
+    ...(money === null ? {} : { money }),
+    ...(deletions.length === 0 ? {} : { deletions }),
+  };
 }
 
 export { createRetentionSweeper };

@@ -178,3 +178,113 @@ other `2026-09`, and the project's own validator rejects the second. It stays op
 
 _Findings are raised against named agents and retested independently before being closed.
 Security issues should be reported through the process in [SECURITY.md](../SECURITY.md)._
+
+---
+
+# Third pass — reproduced by re-issuing requests, 19 September 2026
+
+The instruction for this pass was narrow and it changed what "verified" is allowed to mean:
+a fix is closed only when the auditor has issued the request, observed the response, and
+read the resulting database state. An agent's summary does not close a row, and neither
+does a passing unit test.
+
+Every line below is labelled **local-tested** or **deployment-verified**. Nothing in this
+pass is deployment-verified: every measurement was taken against `wrangler dev --local`
+on this machine. That distinction is not a formality — two rows in the gap register read as
+closed on exactly this kind of evidence, and they should not.
+
+## The commit this was measured against, and why that is a problem
+
+`HEAD` moved four times while I was measuring: `5b7c450` → `25a41fc` → `4b27b01` →
+`0c7fc08`. The working tree went from 1 uncommitted file to 29, to 13, to 44. The running worker logged repeated
+`Reloading local server` and returned one `503 Your worker restarted mid-request` in the
+middle of a probe. **No release decision can attach to a commit that changes underneath
+it**, and this pass cannot claim otherwise about its own results.
+
+## What I reproduced and found true
+
+- **`POST /api/v1/events` exists and rejects an unsigned request.** Unsigned POST → `401
+  SIGNATURE_INVALID`; `GET` → 404. *(local-tested)*
+- **The 503-not-401 distinction is real.** This was the open row. I seeded a workflow with
+  a genuine `signing_key_ref`, then probed a deployment with no `EVENT_SIGNING_ROOT_KEY`.
+  It answered **`503 SIGNING_KEY_UNREADABLE`**, not 401. A customer is not told their
+  signature is wrong when our configuration is missing. *(local-tested)*
+- **The whole signature chain behaves.** With a root key present: wrong signature → 401;
+  correct signature → the caller is authenticated and the **money gate** answers `402
+  NO_SUBSCRIPTION`. Twelve further denial paths each returned the right code, including
+  wrong workflow → 403, stale and future timestamps → 401, stale and future `occurred_at`
+  → 422, invalid schema → 422, oversized body → 413. *(local-tested)*
+- **The no-Stripe configuration is genuinely safe.** On a worker with no Stripe variables
+  at all, a correctly signed event still reaches the admission check, the billing gateway
+  is never called, and the caller gets an honest 402. The Stripe webhook endpoint answers
+  **`503 BILLING_NOT_CONFIGURED`** — an explicit configuration error, not a 500 and not a
+  401 blaming the caller. *(local-tested)*
+- **The seven-day recovery policy really is above the checkout control.** Read off the
+  rendered page, not the source: the policy block ends at byte 7,300 and the checkout
+  control begins at byte 8,195. *(local-tested)*
+- **The four purchase and activation controls are inert.** No `<a>`, `<button>`,
+  `<input>` or `tabindex` inside any of them. Posting directly to the checkout endpoint
+  with a valid session and a valid CSRF token returns **503** and an honest message
+  naming what is missing. *(local-tested)*
+- **Owner pages refuse anonymous visitors**, and a scoped automation identity is denied
+  20 of 22 mutating owner actions with 403. The two it is allowed are the two the access
+  model deliberately grants. A separate control — a cap on how long an automation session
+  may live — also fired correctly and was not something I set out to test. *(local-tested)*
+- **The claim scanner's three exemptions are genuine denials**, not a way of silencing it.
+  Each names a thing in order to say we do not do it or cannot see it.
+- **No generated design copy has leaked into the application.** An exhaustive
+  string-by-string comparison of every generated screen against the application source and
+  the served pages found no marketing copy, no banned phrase, no colour value and no
+  webfont crossing the boundary.
+
+## What I found wrong
+
+- **There is no way to ask the running service whether it can verify a signature.** The
+  function that answers it has no caller anywhere, while its own documentation states that
+  `/health` and the owner's operations view use it. They do not.
+- **The published-claim gate checks seven of about twenty public pages, and it runs after
+  the deploy.** When I ran it over the pages the service actually serves, it failed. The
+  phrases it caught are legitimate — the development story describes the defects it found
+  by naming them — but the gate does not know that, and the pages carrying them are not
+  among the seven it checks. So the gate's green is a property of its route list.
+- **The gate misses the plainest wording of the claim it most needs to stop.** "We fix
+  your broken automation for you" and "we repair the CRM record automatically" both pass.
+  So does "we guarantee 100% accuracy", while "guaranteed accuracy" is caught. The service
+  never modifies a customer's system; a gate against claiming otherwise should not turn on
+  a verb ending.
+- **"Backup restoration proven" is closed against a record that does not exist.** The
+  evidence cited is the development story, and the story contains no such event. The test
+  that does exist is real and good, but it runs against in-memory SQLite, is marked in the
+  ledger as not provider-backed, seeds one tenant rather than two, and its own header
+  disclaims covering the real database. The drill it describes left nothing behind that
+  anyone can re-check.
+- **Smaller drift:** two owner-panel 404s are distinguishable by size, which lets a scanner
+  tell which privileged routes exist; a comment in the composition root describes access
+  control that was replaced; the reason shown on the blocked purchase controls names a
+  condition that is no longer the true one; and a figure quoted on a public page does not
+  reproduce.
+
+## Release verdict
+
+**Commercial release stays blocked.** Not one of the things that must be true to take money
+is deployment-verified: the signing root key is absent, so no customer can send a signed
+event; no customer can be issued a key at all, because nothing calls the code that issues
+one; and the Stripe and email credentials do not exist. Those are the owner's to supply,
+and they are correctly surfaced rather than worked around.
+
+**The public site is not blocked by this pass**, with one caveat I will not soften: the
+published-claim gate is weaker than the register says it is, and it runs after the site is
+already public.
+
+## What this pass could not check
+
+It could not check anything on staging or production — every result above is local. It
+could not verify that a Stripe webhook delivered twice produces one notification and one
+allowance grant, because doing so would have required inventing a webhook signing secret,
+and manufacturing a credential to produce a green result is the exact move this role exists
+to catch. It could not verify that any notification is ever actually delivered, because no
+email transport is configured. And it could not verify its own results against a fixed
+commit, because the commit moved four times while it was measuring.
+
+Nothing here should be read as saying the product is free of defects. It is a record of
+what was checked, how, and what was not.

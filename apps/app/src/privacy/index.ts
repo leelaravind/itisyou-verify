@@ -7,3 +7,4 @@ export * from './retention';
 export * from './export';
 export * from './deletion';
 export * from './dataflow';
+export * from './requests';

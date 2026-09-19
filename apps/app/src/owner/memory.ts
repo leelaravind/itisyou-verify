@@ -796,6 +796,15 @@ export class MemoryOwnerDataPort implements OwnerDataPort {
     if (denied !== null) return denied;
     const allowed = Object.values(SETTINGS_KEY) as readonly string[];
     if (!allowed.includes(key)) return writeFailed('That is not a setting this page can change.');
+    // Parity with the live port: a spending ceiling is not an ordinary setting. If the
+    // in-memory port let it through, a route could be developed against a port that allows
+    // what the real one refuses, and the gap would only appear in production.
+    if (key === SETTINGS_KEY.budgetLimits) {
+      return writeFailed(
+        'A spending ceiling cannot be changed through the ordinary settings save — it needs an approval granted ' +
+          'for that exact change. Nothing has been saved and the current ceilings still stand.',
+      );
+    }
     this.#settings[key] = valueJson;
     this.#record(ctx, 'owner.setting.write', key, { setting: key });
     return writeOk('/owner/settings', 'Saved.');

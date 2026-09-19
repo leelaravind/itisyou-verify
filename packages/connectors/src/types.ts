@@ -30,6 +30,7 @@ import type {
   EvidenceBundle,
   EvidenceGap,
   EvidenceOrigin,
+  EvidenceTransport,
 } from '@verify/contracts';
 
 /** Providers with an adapter in v1. Stripe is billing-only and has no evidence adapter. */
@@ -254,6 +255,14 @@ export interface ConnectorFetchResult {
 export interface NormaliseContext {
   readonly provider_account_id: string;
   readonly origin: EvidenceOrigin;
+  /**
+   * Whether the call that produced this evidence left the process. Optional here only
+   * because a caller that has no basis to know must not guess — omitting it means the
+   * evidence is stamped `transport: undefined`, which every reader treats as `unknown`,
+   * never as `live`. A connector that reads back over `guardedFetch` always has a real
+   * answer (`GuardedResponse.transport`) and must always pass it.
+   */
+  readonly transport?: EvidenceTransport | undefined;
   readonly observedAt: Date;
   readonly correlationProperty?: string | undefined;
   readonly correlationValue?: string | undefined;

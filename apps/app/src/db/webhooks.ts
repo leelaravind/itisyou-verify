@@ -94,6 +94,8 @@ export const webhookReceipts = {
       return { outcome: 'fresh', receiptId: params.id, fresh: true };
     }
 
+    // tenant-scope:exempt (provider, event_id) is the table's own UNIQUE constraint; the
+    // workspace is not yet known at this point, which is exactly why this read exists.
     const existing = await db
       .prepare(
         'SELECT id, processing_status FROM webhook_receipts WHERE provider = ? AND event_id = ?',
@@ -124,6 +126,8 @@ export const webhookReceipts = {
    * caller that needs to abandon is the one holding the provider's event id — and often
    * nothing else, because the thing that threw is why it has nothing else.
    */
+  // tenant-scope:exempt (provider, event_id) is the table's own UNIQUE constraint; see the
+  // read in `claim` above for why the workspace is not the key here.
   async abandon(db: Db, provider: string, eventId: string): Promise<boolean> {
     const result = await db
       .prepare('DELETE FROM webhook_receipts WHERE provider = ? AND event_id = ?')
@@ -132,6 +136,8 @@ export const webhookReceipts = {
     return result.meta.changes === 1;
   },
 
+  // tenant-scope:exempt (provider, event_id) is the table's own UNIQUE constraint; see the
+  // read in `claim` above for why the workspace is not the key here.
   async getByEventId(db: Db, provider: string, eventId: string): Promise<WebhookReceiptRow | null> {
     return db
       .prepare(
@@ -156,6 +162,8 @@ export const webhookReceipts = {
     return result.meta.changes === 1;
   },
 
+  // tenant-scope:exempt addressed by the receipt's own id, which the caller only ever holds
+  // because it just created or read that exact receipt in this same request.
   async setStatus(db: Db, receiptId: string, status: WebhookProcessingStatus): Promise<boolean> {
     const result = await db
       .prepare('UPDATE webhook_receipts SET processing_status = ? WHERE id = ?')

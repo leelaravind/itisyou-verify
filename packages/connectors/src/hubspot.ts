@@ -34,7 +34,12 @@
  * archive or batch-write path to disable, because none was written. A reviewer can verify
  * that by reading one twenty-line table.
  */
-import type { ConnectorErrorCode, CrmRecordEvidence, EvidenceGap } from '@verify/contracts';
+import type {
+  ConnectorErrorCode,
+  CrmRecordEvidence,
+  EvidenceGap,
+  EvidenceTransport,
+} from '@verify/contracts';
 import {
   ConnectorTransportError,
   guardedFetch,
@@ -396,6 +401,11 @@ export function normaliseHubSpotContact(
   const evidence: CrmRecordEvidence = {
     kind: 'crm_record',
     origin: ctx.origin,
+    // `ctx.transport` is never a caller-chosen value once it originates from
+    // `fetchEvidence` — see `GuardedResponse.transport`. Absent (a caller with no basis to
+    // know) is left absent here rather than defaulted to `'unknown'`, so a future reader
+    // cannot mistake an explicit `unknown` for a connector that forgot to check.
+    ...(ctx.transport === undefined ? {} : { transport: ctx.transport }),
     provider: HUBSPOT_PROVIDER,
     provider_account_id: ctx.provider_account_id,
     record_id: contact.id,
@@ -488,7 +498,7 @@ export async function resolveHubSpotAccount(
 // ---------------------------------------------------------------------------
 
 type ReadOutcome =
-  | { readonly kind: 'found'; readonly contact: unknown }
+  | { readonly kind: 'found'; readonly contact: unknown; readonly transport: EvidenceTransport }
   | { readonly kind: 'absent'; readonly gap: EvidenceGap }
   | { readonly kind: 'error'; readonly error: ClassifiedError };
 
@@ -562,7 +572,7 @@ async function readContactById(
       error: classifyHubSpotError({ status: response.status, bodyText: response.bodyText }),
     };
   }
-  return { kind: 'found', contact: body };
+  return { kind: 'found', contact: body, transport: response.transport };
 }
 
 async function searchContactByCorrelation(
@@ -678,7 +688,7 @@ async function searchContactByCorrelation(
     };
   }
 
-  return { kind: 'found', contact: results[0] };
+  return { kind: 'found', contact: results[0], transport: response.transport };
 }
 
 // ---------------------------------------------------------------------------
@@ -920,6 +930,7 @@ export class HubSpotConnector implements Connector {
     const normalised = this.normaliseEvidence(outcome.contact, {
       provider_account_id: accountId,
       origin: 'provider_readback',
+      transport: outcome.transport,
       observedAt: input.now,
       ...(correlationProperty === undefined ? {} : { correlationProperty }),
       ...(correlationValue === undefined ? {} : { correlationValue }),

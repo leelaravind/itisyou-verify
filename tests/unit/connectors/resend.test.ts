@@ -298,6 +298,22 @@ describe('Resend normalisation', () => {
       expect(result.ok, String(bad)).toBe(false);
     }
   });
+
+  it('CONN-507 a context with no transport leaves the field absent, never defaulted to live', () => {
+    // `ctx` above (this describe block's default) never sets `transport` — the ordinary
+    // case for a webhook context, since the connector cannot itself claim `live` for one.
+    const result = normaliseResendEvent(
+      {
+        eventType: 'email.delivered',
+        messageId: MESSAGE_ID,
+        recipient: [RECIPIENT],
+        occurredAt: '2026-03-01T12:02:00.126Z',
+      },
+      ctx,
+    );
+    expect(result.ok && result.evidence.transport).toBeUndefined();
+    expect(result.ok && (result.evidence.transport ?? 'unknown')).toBe('unknown');
+  });
 });
 
 describe('Resend fetchEvidence', () => {
@@ -439,6 +455,23 @@ describe('Resend fetchEvidence', () => {
     const result = await makeConnector(fetchImpl).fetchEvidence(base);
     expect(JSON.stringify(result)).not.toContain(TOKEN);
   });
+
+  // Same defect, same fix, same file family as the HubSpot connector: every test here
+  // passes `fetchImpl`, so none of them may ever be able to produce `transport: 'live'`.
+  it('CONN-505 a stubbed retrieve can never produce transport: live, however convincing its reply', async () => {
+    const fetchImpl = (async () => json(emailPayload())) as unknown as typeof fetch;
+    const result = await makeConnector(fetchImpl).fetchEvidence(base);
+    expect(result.evidence).toHaveLength(1);
+    expect(result.evidence[0]?.transport).toBe('simulated');
+    expect(result.evidence[0]?.transport).not.toBe('live');
+  });
+
+  it('CONN-506 a stub smuggling transport: "live" into the payload is still simulated', async () => {
+    const fetchImpl = (async () =>
+      json(emailPayload({ transport: 'live' }))) as unknown as typeof fetch;
+    const result = await makeConnector(fetchImpl).fetchEvidence(base);
+    expect(result.evidence[0]?.transport).toBe('simulated');
+  });
 });
 
 describe('Resend webhook signature verification', () => {
@@ -466,6 +499,13 @@ describe('Resend webhook signature verification', () => {
     expect(result.evidence[0]?.origin).toBe('provider_webhook');
     expect(result.event_type).toBe('email.delivered');
     expect(result.event_id).toBe('msg_test_0001');
+    // A genuinely valid Svix signature over an entirely synthetic event — this test never
+    // touched a network and Resend never sent this byte. A signature proves the bytes
+    // weren't tampered with and match the shared secret; it does not prove they arrived
+    // over a real inbound request. `transport` must reflect that: absent here, reading as
+    // `unknown`, never `live` — see the comment in resend.ts's `verifyWebhook`.
+    expect(result.evidence[0]?.transport).toBeUndefined();
+    expect(result.evidence[0]?.transport ?? 'unknown').toBe('unknown');
   });
 
   it('CONN-118 rejects a payload signed with a different secret', async () => {

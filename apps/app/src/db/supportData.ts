@@ -100,6 +100,12 @@ export const supportCases = {
    *
    * `scope` distinguishes three things a single nullable parameter cannot: every
    * workspace (owner queue), one workspace, and the signed-out submissions.
+   *
+   * Each branch spells its predicate out in full inside its own literal — `workspace_id = ?`,
+   * `workspace_id IS NULL`, or the explicit `tenant-scope:exempt` cross-tenant case — rather
+   * than assembling one shared literal from a `scopeClause` variable held elsewhere. A
+   * predicate built from a variable one line away is invisible to a scanner reading the SQL
+   * text, and a predicate accidentally dropped from that variable would pass silently.
    */
   async list(
     db: Db,
@@ -113,16 +119,7 @@ export const supportCases = {
     const limit = Math.min(Math.max(1, query.limit), 100);
     const bindings: unknown[] = [];
 
-    // tenant-scope:exempt the 'all' scope is the platform-owner queue; see getForOwner.
-    let scopeClause: string;
-    if (query.scope.kind === 'workspace') {
-      scopeClause = 'workspace_id = ?';
-      bindings.push(query.scope.workspaceId);
-    } else if (query.scope.kind === 'anonymous') {
-      scopeClause = 'workspace_id IS NULL';
-    } else {
-      scopeClause = '1 = 1';
-    }
+    if (query.scope.kind === 'workspace') bindings.push(query.scope.workspaceId);
 
     let stateClause = '';
     if (query.state !== undefined) {
@@ -136,12 +133,16 @@ export const supportCases = {
     }
     bindings.push(limit);
 
+    const scopePrefix =
+      query.scope.kind === 'workspace'
+        ? `SELECT ${CASE_COLUMNS} FROM support_cases WHERE workspace_id = ?`
+        : query.scope.kind === 'anonymous'
+          ? `SELECT ${CASE_COLUMNS} FROM support_cases WHERE workspace_id IS NULL`
+          : // tenant-scope:exempt the 'all' scope is the platform-owner queue; see getForOwner.
+            `SELECT ${CASE_COLUMNS} FROM support_cases WHERE 1 = 1`;
+
     const sql =
-      `SELECT ${CASE_COLUMNS} FROM support_cases WHERE ` +
-      scopeClause +
-      stateClause +
-      cursorClause +
-      ' ORDER BY created_at DESC, id DESC LIMIT ?';
+      scopePrefix + stateClause + cursorClause + ' ORDER BY created_at DESC, id DESC LIMIT ?';
     const result = await db
       .prepare(sql)
       .bind(...bindings)
@@ -167,17 +168,25 @@ export const supportCases = {
     },
   ): Promise<boolean> {
     const bindings: unknown[] = [params.nextState, orNull(params.priority), params.updatedAt];
-    let scopeClause = '';
-    if (params.workspaceId === null) {
-      scopeClause = ' AND workspace_id IS NULL';
-    } else if (params.workspaceId !== undefined) {
-      scopeClause = ' AND workspace_id = ?';
-    }
 
+    // Each branch spells its predicate out in full — see `list` above for why a shared
+    // literal built from a variable elsewhere is the wrong shape here.
+    // tenant-scope:exempt an omitted workspaceId is the platform-owner path, which may
+    // transition any tenant's case; see `getForOwner` above.
     const sql =
-      `UPDATE support_cases
-          SET state = ?, priority = COALESCE(?, priority), updated_at = ?
-        WHERE id = ? AND state = ?` + scopeClause;
+      params.workspaceId === null
+        ? `UPDATE support_cases
+             SET state = ?, priority = COALESCE(?, priority), updated_at = ?
+           WHERE id = ? AND state = ? AND workspace_id IS NULL`
+        : params.workspaceId !== undefined
+          ? `UPDATE support_cases
+               SET state = ?, priority = COALESCE(?, priority), updated_at = ?
+             WHERE id = ? AND state = ? AND workspace_id = ?`
+          : // tenant-scope:exempt an omitted workspaceId is the platform-owner path, which
+            // may transition any tenant's case; see `getForOwner` above.
+            `UPDATE support_cases
+               SET state = ?, priority = COALESCE(?, priority), updated_at = ?
+             WHERE id = ? AND state = ?`;
 
     bindings.push(params.id, params.expectedState);
     if (params.workspaceId !== null && params.workspaceId !== undefined) {
@@ -248,6 +257,8 @@ export const notifications = {
     return { inserted: result.meta.changes === 1, record: stored };
   },
 
+  // tenant-scope:exempt notification_key is globally unique (ON CONFLICT target above), so
+  // it addresses exactly one row the same way a primary key would.
   async getByKey(db: Db, notificationKey: string): Promise<NotificationRow | null> {
     return db
       .prepare(
@@ -258,6 +269,7 @@ export const notifications = {
   },
 
   /** Record what the sending service said. Never a delivery claim. */
+  // tenant-scope:exempt notification_key is globally unique; see getByKey above.
   async settle(
     db: Db,
     params: {
@@ -293,6 +305,10 @@ export const notifications = {
    * A bounded keyset page over `id`, not an `OFFSET` scan. This is the read that makes
    * at-most-once sending honest rather than merely quiet: a send interrupted halfway is
    * never retried automatically, so somebody has to be able to see the ones that stopped.
+   *
+   * tenant-scope:exempt the transport retry sweep is platform-wide by definition, the same
+   * way the retention sweeps above are: a delivery stuck mid-send is stuck regardless of
+   * which tenant it belongs to, and workspace_id travels with each returned row.
    */
   async listStalePending(
     db: Db,
@@ -319,6 +335,9 @@ export const notifications = {
     }
     bindings.push(limit);
 
+    // tenant-scope:exempt the transport retry sweep is platform-wide by definition, the same
+    // way the retention sweeps above are: a delivery stuck mid-send is stuck regardless of
+    // which tenant it belongs to, and workspace_id travels with each returned row.
     const sql =
       `SELECT ${NOTIFICATION_COLUMNS} FROM notification_deliveries
         WHERE state = 'pending' AND created_at <= ?` +
@@ -332,7 +351,16 @@ export const notifications = {
     return result.results;
   },
 
-  /** Newest first. Answers "did we already tell them about this?". */
+  /**
+   * Newest first. Answers "did we already tell them about this?".
+   *
+   * The two branches below spell `workspace_id = ?` and `workspace_id IS NULL` out in full
+   * inside each literal, rather than assembling one shared literal from a `scopeClause`
+   * variable held elsewhere. A scanner reading the SQL text can only see what is actually in
+   * the string it inspects — a predicate built from a variable one line away is invisible to
+   * it, and a predicate accidentally dropped from that variable would pass silently. Writing
+   * both full statements out keeps the real predicate in the text that gets checked.
+   */
   async findHistory(
     db: Db,
     query: {
@@ -344,7 +372,6 @@ export const notifications = {
     },
   ): Promise<NotificationRow[]> {
     const bindings: unknown[] = [];
-    const scopeClause = query.workspaceId === null ? 'workspace_id IS NULL' : 'workspace_id = ?';
     if (query.workspaceId !== null) bindings.push(query.workspaceId);
     bindings.push(query.template, query.since);
 
@@ -358,11 +385,15 @@ export const notifications = {
     bindings.push(Math.min(Math.max(1, query.limit ?? 50), 200));
 
     const sql =
-      `SELECT ${NOTIFICATION_COLUMNS} FROM notification_deliveries WHERE ` +
-      scopeClause +
-      ' AND template = ? AND created_at >= ?' +
-      prefixClause +
-      ' ORDER BY created_at DESC, id DESC LIMIT ?';
+      query.workspaceId === null
+        ? `SELECT ${NOTIFICATION_COLUMNS} FROM notification_deliveries
+             WHERE workspace_id IS NULL AND template = ? AND created_at >= ?` +
+          prefixClause +
+          ' ORDER BY created_at DESC, id DESC LIMIT ?'
+        : `SELECT ${NOTIFICATION_COLUMNS} FROM notification_deliveries
+             WHERE workspace_id = ? AND template = ? AND created_at >= ?` +
+          prefixClause +
+          ' ORDER BY created_at DESC, id DESC LIMIT ?';
     const result = await db
       .prepare(sql)
       .bind(...bindings)
@@ -455,53 +486,81 @@ const RETENTION: Readonly<Record<RetentionTarget, RetentionPlan>> = {
       'DELETE FROM source_events WHERE id IN (SELECT id FROM source_events WHERE workspace_id = ? ORDER BY id LIMIT ?)',
   },
   webhook_receipts: {
+    // Expiry-driven sweep across every tenant, same shape as evidence/source_events above:
+    // the predicate is the row's own received_at, it is keyset-paged on the primary key, and
+    // workspace_id is selected so the caller scopes everything it does with the result.
+    // tenant-scope:exempt expiry-driven retention sweep; see evidence above.
     listFirstPageSql:
       'SELECT id, workspace_id FROM webhook_receipts WHERE received_at <= ? ORDER BY id LIMIT ?',
+    // tenant-scope:exempt as above; this is the same sweep resumed from a keyset position.
     listSql:
       'SELECT id, workspace_id FROM webhook_receipts WHERE received_at <= ? AND id > ? ORDER BY id LIMIT ?',
     listForWorkspaceFirstPageSql:
       'SELECT id, workspace_id FROM webhook_receipts WHERE received_at <= ? AND workspace_id = ? ORDER BY id LIMIT ?',
     listForWorkspaceSql:
       'SELECT id, workspace_id FROM webhook_receipts WHERE received_at <= ? AND id > ? AND workspace_id = ? ORDER BY id LIMIT ?',
+    // tenant-scope:exempt deletes one id the caller already read from a scoped listExpired
+    // page; the page carried the tenant predicate, this removes exactly what it returned.
     deleteOneSql: 'DELETE FROM webhook_receipts WHERE id = ?',
     purgeSql:
       'DELETE FROM webhook_receipts WHERE id IN (SELECT id FROM webhook_receipts WHERE workspace_id = ? ORDER BY id LIMIT ?)',
   },
   audit_events: {
+    // Expiry-driven sweep across every tenant, same shape as evidence/source_events above:
+    // the predicate is the row's own occurred_at, it is keyset-paged on the primary key, and
+    // workspace_id is selected so the caller scopes everything it does with the result.
+    // tenant-scope:exempt expiry-driven retention sweep; see evidence above.
     listFirstPageSql:
       'SELECT id, workspace_id FROM audit_events WHERE occurred_at <= ? ORDER BY id LIMIT ?',
+    // tenant-scope:exempt as above; this is the same sweep resumed from a keyset position.
     listSql:
       'SELECT id, workspace_id FROM audit_events WHERE occurred_at <= ? AND id > ? ORDER BY id LIMIT ?',
     listForWorkspaceFirstPageSql:
       'SELECT id, workspace_id FROM audit_events WHERE occurred_at <= ? AND workspace_id = ? ORDER BY id LIMIT ?',
     listForWorkspaceSql:
       'SELECT id, workspace_id FROM audit_events WHERE occurred_at <= ? AND id > ? AND workspace_id = ? ORDER BY id LIMIT ?',
+    // tenant-scope:exempt deletes one id the caller already read from a scoped listExpired
+    // page; the page carried the tenant predicate, this removes exactly what it returned.
     deleteOneSql: 'DELETE FROM audit_events WHERE id = ?',
     purgeSql:
       'DELETE FROM audit_events WHERE id IN (SELECT id FROM audit_events WHERE workspace_id = ? ORDER BY id LIMIT ?)',
   },
   notification_deliveries: {
+    // Expiry-driven sweep across every tenant, same shape as evidence/source_events above:
+    // the predicate is the row's own created_at, it is keyset-paged on the primary key, and
+    // workspace_id is selected so the caller scopes everything it does with the result.
+    // tenant-scope:exempt expiry-driven retention sweep; see evidence above.
     listFirstPageSql:
       'SELECT id, workspace_id FROM notification_deliveries WHERE created_at <= ? ORDER BY id LIMIT ?',
+    // tenant-scope:exempt as above; this is the same sweep resumed from a keyset position.
     listSql:
       'SELECT id, workspace_id FROM notification_deliveries WHERE created_at <= ? AND id > ? ORDER BY id LIMIT ?',
     listForWorkspaceFirstPageSql:
       'SELECT id, workspace_id FROM notification_deliveries WHERE created_at <= ? AND workspace_id = ? ORDER BY id LIMIT ?',
     listForWorkspaceSql:
       'SELECT id, workspace_id FROM notification_deliveries WHERE created_at <= ? AND id > ? AND workspace_id = ? ORDER BY id LIMIT ?',
+    // tenant-scope:exempt deletes one id the caller already read from a scoped listExpired
+    // page; the page carried the tenant predicate, this removes exactly what it returned.
     deleteOneSql: 'DELETE FROM notification_deliveries WHERE id = ?',
     purgeSql:
       'DELETE FROM notification_deliveries WHERE id IN (SELECT id FROM notification_deliveries WHERE workspace_id = ? ORDER BY id LIMIT ?)',
   },
   support_cases: {
+    // Expiry-driven sweep across every tenant, same shape as evidence/source_events above:
+    // the predicate is the row's own updated_at, it is keyset-paged on the primary key, and
+    // workspace_id is selected so the caller scopes everything it does with the result.
+    // tenant-scope:exempt expiry-driven retention sweep; see evidence above.
     listFirstPageSql:
       'SELECT id, workspace_id FROM support_cases WHERE updated_at <= ? ORDER BY id LIMIT ?',
+    // tenant-scope:exempt as above; this is the same sweep resumed from a keyset position.
     listSql:
       'SELECT id, workspace_id FROM support_cases WHERE updated_at <= ? AND id > ? ORDER BY id LIMIT ?',
     listForWorkspaceFirstPageSql:
       'SELECT id, workspace_id FROM support_cases WHERE updated_at <= ? AND workspace_id = ? ORDER BY id LIMIT ?',
     listForWorkspaceSql:
       'SELECT id, workspace_id FROM support_cases WHERE updated_at <= ? AND id > ? AND workspace_id = ? ORDER BY id LIMIT ?',
+    // tenant-scope:exempt deletes one id the caller already read from a scoped listExpired
+    // page; the page carried the tenant predicate, this removes exactly what it returned.
     deleteOneSql: 'DELETE FROM support_cases WHERE id = ?',
     purgeSql:
       'DELETE FROM support_cases WHERE id IN (SELECT id FROM support_cases WHERE workspace_id = ? ORDER BY id LIMIT ?)',
