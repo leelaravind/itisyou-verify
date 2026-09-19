@@ -125,6 +125,70 @@ apps/app/public/development-story.md` shows the public copy lacks lines 189–20
    word ("re-verification") tripped the token pattern and was reworded rather than
    allowlisted.
 
+## The evening of 19 September, told plainly
+
+Five events were added to the record that day after the deployed service was driven with
+real provider credentials for the first time. They are worth reading together, because
+they are all the same story.
+
+**Three defects were found in one afternoon. All three were correct code that nothing
+reached. All three were invisible to a suite of 2,578 passing tests.**
+
+| What was broken | What it looked like | How it was found |
+| --- | --- | --- |
+| A signed Resend callback could never mark a connection ready | The promotion code was right, guarded, and tested. It could not run, because the value it tested was read from a column that is never null on a real connection. | Two genuinely signed deliveries arrived, were processed, and the connection did not move. |
+| Every customer event got a 500, on staging **and** production | The intake built a Stripe client it never calls, and a malformed key made construction throw. | One line of `wrangler tail`. No amount of reading found it. |
+| Delivery evidence attached to the newest pending run, not the right one | Every assertion, status mapping and signature check around it was correct. | Two runs existed at once and the evidence landed on the wrong one. |
+
+The third is the serious one. Two enquiries in flight at the same time is an ordinary
+Tuesday, and the consequence was that one enquiry's acknowledgement could satisfy another
+enquiry's check — which is precisely, and only, the thing this product claims to tell you.
+
+### The pattern worth taking away
+
+Each of these had a comment above it describing the correct behaviour. In the evidence
+case the comment said, in as many words, that *"a webhook that guessed would attach
+evidence to the wrong run"* — and then the code guessed, because the placeholder run the
+comment described had never been built. The comment was not wrong. It documented an
+intention that the implementation had quietly drifted away from, and nothing in the test
+suite could tell the difference.
+
+The tests did not catch any of them because the tests and the code shared the same blind
+spot. The webhook tests seeded connections without the column that mattered. The intake
+tests built the money runtime directly and never took the branch that broke. The evidence
+tests seeded an empty payload, which no real event ever is. In each case the fixture was
+simpler than reality in exactly the way that hid the bug.
+
+So the useful lesson is not "write more tests". It is that **a test which seeds a simpler
+world than production cannot see a bug that only exists in production**, and the only
+reliable cure found so far is to run the real thing and look.
+
+### What that changed about how the project runs
+
+Staging now runs the scheduler on a five-minute tick. It previously ran no schedule at
+all, by an explicit earlier decision to keep test-environment cost at zero. The cost of
+that decision turned out to be that the half of the product which turns an accepted event
+into a verdict had never executed on any deployed environment — so its first real
+execution was always going to be in front of a customer. Given three defects of exactly
+that shape in one afternoon, the trade stopped being worth it. Staging still ticks five
+times less often than production, so the original cost intent survives.
+
+### What genuinely worked
+
+Worth saying, because a list of defects reads as though nothing functions. Against the
+deployed service: a correctly signed event was accepted and created a run; a duplicate
+returned the same run and took no second unit of allowance; wrong workflow, stale,
+future-dated and malformed events were each refused with the right status and a sentence
+explaining why; a rotated key stopped working immediately; the plan allowance was counted
+exactly and refused at the limit; and real signed webhook evidence from Resend was stored
+with its origin recorded as independent rather than claimed.
+
+### What is still not true
+
+No deployed environment has produced a VERIFIED or FAILED verdict from real evidence. The
+step that would do it has only ever run in tests. Until that happens, the centre of the
+product is implemented, tested, and unproven in the one way that counts.
+
 ## What is verified, and what is relayed
 
 **Verified — read from the record or produced by code at build time:**
