@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createTestDb, seedWorkspace } from './harness';
 
 describe('harness', () => {
-  it('PERSIST-000 applies the migration and reports meta.changes', async () => {
+  it('PERSIST-001 applies the migration and reports meta.changes', async () => {
     const h = createTestDb();
     try {
       const ws = seedWorkspace(h, 'smoke');

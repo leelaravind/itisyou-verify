@@ -79,10 +79,14 @@ function explain(error: unknown): string {
   return message;
 }
 
-describe('CONN-050 provider-backed: a real HubSpot read', () => {
-  it.runIf(!enabled)(`CONN-050 is skipped, and says why: ${skipReason || 'disabled'}`, () => {
-    // A deliberately trivial assertion. Its job is to make the skip visible in the report
-    // rather than silently absent, so nobody can mistake "not run" for "passed".
+// The ledger id lives on the real read only, never on the describe, so no id-extracting
+// report can attribute a passing row to a provider call that never happened.
+describe('provider-backed: a real HubSpot read', () => {
+  // Deliberately NOT titled CONN-050. This case asserts that the real provider read is
+  // correctly disabled; if it carried the id, a results artefact would record CONN-050 as
+  // passing without a provider ever having been contacted — the exact false claim the
+  // ledger reserves that id to prevent.
+  it.runIf(!enabled)(`CONN-214 the real HubSpot read is disabled, and says why: ${skipReason || 'disabled'}`, () => {
     expect(enabled).toBe(false);
     expect(skipReason).not.toBe('');
   });

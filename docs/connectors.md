@@ -61,6 +61,142 @@ FAILED, a silent one gives UNVERIFIED.
 
 ---
 
+## Connecting: what happens when you paste a token
+
+Three things, in this order, every time. There is no branch that skips a step.
+
+**1. We check the shape - free, before anything leaves the building.** A HubSpot token
+starts `pat-`; a Resend key starts `re_`; a signing secret starts `whsec_`. If you paste a
+Resend key into the HubSpot box we say so by name. This costs no external call, so a
+mistyped paste never spends a request against your rate limit.
+
+**2. We ask the provider.** One read-only call: HubSpot's token-info endpoint, or Resend's
+domain list. It proves the credential works *and* tells us which account it belongs to. A
+typo, a revoked key, a missing scope or a send-only Resend key all fail here - at paste
+time, in front of you, with a sentence naming what is wrong.
+
+**3. Only then do we store anything.** The credential is sealed with AES-256-GCM before it
+touches the database, bound to your workspace, the provider and the purpose it was given
+for. A credential that failed step 2 **is never sealed and never stored**. There is no
+code path that stores an unvalidated token - not a discouraged one, not one behind a flag.
+
+### What "connected" means, and what it does not
+
+| Status | What it actually means |
+| --- | --- |
+| `not_connected` | Nothing is stored. Either you have not connected, or a validation failed and we threw the credential away. |
+| `testing` | The credential works, but something is still outstanding. For Resend this is the normal first state: we have your signing secret but have never seen a message signed with it. |
+| `ready` | The credential works and nothing is outstanding. For Resend this requires a correctly signed callback to have actually arrived and been understood. |
+| `degraded` | It worked, but something is wrong - a missing scope, or the credential now belonging to a different account than the one this connection was set up with. |
+| `expired` | The provider rejected the credential. |
+
+**A Resend connection never reaches `ready` on our say-so.** A stored signing secret is a
+promise that a webhook will work; it is not evidence that one did. The only thing that
+moves a Resend connection from `testing` to `ready` is a real callback whose Svix signature
+we verified and whose payload we could read. Send one test email and it flips; until then
+the connection card says, truthfully, that we have not seen it work yet.
+
+### Re-checking, and the swapped-token problem
+
+Evidence is attributed to the account the *token* belongs to - a HubSpot token cannot read
+another portal, so that attribution is sound. But it means a token quietly swapped for one
+pointing at a different portal would silently re-attribute every future run, and nothing in
+the evidence path can notice that on its own.
+
+So the connection is re-validated on a cadence. If the live account no longer matches the
+one the connection was set up with, the connection drops to `degraded` and stops rather
+than quietly attributing your results to an account you did not choose. Reconnect to
+confirm which account you want checked.
+
+### What we store, and what we never hand back
+
+Credentials are sealed with the workspace id, the provider and the purpose bound into the
+encryption, so a ciphertext row copied into another tenant fails to decrypt rather than
+opening. **Nothing ever serialises a stored credential back out - not in an API response,
+not in a log line, not masked.** The account label you see on the connection card is built
+fresh from the account id (a HubSpot portal id is on every page of their own UI; it is not
+a secret) and never from the credential.
+
+---
+
+## The proof run
+
+Before you pay, you can point us at a record that already exists in your CRM and a message
+you have already sent, and ask us to prove - on your data, with your credentials - that we
+can actually see them.
+
+It reads the evidence back from your connected accounts using the rules you configured.
+Nothing in it is invented, and nothing in it comes from your automation telling us it
+worked.
+
+**It refuses to run, rather than produce a meaningless pass, when:**
+
+- your workflow has no required checks - a pass against nothing means nothing;
+- a check reads from a system that is not connected - we name the system rather than
+  quietly scoring that check as unknown and letting the total look nearly fine;
+- there is nothing to look up - no record id, no correlation value, or (for Resend, which
+  cannot be searched) no message id.
+
+**And it can always answer "I could not prove this."** Every check it could not establish
+comes back with its own sentence and, where there is one, something you can do about it.
+That list is a first-class result, not an empty space where a pass should have been.
+
+One deliberate conservatism: **a proof run never reports FAILED because something was
+absent.** Absence becomes a failure only at a real deadline in a real run. At proof time
+the honest words are "we could not show this". A contradiction - a bounced email, a record
+in the wrong account - still reports as a failure, because a contradiction is a fact and
+does not need a deadline to become one.
+
+---
+
+## Running the two provider-backed checks
+
+Every test in this repository stubs `fetch`. Two cases in the ledger do not, and **neither
+has ever run**: `CONN-050` (a real HubSpot read) and `CONN-051` (a real Resend read). They
+are written, they skip, and they say why they skipped.
+
+That is why every public claim about reading records back is currently marked **DESIGNED,
+NOT OBSERVED**. A stub proves our code handles the payload we *believe* the provider sends.
+It cannot prove the provider sends it.
+
+When a HubSpot developer test account and a Resend test account exist:
+
+```bash
+VERIFY_PROVIDER_PROOF=1 \
+VERIFY_PROVIDER_ACCOUNT_KIND=test \
+VERIFY_HUBSPOT_TEST_TOKEN=pat-xxx \
+VERIFY_HUBSPOT_TEST_PORTAL_ID=<developer test portal id> \
+VERIFY_HUBSPOT_TEST_CONTACT_ID=<id of the one seeded contact> \
+VERIFY_RESEND_TEST_TOKEN=re_xxx \
+VERIFY_RESEND_TEST_MESSAGE_ID=<id of one already-sent test message> \
+npx vitest run tests/integration/connectors
+```
+
+They are capped and guarded:
+
+- **One read each.** Each asserts `calls_made === 1`; a case that made more would fail.
+- **Read only.** Neither creates, updates, deletes or sends anything. There is no write
+  path in either connector to invoke.
+- **Explicit opt-in.** The presence of a credential is not consent; `VERIFY_PROVIDER_PROOF=1`
+  and `VERIFY_PROVIDER_ACCOUNT_KIND=test` must both be set.
+- **They refuse to run in production.** `NODE_ENV=production`, `STRIPE_MODE=live` or an
+  environment marked production blocks them outright.
+- **HubSpot is pinned to a named portal.** The test asserts the token's live `hubId`
+  matches `VERIFY_HUBSPOT_TEST_PORTAL_ID` *before* reading a contact. Point it at a
+  production token by mistake and it fails without reading anything.
+- **They skip, never fail, when the credential is absent** - a public CI run on a fork must
+  not go red because it has no secret.
+
+One extra, deliberate step: `tests/setup.ts` blocks every outbound fetch, and its host
+allowlist is empty. Running these for real also needs the lead to add `api.hubapi.com` and
+`api.resend.com` to it for that run. That is a separate, visible act on purpose - it should
+not be possible to contact a provider from the test suite by accident.
+
+Until both have run and passed, `CONN-050` and `CONN-051` stay `planned` in
+`docs/test-cases.json`, and no public claim may say otherwise.
+
+---
+
 ## HubSpot (CRM evidence)
 
 ### What you give us
@@ -374,5 +510,8 @@ with a completed connection, that call is not made.
 ## Tests
 
 `tests/unit/connectors/` and `tests/integration/connectors/`, case ids `CONN-001` onwards.
-Every one of them stubs `fetch`. No test in this repository has ever contacted HubSpot or
-Resend, and `tests/setup.ts` fails the suite loudly if one tries.
+
+Every executing case stubs `fetch`. **No test in this repository has ever contacted HubSpot
+or Resend**, and `tests/setup.ts` fails the suite loudly if one tries. The two
+provider-backed cases (`CONN-050`, `CONN-051`) are written but skipped, for the reasons in
+the section above.

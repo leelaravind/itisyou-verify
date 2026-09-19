@@ -7,7 +7,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { AppError } from '@verify/contracts';
 import { hashToken, randomBytes, toBase64 } from '@verify/security';
-import { D1OwnerAuth, D1OwnerDataPort, users } from '@app/db';
+import { D1OwnerAuth, D1OwnerDataPort } from '@app/db';
 import { ANONYMOUS_PRINCIPAL, authorise } from '@app/owner/access';
 import {
   issueSignInToken,
@@ -214,7 +214,7 @@ describe('owner data reads', () => {
     expect(refunded.ok).toBe(false);
     expect(refunded.message).toContain('approval is not usable');
 
-    const campaign = await port.activateCampaign(ctx, 'cmp_1', 'apr_1');
+    const campaign = await port.activateCampaign(ctx, 'cmp_1');
     expect(campaign.ok).toBe(false);
     expect(campaign.dependency).toContain('No advertising provider');
   });
@@ -374,7 +374,8 @@ describe('owner auth port', () => {
   });
 
   it('AUTH-424 bootstrap refuses without a configured token, and never touches the database', async () => {
-    const auth = new D1OwnerAuth({ db: h.db, env: env({ OWNER_BOOTSTRAP_TOKEN: undefined }) });
+    // No OWNER_BOOTSTRAP_TOKEN on this deployment at all.
+    const auth = new D1OwnerAuth({ db: h.db, env: env() });
     const result = await auth.bootstrap(
       { presentedToken: 'anything', verifiedAuthSubject: OWNER_EMAIL },
       NOW,

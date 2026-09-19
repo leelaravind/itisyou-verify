@@ -197,6 +197,12 @@ export function bootstrapHandler(deps: {
 export interface OwnerRouterOptions {
   readonly resolvePort?: OwnerPortResolver;
   readonly artifacts?: QualityArtifactStore;
+  /**
+   * Resolved per request, for a store that needs a binding — `D1QualityArtifactStore` needs
+   * `env.DB`, and the router is constructed at module scope where no binding exists. Takes
+   * precedence over `artifacts`.
+   */
+  readonly resolveArtifacts?: (c: Context<RouteBindings>) => Promise<QualityArtifactStore>;
   readonly auth?: OwnerAuthPort;
   /**
    * Resolved per request, like `resolvePort`, because pairing needs the database and the
@@ -241,7 +247,8 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
   }
 
   const resolvePort: OwnerPortResolver = options.resolvePort ?? (async () => new MemoryOwnerDataPort());
-  const artifacts: QualityArtifactStore = options.artifacts ?? new UnboundQualityArtifactStore();
+  const staticArtifacts: QualityArtifactStore = options.artifacts ?? new UnboundQualityArtifactStore();
+  const resolveArtifacts = options.resolveArtifacts ?? (async () => staticArtifacts);
   const auth: OwnerAuthPort = options.auth ?? new UnwiredOwnerAuth();
   const resolvePairing = options.resolvePairing ?? (async () => new PairingUnavailable());
   const clock = options.now ?? (() => new Date());
@@ -1238,7 +1245,7 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
           body: QualityPage({
             runs: await port.qualityRuns(50),
             csrfToken: principal.csrfToken,
-            artifactsUnavailableReason: await artifacts.unavailableReason(),
+            artifactsUnavailableReason: await (await resolveArtifacts(c)).unavailableReason(),
             formMessage: null,
             formDependency: null,
           }),
@@ -1261,7 +1268,7 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
           body: QualityPage({
             runs: await port.qualityRuns(50),
             csrfToken: principal.csrfToken,
-            artifactsUnavailableReason: await artifacts.unavailableReason(),
+            artifactsUnavailableReason: await (await resolveArtifacts(c)).unavailableReason(),
             formMessage: result.ok ? result.message : result.dependency === null ? result.message : null,
             formDependency: result.dependency,
           }),
@@ -1280,6 +1287,7 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
       const id = c.req.param('artifact');
       if (!isQualityArtifactId(id)) return refuseNotFound(c);
       const meta = artifactMeta(id);
+      const artifacts = await resolveArtifacts(c);
       const stored = await artifacts.get(id);
       if (meta === null || stored === null) {
         const unavailable = await artifacts.unavailableReason();

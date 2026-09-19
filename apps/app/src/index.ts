@@ -13,6 +13,12 @@ import { createAppRoutes } from './routes/app/index.js';
 import { createCustomerDataPort } from './db/index.js';
 import { createOwnerRoutes } from './routes/owner/index.js';
 import { createRunnerRoutes } from './maintenance/routes.js';
+import { createVisitCounter } from './growth/visits.js';
+import { createStripeWebhookRoute } from './routes/webhooks/stripe.js';
+import { createStripeWebhookDeps } from './billing/mount.js';
+import { createStripeClient } from '@verify/connectors/stripe';
+import { D1BillingDataPort, createBillingContactLookup } from './db/index.js';
+import { newId } from './lib/ids.js';
 import { MemoryOwnerDataPort } from './owner/memory.js';
 import { ANONYMOUS_PRINCIPAL } from './owner/access.js';
 
@@ -31,6 +37,12 @@ export interface Env {
   readonly RESEND_API_KEY?: string;
   readonly RESEND_WEBHOOK_SECRET?: string;
   readonly OPENROUTER_API_KEY?: string;
+  readonly STRIPE_PRICE_ID?: string;
+  readonly STRIPE_WEBHOOK_PATH_ID?: string;
+  readonly STRIPE_WEBHOOK_UNKNOWN_KEY?: string;
+  readonly INTERNAL_TEST_TOKEN?: string;
+  readonly TELEGRAM_BOT_TOKEN?: string;
+  readonly TELEGRAM_OWNER_CHAT_ID?: string;
 }
 
 type Bindings = { Bindings: Env };
@@ -142,6 +154,108 @@ app.use('*', async (c, next) => {
   // Any response carrying a session cookie must not be shared between viewers.
   const vary = headers.get('vary');
   headers.set('vary', vary === null || vary === '' ? 'Cookie' : `${vary}, Cookie`);
+});
+
+/* ------------------------------------------------------------------ *
+ * Visit counting
+ * ------------------------------------------------------------------ */
+
+/**
+ * Counts one landing session per visitor per day, for the launch-reach figure.
+ *
+ * Mounted after the security headers and before the routers so it sees every public
+ * request. All of its real work happens in `waitUntil` after the response is sent, so a
+ * page render never waits for it, and a failed write never reaches the visitor.
+ *
+ * `port` is `null` until a D1 growth port exists, which means nothing is counted yet.
+ * That is deliberate: A12's in-memory port forgets on every isolate, so mounting it here
+ * would report plausible numbers that are silently wrong — worse than reporting nothing,
+ * because the founder could not tell the difference.
+ *
+ * `salt` comes from a Worker secret. Without it nothing is counted at all, because an
+ * unsalted hash of an IP address is reversible in seconds and would turn a visit counter
+ * into a log of who visited.
+ */
+let visitCounter: ReturnType<typeof createVisitCounter> | null = null;
+
+app.use('*', async (c, next) => {
+  // Built on first request, not at module scope, because the internal-traffic token and
+  // the salt are Worker secrets and there is no `env` until a request arrives. Cached per
+  // isolate so this costs one construction, not one per visit.
+  visitCounter ??= createVisitCounter({
+    // `null` until a D1 growth port exists: nothing is counted yet. Deliberate — the
+    // in-memory port forgets on every isolate, so mounting it would report plausible
+    // numbers that are silently wrong, which is worse than reporting nothing because
+    // the founder could not tell the difference.
+    port: () => null,
+    salt: () => c.env.ANALYTICS_SALT,
+    internal: {
+      // `null` disables header-based exclusion rather than accepting any value. A
+      // permissive fallback would let anyone on the internet remove themselves — or
+      // everyone — from the founder's launch figures.
+      headerValue: c.env.INTERNAL_TEST_TOKEN ?? null,
+      cookieName: 'verify_internal',
+    },
+    onError: (error) => {
+      console.error('visit_counter_failed', { message: String(error) });
+    },
+  });
+  return visitCounter(c, next);
+});
+
+/* ------------------------------------------------------------------ *
+ * Provider webhooks
+ * ------------------------------------------------------------------ */
+
+/**
+ * Stripe's signed callbacks. Built lazily per isolate because the dependencies need
+ * `c.env`, which does not exist at module scope, and cached because rebuilding them on
+ * every delivery would add work to the hottest untrusted path in the system.
+ *
+ * A construction failure means a billing secret is missing. That answers 503 rather than
+ * 500: it is a configuration state, not a fault, and the difference matters to whoever is
+ * reading the log at the time. The reason is logged and never returned — an error body
+ * that names which secret is absent tells an attacker what we have.
+ *
+ * Mounted before the routers, and nothing parses the body before it: the route reads the
+ * raw bytes itself and verifies the signature against them, which is the only thing that
+ * makes the signature mean anything.
+ */
+let stripeWebhookApp: Hono | null = null;
+let stripeWebhookUnavailable: string | null = null;
+
+app.all('/api/v1/webhooks/stripe/*', async (c) => {
+  if (stripeWebhookApp === null && stripeWebhookUnavailable === null) {
+    try {
+      stripeWebhookApp = createStripeWebhookRoute(
+        createStripeWebhookDeps(c.env as never, {
+          data: new D1BillingDataPort(c.env.DB),
+          gateway: createStripeClient({ secretKey: c.env.STRIPE_SECRET_KEY ?? '' }),
+          billingContact: createBillingContactLookup(c.env.DB),
+          newId: (prefix: string) => newId(prefix),
+        } as never),
+      );
+    } catch (error) {
+      stripeWebhookUnavailable = String(error);
+      console.error('stripe_webhook_unconfigured', { message: stripeWebhookUnavailable });
+    }
+  }
+
+  if (stripeWebhookApp === null) {
+    return c.json(
+      {
+        error: {
+          code: 'BILLING_NOT_CONFIGURED',
+          message: 'Billing is not configured on this deployment.',
+          request_id: c.req.header('cf-ray') ?? 'unknown',
+        },
+      },
+      503,
+      { 'cache-control': 'no-store' },
+    );
+  }
+
+  return stripeWebhookApp.fetch(c.req.raw, c.env, c.executionCtx);
 });
 
 /* ------------------------------------------------------------------ *

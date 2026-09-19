@@ -66,8 +66,9 @@ function explain(error: unknown): string {
   return message;
 }
 
-describe('CONN-051 provider-backed: a real Resend read', () => {
-  it.runIf(!enabled)(`CONN-051 is skipped, and says why: ${skipReason || 'disabled'}`, () => {
+describe('provider-backed: a real Resend read', () => {
+  // Deliberately NOT titled CONN-051; see the note in lifecycle.test.ts.
+  it.runIf(!enabled)(`CONN-215 the real Resend read is disabled, and says why: ${skipReason || 'disabled'}`, () => {
     expect(enabled).toBe(false);
     expect(skipReason).not.toBe('');
   });
