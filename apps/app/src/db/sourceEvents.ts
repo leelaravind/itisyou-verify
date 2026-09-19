@@ -287,9 +287,9 @@ export const sourceEvents = {
   async getForRun(db: Db, workspaceId: string, runId: string): Promise<SourceEventRow | null> {
     return db
       .prepare(
-        `SELECT ${SOURCE_EVENT_COLUMNS.split(', ')
-          .map((c) => `se.${c}`)
-          .join(', ')}
+        `SELECT se.id, se.workspace_id, se.workflow_id, se.source, se.external_event_id,
+                se.received_at, se.occurred_at, se.correlation_key_hash, se.payload_hash,
+                se.payload_json
            FROM source_events se
            JOIN runs r ON r.source_event_id = se.id AND r.workspace_id = se.workspace_id
           WHERE r.workspace_id = ? AND r.id = ?`,

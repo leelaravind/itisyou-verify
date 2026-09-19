@@ -6,7 +6,7 @@
  * by `hashToken()` in `@verify/security`. A database dump therefore cannot be replayed as
  * a login.
  */
-import { type Db, orNull, toSqlBool } from './d1';
+import { type Db, orNull, resultAt, toSqlBool } from './d1';
 
 export interface SessionRow {
   readonly id: string;
@@ -76,7 +76,83 @@ export const sessions = {
       .run();
   },
 
-  /** Records a fresh strong-auth event; owner-only actions require a recent one. */
+  /**
+   * Rotate a session id. **Required on every privilege transition** — sign-in, MFA
+   * verification, and any role or workspace-membership change.
+   *
+   * Session fixation is the attack: an attacker who can plant a known session cookie in a
+   * victim's browser before they sign in (a subdomain, a shared machine, a link with a
+   * crafted cookie) holds a valid authenticated session afterwards if the id survives the
+   * transition. Mutating `mfa_verified_at` on the existing row upgrades the attacker's
+   * session to a strongly-authenticated one, which is worse.
+   *
+   * The revoke and the create are one batch, so there is never a moment with two live
+   * sessions for the transition and never a moment with none.
+   *
+   * Returns false when the old session was not live — a rotation must not mint a session
+   * out of a revoked or expired one.
+   */
+  async rotate(
+    db: Db,
+    params: {
+      oldIdHash: string;
+      newIdHash: string;
+      userId: string;
+      now: string;
+      expiresAt: string;
+      /** Carry forward, or set afresh when the transition IS the MFA verification. */
+      mfaVerifiedAt?: string | null;
+      isAutomation?: boolean;
+      userAgentHash?: string | null;
+    },
+  ): Promise<boolean> {
+    // Both statements carry the IDENTICAL liveness guard, and the insert runs first.
+    //
+    // Keying the insert off "the row we just revoked" does not work: two rotations in the
+    // same millisecond both see `revoked_at = now` and both mint a successor, which is
+    // the very fixation this function exists to prevent. Guarding both on `revoked_at IS
+    // NULL` instead means the second caller's batch, evaluated against the first's
+    // committed row, matches nothing and writes nothing.
+    const results = await db.batch([
+      db
+        .prepare(
+          `INSERT INTO sessions (id, user_id, created_at, expires_at, last_seen_at, mfa_verified_at, is_automation, user_agent_hash)
+           SELECT ?, ?, ?, ?, ?, ?, ?, ?
+            WHERE EXISTS (
+              SELECT 1 FROM sessions
+               WHERE id = ? AND user_id = ? AND revoked_at IS NULL AND expires_at > ?
+            )`,
+        )
+        .bind(
+          params.newIdHash,
+          params.userId,
+          params.now,
+          params.expiresAt,
+          params.now,
+          orNull(params.mfaVerifiedAt),
+          toSqlBool(params.isAutomation ?? false),
+          orNull(params.userAgentHash),
+          params.oldIdHash,
+          params.userId,
+          params.now,
+        ),
+      db
+        .prepare(
+          `UPDATE sessions SET revoked_at = ?
+            WHERE id = ? AND user_id = ? AND revoked_at IS NULL AND expires_at > ?`,
+        )
+        .bind(params.now, params.oldIdHash, params.userId, params.now),
+    ]);
+    return resultAt(results, 0).meta.changes === 1 && resultAt(results, 1).meta.changes === 1;
+  },
+
+  /**
+   * Records a fresh strong-auth event on an EXISTING session.
+   *
+   * Only for re-confirming strong auth on a session that was already strongly
+   * authenticated (a step-up re-prompt). The first MFA verification of a session is a
+   * privilege transition and must go through `rotate()` instead.
+   */
   async markMfaVerified(db: Db, idHash: string, at: string): Promise<boolean> {
     const result = await db
       .prepare('UPDATE sessions SET mfa_verified_at = ? WHERE id = ? AND revoked_at IS NULL')

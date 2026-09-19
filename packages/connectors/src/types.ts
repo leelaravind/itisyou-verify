@@ -157,6 +157,8 @@ export interface ProviderErrorInput {
   readonly bodyText?: string | null | undefined;
   /** A thrown transport error, when the request failed before a response. */
   readonly cause?: unknown;
+  /** Injected clock, used only to turn an HTTP-date `Retry-After` into a delta. */
+  readonly now?: Date | undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -248,8 +250,8 @@ export interface NormaliseContext {
   readonly correlationValue?: string | undefined;
 }
 
-export type NormaliseResult =
-  | { readonly ok: true; readonly evidence: Evidence }
+export type NormaliseResult<E extends Evidence = Evidence> =
+  | { readonly ok: true; readonly evidence: E }
   | { readonly ok: false; readonly gap: EvidenceGap };
 
 // ---------------------------------------------------------------------------
@@ -268,6 +270,12 @@ export interface WebhookVerificationInput {
   readonly now: Date;
   /** The connection this callback is claimed to belong to. */
   readonly connection: ConnectionConfig;
+  /**
+   * Provider event ids already stored for this connection. A correctly signed message
+   * replayed by an attacker who captured it is still correctly signed; only the id ledger
+   * can reject it. Supplied by the webhook route from the `webhooks` table (A02).
+   */
+  readonly seenEventIds?: ReadonlySet<string> | undefined;
 }
 
 export type WebhookVerification =

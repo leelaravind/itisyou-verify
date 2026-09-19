@@ -33,6 +33,24 @@ function stripComments(source: string): string {
   return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
 }
 
+/**
+ * Blanks comments while preserving every byte offset, by replacing each comment
+ * character with a space (newlines kept so line numbers still work).
+ *
+ * `stripComments` above shortens the source, which is fine for a plain regex test but
+ * wrong here: the tenant-scope checks look *backwards* from a literal's offset to find
+ * its `tenant-scope:exempt` marker, so the offsets must match the real file. Without
+ * this, prose inside a doc comment — for instance the phrase "update entitlements set
+ * reserved = reserved + 1" used to explain what a port method means — is picked up as
+ * an unscoped SQL statement and reported as a tenant-isolation defect.
+ */
+function blankComments(source: string): string {
+  const blank = (m: string) => m.replace(/[^\n]/g, ' ');
+  return source
+    .replace(/\/\*[\s\S]*?\*\//g, blank)
+    .replace(/(^|[^:])(\/\/[^\n]*)/gm, (_all, before: string, comment: string) => before + blank(comment));
+}
+
 /** Every string literal in a source file, with the offset where it started. */
 function stringLiterals(source: string): { readonly text: string; readonly index: number }[] {
   const re = /`(?:[^`\\]|\\[\s\S])*`|'(?:[^'\\\n]|\\[\s\S])*'|"(?:[^"\\\n]|\\[\s\S])*"/g;
@@ -82,12 +100,12 @@ function scopedTablesIn(sql: string): string[] {
 describe('tenant scope: every SQL statement that reads customer data is scoped', () => {
   const dbDir = join(ROOT, 'apps', 'app', 'src', 'db');
 
-  it('AUTH-201 no customer-scoped table is queried outside apps/app/src/db', () => {
+  it('SEC-201 no customer-scoped table is queried outside apps/app/src/db', () => {
     expect(existsSync(dbDir), `${dbDir} must exist (owner: A02)`).toBe(true);
     const offenders: string[] = [];
     for (const file of walk(join(ROOT, 'apps', 'app', 'src'))) {
       if (file.startsWith(dbDir)) continue;
-      for (const literal of stringLiterals(read(file))) {
+      for (const literal of stringLiterals(blankComments(read(file)))) {
         if (!SQL_KEYWORD.test(literal.text)) continue;
         if (scopedTablesIn(literal.text).length === 0) continue;
         offenders.push(`${relative(ROOT, file)}: ${literal.text.slice(0, 90).replace(/\s+/g, ' ')}`);
@@ -96,11 +114,11 @@ describe('tenant scope: every SQL statement that reads customer data is scoped',
     expect(offenders).toEqual([]);
   });
 
-  it('AUTH-202 every query on a customer-scoped table names workspace_id or is marked exempt', () => {
+  it('SEC-202 every query on a customer-scoped table names workspace_id or is marked exempt', () => {
     const offenders: string[] = [];
     for (const file of walk(dbDir)) {
       const source = read(file);
-      for (const literal of stringLiterals(source)) {
+      for (const literal of stringLiterals(blankComments(source))) {
         const sql = literal.text;
         if (!SQL_KEYWORD.test(sql)) continue;
         if (scopedTablesIn(sql).length === 0) continue;
@@ -112,7 +130,7 @@ describe('tenant scope: every SQL statement that reads customer data is scoped',
     expect(offenders).toEqual([]);
   });
 
-  it('AUTH-203 no query interpolates a runtime value into SQL instead of binding it', () => {
+  it('SEC-203 no query interpolates a runtime value into SQL instead of binding it', () => {
     // Interpolating a constant column list (`${RUN_COLUMNS}`) or a locally-built list of
     // literal predicates (`${where.join(' AND ')}`) is safe. Interpolating anything else
     // is how a workspace id, a status or a limit ends up concatenated into a statement.
@@ -120,7 +138,7 @@ describe('tenant scope: every SQL statement that reads customer data is scoped',
       /^\s*(?:[A-Z][A-Z0-9_]*(?:\.[A-Za-z0-9_]+(?:\([^)]*\))?)*|[A-Za-z_$][\w$]*\.join\([^)]*\))\s*$/;
     const offenders: string[] = [];
     for (const file of walk(dbDir)) {
-      for (const literal of stringLiterals(read(file))) {
+      for (const literal of stringLiterals(blankComments(read(file)))) {
         if (!literal.text.startsWith('`') || !SQL_KEYWORD.test(literal.text)) continue;
         for (const m of literal.text.matchAll(/\$\{([^}]*)\}/g)) {
           const expression = (m[1] ?? '').replace(/\s+/g, ' ');
@@ -132,7 +150,7 @@ describe('tenant scope: every SQL statement that reads customer data is scoped',
     expect(offenders).toEqual([]);
   });
 
-  it('AUTH-204 a child-row read proves parentage inside the same statement', () => {
+  it('SEC-204 a child-row read proves parentage inside the same statement', () => {
     // The dangerous shape is: `getRun(runId)`, then `getEvidence(evidenceId)`, then a
     // separate `if (evidence.run_id === run.id)`. Any read of a child row must carry the
     // workspace predicate in the SAME statement, so no unscoped row ever exists in
@@ -140,7 +158,7 @@ describe('tenant scope: every SQL statement that reads customer data is scoped',
     const offenders: string[] = [];
     for (const file of walk(dbDir)) {
       const source = read(file);
-      for (const literal of stringLiterals(source)) {
+      for (const literal of stringLiterals(blankComments(source))) {
         const sql = literal.text;
         const child = /\bFROM\s+(assertions|evidence|run_attempts|workflow_versions|credential_versions)\b/i;
         if (!child.test(sql)) continue;

@@ -72,26 +72,92 @@ async function findEntry(db: Db, idempotencyKey: string): Promise<BudgetEntryRow
 }
 
 /**
- * Shared shape for the four movements. `guard` is the SQL predicate that must hold on
- * `budget_accounts` for the movement to be legal, with its own bindings.
+ * The four legal movements, as a closed set.
+ *
+ * AUTH-203: `movement()` used to take `guardSql: string` and interpolate it into the
+ * statement. Every caller passed a module constant, so it was not exploitable — but a
+ * caller-supplied SQL fragment in a money path is one careless refactor away from an
+ * injectable budget guard. The SQL now lives entirely in this frozen table; `movement()`
+ * receives a `BudgetMovement` key and nothing else, so there is no string a caller could
+ * supply even if it wanted to.
+ *
+ * Each movement pairs a ledger insert with an account update carrying the IDENTICAL
+ * guard, so a movement that is not permitted writes nothing at all.
  */
+export type BudgetMovement = 'reserve' | 'release' | 'settle' | 'commit';
+
+interface MovementPlan {
+  readonly kind: BudgetEntryKind;
+  /** Insert guarded by the same predicate as the update below. */
+  readonly entrySql: string;
+  readonly updateSql: string;
+  /** How many times `amountMinor` is bound into the update, in order. */
+  readonly updateAmountBindings: number;
+}
+
+const ENTRY_INSERT_IF_AVAILABLE =
+  `INSERT INTO budget_entries (id, account_id, kind, amount_minor, source, idempotency_key, created_at)
+   SELECT ?, ?, ?, ?, ?, ?, ?
+    WHERE EXISTS (SELECT 1 FROM budget_accounts WHERE id = ? AND ${AVAILABLE_EXPR} >= ?)`;
+
+const ENTRY_INSERT_IF_RESERVED =
+  `INSERT INTO budget_entries (id, account_id, kind, amount_minor, source, idempotency_key, created_at)
+   SELECT ?, ?, ?, ?, ?, ?, ?
+    WHERE EXISTS (SELECT 1 FROM budget_accounts WHERE id = ? AND reserved_minor >= ?)`;
+
+const MOVEMENTS: Readonly<Record<BudgetMovement, MovementPlan>> = {
+  reserve: {
+    kind: 'reserve',
+    entrySql: ENTRY_INSERT_IF_AVAILABLE,
+    updateSql: `UPDATE budget_accounts
+                   SET reserved_minor = reserved_minor + ?, revision = revision + 1, updated_at = ?
+                 WHERE id = ? AND ${AVAILABLE_EXPR} >= ?`,
+    updateAmountBindings: 1,
+  },
+  release: {
+    kind: 'release',
+    entrySql: ENTRY_INSERT_IF_RESERVED,
+    updateSql: `UPDATE budget_accounts
+                   SET reserved_minor = reserved_minor - ?, revision = revision + 1, updated_at = ?
+                 WHERE id = ? AND reserved_minor >= ?`,
+    updateAmountBindings: 1,
+  },
+  settle: {
+    kind: 'spend',
+    entrySql: ENTRY_INSERT_IF_RESERVED,
+    updateSql: `UPDATE budget_accounts
+                   SET reserved_minor = reserved_minor - ?, spent_minor = spent_minor + ?,
+                       revision = revision + 1, updated_at = ?
+                 WHERE id = ? AND reserved_minor >= ?`,
+    updateAmountBindings: 2,
+  },
+  commit: {
+    kind: 'commit',
+    entrySql: ENTRY_INSERT_IF_RESERVED,
+    updateSql: `UPDATE budget_accounts
+                   SET reserved_minor = reserved_minor - ?, committed_minor = committed_minor + ?,
+                       revision = revision + 1, updated_at = ?
+                 WHERE id = ? AND reserved_minor >= ?`,
+    updateAmountBindings: 2,
+  },
+};
+
+export interface MovementParams {
+  readonly entryId: string;
+  readonly accountId: string;
+  readonly amountMinor: number;
+  readonly source: string;
+  readonly idempotencyKey: string;
+  readonly at: string;
+}
+
 async function movement(
   db: Db,
-  params: {
-    entryId: string;
-    accountId: string;
-    kind: BudgetEntryKind;
-    amountMinor: number;
-    source: string;
-    idempotencyKey: string;
-    at: string;
-    guardSql: string;
-    guardBindings: readonly unknown[];
-    updateSql: string;
-    updateBindings: readonly unknown[];
-  },
+  which: BudgetMovement,
+  params: MovementParams,
 ): Promise<BudgetOutcome> {
   assertAmount(params.amountMinor);
+  const plan = MOVEMENTS[which];
 
   const existing = await findEntry(db, params.idempotencyKey);
   if (existing !== null) {
@@ -99,25 +165,25 @@ async function movement(
     return { ok: true, idempotent: true, entryId: existing.id };
   }
 
+  const updateBindings: unknown[] = [];
+  for (let i = 0; i < plan.updateAmountBindings; i += 1) updateBindings.push(params.amountMinor);
+  updateBindings.push(params.at, params.accountId, params.amountMinor);
+
   const statements = [
     db
-      .prepare(
-        `INSERT INTO budget_entries (id, account_id, kind, amount_minor, source, idempotency_key, created_at)
-         SELECT ?, ?, ?, ?, ?, ?, ?
-          WHERE EXISTS (SELECT 1 FROM budget_accounts WHERE id = ? AND ${params.guardSql})`,
-      )
+      .prepare(plan.entrySql)
       .bind(
         params.entryId,
         params.accountId,
-        params.kind,
+        plan.kind,
         params.amountMinor,
         params.source,
         params.idempotencyKey,
         params.at,
         params.accountId,
-        ...params.guardBindings,
+        params.amountMinor,
       ),
-    db.prepare(params.updateSql).bind(...params.updateBindings),
+    db.prepare(plan.updateSql).bind(...updateBindings),
   ];
 
   let results;
@@ -197,80 +263,25 @@ export const budget = {
    */
   async reserve(
     db: Db,
-    params: {
-      entryId: string;
-      accountId: string;
-      amountMinor: number;
-      source: string;
-      idempotencyKey: string;
-      at: string;
-    },
+    params: MovementParams,
   ): Promise<BudgetOutcome> {
-    return movement(db, {
-      ...params,
-      kind: 'reserve',
-      guardSql: `${AVAILABLE_EXPR} >= ?`,
-      guardBindings: [params.amountMinor],
-      updateSql: `UPDATE budget_accounts
-                     SET reserved_minor = reserved_minor + ?, revision = revision + 1, updated_at = ?
-                   WHERE id = ? AND ${AVAILABLE_EXPR} >= ?`,
-      updateBindings: [params.amountMinor, params.at, params.accountId, params.amountMinor],
-    });
+    return movement(db, 'reserve', params);
   },
 
   /** Hand an unused reservation back. */
   async release(
     db: Db,
-    params: {
-      entryId: string;
-      accountId: string;
-      amountMinor: number;
-      source: string;
-      idempotencyKey: string;
-      at: string;
-    },
+    params: MovementParams,
   ): Promise<BudgetOutcome> {
-    return movement(db, {
-      ...params,
-      kind: 'release',
-      guardSql: 'reserved_minor >= ?',
-      guardBindings: [params.amountMinor],
-      updateSql: `UPDATE budget_accounts
-                     SET reserved_minor = reserved_minor - ?, revision = revision + 1, updated_at = ?
-                   WHERE id = ? AND reserved_minor >= ?`,
-      updateBindings: [params.amountMinor, params.at, params.accountId, params.amountMinor],
-    });
+    return movement(db, 'release', params);
   },
 
   /** Reservation becomes real spend. Money left the account. */
   async settle(
     db: Db,
-    params: {
-      entryId: string;
-      accountId: string;
-      amountMinor: number;
-      source: string;
-      idempotencyKey: string;
-      at: string;
-    },
+    params: MovementParams,
   ): Promise<BudgetOutcome> {
-    return movement(db, {
-      ...params,
-      kind: 'spend',
-      guardSql: 'reserved_minor >= ?',
-      guardBindings: [params.amountMinor],
-      updateSql: `UPDATE budget_accounts
-                     SET reserved_minor = reserved_minor - ?, spent_minor = spent_minor + ?,
-                         revision = revision + 1, updated_at = ?
-                   WHERE id = ? AND reserved_minor >= ?`,
-      updateBindings: [
-        params.amountMinor,
-        params.amountMinor,
-        params.at,
-        params.accountId,
-        params.amountMinor,
-      ],
-    });
+    return movement(db, 'settle', params);
   },
 
   /**
@@ -279,32 +290,9 @@ export const budget = {
    */
   async commit(
     db: Db,
-    params: {
-      entryId: string;
-      accountId: string;
-      amountMinor: number;
-      source: string;
-      idempotencyKey: string;
-      at: string;
-    },
+    params: MovementParams,
   ): Promise<BudgetOutcome> {
-    return movement(db, {
-      ...params,
-      kind: 'commit',
-      guardSql: 'reserved_minor >= ?',
-      guardBindings: [params.amountMinor],
-      updateSql: `UPDATE budget_accounts
-                     SET reserved_minor = reserved_minor - ?, committed_minor = committed_minor + ?,
-                         revision = revision + 1, updated_at = ?
-                   WHERE id = ? AND reserved_minor >= ?`,
-      updateBindings: [
-        params.amountMinor,
-        params.amountMinor,
-        params.at,
-        params.accountId,
-        params.amountMinor,
-      ],
-    });
+    return movement(db, 'commit', params);
   },
 
   async listEntries(db: Db, accountId: string, limit = 50): Promise<BudgetEntryRow[]> {

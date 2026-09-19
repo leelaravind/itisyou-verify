@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  CSRF_COOKIE_NAME,
+  CSRF_COOKIE_NAME_INSECURE,
   csrfCookie,
+  csrfCookieName,
   generateCsrfToken,
   isSameOriginRequest,
   isStateChangingMethod,
@@ -36,13 +39,35 @@ describe('CSRF double submit', () => {
     expect(validateCsrfToken('short', 'short')).toBe(false);
   });
 
-  it('API-103 issues a host-locked, SameSite cookie', () => {
+  it('API-103 issues a host-locked, SameSite cookie in production', () => {
     const cookie = csrfCookie('abc');
     expect(cookie).toContain('__Host-verify_csrf=abc');
     expect(cookie).toContain('Path=/');
     expect(cookie).toContain('SameSite=Lax');
     expect(cookie).toContain('Secure');
-    expect(csrfCookie('abc', { secure: false })).not.toContain('Secure');
+    expect(cookie).not.toContain('Domain=');
+  });
+
+  it('API-110 never emits a __Host- cookie without Secure (A10 AUTH-137)', () => {
+    // Browsers discard a __Host- cookie that is not Secure, so an insecure origin would
+    // get no CSRF cookie at all — and the tempting "fix" is to switch CSRF off.
+    const insecure = csrfCookie('abc', { secure: false });
+    expect(insecure).not.toContain('Secure');
+    expect(insecure.startsWith('__Host-')).toBe(false);
+    expect(insecure).toContain(`${CSRF_COOKIE_NAME_INSECURE}=abc`);
+    expect(insecure).toContain('Path=/');
+    expect(insecure).toContain('SameSite=Lax');
+  });
+
+  it('API-111 the prefix and Secure always travel together', () => {
+    for (const secure of [true, false]) {
+      const cookie = csrfCookie('abc', { secure });
+      expect(cookie.startsWith('__Host-')).toBe(cookie.includes('Secure'));
+      expect(cookie.startsWith(`${csrfCookieName(secure)}=`)).toBe(true);
+    }
+    expect(csrfCookieName(true)).toBe(CSRF_COOKIE_NAME);
+    expect(csrfCookieName()).toBe(CSRF_COOKIE_NAME);
+    expect(csrfCookieName(false)).toBe(CSRF_COOKIE_NAME_INSECURE);
   });
 
   it('API-104 classifies methods correctly', () => {

@@ -151,6 +151,99 @@ describe('sessions and login tokens', () => {
     expect(await sessions.markMfaVerified(h.db, 's1', LATER)).toBe(false);
   });
 
+  it('AUTH-226 a privilege transition issues a NEW session id (fixation)', async () => {
+    await sessions.create(h.db, { idHash: 'old', userId: ws.userId, createdAt: T0, expiresAt: LATER });
+    const rotated = await sessions.rotate(h.db, {
+      oldIdHash: 'old',
+      newIdHash: 'new',
+      userId: ws.userId,
+      now: T0,
+      expiresAt: LATER,
+      mfaVerifiedAt: T0,
+    });
+    expect(rotated).toBe(true);
+    // The planted id is dead; only the freshly minted one works.
+    expect(await sessions.findLive(h.db, 'old', T0)).toBeNull();
+    const live = await sessions.findLive(h.db, 'new', T0);
+    expect(live?.user_id).toBe(ws.userId);
+    expect(live?.mfa_verified_at).toBe(T0);
+  });
+
+  it('AUTH-227 rotation cannot mint a session from a revoked, expired or foreign one', async () => {
+    const other = seedWorkspace(h, 'beta');
+    await sessions.create(h.db, { idHash: 'revoked', userId: ws.userId, createdAt: T0, expiresAt: LATER });
+    await sessions.revoke(h.db, 'revoked', T0);
+    expect(
+      await sessions.rotate(h.db, {
+        oldIdHash: 'revoked',
+        newIdHash: 'n1',
+        userId: ws.userId,
+        now: T0,
+        expiresAt: LATER,
+      }),
+    ).toBe(false);
+    expect(await sessions.findLive(h.db, 'n1', T0)).toBeNull();
+
+    await sessions.create(h.db, { idHash: 'expired', userId: ws.userId, createdAt: T0, expiresAt: T0 });
+    expect(
+      await sessions.rotate(h.db, {
+        oldIdHash: 'expired',
+        newIdHash: 'n2',
+        userId: ws.userId,
+        now: LATER,
+        expiresAt: LATER,
+      }),
+    ).toBe(false);
+    expect(await sessions.findLive(h.db, 'n2', LATER)).toBeNull();
+
+    // Another user's live session cannot be rotated into one of mine.
+    await sessions.create(h.db, { idHash: 'theirs', userId: other.userId, createdAt: T0, expiresAt: LATER });
+    expect(
+      await sessions.rotate(h.db, {
+        oldIdHash: 'theirs',
+        newIdHash: 'n3',
+        userId: ws.userId,
+        now: T0,
+        expiresAt: LATER,
+      }),
+    ).toBe(false);
+    expect(await sessions.findLive(h.db, 'n3', T0)).toBeNull();
+    expect(await sessions.findLive(h.db, 'theirs', T0)).not.toBeNull();
+  });
+
+  it('AUTH-228 a failed rotation leaves the old session exactly as it was', async () => {
+    await sessions.create(h.db, { idHash: 'old', userId: ws.userId, createdAt: T0, expiresAt: LATER });
+    // A duplicate new id makes the insert fail, so the batch must roll the revoke back.
+    await sessions.create(h.db, { idHash: 'taken', userId: ws.userId, createdAt: T0, expiresAt: LATER });
+    await expect(
+      sessions.rotate(h.db, {
+        oldIdHash: 'old',
+        newIdHash: 'taken',
+        userId: ws.userId,
+        now: T0,
+        expiresAt: LATER,
+      }),
+    ).rejects.toThrow();
+    expect(await sessions.findLive(h.db, 'old', T0)).not.toBeNull();
+  });
+
+  it('AUTH-229 two concurrent rotations of one session mint only one successor', async () => {
+    await sessions.create(h.db, { idHash: 'old', userId: ws.userId, createdAt: T0, expiresAt: LATER });
+    const results = await Promise.all(
+      ['a', 'b'].map((suffix) =>
+        sessions.rotate(h.db, {
+          oldIdHash: 'old',
+          newIdHash: `new_${suffix}`,
+          userId: ws.userId,
+          now: T0,
+          expiresAt: LATER,
+        }),
+      ),
+    );
+    expect(results.filter(Boolean)).toHaveLength(1);
+    expect(countRows(h, 'sessions', 'revoked_at IS NULL')).toBe(1);
+  });
+
   it('AUTH-223 a magic-link token is consumable exactly once', async () => {
     await loginTokens.issue(h.db, {
       tokenHash: 'token_hash',
@@ -242,6 +335,7 @@ describe('connections and credential rotation', () => {
       ownerScope: scope,
       connectionId: 'conn_1',
       keyVersion: 1,
+      // secret-scan:allow synthetic base64; not a real envelope
       ciphertext: 'Y2lwaGVyMQ==',
       nonce: 'bm9uY2Vub25jZQ==',
       aad: 'v1|ws=ws_alpha|provider=hubspot|purpose=api_token',
@@ -252,6 +346,7 @@ describe('connections and credential rotation', () => {
       ownerScope: scope,
       connectionId: 'conn_1',
       keyVersion: 2,
+      // secret-scan:allow synthetic base64; not a real envelope
       ciphertext: 'Y2lwaGVyMg==',
       nonce: 'bm9uY2Vub25jZQ==',
       aad: 'v1|ws=ws_alpha|provider=hubspot|purpose=api_token',
@@ -276,6 +371,7 @@ describe('connections and credential rotation', () => {
       ownerScope: connectionScope('conn_1'),
       connectionId: 'conn_1',
       keyVersion: 1,
+      // secret-scan:allow base64 of the literal word 'cipher'; not a real envelope
       ciphertext: 'Y2lwaGVy',
       nonce: 'bm9uY2Vub25jZQ==',
       aad: 'v1|ws=ws_alpha|provider=resend|purpose=api_token',
@@ -301,6 +397,7 @@ describe('connections and credential rotation', () => {
       ownerScope: connectionScope('conn_1'),
       connectionId: 'conn_1',
       keyVersion: 1,
+      // secret-scan:allow base64 of the literal word 'cipher'; not a real envelope
       ciphertext: 'Y2lwaGVy',
       nonce: 'bm9uY2Vub25jZQ==',
       aad: 'v1|ws=ws_alpha|provider=hubspot|purpose=api_token',

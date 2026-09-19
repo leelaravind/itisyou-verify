@@ -192,9 +192,17 @@ export const credentials = {
     },
   ): Promise<void> {
     await db.batch([
+      // credential_versions carries no workspace_id column: it is scoped by owner_scope
+      // ('connection:<id>' or 'user:<id>'). The caller has already proven ownership of
+      // that scope, and a user-scoped TOTP secret has no workspace at all. Reads go
+      // through activeForConnection(), which joins to connections and does filter on
+      // workspace_id.
+      // tenant-scope:exempt scoped by owner_scope; see above.
       db
         .prepare('UPDATE credential_versions SET retired_at = ? WHERE owner_scope = ? AND retired_at IS NULL')
         .bind(params.createdAt, params.ownerScope),
+      // tenant-scope:exempt same scope rule as the retire above; this is the matching
+      // insert and the two must stay in one batch.
       db
         .prepare(
           `INSERT INTO credential_versions (id, connection_id, owner_scope, key_version, ciphertext, nonce, aad, created_at)
@@ -226,9 +234,8 @@ export const credentials = {
   ): Promise<CredentialEnvelopeRow | null> {
     return db
       .prepare(
-        `SELECT ${CREDENTIAL_COLUMNS.split(', ')
-          .map((c) => `cv.${c}`)
-          .join(', ')}
+        `SELECT cv.id, cv.connection_id, cv.owner_scope, cv.key_version,
+                cv.ciphertext, cv.nonce, cv.aad, cv.created_at
            FROM credential_versions cv
            JOIN connections c ON c.id = cv.connection_id
           WHERE c.workspace_id = ? AND c.id = ? AND cv.retired_at IS NULL
@@ -239,8 +246,13 @@ export const credentials = {
       .first<CredentialEnvelopeRow>();
   },
 
-  /** For user-scoped material (the owner's TOTP secret), which has no workspace. */
+  /**
+   * For user-scoped material (the owner's TOTP secret), which has no workspace at all —
+   * a platform owner is not a member of any tenant in this capacity, so there is no
+   * workspace id to scope by. The caller has already authenticated as that user.
+   */
   async activeForUser(db: Db, userId: string): Promise<CredentialEnvelopeRow | null> {
+    // tenant-scope:exempt user-scoped TOTP secret; owner_scope is 'user:<id>'.
     return db
       .prepare(
         `SELECT ${CREDENTIAL_COLUMNS} FROM credential_versions
@@ -252,6 +264,9 @@ export const credentials = {
   },
 
   async retireAllForScope(db: Db, ownerScope: string, at: string): Promise<number> {
+    // Used for account deletion and TOTP reset, where the caller supplies the scope it
+    // has already proven it owns.
+    // tenant-scope:exempt scoped by owner_scope, the only scope this table has.
     const result = await db
       .prepare('UPDATE credential_versions SET retired_at = ? WHERE owner_scope = ? AND retired_at IS NULL')
       .bind(at, ownerScope)

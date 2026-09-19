@@ -12,9 +12,32 @@
 import { randomBytes, toBase64Url } from './bytes';
 import { timingSafeEqual } from './hash';
 
-/** Name used for the double-submit cookie and the hidden form field. */
+/**
+ * Name used for the double-submit cookie in production.
+ *
+ * The `__Host-` prefix is a browser-enforced guarantee: the cookie must be `Secure`, must
+ * have `Path=/` and must carry no `Domain`, so a subdomain cannot set or overwrite it.
+ */
 export const CSRF_COOKIE_NAME = '__Host-verify_csrf';
+
+/**
+ * Name used when the connection is not HTTPS (local development over
+ * http://localhost:8787).
+ *
+ * AUTH-137: a `__Host-` cookie without `Secure` is rejected outright by every browser, so
+ * emitting one in development means no CSRF cookie at all, every form post fails, and the
+ * obvious "fix" a hurried developer reaches for is turning the CSRF check off. Dropping
+ * the prefix on an insecure origin keeps the mechanism working in development while
+ * production keeps the strict, browser-enforced name.
+ */
+export const CSRF_COOKIE_NAME_INSECURE = 'verify_csrf';
+
 export const CSRF_FIELD_NAME = 'csrf_token';
+
+/** The cookie name for a given transport. Read the cookie back under the same name. */
+export function csrfCookieName(secure = true): string {
+  return secure ? CSRF_COOKIE_NAME : CSRF_COOKIE_NAME_INSECURE;
+}
 
 /** HTTP methods that cannot change state and therefore need no CSRF token. */
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
@@ -41,10 +64,16 @@ export function validateCsrfToken(
   return timingSafeEqual(cookieToken, submittedToken);
 }
 
-/** `Set-Cookie` value for the double-submit cookie. Not HttpOnly — the form must echo it. */
+/**
+ * `Set-Cookie` value for the double-submit cookie. Not HttpOnly — the form must echo it.
+ *
+ * `Secure` and the `__Host-` prefix move together: either both are present (production)
+ * or neither is (local http development). They must never be separated, because a
+ * `__Host-` cookie without `Secure` is silently discarded by the browser.
+ */
 export function csrfCookie(token: string, { secure = true }: { secure?: boolean } = {}): string {
   const parts = [
-    `${CSRF_COOKIE_NAME}=${token}`,
+    `${csrfCookieName(secure)}=${token}`,
     'Path=/',
     'SameSite=Lax',
     'Max-Age=43200',

@@ -65,6 +65,12 @@ importers:
       '@verify/contracts':
         specifier: workspace:*
         version: link:../contracts
+      '@verify/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@verify/security':
+        specifier: workspace:*
+        version: link:../security
 
   packages/contracts:
     dependencies:

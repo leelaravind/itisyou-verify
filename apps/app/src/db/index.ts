@@ -81,7 +81,9 @@ export type {
   BudgetAccountRow,
   BudgetEntryRow,
   BudgetEntryKind,
+  BudgetMovement,
   BudgetOutcome,
+  MovementParams as BudgetMovementParams,
 } from './budget';
 
 export { auditEvents, settings } from './audit';

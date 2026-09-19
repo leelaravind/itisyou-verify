@@ -171,6 +171,7 @@ describe('tenant isolation', () => {
       ownerScope: connectionScope('conn_a'),
       connectionId: 'conn_a',
       keyVersion: 1,
+      // secret-scan:allow base64 of the literal word 'cipher'; not a real envelope
       ciphertext: 'Y2lwaGVy',
       nonce: 'bm9uY2Vub25jZQ==',
       aad: 'v1|ws=ws_alpha|provider=hubspot|purpose=api_token',

@@ -36,7 +36,11 @@ describe('maskToken', () => {
   });
 
   it('API-086 keeps only a short suffix of a long value', () => {
+    // Synthetic, deterministic, and guards nothing. Shaped like a Stripe key on purpose:
+    // the whole point of the case is that a key-shaped value comes back unusable.
+    // secret-scan:allow
     expect(maskToken('sk_live_0123456789abcdef')).toBe('********cdef');
+    // secret-scan:allow
     expect(maskToken('sk_live_0123456789abcdef')).not.toContain('sk_live');
   });
 });

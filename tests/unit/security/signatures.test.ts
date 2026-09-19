@@ -139,6 +139,7 @@ describe('our own request signature', () => {
 });
 
 describe('Stripe webhook signature', () => {
+  // secret-scan:allow synthetic webhook secret; signs nothing that exists
   const STRIPE_SECRET = 'whsec_stripe_test_secret';
 
   it('API-060 accepts a correctly signed payload', async () => {
@@ -226,7 +227,8 @@ describe('Stripe webhook signature', () => {
 });
 
 describe('Svix / Resend webhook signature', () => {
-  // whsec_ + base64 of 24 random-looking bytes, as Svix issues them.
+  // whsec_ + base64 of 24 bytes, shaped exactly as Svix issues them.
+  // secret-scan:allow synthetic webhook secret; signs nothing that exists
   const SVIX_SECRET = `whsec_${toBase64(utf8Bytes('resend-webhook-secret-24'))}`;
   const MSG_ID = 'msg_2abcDEF';
 

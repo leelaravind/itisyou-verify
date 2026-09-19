@@ -75,24 +75,24 @@ export const runs = {
   ): Promise<Page<RunRow>> {
     const limit = clampLimit(page.limit);
     const cursor = decodeCursor(page.cursor);
-    const where = ['workspace_id = ?'];
+    // The tenant predicate is a literal in every one of these four statements, never a
+    // fragment assembled at runtime: a reader — and the AUTH-202 source scan — must be
+    // able to see `workspace_id = ?` in the statement that actually runs.
+    const statusClause = page.status !== undefined ? ' AND status = ?' : '';
+    const cursorClause =
+      cursor !== null ? ' AND (created_at < ? OR (created_at = ? AND id < ?))' : '';
+    const sql =
+      `SELECT ${RUN_COLUMNS} FROM runs WHERE workspace_id = ?` +
+      statusClause +
+      cursorClause +
+      ' ORDER BY created_at DESC, id DESC LIMIT ?';
+
     const bindings: unknown[] = [workspaceId];
-    if (page.status !== undefined) {
-      where.push('status = ?');
-      bindings.push(page.status);
-    }
-    if (cursor !== null) {
-      where.push('(created_at < ? OR (created_at = ? AND id < ?))');
-      bindings.push(cursor.createdAt, cursor.createdAt, cursor.id);
-    }
+    if (page.status !== undefined) bindings.push(page.status);
+    if (cursor !== null) bindings.push(cursor.createdAt, cursor.createdAt, cursor.id);
     bindings.push(limit + 1);
-    const result = await db
-      .prepare(
-        `SELECT ${RUN_COLUMNS} FROM runs WHERE ${where.join(' AND ')}
-          ORDER BY created_at DESC, id DESC LIMIT ?`,
-      )
-      .bind(...bindings)
-      .all<RunRow>();
+
+    const result = await db.prepare(sql).bind(...bindings).all<RunRow>();
     return buildPage(result.results, limit);
   },
 
@@ -168,6 +168,11 @@ export const runs = {
     db: Db,
     params: { runId: string; expectedRevision: number; now: string; leaseUntil: string },
   ): Promise<boolean> {
+    // The scheduler is cross-tenant by design and claims whatever listDue() handed it,
+    // which is already a bounded set of due runs across every workspace. The
+    // compare-and-set on (id, revision) is the safety property here, and the claimed row
+    // carries its workspace_id onward so every subsequent read and write is scoped.
+    // tenant-scope:exempt cross-tenant scheduler claim, guarded by CAS on (id, revision).
     const result = await db
       .prepare(
         `UPDATE runs
@@ -554,8 +559,16 @@ export const evidence = {
       .first<EvidenceRow>();
   },
 
-  /** Bounded retention delete, driven by the scheduler. Cross-tenant on purpose. */
+  /**
+   * Bounded retention delete, driven by the scheduler.
+   *
+   * Retention is a platform-wide obligation, not a tenant operation: every workspace's
+   * expired evidence must go, and selecting by workspace would make the sweep enumerate
+   * tenants. It only ever deletes rows past their own expires_at, so it cannot remove
+   * live data from any workspace.
+   */
   async purgeExpired(db: Db, now: string, limit = 500): Promise<number> {
+    // tenant-scope:exempt platform-wide retention sweep; deletes only past expires_at.
     const result = await db
       .prepare('DELETE FROM evidence WHERE id IN (SELECT id FROM evidence WHERE expires_at <= ? LIMIT ?)')
       .bind(now, limit)
