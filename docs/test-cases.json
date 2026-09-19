@@ -2,7 +2,7 @@
   "schema_version": 1,
   "generated_at": "2026-09-19T23:48:45.174Z",
   "generated_by": "A11 \u2014 QA and Release",
-  "snapshot_commit": "PENDING_COMMIT",
+  "snapshot_commit": "a374d97",
   "basis": "Rebased onto the implemented suite. requirement = the test title; setup and expected = the test's own statements; status = the recorded run. risk is an area statement written per test file and labelled risk_source: \"area\".",
   "cases": [
     {
