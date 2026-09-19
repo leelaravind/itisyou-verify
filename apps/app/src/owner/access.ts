@@ -254,6 +254,10 @@ export function authorise(
   const held = capabilitiesFor(principal);
   if (!held.has(capability)) {
     if (principal.isAutomation) {
+      // 403 here, not 404, and that is not an inconsistency with gate 1. This principal has
+      // already proved the route exists by reading it, so naming the refusal leaks nothing
+      // new — and a browser test needs to tell "denied" apart from "route missing" to be
+      // worth writing. The 404 rule protects people who should not be in the panel at all.
       return {
         ok: false,
         refusal: 'capability_denied',

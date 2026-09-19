@@ -49,7 +49,7 @@ function route(harness: BillingHarness) {
 function anEvent(harness: BillingHarness): Record<string, unknown> {
   return stripeEvent(
     'customer.subscription.updated',
-    subscriptionObject({ id: 'sub_attack_1', status: 'active', customerId: 'cus_stub_1' }),
+    subscriptionObject({ id: 'sub_attack_1', status: 'active', customer: 'cus_stub_1' }),
     { livemode: harness.config.environment === 'live' },
   );
 }
@@ -254,7 +254,7 @@ describe('Stripe webhook route: signature before parse', () => {
     const harness = createHarness({ environment: 'live' });
     const event = stripeEvent(
       'customer.subscription.updated',
-      subscriptionObject({ id: 'sub_test_1', status: 'active', customerId: 'cus_stub_1' }),
+      subscriptionObject({ id: 'sub_test_1', status: 'active', customer: 'cus_stub_1' }),
       { livemode: false },
     );
     const { body, headers } = await signedDelivery(event, harness.at(), WEBHOOK_SECRET);

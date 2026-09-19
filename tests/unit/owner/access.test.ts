@@ -76,19 +76,20 @@ describe('owner panel access', () => {
     expect(decision.status).toBe(404);
   });
 
-  it('OWNER-002 a signed-in customer is refused with the identical not_found', () => {
+  // "A customer is refused, and the refusal tells them nothing" is one property. OWNER-003
+  // was the second half of it and now carries the unconfigured-mount composition case in
+  // tests/integration/owner/routes.test.ts.
+  it('OWNER-002 a signed-in customer is refused with an identical not_found that confirms nothing', () => {
     const decision = authorise(customer(), 'owner.view', NOW);
     expect(decision.ok).toBe(false);
     if (decision.ok) throw new Error('unreachable');
     expect(decision.status).toBe(404);
-  });
 
-  it('OWNER-003 the refusal for a customer carries no capability name, so nothing is confirmed', () => {
-    const decision = authorise(customer(), 'refund.issue', NOW);
-    if (decision.ok) throw new Error('unreachable');
-    expect(decision.refusal).toBe('not_found');
+    const forRefund = authorise(customer(), 'refund.issue', NOW);
+    if (forRefund.ok) throw new Error('unreachable');
+    expect(forRefund.refusal).toBe('not_found');
     // A customer asking for a refund route must not be told the capability exists.
-    expect(decision.detail).not.toContain('refund.issue');
+    expect(forRefund.detail).not.toContain('refund.issue');
   });
 
   it('OWNER-004 an expired session is refused with not_found even for a genuine owner', () => {

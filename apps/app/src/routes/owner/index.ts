@@ -39,6 +39,7 @@ import {
 import { bootstrapOwner, type BootstrapResult } from '../../owner/bootstrap.js';
 import { isControlKey } from '../../owner/controls.js';
 import { MemoryOwnerDataPort } from '../../owner/memory.js';
+import { PairingUnavailable, type RunnerPairingPort } from '../../owner/runner.js';
 import {
   artifactMeta,
   isQualityArtifactId,
@@ -183,16 +184,48 @@ export interface OwnerRouterOptions {
   readonly resolvePort?: OwnerPortResolver;
   readonly artifacts?: QualityArtifactStore;
   readonly auth?: OwnerAuthPort;
+  readonly pairing?: RunnerPairingPort;
   readonly now?: () => Date;
+  /**
+   * The deployment this router is being constructed for. Supply it and an unconfigured
+   * mount in production throws here rather than serving anything — see the note below.
+   */
+  readonly environment?: string;
+}
+
+/** Thrown at construction when a production mount has no real data source behind it. */
+export class UnconfiguredOwnerRouterError extends Error {
+  constructor() {
+    super(
+      'createOwnerRoutes() was constructed for production with no resolvePort. The in-memory ' +
+        'port is a development stand-in and must never back a production deployment. Pass ' +
+        'resolvePort, or do not mount the owner router here.',
+    );
+    this.name = 'UnconfiguredOwnerRouterError';
+  }
 }
 
 /* ------------------------------------------------------------------- the router */
 
 export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteBindings> {
   const routes = new Hono<RouteBindings>();
+
+  /**
+   * Refuse to exist in production without a real data source.
+   *
+   * A loud failure at deploy beats a quiet one in the wild. The in-memory port is a
+   * development stand-in; behind a production mount it would render invented customers and
+   * invented money as though they were the business.
+   */
+  const usingDefaultPort = options.resolvePort === undefined;
+  if (usingDefaultPort && options.environment === 'production') {
+    throw new UnconfiguredOwnerRouterError();
+  }
+
   const resolvePort: OwnerPortResolver = options.resolvePort ?? (async () => new MemoryOwnerDataPort());
   const artifacts: QualityArtifactStore = options.artifacts ?? new UnboundQualityArtifactStore();
   const auth: OwnerAuthPort = options.auth ?? new UnwiredOwnerAuth();
+  const pairing: RunnerPairingPort = options.pairing ?? new PairingUnavailable();
   const clock = options.now ?? (() => new Date());
 
   /** The whole page shell for an authenticated screen. */
@@ -213,6 +246,13 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
   }
 
   async function principalOf(c: Context<RouteBindings>): Promise<{ port: OwnerDataPort; principal: OwnerPrincipal }> {
+    // The backstop for a mount that did not pass `environment`. Throwing here surfaces as a
+    // 500 from the Worker's error handler, which is the right answer: a production owner
+    // panel backed by invented data must not render at all. `/admin/login` does not resolve
+    // a port, so the way back in stays reachable.
+    if (usingDefaultPort && c.env.ENVIRONMENT === 'production') {
+      throw new UnconfiguredOwnerRouterError();
+    }
     const port = await resolvePort(c);
     let principal: OwnerPrincipal;
     try {
@@ -755,6 +795,68 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
         'Acknowledge alert',
       ),
     ),
+  );
+
+  /**
+   * Open a pairing code for a maintenance runner device.
+   *
+   * A08's `openPairing` implements no access control of its own — deliberately, so there is
+   * exactly one place the gate lives. This is it: `maintenance.dispatch` is consequential,
+   * so `authorise()` requires `mfa_verified_at` within the last 15 minutes before a code can
+   * be minted. The code lets a machine claim and run maintenance jobs; it is shown once and
+   * is never re-displayable.
+   */
+  routes.post('/owner/operations/runner/pair', async (c) =>
+    withAction(c, 'maintenance.dispatch', async (port, principal, form) => {
+      const label = (form.single['label'] ?? '').trim().slice(0, 80);
+      if (label.length === 0) {
+        return respondToWrite(
+          c,
+          port,
+          principal,
+          { ok: false, message: 'Give the device a name you will recognise later.', redirectTo: null, dependency: null },
+          'Pair a runner',
+        );
+      }
+      const outcome = await pairing.openPairing({
+        label,
+        ownerId: principal.userId ?? 'unknown',
+        now: clock(),
+      });
+      if (!outcome.ok) {
+        return respondToWrite(
+          c,
+          port,
+          principal,
+          { ok: false, message: null, redirectTo: null, dependency: outcome.dependency },
+          'Pair a runner',
+        );
+      }
+      return ownerPage(
+        c,
+        shell(port, principal, {
+          title: 'Pair a runner',
+          path: '/owner/operations',
+          body: html`<div class="wrap section stack">
+            ${PageHead({ title: 'Type this into the runner' })}
+            ${Callout({
+              tone: 'warn',
+              title: 'Shown once, and only once',
+              body: html`<p>
+                  This code is not stored anywhere we can read it back. If you leave this page without using it,
+                  open a new pairing — do not go looking for it.
+                </p>
+                <p class="mono" data-pairing-code="true">${outcome.invitation.code}</p>
+                <p class="small">
+                  Device <span class="mono">${outcome.invitation.deviceId}</span>. Expires
+                  ${outcome.invitation.expiresAt}.
+                </p>`,
+            })}
+            <p><a href="/owner/operations">Back to operations</a></p>
+          </div>`,
+        }),
+      );
+    }),
   );
 
   routes.post('/owner/operations/restore', async (c) =>

@@ -33,17 +33,15 @@ function allPaused(): Controls {
 }
 
 describe('owner controls', () => {
-  it('OWNER-040 pausing ads leaves cancellation reachable', () => {
-    const controls = defaultControls();
-    const paused = { ...controls, ads: { key: 'ads' as const, paused: true, since: AT, by: 'o', note: null } };
-    expect(isPathSuspended('/app/cancel', paused)).toBe(false);
-  });
-
-  it('OWNER-041 pausing ads leaves support reachable', () => {
+  // Cancellation and support are one property, not two — the brief states it as one
+  // sentence — so it is one case. OWNER-041 was the second half of it and is now carrying
+  // the composition case in tests/integration/owner/routes.test.ts instead.
+  it('OWNER-040 pausing ads leaves cancellation and support reachable', () => {
     const paused = {
       ...defaultControls(),
       ads: { key: 'ads' as const, paused: true, since: AT, by: 'o', note: null },
     };
+    expect(isPathSuspended('/app/cancel', paused)).toBe(false);
     expect(isPathSuspended('/support', paused)).toBe(false);
     expect(isPathSuspended('/app/support', paused)).toBe(false);
   });
