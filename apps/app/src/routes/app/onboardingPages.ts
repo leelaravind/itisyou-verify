@@ -907,6 +907,14 @@ export function ActivationPage(
             The signing key proves the event came from you. It does not make the event true — we still go and
             read the evidence ourselves.
           </p>
+          <p class="small muted">
+            Include <code>expected.email_message_id</code> — the id your sending provider returned when it sent
+            the acknowledgement. It is what ties a delivery event to <em>this</em> enquiry. Without it we cannot
+            tell which enquiry a delivery belongs to, because two enquiries from the same customer share an
+            email address, so the email checks stay unknown and the run finishes as
+            <strong>unverified</strong> rather than verified. That is the honest answer, not a fault — but it is
+            avoidable, and it is the one field worth going back to your automation for.
+          </p>
         </div>`,
       })}
 

@@ -395,7 +395,12 @@ describe('the webhook data port', () => {
   });
 
   it('CONN-313 email evidence is stored idempotently and carries no raw payload', async () => {
-    seedRun(h, ws, 'run_a', { nextCheckAt: null, emailRecipient: 'ada@example.com' });
+    seedRun(h, ws, 'run_a', {
+      nextCheckAt: null,
+      emailRecipient: 'ada@example.com',
+      // The enquiry names the message it is waiting for; an address alone no longer binds.
+      emailMessageId: 'msg_1',
+    });
     const record = () =>
       port.recordEmailEvidence({
         workspaceId: ws.workspaceId,
@@ -433,86 +438,122 @@ describe('the webhook data port', () => {
     });
   });
 
+
+
+
   /**
-   * The correlation regression, and the reason this file now seeds a real `expected` block.
+   * The owner's reproduction, ported into the real application.
    *
-   * `recordEmailEvidence` passed no run id, and `recordProviderEvent` defaulted to "the most
-   * recently created pending run in this workspace". Observed on the deployed service on
-   * 19 September 2026: two pending runs, and a delivery event belonging to neither attached
-   * to the newer one purely because it was newer.
+   * `ITISYOU_Verify_Correlation_Reproduction.py` models the correlation logic in isolation
+   * and fails four of its eight cases against the first fix. Those four were right, and
+   * they all reduce to one rule the first fix did not have:
    *
-   * Two enquiries in flight at once is ordinary. One enquiry's acknowledgement satisfying
-   * another enquiry's check falsifies the single claim this product makes, while every
-   * assertion and status mapping around it stays correct.
+   *   **an address is evidence about an address, not about an enquiry.**
+   *
+   * Two enquiries to the same customer share a recipient and are still two enquiries. So
+   * the provider's message id is the only thing that binds, and a failed or ambiguous id
+   * lookup may not fall onward to the address -- not when the id is unknown (R03), not
+   * when it is ambiguous (R04), not when the only id match is an already-decided run
+   * (R05), and not when the run named no id at all (R06).
+   *
+   * Ids below mirror the reproduction's R01..R08 so the two can be read side by side.
+   * These run against D1 and the real port, which the reproduction deliberately does not:
+   * passing the Python file proves nothing about this deployment.
    */
-  it('CONN-317 evidence goes to the run whose enquiry named that recipient, not to the newest', async () => {
-    // `run_old` is the one that asked about ada@. `run_new` is newer and asks about someone
-    // else — under the old fallback it would have taken this evidence.
-    seedRun(h, ws, 'run_old', {
-      nextCheckAt: null,
-      createdAt: '2026-09-19T09:00:00.000Z',
-      emailRecipient: 'ada@example.com',
-    });
-    seedRun(h, ws, 'run_new', {
-      nextCheckAt: null,
-      createdAt: '2026-09-19T09:59:00.000Z',
-      emailRecipient: 'grace@example.com',
-    });
-
-    await port.recordEmailEvidence({
+  const deliver = (messageId: string, recipient: string) =>
+    port.recordEmailEvidence({
       workspaceId: ws.workspaceId,
       connectionId: 'conn_a',
-      eventId: 'evt_corr',
-      evidence: emailEvent('msg_corr', 'delivered'),
+      eventId: `evt_${messageId}_${recipient}`,
+      evidence: { ...emailEvent(messageId, 'delivered'), recipient },
       receivedAt: NOW,
     });
 
+  const boundRun = (): string | null => {
     const rows = h.raw.prepare('SELECT run_id FROM evidence').all() as { run_id: string }[];
-    expect(rows).toHaveLength(1);
-    expect(rows[0]?.run_id).toBe('run_old');
+    return rows.length === 1 ? (rows[0]?.run_id ?? null) : null;
+  };
+
+  it('CONN-330 (R01) an exact message id selects its own run', async () => {
+    seedRun(h, ws, 'A', { nextCheckAt: null, emailRecipient: 'a@example.test', emailMessageId: 'M1' });
+    await deliver('M1', 'a@example.test');
+    expect(boundRun()).toBe('A');
   });
 
-  it('CONN-318 a message id beats a recipient, because it identifies one message and not one address', async () => {
-    seedRun(h, ws, 'run_by_address', { nextCheckAt: null, emailRecipient: 'ada@example.com' });
-    seedRun(h, ws, 'run_by_message', {
-      nextCheckAt: null,
-      createdAt: '2026-09-19T08:00:00.000Z',
-      emailRecipient: 'ada@example.com',
-      emailMessageId: 'msg_exact',
-    });
-
-    await port.recordEmailEvidence({
-      workspaceId: ws.workspaceId,
-      connectionId: 'conn_a',
-      eventId: 'evt_exact',
-      evidence: emailEvent('msg_exact', 'delivered'),
-      receivedAt: NOW,
-    });
-
-    const rows = h.raw.prepare('SELECT run_id FROM evidence').all() as { run_id: string }[];
-    expect(rows).toHaveLength(1);
-    expect(rows[0]?.run_id).toBe('run_by_message');
+  it('CONN-331 (R02) the same recipient with different ids still selects the right run', async () => {
+    seedRun(h, ws, 'A', { nextCheckAt: null, emailRecipient: 'a@example.test', emailMessageId: 'M1' });
+    seedRun(h, ws, 'B', { nextCheckAt: null, emailRecipient: 'a@example.test', emailMessageId: 'M2' });
+    await deliver('M2', 'a@example.test');
+    expect(boundRun()).toBe('B');
   });
 
-  it('CONN-319 two runs waiting on the same address is an ambiguity, and nothing is written', async () => {
-    seedRun(h, ws, 'run_one', { nextCheckAt: null, emailRecipient: 'ada@example.com' });
-    seedRun(h, ws, 'run_two', {
-      nextCheckAt: null,
-      createdAt: '2026-09-19T09:30:00.000Z',
-      emailRecipient: 'ada@example.com',
-    });
-
-    await port.recordEmailEvidence({
-      workspaceId: ws.workspaceId,
-      connectionId: 'conn_a',
-      eventId: 'evt_ambiguous',
-      evidence: emailEvent('msg_ambiguous', 'delivered'),
-      receivedAt: NOW,
-    });
-
-    // Guessing here would be a coin toss settled in the customer's favour. Missing evidence
-    // reads as UNVERIFIED; evidence on the wrong run reads as a pass.
+  it('CONN-332 (R03) a wrong message id cannot fall back to a matching address', async () => {
+    seedRun(h, ws, 'A', { nextCheckAt: null, emailRecipient: 'a@example.test', emailMessageId: 'M1' });
+    await deliver('UNRELATED', 'a@example.test');
+    // The address matches perfectly and proves nothing: this run is waiting for M1.
     expect(countRows(h, 'evidence')).toBe(0);
+  });
+
+  it('CONN-333 (R04) an ambiguous message id cannot be disambiguated by an address', async () => {
+    seedRun(h, ws, 'A', { nextCheckAt: null, emailRecipient: 'a@example.test', emailMessageId: 'M1' });
+    seedRun(h, ws, 'B', { nextCheckAt: null, emailRecipient: 'b@example.test', emailMessageId: 'M1' });
+    await deliver('M1', 'a@example.test');
+    // Only A's address matches, which is exactly the coincidence that must not resolve it.
+    expect(countRows(h, 'evidence')).toBe(0);
+  });
+
+  it('CONN-334 (R05) an old delivery cannot attach to a newer run sharing the address', async () => {
+    seedRun(h, ws, 'A', { nextCheckAt: null, status: 'VERIFIED', emailRecipient: 'a@example.test', emailMessageId: 'M1' });
+    seedRun(h, ws, 'B', { nextCheckAt: null, emailRecipient: 'a@example.test', emailMessageId: 'M2' });
+    await deliver('M1', 'a@example.test');
+    expect(countRows(h, 'evidence')).toBe(0);
+  });
+
+  it('CONN-335 (R06) an address alone never binds an enquiry', async () => {
+    seedRun(h, ws, 'A', { nextCheckAt: null, emailRecipient: 'a@example.test' });
+    await deliver('UNRELATED', 'a@example.test');
+    expect(countRows(h, 'evidence')).toBe(0);
+  });
+
+  it('CONN-336 (R07) the right id with the wrong recipient still binds, so the assertion can contradict it', async () => {
+    seedRun(h, ws, 'A', { nextCheckAt: null, emailRecipient: 'a@example.test', emailMessageId: 'M1' });
+    await deliver('M1', 'wrong@example.test');
+    // Binding is not a verdict. Reaching A is what lets the evaluator call the recipient
+    // assertion CONTRADICTED; dropping it here would turn a contradiction into a silence.
+    expect(boundRun()).toBe('A');
+  });
+
+  it('CONN-337 (R08) two address-only candidates stay unbound', async () => {
+    seedRun(h, ws, 'A', { nextCheckAt: null, emailRecipient: 'a@example.test' });
+    seedRun(h, ws, 'B', { nextCheckAt: null, emailRecipient: 'a@example.test' });
+    await deliver('UNRELATED', 'a@example.test');
+    expect(countRows(h, 'evidence')).toBe(0);
+  });
+
+  it('CONN-338 unmatched and ambiguous are reported as different answers, not both as nothing', async () => {
+    const misses: { outcome: string; reason: string }[] = [];
+    const observed = new D1ResendWebhookDataPort(h.db, 'resend', (m) =>
+      misses.push({ outcome: m.outcome, reason: m.reason }),
+    );
+    seedRun(h, ws, 'A', { nextCheckAt: null, emailRecipient: 'a@example.test', emailMessageId: 'M1' });
+    seedRun(h, ws, 'B', { nextCheckAt: null, emailRecipient: 'b@example.test', emailMessageId: 'M1' });
+
+    const send = (messageId: string) =>
+      observed.recordEmailEvidence({
+        workspaceId: ws.workspaceId,
+        connectionId: 'conn_a',
+        eventId: `evt_${messageId}`,
+        evidence: { ...emailEvent(messageId, 'delivered'), recipient: 'a@example.test' },
+        receivedAt: NOW,
+      });
+
+    await send('M1');
+    await send('NOBODY_EXPECTS_THIS');
+
+    // Collapsing these to one value is what let "we cannot tell which of two" be handled
+    // as "we found none" and fall through to the weaker handle.
+    expect(misses.map((m) => m.outcome)).toEqual(['ambiguous', 'unmatched']);
+    expect(new Set(misses.map((m) => m.reason)).size).toBe(2);
   });
 
   it('CONN-320 a decided run is not reopened by a late delivery event', async () => {
@@ -549,7 +590,12 @@ describe('the webhook data port', () => {
   });
 
   it('CONN-314 a different status for the same message is a distinct observation', async () => {
-    seedRun(h, ws, 'run_a', { nextCheckAt: null, emailRecipient: 'ada@example.com' });
+    seedRun(h, ws, 'run_a', {
+      nextCheckAt: null,
+      emailRecipient: 'ada@example.com',
+      // The enquiry names the message it is waiting for; an address alone no longer binds.
+      emailMessageId: 'msg_1',
+    });
     for (const status of ['accepted', 'delivered'] as const) {
       await port.recordEmailEvidence({
         workspaceId: ws.workspaceId,
