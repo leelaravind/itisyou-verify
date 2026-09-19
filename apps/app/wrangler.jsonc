@@ -22,7 +22,7 @@
       "workers_dev": true,
       "vars": {
         "ENVIRONMENT": "staging",
-        "PUBLIC_BASE_URL": "https://verify-itisyou-staging.leelaravind.workers.dev",
+        "PUBLIC_BASE_URL": "https://verify-itisyou-staging.kpleelaaravind.workers.dev",
         "STRIPE_MODE": "test"
       },
       "assets": {
@@ -45,6 +45,7 @@
     "production": {
       "name": "verify-itisyou-production",
       "workers_dev": true,
+      "routes": [{ "pattern": "verify.itisyou.app", "custom_domain": true }],
       "vars": {
         "ENVIRONMENT": "production",
         "PUBLIC_BASE_URL": "https://verify.itisyou.app",
