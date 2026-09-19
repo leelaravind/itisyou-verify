@@ -73,6 +73,72 @@ Only when every box on that destination's row is ticked does the post go out.
 
 ---
 
+## 0.5 Reconciliation with evidence — 19 September 2026, evening
+
+Added after the deployed service was driven with real provider credentials. Three
+categories, kept apart on purpose, because the posts below turn on the difference.
+
+### Production-ready: proven against the deployed service with real requests
+
+- **Signed event intake.** `POST /api/v1/events` accepts a correctly signed event and
+  creates a run. Observed: `run_01M2XR57DX42B55B1CFCF74B24`, 202, PENDING.
+- **Every refusal path.** Duplicate returns the same run with `duplicate:true` and takes
+  no second allowance unit; wrong workflow 403; stale 422; future-dated 422; malformed
+  422; a rotated-out key 401.
+- **Plan allowance enforcement.** `reserved` moved to exactly 2 for two distinct runs and
+  not for the duplicate; with the limit lowered, the next event was refused 429
+  `ALLOWANCE_EXHAUSTED`.
+- **Public pages and the demo**, on the custom domain, and `/admin/login` publicly
+  reachable with privileged actions gated.
+
+### Provider-backed: real credentials, real provider traffic
+
+- **Resend.** A dedicated key, a registered webhook subscribed to exactly the six events
+  the connector maps, and genuinely signed deliveries received and verified. The
+  connection reached `ready` at 2026-09-19T20:51:16.811Z **because** a signed callback
+  arrived — not because a flag was set. Real delivery events were stored as evidence with
+  `origin: provider_webhook`, and `accepted` and `delivered` were correctly distinguished.
+- **HubSpot.** A real credential is stored and validated against portal 149371406. A live
+  record readback has **not** been demonstrated. Treat HubSpot as connected, not proven.
+- **Stripe.** Sandbox only. No live payment has been taken and live mode is not enabled.
+
+### Simulated: still synthetic, and must be described as such
+
+- **The demo's four runs** are seeded fixtures. Nothing on that page came from a real
+  automation.
+- **The rule evaluator and decision table** are exercised over synthetic evidence. That is
+  genuine coverage of the logic, and it is not a live verdict.
+- **The scheduled verdict step has never run on any deployed environment.** Staging carried
+  no cron by decision; that is now revised in config but the deploy applying it was refused
+  by a permission classifier and has not been worked around. Until it runs, no
+  VERIFIED/FAILED verdict has ever been produced by a deployment from real evidence.
+
+### What changed in the posts because of this
+
+The Show HN disclosure previously said the adapters "have never been pointed at a live
+account" and that "I hold no provider credentials". Both were true when written and are
+now false. Leaving them would be false modesty, which is still inaccuracy, and a reader
+who later saw real provider evidence would reasonably wonder what else was off. §4.3 is
+updated.
+
+Nothing else in any post changed. In particular the CSP/progress-bar story is unaffected
+and still accurate.
+
+### One defect found today that a reader deserves to know about
+
+Email evidence was being attached to a run by **recency** rather than by correlation: the
+most recently created pending run in the workspace, whatever it was for. Two enquiries in
+flight at once — entirely ordinary — meant one enquiry's acknowledgement could satisfy
+another's check. Found by running the deployed service, not by any test; the local suite
+passed 2,569 cases throughout. Fixed in `dfd55ae`, with the ambiguous case now writing
+nothing at all rather than guessing.
+
+It is included here because it is the same shape as the bug the Show HN post already
+confesses, and because a post that confesses one bug while sitting on a worse one found
+the same day is worse than a post that confesses neither.
+
+---
+
 ## 1. What is being promised, and what is not
 
 **Organic reach is not promised.** Ten external visits is a **target, not a forecast**. A
@@ -218,16 +284,25 @@ https://verify.itisyou.app/demo?utm_source=hn&utm_medium=organic&utm_campaign=or
 > things: verified, failed, unverified, or still pending. "Unverified" is a first-class
 > answer — not enough evidence to say — and it is deliberately not a pass and not a failure.
 >
-> **Straight about what I have and have not actually run:** the HubSpot and Resend adapters
-> have never been pointed at a live account. I hold no provider credentials, and every
-> connector test injects a fake HTTP layer — the provider responses are synthetic, built
-> from each vendor's own API documentation. What _has_ been exercised for real is the rule
-> evaluator and the decision table, over synthetic evidence: which assertion outcomes
-> combine into VERIFIED vs FAILED vs UNVERIFIED, what happens when evidence is missing
-> rather than contradictory, and when a missed deadline is allowed to count as a failure.
-> So read "queries HubSpot and Resend" as what the code is written to do, not as something
-> I have watched work end to end against a real portal. That distinction is the whole
-> product, so it would be a poor look to fudge it here.
+> **Straight about what I have and have not actually run.** Resend is real now: a
+> dedicated key, a registered webhook, and genuinely signed delivery events arriving and
+> being read back as evidence. The connection only reaches "ready" when a correctly signed
+> callback actually arrives, and getting that working found a bug where it could never
+> reach ready at all — the promotion code was correct and tested, and nothing could reach
+> it. HubSpot holds a real credential against a real portal, but I have not yet watched a
+> live record readback, so treat that half as connected rather than proven.
+>
+> What has **not** happened: no deployment has ever produced a VERIFIED or FAILED verdict
+> from real evidence. The scheduled step that turns evidence into a verdict has only ever
+> run in tests and it is the next thing on the list. The rule evaluator and decision table
+> are well exercised over synthetic evidence — which outcomes combine into which verdict,
+> what happens when evidence is missing rather than contradictory, when a missed deadline
+> may count as a failure — and that is genuine coverage of the logic rather than proof of
+> the whole pipeline. The four runs on the demo page are seeded fixtures, not real traffic.
+>
+> I am spelling this out because the distinction between "the code is written to do this"
+> and "I have watched it do this" is the entire product, and fudging it here of all places
+> would be a poor look.
 >
 > The link is a demo with four seeded runs, no signup. What I would most like feedback on
 > is the fourth one, where the honest answer is "I don't know".

@@ -25,7 +25,7 @@
  * first one's gateway and prove nothing, so each case here resets the module registry and
  * imports a fresh worker.
  *
- * Case ids `MONEY-470..MONEY-472`.
+ * Case ids `BILL-290`, `BILL-291`, `API-620`, `BILL-292`.
  */
 import { randomBytes } from 'node:crypto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -82,7 +82,7 @@ describe('the intake and the Stripe key', () => {
     h.close();
   });
 
-  it('MONEY-470 a malformed STRIPE_SECRET_KEY does not turn event intake into a 500', async () => {
+  it('BILL-290 a malformed STRIPE_SECRET_KEY does not turn event intake into a 500', async () => {
     for (const key of MALFORMED_KEYS) {
       const response = await postUnsignedEvent(h, key);
       // The point is the absence of 500. What the route answers to an unsigned body is the
@@ -92,14 +92,14 @@ describe('the intake and the Stripe key', () => {
     }
   });
 
-  it('MONEY-471 the refusal is the signature layer talking, not a crash wearing its clothes', async () => {
+  it('BILL-291 the refusal is the signature layer talking, not a crash wearing its clothes', async () => {
     const response = await postUnsignedEvent(h, MALFORMED_KEYS[0]);
     expect(response.status).toBe(401);
     const body = (await response.json()) as { error?: { code?: string } };
     expect(body.error?.code).toBe('SIGNATURE_INVALID');
   });
 
-  it('MONEY-472 an unusable key is reported once, loudly, and never by printing the key', async () => {
+  it('API-620 an unusable key is reported once, loudly, and never by printing the key', async () => {
     const lines: unknown[][] = [];
     (console.log as unknown as { mockRestore: () => void }).mockRestore();
     vi.spyOn(console, 'log').mockImplementation((...args: unknown[]) => {
@@ -116,7 +116,7 @@ describe('the intake and the Stripe key', () => {
     expect(serialised).not.toContain(key);
   });
 
-  it('MONEY-473 a well-formed key still builds a real gateway and changes nothing about intake', async () => {
+  it('BILL-292 a well-formed key still builds a real gateway and changes nothing about intake', async () => {
     // secret-scan:allow synthetic test-mode key; never sent anywhere, no account behind it
     const response = await postUnsignedEvent(h, `sk_test_${'0'.repeat(24)}`);
     expect(response.status).toBe(401);
