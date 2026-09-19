@@ -70,7 +70,7 @@
  * double count.
  */
 import { allowancePeriodKeyAt, isAllowancePeriodKey } from '../billing/period';
-import type { Db } from '../db/d1';
+import type { AllowanceRepairPort, AllowanceRowSnapshot, RunPeriodFact } from './ports';
 
 /** A calendar-month key, which is the only wrong shape that was ever written. */
 const CALENDAR_MONTH = /^\d{4}-\d{2}$/;
@@ -153,15 +153,6 @@ export interface ReconcileAllowanceOptions {
   readonly runScanLimit?: number;
 }
 
-interface EntitlementRowLite {
-  readonly workspace_id: string;
-  readonly billing_period: string;
-  readonly run_limit: number;
-  readonly consumed: number;
-  readonly reserved: number;
-  readonly updated_at: string;
-}
-
 interface RunTally {
   terminal: number;
   pending: number;
@@ -175,7 +166,7 @@ interface RunTally {
  * by `BILL-302`, because "idempotent" is a claim and a claim needs a test.
  */
 export async function reconcileAllowancePeriods(
-  db: Db,
+  port: AllowanceRepairPort,
   options: ReconcileAllowanceOptions,
 ): Promise<AllowanceReconciliationReport> {
   const checkedAt = options.now;
@@ -193,56 +184,63 @@ export async function reconcileAllowancePeriods(
   const failures: { workspaceId: string; error: string }[] = [];
   let rowsExamined = 0;
 
-  const workspaceIds = await listWorkspaces(db, options, workspaceLimit);
+  const workspaceIds =
+    options.workspaceId === undefined
+      ? await port.listWorkspacesWithAllowanceRows(workspaceLimit)
+      : [options.workspaceId];
 
   for (const workspaceId of workspaceIds) {
     try {
-      const anchor = await currentPeriodEnd(db, workspaceId, options.environment);
-      const rows = await entitlementRows(db, workspaceId);
+      const anchor = await port.currentPeriodEnd(workspaceId, options.environment);
+      const rows = await port.listAllowanceRows(workspaceId);
       rowsExamined += rows.length;
       if (rows.length === 0) continue;
 
-      // No anchor means no subscription, so there is no correct key in existence and
-      // nothing can be moved anywhere. Reported rather than guessed at.
+      // No anchor means no subscription, so no correct key exists anywhere and there is
+      // nothing to move a legacy row to. Reported rather than guessed at.
       if (anchor === null) {
         for (const row of rows) {
-          if (isAllowancePeriodKey(row.billing_period)) continue;
+          if (isAllowancePeriodKey(row.billingPeriod)) continue;
           folds.push({
             workspaceId,
-            legacyKey: row.billing_period,
+            legacyKey: row.billingPeriod,
             targetKey: null,
             outcome: 'no_anchor',
             carriedConsumed: row.consumed,
             carriedReserved: row.reserved,
             note:
-              'This workspace holds an allowance row under a calendar-month key but has no subscription ' +
-              'period to anchor a correct key to, so there is nowhere to move it. Left untouched.',
+              'This workspace holds an allowance row under a calendar-month key but has no ' +
+              'subscription period to anchor a correct key to, so there is nowhere to move it. ' +
+              'Left untouched.',
           });
         }
         continue;
       }
 
-      const tally = await tallyRunsByPeriod(db, workspaceId, anchor, runScanLimit);
+      const tally = tallyRunsByPeriod(
+        await port.listRunPeriodFacts(workspaceId, runScanLimit),
+        anchor,
+      );
 
       // (a) Legacy keys first, so the counter repair below sees one row per period.
       for (const row of rows) {
-        if (isAllowancePeriodKey(row.billing_period)) continue;
-        folds.push(await foldLegacyRow(db, { row, anchor, tally, at: checkedAt }));
+        if (isAllowancePeriodKey(row.billingPeriod)) continue;
+        folds.push(await foldLegacyRow(port, { row, anchor, tally, at: checkedAt }));
       }
 
-      // (b) Counters, against the runs that prove them. Re-read: the fold above may have
-      // moved figures into a row we are about to repair.
-      for (const row of await entitlementRows(db, workspaceId)) {
-        if (!isAllowancePeriodKey(row.billing_period)) continue;
-        const repair = await repairCounters(db, { row, tally, at: checkedAt });
+      // (b) Counters, against the runs that prove them. Re-read, because the fold above
+      // may have moved figures into a row we are about to repair.
+      for (const row of await port.listAllowanceRows(workspaceId)) {
+        if (!isAllowancePeriodKey(row.billingPeriod)) continue;
+        const repair = await repairCounters(port, { row, tally, at: checkedAt });
         repairs.push(repair);
         const used = repair.after.consumed + repair.after.reserved;
-        if (used > row.run_limit) {
+        if (used > row.runLimit) {
           overLimit.push({
             workspaceId,
-            billingPeriod: row.billing_period,
+            billingPeriod: row.billingPeriod,
             used,
-            runLimit: row.run_limit,
+            runLimit: row.runLimit,
           });
         }
       }
@@ -272,7 +270,7 @@ export async function reconcileAllowancePeriods(
  *
  * One or two, never more: a monthly period is at least 28 days, so a calendar month can
  * straddle at most one boundary. Two is the case that cannot be resolved by arithmetic —
- * the legacy row holds one number for two periods — and it is exactly why this function
+ * the legacy row holds one pair of counters for two periods — and that is exactly why this
  * returns a list rather than an answer.
  */
 export function candidateKeysForMonth(monthKey: string, anchorIso: string): readonly string[] {
@@ -280,25 +278,25 @@ export function candidateKeysForMonth(monthKey: string, anchorIso: string): read
   const year = Number(monthKey.slice(0, 4));
   const month = Number(monthKey.slice(5, 7));
   const first = Date.UTC(year, month - 1, 1, 0, 0, 0, 0);
-  // One millisecond before the next month begins: the last instant that belongs to it.
+  // One millisecond before the next month begins: the last instant belonging to it.
   const last = Date.UTC(year, month, 1, 0, 0, 0, 0) - 1;
-  const at = allowancePeriodKeyAt(new Date(first).toISOString(), anchorIso);
-  const end = allowancePeriodKeyAt(new Date(last).toISOString(), anchorIso);
-  return at === end ? [at] : [at, end];
+  const opensAt = allowancePeriodKeyAt(new Date(first).toISOString(), anchorIso);
+  const endsAt = allowancePeriodKeyAt(new Date(last).toISOString(), anchorIso);
+  return opensAt === endsAt ? [opensAt] : [opensAt, endsAt];
 }
 
 async function foldLegacyRow(
-  db: Db,
+  port: AllowanceRepairPort,
   input: {
-    readonly row: EntitlementRowLite;
+    readonly row: AllowanceRowSnapshot;
     readonly anchor: string;
     readonly tally: ReadonlyMap<string, RunTally>;
     readonly at: string;
   },
 ): Promise<LegacyFold> {
   const { row, anchor, tally, at } = input;
-  const workspaceId = row.workspace_id;
-  const legacyKey = row.billing_period;
+  const workspaceId = row.workspaceId;
+  const legacyKey = row.billingPeriod;
   const carried = { carriedConsumed: row.consumed, carriedReserved: row.reserved };
 
   const candidates = candidateKeysForMonth(legacyKey, anchor);
@@ -317,13 +315,13 @@ async function foldLegacyRow(
 
   if (candidates.length > 1) {
     // The month straddles a renewal. The legacy row holds one pair of counters for two
-    // paid periods and nothing in it says how they divide. The runs can say — but only
-    // if they are all still there. `consumed + reserved` on the legacy row is what must
-    // be accounted for; if the surviving runs account for at least that much, deleting
-    // the row loses nothing, because step (b) rebuilds each period from the runs.
+    // paid periods and nothing in it says how they divide. The runs can say — but only if
+    // they are all still there. `consumed + reserved` is what must be accounted for; if
+    // the surviving runs account for at least that much, dropping the row loses nothing,
+    // because step (b) rebuilds each period from the runs themselves.
     const accounted = candidates.reduce((sum, key) => {
-      const t = tally.get(key);
-      return sum + (t === undefined ? 0 : t.terminal + t.pending);
+      const counts = tally.get(key);
+      return sum + (counts === undefined ? 0 : counts.terminal + counts.pending);
     }, 0);
     const owed = row.consumed + row.reserved;
     if (accounted < owed) {
@@ -334,12 +332,19 @@ async function foldLegacyRow(
         outcome: 'ambiguous_unattributable',
         ...carried,
         note:
-          `"${legacyKey}" spans two paid periods (${candidates.join(' and ')}) and holds ${String(owed)} ` +
-          `units, but only ${String(accounted)} runs survive to attribute them to. Splitting the rest ` +
-          'would be a guess, so nothing was moved. The customer keeps the benefit of the doubt.',
+          `"${legacyKey}" spans two paid periods (${candidates.join(' and ')}) and holds ` +
+          `${String(owed)} units, but only ${String(accounted)} runs survive to attribute them ` +
+          'to. Splitting the rest would be a guess, so nothing was moved. The customer keeps ' +
+          'the benefit of the doubt.',
       };
     }
-    const dropped = await deleteLegacyRow(db, row);
+    const dropped = await port.dropAllowanceRow({
+      workspaceId,
+      billingPeriod: legacyKey,
+      expectConsumed: row.consumed,
+      expectReserved: row.reserved,
+      expectUpdatedAt: row.updatedAt,
+    });
     return {
       workspaceId,
       legacyKey,
@@ -347,29 +352,26 @@ async function foldLegacyRow(
       outcome: dropped ? 'merged' : 'raced',
       ...carried,
       note: dropped
-        ? `"${legacyKey}" spans ${candidates.join(' and ')}; every one of its ${String(owed)} units is ` +
-          'accounted for by a surviving run, so the row was removed and each period was rebuilt from ' +
-          'the runs themselves. No consumption was lost and no allowance was re-granted.'
+        ? `"${legacyKey}" spans ${candidates.join(' and ')}; every one of its ${String(owed)} ` +
+          'units is accounted for by a surviving run, so the row was removed and each period ' +
+          'was rebuilt from the runs themselves. No consumption was lost and no allowance was ' +
+          're-granted.'
         : 'Another writer moved this row while it was being folded. The next pass will retry it.',
     };
   }
 
   const targetKey = candidates[0] as string;
 
-  // Rename first. If no row exists under the correct key this is the whole repair: one
-  // statement, no arithmetic, counters carried across untouched. The `NOT EXISTS` guard
-  // is what keeps it from colliding with `UNIQUE (workspace_id, billing_period)`.
-  const renamed = await db
-    .prepare(
-      `UPDATE entitlements SET billing_period = ?, updated_at = ?
-        WHERE workspace_id = ? AND billing_period = ? AND updated_at = ?
-          AND NOT EXISTS (
-            SELECT 1 FROM entitlements t WHERE t.workspace_id = ? AND t.billing_period = ?
-          )`,
-    )
-    .bind(targetKey, at, workspaceId, legacyKey, row.updated_at, workspaceId, targetKey)
-    .run();
-  if (renamed.meta.changes === 1) {
+  // Rename first. If no row exists under the correct key this is the whole repair: the
+  // counters cross untouched and no arithmetic happens at all.
+  const renamed = await port.renameAllowancePeriod({
+    workspaceId,
+    fromPeriod: legacyKey,
+    toPeriod: targetKey,
+    expectUpdatedAt: row.updatedAt,
+    at,
+  });
+  if (renamed) {
     return {
       workspaceId,
       legacyKey,
@@ -382,35 +384,14 @@ async function foldLegacyRow(
     };
   }
 
-  // A row already exists under the correct key, so this is a merge. Both statements in
-  // one batch: the target picks up the legacy counters, the legacy row goes, and the two
-  // commit together. `run_limit` is deliberately absent from the SET clause — merging two
-  // rows must produce one allowance, not two.
-  const results = await db.batch([
-    db
-      .prepare(
-        `UPDATE entitlements
-            SET consumed = consumed + (
-                  SELECT l.consumed FROM entitlements l
-                   WHERE l.workspace_id = entitlements.workspace_id AND l.billing_period = ?
-                ),
-                reserved = reserved + (
-                  SELECT l.reserved FROM entitlements l
-                   WHERE l.workspace_id = entitlements.workspace_id AND l.billing_period = ?
-                ),
-                updated_at = ?
-          WHERE workspace_id = ? AND billing_period = ?
-            AND EXISTS (
-              SELECT 1 FROM entitlements l WHERE l.workspace_id = ? AND l.billing_period = ?
-            )`,
-      )
-      .bind(legacyKey, legacyKey, at, workspaceId, targetKey, workspaceId, legacyKey),
-    db
-      .prepare('DELETE FROM entitlements WHERE workspace_id = ? AND billing_period = ?')
-      .bind(workspaceId, legacyKey),
-  ]);
-
-  const merged = (results[0]?.meta.changes ?? 0) === 1 && (results[1]?.meta.changes ?? 0) === 1;
+  // A row already occupies the correct key, so this is a merge: one transaction, one
+  // surviving row, one allowance limit.
+  const merged = await port.mergeAllowancePeriod({
+    workspaceId,
+    fromPeriod: legacyKey,
+    intoPeriod: targetKey,
+    at,
+  });
   return {
     workspaceId,
     legacyKey,
@@ -420,19 +401,9 @@ async function foldLegacyRow(
     note: merged
       ? `Folded "${legacyKey}" into "${targetKey}": ${String(row.consumed)} consumed and ` +
         `${String(row.reserved)} reserved carried across, one row left, one allowance limit.`
-      : 'Another writer moved one of these rows mid-merge; nothing was changed. The next pass retries.',
+      : 'Another writer moved one of these rows mid-merge; nothing was changed. The next pass ' +
+        'retries.',
   };
-}
-
-async function deleteLegacyRow(db: Db, row: EntitlementRowLite): Promise<boolean> {
-  const result = await db
-    .prepare(
-      `DELETE FROM entitlements
-        WHERE workspace_id = ? AND billing_period = ? AND consumed = ? AND reserved = ? AND updated_at = ?`,
-    )
-    .bind(row.workspace_id, row.billing_period, row.consumed, row.reserved, row.updated_at)
-    .run();
-  return result.meta.changes === 1;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -440,19 +411,19 @@ async function deleteLegacyRow(db: Db, row: EntitlementRowLite): Promise<boolean
 /* -------------------------------------------------------------------------- */
 
 async function repairCounters(
-  db: Db,
+  port: AllowanceRepairPort,
   input: {
-    readonly row: EntitlementRowLite;
+    readonly row: AllowanceRowSnapshot;
     readonly tally: ReadonlyMap<string, RunTally>;
     readonly at: string;
   },
 ): Promise<CounterRepair> {
   const { row, tally, at } = input;
-  const evidence = tally.get(row.billing_period) ?? { terminal: 0, pending: 0 };
+  const evidence = tally.get(row.billingPeriod) ?? { terminal: 0, pending: 0 };
 
-  // The two rules, as arithmetic. `max` on consumed: a run that retention has since
-  // deleted still happened, and the customer has already had it. `min` on reserved: a
-  // unit is only held while something is actually pending.
+  // The two rules, as arithmetic. `max` on consumed: a run retention has since deleted
+  // still happened and the customer has already had it. `min` on reserved: a unit is only
+  // held while something is actually pending.
   const consumed = Math.max(row.consumed, evidence.terminal);
   const reserved = Math.max(0, Math.min(row.reserved, evidence.pending));
 
@@ -461,8 +432,8 @@ async function repairCounters(
 
   if (consumed === row.consumed && reserved === row.reserved) {
     return {
-      workspaceId: row.workspace_id,
-      billingPeriod: row.billing_period,
+      workspaceId: row.workspaceId,
+      billingPeriod: row.billingPeriod,
       outcome: 'already_correct',
       before,
       after: before,
@@ -471,135 +442,71 @@ async function repairCounters(
     };
   }
 
-  // Compare-and-set on every figure we based the decision on, `updated_at` included. An
-  // admission that landed since the read bumps `updated_at` inside its own batch, so this
-  // matches nothing and the row is left exactly as the live path put it.
-  const result = await db
-    .prepare(
-      `UPDATE entitlements SET consumed = ?, reserved = ?, updated_at = ?
-        WHERE workspace_id = ? AND billing_period = ? AND consumed = ? AND reserved = ? AND updated_at = ?`,
-    )
-    .bind(
-      consumed,
-      reserved,
-      at,
-      row.workspace_id,
-      row.billing_period,
-      row.consumed,
-      row.reserved,
-      row.updated_at,
-    )
-    .run();
+  const applied = await port.setAllowanceCounters({
+    workspaceId: row.workspaceId,
+    billingPeriod: row.billingPeriod,
+    consumed,
+    reserved,
+    expectConsumed: row.consumed,
+    expectReserved: row.reserved,
+    expectUpdatedAt: row.updatedAt,
+    at,
+  });
 
-  if (result.meta.changes !== 1) {
+  if (!applied) {
     return {
-      workspaceId: row.workspace_id,
-      billingPeriod: row.billing_period,
+      workspaceId: row.workspaceId,
+      billingPeriod: row.billingPeriod,
       outcome: 'raced',
       before,
       after: before,
       evidence: evidenceOut,
       note:
-        'This row changed while the repair was being decided — an admission or a settle landed. ' +
-        'Nothing was overwritten; the next pass will look again.',
+        'This row changed while the repair was being decided — an admission or a settle ' +
+        'landed. Nothing was overwritten; the next pass will look again.',
     };
   }
 
-  const released = row.reserved - reserved;
   const settled = consumed - row.consumed;
+  const released = row.reserved - reserved - settled;
   return {
-    workspaceId: row.workspace_id,
-    billingPeriod: row.billing_period,
+    workspaceId: row.workspaceId,
+    billingPeriod: row.billingPeriod,
     outcome: 'repaired',
     before,
     after: { consumed, reserved },
     evidence: evidenceOut,
     note:
-      `${String(settled)} unit(s) moved from reserved to consumed and ${String(released - settled)} ` +
-      'stranded reservation(s) released, against the runs on record. Consumption was not reset and ' +
-      'no additional allowance was granted.',
+      `${String(settled)} unit(s) moved from reserved to consumed and ${String(released)} ` +
+      'stranded reservation(s) released, against the runs on record. Consumption was not ' +
+      'reset and no additional allowance was granted.',
   };
 }
 
 /* -------------------------------------------------------------------------- */
-/* reads                                                                      */
+/* run evidence                                                               */
 /* -------------------------------------------------------------------------- */
 
-async function listWorkspaces(
-  db: Db,
-  options: ReconcileAllowanceOptions,
-  limit: number,
-): Promise<readonly string[]> {
-  if (options.workspaceId !== undefined) return [options.workspaceId];
-  // tenant-scope:exempt platform-wide repair pass; every read below is re-scoped by the
-  // workspace_id this query returns, and nothing is returned to a customer request.
-  const result = await db
-    .prepare(`SELECT DISTINCT workspace_id FROM entitlements ORDER BY workspace_id LIMIT ?`)
-    .bind(limit)
-    .all<{ workspace_id: string }>();
-  return result.results.map((row) => row.workspace_id);
-}
-
-async function currentPeriodEnd(
-  db: Db,
-  workspaceId: string,
-  environment: 'test' | 'live',
-): Promise<string | null> {
-  const row = await db
-    .prepare(
-      `SELECT current_period_end FROM subscriptions
-        WHERE workspace_id = ? AND environment = ?
-        ORDER BY updated_at DESC LIMIT 1`,
-    )
-    .bind(workspaceId, environment)
-    .first<{ current_period_end: string | null }>();
-  return row?.current_period_end ?? null;
-}
-
-async function entitlementRows(
-  db: Db,
-  workspaceId: string,
-): Promise<readonly EntitlementRowLite[]> {
-  const result = await db
-    .prepare(
-      `SELECT workspace_id, billing_period, run_limit, consumed, reserved, updated_at
-         FROM entitlements WHERE workspace_id = ? ORDER BY billing_period`,
-    )
-    .bind(workspaceId)
-    .all<EntitlementRowLite>();
-  return result.results;
-}
-
 /**
- * Every run this workspace has, grouped by the period that paid for it.
+ * Group a workspace's runs by the period that paid for them.
  *
- * `PENDING` is the only non-terminal status the schema allows, so "terminal" is simply
- * everything else. The mapping uses `allowancePeriodKeyAt`, which is the same function the
- * scheduler settles with — so a run counted here is a run the live path would have settled
- * against the same row. Two spellings of this walk would be the original defect again.
+ * `allowancePeriodKeyAt` is the same function the scheduler settles with, so a run counted
+ * here is a run the live path would have settled against the same row. Two spellings of
+ * this walk would be the original defect all over again.
  */
-async function tallyRunsByPeriod(
-  db: Db,
-  workspaceId: string,
+function tallyRunsByPeriod(
+  runs: readonly RunPeriodFact[],
   anchorIso: string,
-  limit: number,
-): Promise<ReadonlyMap<string, RunTally>> {
-  const result = await db
-    .prepare(
-      `SELECT status, created_at FROM runs WHERE workspace_id = ? ORDER BY created_at LIMIT ?`,
-    )
-    .bind(workspaceId, limit)
-    .all<{ status: string; created_at: string }>();
-
+): ReadonlyMap<string, RunTally> {
   const tally = new Map<string, RunTally>();
-  for (const run of result.results) {
+  for (const run of runs) {
     let key: string;
     try {
-      key = allowancePeriodKeyAt(run.created_at, anchorIso);
+      key = allowancePeriodKeyAt(run.createdAt, anchorIso);
     } catch {
       // A run with an unparseable timestamp cannot be attributed to a period. Skipping it
-      // means the repair treats it as "no evidence", which is the safe direction: consumed
-      // is never lowered by absent evidence.
+      // means the repair treats it as absent evidence, which is the safe direction:
+      // `consumed` is never lowered by evidence that is missing.
       continue;
     }
     const current = tally.get(key) ?? { terminal: 0, pending: 0 };

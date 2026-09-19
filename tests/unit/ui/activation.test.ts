@@ -72,8 +72,12 @@ describe('the service activation notice', () => {
     expect(text(markup)).toContain(collapse(SERVICE_ACTIVATION_NOTICE.body));
     expect(markup).not.toContain('<details');
     expect(markup).not.toContain('<summary');
-    // Not demoted to small print: it renders as a warn callout, the loudest tone we have.
-    expect(markup).toMatch(/callout--warn[^>]*>[\s\S]{0,400}data-activation-notice/);
+    // Not demoted to small print: the nearest enclosing callout is the warn tone, which is
+    // the loudest the system has. Found by walking back from the notice rather than by
+    // guessing how many characters of heading sit between the two.
+    const noticeAt = markup.indexOf('data-activation-notice');
+    const enclosing = markup.lastIndexOf('callout--', noticeAt);
+    expect(markup.slice(enclosing, enclosing + 20)).toContain('callout--warn');
   });
 
   it('CUST-123 the onboarding entry point carries it too', async () => {
@@ -215,6 +219,12 @@ describe('the pre-checkout disclosure', () => {
     expect(markup).toContain('data-must-be-visible');
     expect(markup).not.toContain('<details');
     expect(markup).not.toContain('<summary');
-    expect(markup).not.toContain('hidden');
+    // Not hidden by an attribute or by inline CSS either. `aria-hidden` on a decorative
+    // glyph is fine and is exactly what the icons carry, so the check is specific.
+    const at = markup.indexOf('data-must-be-visible');
+    const tag = markup.slice(markup.lastIndexOf('<', at), markup.indexOf('>', at) + 1);
+    expect(tag).not.toMatch(/hidden/);
+    expect(tag).not.toContain('sr-only');
+    expect(markup).not.toContain('display:none');
   });
 });

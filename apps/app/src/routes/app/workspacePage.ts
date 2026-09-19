@@ -8,8 +8,9 @@
  *   - the coverage limitation is on the page, in the flow, at full size.
  */
 import {
-  Button,
-  ButtonRow,
+  ACTIVATION_UNAVAILABLE_REASON,
+  ACTIVATION_UNAVAILABLE_WHEN,
+  UnavailableAction,
   Card,
   CoverageNotice,
   HealthReadout,
@@ -76,13 +77,11 @@ export function WorkspacePage(options: WorkspacePageOptions): Html {
         title: 'No workflow set up yet',
         lede: 'Nothing is being checked. An empty workspace is not a passing workspace.',
       })}
-      ${ButtonRow([
-        Button({
-          label: 'Start the setup',
-          href: '/app/onboarding/compatibility',
-          variant: 'primary',
-        }),
-      ])}
+      ${UnavailableAction({
+        label: 'Start the setup',
+        reason: ACTIVATION_UNAVAILABLE_REASON,
+        whenBack: ACTIVATION_UNAVAILABLE_WHEN,
+      })}
     </div>`;
   }
 

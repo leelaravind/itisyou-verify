@@ -20,28 +20,24 @@
  * `ADS-025` proves the aggregate view exposes counts only; `ADS-027` proves the rendered
  * page does the same, which is where a leak would actually reach a human.
  */
-import { expect, test } from '@playwright/test';
+import { expect, test, type BrowserContext } from '@playwright/test';
+import { SEED_MISSING, automationCookieIsPresent, signInAsAutomation } from './helpers/session';
 
 const PHONE = { width: 390, height: 844 };
 
-const NEEDS_IDENTITY =
-  'Needs the scoped automation test identity (A02). /owner requires a session, and this suite ' +
-  'will not open one by any route a person could not use.';
+const NEEDS_IDENTITY = SEED_MISSING;
 
 /**
- * Sign in as the automation identity, or report that we cannot.
+ * Sign in, and prove the cookie actually landed.
  *
- * When A02 lands, this becomes a real sign-in: seed the session cookie the identity issues
- * and return true. It is one function on purpose, so the handshake lands in one place.
+ * This helper previously hard-coded `__Host-verify_session`, which the browser rejects over
+ * http because the prefix requires `Secure` — so nothing was stored and every page was
+ * measured signed out. The name now comes from the seed, and `automationCookieIsPresent`
+ * checks the jar rather than trusting that `addCookies` meant anything.
  */
-async function signInAsAutomation(context: {
-  addCookies: (cookies: readonly { name: string; value: string; url: string }[]) => Promise<void>;
-}): Promise<boolean> {
-  const value = process.env['E2E_AUTOMATION_SESSION'];
-  const base = process.env['E2E_BASE_URL'] ?? 'http://127.0.0.1:8788';
-  if (value === undefined || value.length === 0) return false;
-  await context.addCookies([{ name: '__Host-verify_session', value, url: base }]);
-  return true;
+async function signedIn(context: BrowserContext): Promise<boolean> {
+  if (!(await signInAsAutomation(context))) return false;
+  return automationCookieIsPresent(context);
 }
 
 test.describe('advertising, in a browser', () => {
@@ -49,7 +45,7 @@ test.describe('advertising, in a browser', () => {
     page,
     context,
   }) => {
-    test.skip(!(await signInAsAutomation(context)), NEEDS_IDENTITY);
+    test.skip(!(await signedIn(context)), NEEDS_IDENTITY);
 
     await page.goto('/owner/ads');
     await expect(page.getByRole('heading', { name: 'Campaigns', level: 1 })).toBeVisible();
@@ -80,7 +76,7 @@ test.describe('advertising, in a browser', () => {
     page,
     context,
   }) => {
-    test.skip(!(await signInAsAutomation(context)), NEEDS_IDENTITY);
+    test.skip(!(await signedIn(context)), NEEDS_IDENTITY);
 
     await page.setViewportSize(PHONE);
     await page.goto('/owner');

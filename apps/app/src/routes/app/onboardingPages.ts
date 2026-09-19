@@ -7,8 +7,12 @@
  * completed with a keyboard alone.
  */
 import {
+  ACTIVATION_UNAVAILABLE_REASON,
+  ACTIVATION_UNAVAILABLE_WHEN,
+  ActivationNotice,
   AssertionRow,
   Button,
+  UnavailableAction,
   ButtonRow,
   Callout,
   Card,
@@ -26,6 +30,7 @@ import {
 } from '@verify/ui';
 import { explainAssertion, explainRunStatus } from '@verify/domain';
 import { setupGuide, type ProviderSetupGuide } from '@verify/connectors';
+import { preCheckoutPanel, type DisclosureSection } from '../../billing/index.js';
 import { LIMITS } from '@verify/contracts';
 import { connectionPresentation, formMessage, onboardingProgress, pageHead } from './chrome.js';
 import { formatDuration } from '../public/shared.js';
@@ -65,6 +70,7 @@ export function CompatibilityPage(entries: readonly ConnectorCompatibility[]): H
     title: 'Can we verify your setup?',
     lede: 'Version one checks exactly one workflow shape, using exactly two providers. Read this before you connect anything — if your automation does something else, we cannot verify it yet.',
     body: html`<div class="stack-lg">
+      ${ActivationNotice()}
       ${
         blocked.length === 0
           ? null
@@ -106,14 +112,12 @@ export function CompatibilityPage(entries: readonly ConnectorCompatibility[]): H
         </p>`,
       })}
 
-      ${ButtonRow([
-        Button({
-          label: 'These all apply — continue',
-          href: '/app/onboarding/connect',
-          variant: 'primary',
-        }),
-        Button({ label: 'Read the setup requirements', href: '/how-it-works', variant: 'quiet' }),
-      ])}
+      ${UnavailableAction({
+        label: 'These all apply — continue',
+        reason: ACTIVATION_UNAVAILABLE_REASON,
+        whenBack: ACTIVATION_UNAVAILABLE_WHEN,
+      })}
+      ${ButtonRow([Button({ label: 'Read the setup requirements', href: '/how-it-works', variant: 'quiet' })])}
     </div>`,
   });
 }
@@ -568,6 +572,49 @@ export function ProofPage(options: ProofPageOptions): Html {
 
 /* --------------------------------------------------------- 6. review and price */
 
+/**
+ * The pre-checkout disclosure.
+ *
+ * The founder's requirement was that the recovery policy is **displayed before checkout,
+ * not discovered afterwards**. A06 wrote `preCheckoutPanel()` next to the policy constants
+ * it derives from, and until now it had no caller — so the disclosure existed, was tested,
+ * and was rendered nowhere. This is the caller.
+ *
+ * Nothing is retyped here. Not the price, not the allowance, not the number of days. Every
+ * string comes from the panel, so changing the policy changes this page and cannot leave a
+ * stale promise behind on it.
+ *
+ * `mustBeVisible` is rendered first, at body size and above every section, and there is no
+ * disclosure control anywhere in this block — no `<details>`, nothing collapsed. It carries
+ * the price, the allowance, the seven-day window and the fact that cancellation is always
+ * available, which is the set of things a customer must not have to go looking for.
+ */
+function disclosureSection(section: DisclosureSection): Html {
+  return html`<section class="disclosure__section" data-disclosure-section="${section.id}">
+    <h4>${section.heading}</h4>
+    ${section.style === 'list'
+      ? html`<ul>
+          ${section.lines.map((line) => html`<li>${line}</li>`)}
+        </ul>`
+      : section.lines.map((line) => html`<p>${line}</p>`)}
+  </section>`;
+}
+
+function preCheckoutDisclosure(): Html {
+  const panel = preCheckoutPanel();
+  return html`<section class="disclosure stack" aria-labelledby="disclosure-heading">
+    <h3 id="disclosure-heading">${panel.heading}</h3>
+    <p class="disclosure__must" data-must-be-visible>${panel.mustBeVisible}</p>
+    <dl class="kv">
+      ${panel.facts.map(
+        (fact) => html`<dt>${fact.label}</dt>
+          <dd>${fact.value}</dd>`,
+      )}
+    </dl>
+    ${panel.sections.map((section) => disclosureSection(section))}
+  </section>`;
+}
+
 export interface ReviewPageOptions {
   readonly order: OrderSummaryView;
   readonly workflow: WorkflowDetail;
@@ -630,22 +677,17 @@ export function ReviewPage(options: ReviewPageOptions): Html {
             })
       }
 
-      <form method="post" action="/app/onboarding/checkout" class="stack">
-        ${CsrfField(options.csrfToken)}
-        ${ButtonRow([
-          Button({
-            label: 'Continue to secure checkout',
-            variant: 'primary',
-            type: 'submit',
-            disabled: !order.ready,
-          }),
-          Button({
-            label: 'Back to the proof run',
-            href: '/app/onboarding/proof',
-            variant: 'quiet',
-          }),
-        ])}
-      </form>
+      ${preCheckoutDisclosure()}
+
+      <!-- No form and no submit control while the activation path is closed. A disabled
+           <button> is still a button, and an attribute is a thin thing to stand between a
+           customer and a charge we cannot honour. -->
+      ${UnavailableAction({
+        label: 'Continue to secure checkout',
+        reason: ACTIVATION_UNAVAILABLE_REASON,
+        whenBack: ACTIVATION_UNAVAILABLE_WHEN,
+      })}
+      ${ButtonRow([Button({ label: 'Back to the proof run', href: '/app/onboarding/proof', variant: 'quiet' })])}
 
       ${Callout({
         tone: 'note',

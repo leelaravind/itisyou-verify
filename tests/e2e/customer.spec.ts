@@ -7,8 +7,26 @@
  * could read placeholder runs as their own.
  */
 import { expect, test } from '@playwright/test';
+import { SEED_MISSING, automationCookieIsPresent, signInAsAutomation } from './helpers/session';
 
 test.describe('customer journey', () => {
+  /**
+   * Sign in before every case.
+   *
+   * These pages are behind a session and this file never opened one — it called
+   * `page.goto('/app')` cold, got a 401, and asserted against the sign-in page. Twelve
+   * cases were measuring the signed-out version of a product they were describing as
+   * signed in.
+   *
+   * The cookie name comes from the seed rather than being assumed, and the jar is read back
+   * afterwards: a `__Host-`-prefixed name over http is silently discarded by the browser,
+   * which looks identical to a broken guard.
+   */
+  test.beforeEach(async ({ context }) => {
+    const seeded = (await signInAsAutomation(context)) && (await automationCookieIsPresent(context));
+    test.skip(!seeded, SEED_MISSING);
+  });
+
   test('CUST-080 every signed-in page is marked as synthetic and is not indexable', async ({ page }) => {
     for (const path of ['/app', '/app/runs', '/app/connections', '/app/usage']) {
       await page.goto(path);

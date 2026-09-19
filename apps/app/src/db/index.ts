@@ -115,7 +115,12 @@ export type {
 
 export { D1BillingDataPort, createBillingContactLookup } from './billingPort';
 export { D1SupportDataPort, D1RateLimiter } from './supportPort';
-export { D1CustomerDataPort, createCustomerDataPort } from './customerPort';
+export {
+  D1CustomerDataPort,
+  createCustomerDataPort,
+  recordSupportCase,
+  recordAnonymousSupportCase,
+} from './customerPort';
 export type { CustomerPortInput } from './customerPort';
 
 export { D1OwnerDataPort, D1OwnerAuth, createOwnerDataPort, createOwnerAuth } from './ownerPort';

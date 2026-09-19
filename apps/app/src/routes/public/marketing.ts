@@ -6,8 +6,12 @@
  * `TODO_OWNER_INPUT` placeholder visibly rather than inventing something plausible.
  */
 import {
+  ACTIVATION_UNAVAILABLE_REASON,
+  ACTIVATION_UNAVAILABLE_WHEN,
+  ActivationNotice,
   Button,
   ButtonRow,
+  UnavailableAction,
   Callout,
   Card,
   StandingLimitations,
@@ -133,6 +137,10 @@ export function PricingPage(): Html {
       'The price is the price. If you use the whole allowance we stop accepting events rather than billing you more.',
     )}
 
+    ${ActivationNotice()}
+
+    ${ActivationNotice()}
+
     <div class="grid grid-2">
       ${Card({
         title: PLAN_NAME,
@@ -151,7 +159,11 @@ export function PricingPage(): Html {
             ],
             rows: PLAN_ALLOWANCE,
           })}
-          ${ButtonRow([Button({ label: 'Start setting this up', href: '/app', variant: 'primary' })])}
+          ${UnavailableAction({
+            label: 'Start setting this up',
+            reason: ACTIVATION_UNAVAILABLE_REASON,
+            whenBack: ACTIVATION_UNAVAILABLE_WHEN,
+          })}
         </div>`,
       })}
       <div class="stack">

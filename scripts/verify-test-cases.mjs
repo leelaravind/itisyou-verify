@@ -89,7 +89,7 @@ function loadSecretRules(scannerPath = SCANNER_PATH) {
 
   const block = src.slice(open, end + 1);
   const declared = (block.match(/\{\s*id:\s*'/g) ?? []).length;
-  const entry = /\{\s*id:\s*'([^']+)'\s*,\s*re:\s*\/((?:\\.|\[(?:\\.|[^\]])*\]|[^/\\])+)\/([gimsuy]*)\s*\}/g;
+  const entry = /\{\s*id:\s*'([^']+)'\s*,\s*re:\s*\/((?:\\.|\[(?:\\.|[^\]])*\]|[^/\\])+)\/([gimsuy]*)\s*,?\s*\}/g;
   const rules = [];
   let m;
   while ((m = entry.exec(block)) !== null) {

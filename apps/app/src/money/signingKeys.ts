@@ -3,86 +3,99 @@
  *
  * ## Why this file had to be written
  *
- * `POST /api/v1/events` is the door the whole product is named for, and it was never
- * mounted. Tracing why, the reason turned out to be one layer further down: the schema has
- * held `workflows.signing_key_hash` and `workflows.signing_key_ref` since the first
- * migration, `workflows.setSigningKey` has existed to write them, and **nothing has ever
- * called it**. No customer could hold a key, so no signed request could be verified, so
- * there was no route to mount. Same defect class, one floor lower.
+ * `POST /api/v1/events` is the door the product is named for, and it was never mounted.
+ * Tracing why, the reason turned out to be one floor further down: the schema has held
+ * `workflows.signing_key_hash` and `workflows.signing_key_ref` since the first migration,
+ * `workflows.setSigningKey` has existed to write them, and **nothing has ever called it**.
+ * No customer could hold a key, so no signed request could be verified, so there was no
+ * route to mount. The same defect class, one layer under the one it was reported at.
  *
  * ## What a signing key proves, and what it does not
  *
  * It proves *who submitted the expectation*. It does not make the expectation true — that
- * is the entire premise of the product, and it is written into the frozen contract. A
- * verified signature gets you as far as "this workspace asked us to check this", and not
- * one step further.
+ * is the whole premise of the product and it is written into the frozen contract. A
+ * verified signature gets you to "this workspace asked us to check this" and no further.
  *
  * ## Shape
  *
  * Two headers, because the key id has to be readable without the secret:
  *
- *     X-Verify-Key-Id:    cred_...          the credential row, an opaque public id
+ *     X-Verify-Key-Id:    evk_...           the key reference, an opaque public id
  *     X-Verify-Signature: t=<unix>,v1=<hex> HMAC-SHA-256 over `${t}.${rawBody}`
  *
- * The secret itself is 32 random bytes, base64url, shown to the customer **once** at
- * issue and never again. What we keep is:
+ * ## The secret is derived, not stored
  *
- *  - `workflows.signing_key_hash` — `hashToken(secret, 'workflow_signing')`, so a support
- *    conversation can confirm *which* key a customer is holding without us holding it in
- *    the clear, and so a mask can be rendered on the activation page.
- *  - `workflows.signing_key_ref` — the `credential_versions` row id, which is also the
- *    public key id. The secret lives there inside an AES-GCM envelope whose AAD binds the
- *    workspace, the "provider" (`workflow`) and the purpose, exactly like every other
- *    stored credential in this system.
+ * `secret = HMAC-SHA-256(EVENT_SIGNING_ROOT_KEY, "verify.event_signing.v1:ws:wf:ref")`.
  *
- * Verification needs the secret back, so the envelope is opened per request with
- * `CREDENTIAL_KEY_V1`. A deployment with no wrapping key cannot open it and therefore
- * cannot verify anything — which is the correct degraded behaviour, and the route says so
- * as a 503 rather than pretending the signature was wrong.
+ * Nothing about the key is written to the database except the reference and a hash. This
+ * is the same reasoning A06 recorded for the Stripe webhook secret in `billing/mount.ts`,
+ * and it lands the same way here:
  *
- * ## Rotation
+ *  - **There is nowhere correct to put it.** Stored credentials in this system live in
+ *    AES-GCM envelopes in `credential_versions`, and migration `0002` constrains
+ *    `owner_scope` to `connection:*` or `user:*` — deliberately, so a third shape cannot
+ *    appear without somebody deciding it should. A workflow is neither, and widening that
+ *    CHECK to store a secret that never leaves the Worker would be ceremony around a
+ *    weaker outcome.
+ *  - **A derived secret has no rest state to leak.** There is no ciphertext, no nonce and
+ *    no row to steal. Reading the whole `workflows` table buys an attacker the key
+ *    *reference* and a hash, neither of which signs anything.
+ *  - **Rotation is a new reference.** `setSigningKey` overwrites `signing_key_ref`, the old
+ *    reference stops resolving on the next request, and the old secret becomes
+ *    unreachable — nothing to retire, nothing to clean up, and no dual-key window
+ *    pretending to exist.
  *
- * `credentials.store` retires the previous active version for the scope and inserts the
- * new one in one batch, so there is never a moment with two live keys. Issuing again is
- * therefore a rotation: the old key id stops resolving immediately. That is deliberate and
- * it is the honest behaviour — a dual-key window is a feature we have not built, and
- * pretending a retired key still works would be worse than a clean break the customer was
- * told about.
+ * What we do keep is `signing_key_hash = hashToken(secret, 'workflow_signing')`, so support
+ * can confirm *which* key a customer is holding, and the activation page can render a mask,
+ * without us holding the key in a usable form.
+ *
+ * A deployment with no `EVENT_SIGNING_ROOT_KEY` cannot derive anything and therefore cannot
+ * verify anything. That is a **503**, not a rejection: the caller did nothing wrong, and
+ * answering "your signature is invalid" would send a customer hunting for a bug they do not
+ * have.
  */
 import { AppError } from '@verify/contracts';
-import {
-  hashToken,
-  openCredentialFor,
-  sealCredentialFor,
-  toBase64Url,
-} from '@verify/security';
-import { credentials } from '../db/connections';
+import { hashToken, hmacSha256Hex } from '@verify/security';
 import type { Db } from '../db/d1';
 import { workflows } from '../db/workflows';
-import { ID_PREFIX, newId } from '../lib/ids';
+import { newId } from '../lib/ids';
+import type { SigningKeyStore } from './ports';
 
-/**
- * The AAD parts. `provider` is a required field of the shared credential context and there
- * is no external provider here, so it names the thing the key belongs to instead. It is
- * authenticated by GCM either way, which is the only property that matters.
- */
-export const WORKFLOW_SIGNING_PROVIDER = 'workflow';
-export const WORKFLOW_SIGNING_PURPOSE = 'event_signing';
+/** The id prefix for a signing-key reference. Not in `ID_PREFIX`: it is not an entity. */
+export const SIGNING_KEY_REF_PREFIX = 'evk';
 
 /** The domain separator for the stored hash. Never reused for any other token. */
 export const WORKFLOW_SIGNING_HASH_DOMAIN = 'workflow_signing';
 
-/** `credential_versions.owner_scope` for a workflow's signing key. */
-export function workflowScope(workflowId: string): string {
-  return `workflow:${workflowId}`;
+/**
+ * The derivation input. Versioned, and it names every fact the key is bound to.
+ *
+ * The workspace is in here on purpose: a workflow that somehow changed hands would derive
+ * a different secret, so an old key cannot follow it.
+ */
+export function signingKeyMaterial(params: {
+  readonly workspaceId: string;
+  readonly workflowId: string;
+  readonly keyRef: string;
+}): string {
+  return `verify.event_signing.v1:${params.workspaceId}:${params.workflowId}:${params.keyRef}`;
+}
+
+/** Derive the secret for one key reference. Deterministic; nothing is stored. */
+export async function deriveSigningSecret(
+  rootKey: string,
+  params: { readonly workspaceId: string; readonly workflowId: string; readonly keyRef: string },
+): Promise<string> {
+  return hmacSha256Hex(rootKey, signingKeyMaterial(params));
 }
 
 export interface IssuedSigningKey {
-  /** The public id the customer sends in `X-Verify-Key-Id`. */
+  /** The public reference the customer sends in `X-Verify-Key-Id`. */
   readonly keyId: string;
   /**
-   * The secret. **Returned once and never recoverable.** The caller shows it to the
-   * customer and must not log it, store it, or put it in an audit row.
+   * The secret. Returned so the caller can show it to the customer **once**. It must not be
+   * logged, stored, or put in an audit row — it is re-derivable from the root key and the
+   * reference, and that is the only copy that should exist.
    */
   readonly secret: string;
   /** What we keep, so the activation page can render a mask. */
@@ -92,62 +105,37 @@ export interface IssuedSigningKey {
 
 export interface IssueSigningKeyDeps {
   readonly db: Db;
-  /** Base64 AES-GCM wrapping key. Absent on a deployment with no `CREDENTIAL_KEY_V1`. */
-  readonly credentialKeyBase64: string;
-  readonly keyVersion?: number;
+  /** The Worker secret every signing key is derived from. Absent on a bare deployment. */
+  readonly rootKey: string;
   readonly now: string;
   readonly newId?: (prefix: string) => string;
-  readonly randomBytes?: (length: number) => Uint8Array;
 }
 
 /**
  * Issue (or rotate) the signing key for one workflow.
  *
- * Order matters and it is the safe one: seal and store the credential first, then stamp
- * the workflow. A crash between the two leaves an orphan credential version that nothing
- * points at — harmless, and the next issue retires it. The reverse order would leave a
- * workflow pointing at a credential that does not exist, which is a 500 on the hottest
- * untrusted path in the system.
+ * Calling it twice produces two independent keys and only the second one works, because
+ * `signing_key_ref` holds exactly one reference. There is no window in which both are live.
  */
 export async function issueWorkflowSigningKey(
   deps: IssueSigningKeyDeps,
   params: { readonly workspaceId: string; readonly workflowId: string },
 ): Promise<IssuedSigningKey> {
-  if (deps.credentialKeyBase64.length === 0) {
+  if (deps.rootKey.length === 0) {
     throw new AppError(
       503,
-      'CREDENTIAL_KEY_MISSING',
-      'This deployment has no credential wrapping key, so a signing key cannot be issued.',
+      'EVENT_SIGNING_UNCONFIGURED',
+      'This deployment has no event-signing root key, so a signing key cannot be issued.',
     );
   }
   const mint = deps.newId ?? ((prefix: string) => newId(prefix));
-  const random = deps.randomBytes ?? defaultRandomBytes;
-
-  const secret = toBase64Url(random(32));
-  const secretHash = await hashToken(secret, WORKFLOW_SIGNING_HASH_DOMAIN);
-  const keyVersion = deps.keyVersion ?? 1;
-
-  const envelope = await sealCredentialFor(
-    secret,
-    {
-      workspaceId: params.workspaceId,
-      provider: WORKFLOW_SIGNING_PROVIDER,
-      purpose: WORKFLOW_SIGNING_PURPOSE,
-    },
-    { keyBase64: deps.credentialKeyBase64, keyVersion },
-  );
-
-  const keyId = mint(ID_PREFIX.credential);
-  await credentials.store(deps.db, {
-    id: keyId,
-    ownerScope: workflowScope(params.workflowId),
-    connectionId: null,
-    keyVersion,
-    ciphertext: envelope.ciphertext,
-    nonce: envelope.nonce,
-    aad: envelope.aad,
-    createdAt: deps.now,
+  const keyId = mint(SIGNING_KEY_REF_PREFIX);
+  const secret = await deriveSigningSecret(deps.rootKey, {
+    workspaceId: params.workspaceId,
+    workflowId: params.workflowId,
+    keyRef: keyId,
   });
+  const secretHash = await hashToken(secret, WORKFLOW_SIGNING_HASH_DOMAIN);
 
   const stamped = await workflows.setSigningKey(deps.db, params.workspaceId, params.workflowId, {
     signingKeyHash: secretHash,
@@ -167,7 +155,7 @@ export async function issueWorkflowSigningKey(
 /**
  * Everything the events route needs about the caller, resolved from the key id alone.
  *
- * The workspace comes from here and **never from the request body**. That is the whole
+ * The workspace comes from here and **never from the request body**. That is the entire
  * point of the credential: a payload can claim any workspace it likes, and claiming is not
  * proving.
  */
@@ -177,110 +165,61 @@ export interface ResolvedSigningKey {
   readonly workflowId: string;
   readonly workflowVersionId: string;
   readonly deadlineSeconds: number;
-  /** The secret, opened for this request. Never logged, never returned to a caller. */
+  /** The secret, derived for this request. Never logged, never returned to a caller. */
   readonly secret: string;
 }
 
 export type SigningKeyResolution =
   | { readonly outcome: 'resolved'; readonly key: ResolvedSigningKey }
-  /** No such key id, or it has been retired, or the workflow is not active. */
+  /** No such reference, or the workflow is archived or inactive. */
   | { readonly outcome: 'unknown' }
-  /** The envelope exists but this deployment cannot open it. A 503, not a rejection. */
+  /** The reference is ours but this deployment cannot derive a secret. A 503, not a 401. */
   | { readonly outcome: 'unreadable' };
 
-/**
- * The port the route depends on, so a test can drive the route without a wrapping key and
- * the composition root can supply the real D1-backed resolver.
- */
+/** The route depends on this, so a test can drive it and the root can supply the real one. */
 export type SigningKeyResolver = (keyId: string) => Promise<SigningKeyResolution>;
 
-interface SigningKeyRow {
-  readonly credential_id: string;
-  readonly ciphertext: string;
-  readonly nonce: string;
-  readonly aad: string;
-  readonly key_version: number;
-  readonly workspace_id: string;
-  readonly workflow_id: string;
-  readonly version_id: string;
-  readonly deadline_seconds: number;
-}
-
 /**
- * The real resolver, over D1.
+ * The real resolver.
  *
- * One query. The join is what makes the lookup tenant-safe without a workspace predicate:
- * the key id is the only thing the caller supplied, and the workspace is *derived* from
- * the workflow that owns the scope rather than accepted from anywhere. `retired_at IS
- * NULL` is what makes a rotation take effect immediately, and `signing_key_ref = cv.id` is
- * what stops a retired-but-not-yet-deleted row from still authenticating.
+ * There is no SQL in this file and there must not be: `apps/app/src/db/` is the only place
+ * a statement naming a customer-scoped table may live, and `workflows` and
+ * `workflow_versions` are both customer-scoped. `SEC-201` enforces it, and the rule is the
+ * reason tenant scoping can be checked in one place instead of remembered in twelve.
+ *
+ * The store's contract carries the tenancy property: the workspace is **derived** from the
+ * workflow that holds the reference, never accepted from the caller. A workspace predicate
+ * is impossible here because discovering the workspace is the purpose of the call — and
+ * what makes that safe is not a predicate but the signature check the caller has to pass
+ * immediately afterwards.
  */
 export function createSigningKeyResolver(deps: {
-  readonly db: Db;
-  readonly credentialKeyBase64: string;
+  readonly store: SigningKeyStore;
+  readonly rootKey: string;
 }): SigningKeyResolver {
   return async (keyId: string): Promise<SigningKeyResolution> => {
     if (keyId.length === 0 || keyId.length > 64) return { outcome: 'unknown' };
-    // tenant-scope:exempt resolves the workspace FROM the credential the caller proved it
-    // holds; a workspace predicate here would require the answer as an input.
-    const row = await deps.db
-      .prepare(
-        `SELECT cv.id AS credential_id, cv.ciphertext, cv.nonce, cv.aad, cv.key_version,
-                w.workspace_id, w.id AS workflow_id,
-                v.id AS version_id, v.deadline_seconds
-           FROM credential_versions cv
-           JOIN workflows w
-             ON w.signing_key_ref = cv.id
-            AND cv.owner_scope = 'workflow:' || w.id
-           JOIN workflow_versions v
-             ON v.id = w.current_version_id AND v.workspace_id = w.workspace_id
-          WHERE cv.id = ? AND cv.retired_at IS NULL
-            AND w.status = 'active' AND w.archived_at IS NULL`,
-      )
-      .bind(keyId)
-      .first<SigningKeyRow>();
-    if (row === null) return { outcome: 'unknown' };
 
-    if (deps.credentialKeyBase64.length === 0) return { outcome: 'unreadable' };
-    let secret: string;
-    try {
-      secret = await openCredentialFor(
-        {
-          ciphertext: row.ciphertext,
-          nonce: row.nonce,
-          aad: row.aad,
-          key_version: row.key_version,
-        },
-        {
-          workspaceId: row.workspace_id,
-          provider: WORKFLOW_SIGNING_PROVIDER,
-          purpose: WORKFLOW_SIGNING_PURPOSE,
-        },
-        { keyBase64: deps.credentialKeyBase64 },
-      );
-    } catch {
-      // A wrong wrapping key, a rotated key we no longer hold, or a tampered row. All of
-      // them are our problem, not the caller's, and all of them must read the same from
-      // outside.
-      return { outcome: 'unreadable' };
-    }
+    const stored = await deps.store.findActiveWorkflowSigningKey(keyId);
+    if (stored === null) return { outcome: 'unknown' };
+    if (deps.rootKey.length === 0) return { outcome: 'unreadable' };
+
+    const secret = await deriveSigningSecret(deps.rootKey, {
+      workspaceId: stored.workspaceId,
+      workflowId: stored.workflowId,
+      keyRef: stored.keyId,
+    });
 
     return {
       outcome: 'resolved',
       key: {
-        keyId: row.credential_id,
-        workspaceId: row.workspace_id,
-        workflowId: row.workflow_id,
-        workflowVersionId: row.version_id,
-        deadlineSeconds: row.deadline_seconds,
+        keyId: stored.keyId,
+        workspaceId: stored.workspaceId,
+        workflowId: stored.workflowId,
+        workflowVersionId: stored.workflowVersionId,
+        deadlineSeconds: stored.deadlineSeconds,
         secret,
       },
     };
   };
-}
-
-function defaultRandomBytes(length: number): Uint8Array {
-  const bytes = new Uint8Array(length);
-  crypto.getRandomValues(bytes);
-  return bytes;
 }

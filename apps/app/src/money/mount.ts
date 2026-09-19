@@ -20,7 +20,7 @@
  *
  * | Absent | What happens |
  * | --- | --- |
- * | `CREDENTIAL_KEY_V1` | No signing key can be issued or opened. Every signed event gets **503 SIGNING_KEY_UNREADABLE**, which says the fault is ours. |
+ * | `EVENT_SIGNING_ROOT_KEY` | No signing key can be issued or derived. Every signed event gets **503 SIGNING_KEY_UNREADABLE**, which says plainly that the fault is ours. |
  * | Stripe config | `checkAdmission` finds no subscription and refuses with **402 NO_SUBSCRIPTION**. Correct: nobody has paid. |
  * | An allowance row | **402 ENTITLEMENT_MISSING**. A workspace with no plan period is not served. |
  *
@@ -39,13 +39,17 @@ import { D1BillingDataPort } from '../db/billingPort';
 import type { Db } from '../db/d1';
 import { newId } from '../lib/ids';
 import { createEventsRoute, type EventsLog } from './eventsRoute';
+import type { SigningKeyStore } from './ports';
 import { createSigningKeyResolver } from './signingKeys';
 
 /** The Worker bindings the money path reads. A structural subset of `Env`. */
 export interface MoneyEnv extends BillingEnv {
   readonly DB: D1Database;
-  /** Base64 AES-GCM wrapping key. Absent on a deployment that holds no credentials. */
-  readonly CREDENTIAL_KEY_V1?: string | undefined;
+  /**
+   * The Worker secret every workflow signing key is derived from. Absent on a deployment
+   * that cannot verify a signed event; every signed request then answers 503, not 401.
+   */
+  readonly EVENT_SIGNING_ROOT_KEY?: string | undefined;
 }
 
 export interface MoneyMountParts {
@@ -56,6 +60,12 @@ export interface MoneyMountParts {
    * does.
    */
   readonly gateway: BillingGatewayPort;
+  /**
+   * Where a workflow's signing key is read from. Supplied by the composition root rather
+   * than built here, because the implementation is SQL and SQL lives in `apps/app/src/db/`
+   * — see `money/ports.ts`. `createWorkflowSigningKeyStore(env.DB)` is the one to pass.
+   */
+  readonly signingKeyStore: SigningKeyStore;
   readonly now?: () => Date;
   readonly newId?: (prefix: string) => string;
   readonly log?: EventsLog;
@@ -124,8 +134,8 @@ export function createMoneyRoutes(env: MoneyEnv, parts: MoneyMountParts) {
   return createEventsRoute({
     db,
     resolveSigningKey: createSigningKeyResolver({
-      db,
-      credentialKeyBase64: env.CREDENTIAL_KEY_V1 ?? '',
+      store: parts.signingKeyStore,
+      rootKey: env.EVENT_SIGNING_ROOT_KEY ?? '',
     }),
     billing: createAdmissionRuntime(env, parts),
     ...(parts.now === undefined ? {} : { now: parts.now }),
@@ -143,7 +153,7 @@ export function createMoneyRoutes(env: MoneyEnv, parts: MoneyMountParts) {
 export interface MoneyPathReadiness {
   /** The route is mounted and will answer. Independent of whether it can admit anything. */
   readonly routeMounted: true;
-  /** False when `CREDENTIAL_KEY_V1` is absent: no signature can be verified. */
+  /** False when `EVENT_SIGNING_ROOT_KEY` is absent: no signature can be verified. */
   readonly canVerifySignatures: boolean;
   /** False when Stripe is unconfigured: nobody can hold a subscription. */
   readonly canTakePayment: boolean;
@@ -154,10 +164,10 @@ export function moneyPathReadiness(env: MoneyEnv): MoneyPathReadiness {
   const billing = checkBillingSecrets(env);
   return {
     routeMounted: true,
-    canVerifySignatures: (env.CREDENTIAL_KEY_V1 ?? '').length > 0,
+    canVerifySignatures: (env.EVENT_SIGNING_ROOT_KEY ?? '').length > 0,
     canTakePayment: billing.ready,
     missingSecrets: [
-      ...((env.CREDENTIAL_KEY_V1 ?? '').length > 0 ? [] : ['CREDENTIAL_KEY_V1']),
+      ...((env.EVENT_SIGNING_ROOT_KEY ?? '').length > 0 ? [] : ['EVENT_SIGNING_ROOT_KEY']),
       ...billing.missing,
     ],
   };

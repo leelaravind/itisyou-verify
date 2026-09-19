@@ -11,6 +11,7 @@ import {
   ButtonRow,
   Callout,
   Card,
+  ActivationNotice,
   ClaimRule,
   StatusBadge,
   html,
@@ -37,7 +38,13 @@ import { findFaq } from './faq.js';
  */
 function hero(): Html {
   return html`<section class="section">
-    <div class="wrap">
+    <div class="wrap stack">
+      <!-- Before the first call to action, deliberately. A visitor must not read the
+           headline, form an intention, and only then learn we cannot serve them. -->
+      ${ActivationNotice()}
+      <!-- Before the first call to action, deliberately. A visitor must not read the
+           headline, form an intention and only then learn we cannot serve them. -->
+      ${ActivationNotice()}
       <div class="grid grid-2 grid-center grid-wide-gap">
         <div class="stack">
           <p class="eyebrow">Independent verification of one automation</p>

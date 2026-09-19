@@ -17,7 +17,8 @@
  * `tests/integration/owner/accessibility.test.ts` (OWNER-158, OWNER-159, OWNER-169,
  * OWNER-176..OWNER-189), which does run and does pass.
  */
-import { expect, test } from '@playwright/test';
+import { expect, test, type BrowserContext } from '@playwright/test';
+import { SEED_MISSING, automationCookieIsPresent, signInAsAutomation } from './helpers/session';
 
 /**
  * These titles deliberately carry no case id. A case counts once, and the numbered versions
@@ -30,28 +31,33 @@ import { expect, test } from '@playwright/test';
 /** iPhone 12-ish. Narrow enough that a broken layout scrolls sideways. */
 const PHONE = { width: 390, height: 844 };
 
-const NOT_MOUNTED =
-  'The owner router is not mounted in apps/app/src/index.ts yet — add ' +
-  "app.route('/', createOwnerRoutes()) and this suite runs.";
+const NOT_MOUNTED = SEED_MISSING;
 
-async function ownerIsMounted(request: { get: (url: string) => Promise<{ status: () => number }> }): Promise<boolean> {
-  const response = await request.get('/admin/login');
-  return response.status() === 200;
+/**
+ * Sign in as the scoped automation identity and prove the cookie landed.
+ *
+ * The router is mounted now, so the old "is it mounted?" probe is gone — what gates these
+ * is the seeded identity, and the jar is read back rather than assumed because a cookie the
+ * browser silently discards looks exactly like a broken guard.
+ */
+async function signedIn(context: BrowserContext): Promise<boolean> {
+  if (!(await signInAsAutomation(context))) return false;
+  return automationCookieIsPresent(context);
 }
 
 test.describe('owner panel — phone, keyboard only', () => {
   test.use({ viewport: PHONE });
 
-  test('owner phone: the sign-in page works at phone width without scrolling sideways', async ({ page, request }) => {
-    test.skip(!(await ownerIsMounted(request)), NOT_MOUNTED);
+  test('owner phone: the sign-in page works at phone width without scrolling sideways', async ({ page, context }) => {
+    test.skip(!(await signedIn(context)), NOT_MOUNTED);
     await page.goto('/admin/login');
     await expect(page.getByRole('heading', { name: 'Sign in', level: 1 })).toBeVisible();
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow).toBeLessThanOrEqual(1);
   });
 
-  test('owner phone: an incident can be opened and acknowledged with the keyboard alone', async ({ page, request }) => {
-    test.skip(!(await ownerIsMounted(request)), NOT_MOUNTED);
+  test('owner phone: an incident can be opened and acknowledged with the keyboard alone', async ({ page, context }) => {
+    test.skip(!(await signedIn(context)), NOT_MOUNTED);
     await page.goto('/owner/operations');
     // Tab until the acknowledge button has focus; press it with the keyboard.
     for (let i = 0; i < 80; i += 1) {
@@ -66,8 +72,8 @@ test.describe('owner panel — phone, keyboard only', () => {
     await expect(page.getByText('acknowledged')).toBeVisible();
   });
 
-  test('owner phone: the service can be paused with the keyboard, and cancelling stays reachable', async ({ page, request }) => {
-    test.skip(!(await ownerIsMounted(request)), NOT_MOUNTED);
+  test('owner phone: the service can be paused with the keyboard, and cancelling stays reachable', async ({ page, context }) => {
+    test.skip(!(await signedIn(context)), NOT_MOUNTED);
     await page.goto('/owner/controls');
     const pause = page.getByRole('button', { name: /Pause new orders/i });
     await pause.focus();
@@ -81,8 +87,8 @@ test.describe('owner panel — phone, keyboard only', () => {
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
   });
 
-  test('owner phone: a campaign request can be cancelled from the keyboard and reads as pause requested', async ({ page, request }) => {
-    test.skip(!(await ownerIsMounted(request)), NOT_MOUNTED);
+  test('owner phone: a campaign request can be cancelled from the keyboard and reads as pause requested', async ({ page, context }) => {
+    test.skip(!(await signedIn(context)), NOT_MOUNTED);
     await page.goto('/owner/ads');
     const pause = page.getByRole('button', { name: /Request pause/i }).first();
     await pause.focus();

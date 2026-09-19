@@ -21,6 +21,7 @@ import type { AssertionResult } from '@verify/domain';
 import type { CoverageMode, RunStatus, SubscriptionStatus } from '@verify/contracts';
 import { LIMITS, formatMoney, money } from '@verify/contracts';
 import { generateCsrfToken, maskToken } from '@verify/security';
+import { AppError } from '@verify/contracts';
 import type {
   ActivationView,
   ConnectionView,
@@ -43,9 +44,8 @@ import type {
   WriteResult,
 } from '../routes/app/port';
 import type { Env } from '../lib/context';
-import { ID_PREFIX, newId } from '../lib/ids';
 import { resolveSession, type ResolvedSession } from '../lib/session';
-import { nowIso, toIso } from '../lib/time';
+import { toIso } from '../lib/time';
 import { connections } from './connections';
 import type { Db } from './d1';
 import { entitlements } from './entitlements';
@@ -53,7 +53,8 @@ import { assertions, runs } from './runs';
 import { sourceEvents } from './sourceEvents';
 import { resolveAllowancePeriodKey, type SubscriptionPeriodSource } from '../billing/period';
 import { subscriptions } from './commerce';
-import { supportCases } from './supportData';
+import { createCase } from '../support/cases';
+import { D1SupportDataPort } from './supportPort';
 import { workflows, workflowVersions } from './workflows';
 
 /* -------------------------------------------------------------------------- */
@@ -782,11 +783,21 @@ export class D1CustomerDataPort implements CustomerDataPort {
   /* --- support --- */
 
   /**
-   * This one IS fully implementable: a support case is our own row in our own table, so
-   * it is recorded for real and the customer gets a reference they can quote.
+   * Record a support request.
    *
-   * What is not claimed: that anybody was notified. Notification goes through A09's send
-   * path, and the message says only what actually happened.
+   * **This delegates to A09's `createCase` and does not reimplement any of it.** The
+   * previous version wrote the raw body straight into `body_redacted` and hard-coded
+   * `category: 'other'`, `priority: 'normal'`, `state: 'open'` — under a comment claiming
+   * redaction had happened elsewhere. Two published statements were false as a result:
+   *
+   *  - a customer who pasted an API key into the form had it stored verbatim, in a column
+   *    whose name asserts the opposite, and in every backup since;
+   *  - a billing dispute, a deletion request and a security report never escalated, so
+   *    A09's acknowledgement — "it has gone straight to the owner" — was untrue.
+   *
+   * `createCase` redacts, triages, writes and produces the acknowledgement, in that order.
+   * Calling it is the fix; the comment that used to stand here is exactly why the defect
+   * survived review, because it told the next reader the work was already done.
    */
   async submitSupportRequest(input: SupportRequestInput): Promise<SupportResult> {
     const scope = await this.#scope();
@@ -795,8 +806,7 @@ export class D1CustomerDataPort implements CustomerDataPort {
     const body = input.body.trim();
     if (subject.length < 3) fieldErrors['subject'] = 'Tell us in a few words what this is about.';
     if (body.length < 10) fieldErrors['body'] = 'A little more detail will let us help faster.';
-    if (subject.length > 200)
-      fieldErrors['subject'] = 'Please keep the subject under 200 characters.';
+    if (subject.length > 200) fieldErrors['subject'] = 'Please keep the subject under 200 characters.';
     if (body.length > 5000) fieldErrors['body'] = 'Please keep the message under 5000 characters.';
     if (Object.keys(fieldErrors).length > 0) {
       return { ok: false, fieldErrors, message: null, redirectTo: null, reference: null };
@@ -805,7 +815,8 @@ export class D1CustomerDataPort implements CustomerDataPort {
       return {
         ok: false,
         fieldErrors: {},
-        message: 'Sign in so we can link your message to your workspace.',
+        message:
+          'Sign in so we can link your message to your workspace, or use the public support form if you cannot sign in.',
         redirectTo: null,
         reference: null,
       };
@@ -819,33 +830,95 @@ export class D1CustomerDataPort implements CustomerDataPort {
       linkedRunId = run?.id ?? null;
     }
 
-    const id = newId(ID_PREFIX.supportCase, this.#now.getTime());
-    const at = nowIso(this.#now);
-    await supportCases.insert(this.#db, {
-      id,
-      workspace_id: scope.workspaceId,
-      contact_email: scope.email,
+    return recordSupportCase(this.#db, {
+      workspaceId: scope.workspaceId,
+      contactEmail: scope.email,
       subject,
-      // Redaction is A09's `cases.ts` on the way in; this port stores what it is given
-      // and the page never renders it back with `raw`.
-      body_redacted: body,
-      category: 'other',
-      priority: 'normal',
-      state: 'open',
-      linked_run_id: linkedRunId,
-      created_at: at,
-      updated_at: at,
+      body,
+      linkedRunId,
+      now: this.#now,
     });
+  }
+}
 
+/**
+ * The one support write path, shared by the signed-in port and the public form.
+ *
+ * Both callers land here so neither can drift from the other on redaction or triage. The
+ * raw body reaches `createCase` and nothing else: it is redacted before it is stored, and
+ * triage decides the category, priority and starting state from the redacted text.
+ */
+export async function recordSupportCase(
+  db: Db,
+  input: {
+    workspaceId: string | null;
+    contactEmail: string;
+    subject: string;
+    body: string;
+    linkedRunId?: string | null;
+    servicePaused?: boolean;
+    now?: Date;
+  },
+): Promise<SupportResult> {
+  try {
+    const created = await createCase(
+      new D1SupportDataPort(db),
+      {
+        workspaceId: input.workspaceId,
+        contactEmail: input.contactEmail,
+        subject: input.subject,
+        body: input.body,
+        linkedRunId: input.linkedRunId ?? null,
+        ...(input.servicePaused !== undefined ? { servicePaused: input.servicePaused } : {}),
+      },
+      input.now ?? new Date(),
+    );
     return {
       ok: true,
       fieldErrors: {},
-      message:
-        'Your message is recorded. Nobody has been paged — we read the queue rather than being alerted by it — so allow a working day.',
+      // A09's own wording, which now matches what actually happened: the escalated
+      // sentence is only produced when triage actually escalated.
+      message: created.acknowledgement,
       redirectTo: '/app/support',
-      reference: id,
+      reference: created.record.id,
     };
+  } catch (error) {
+    // A validation refusal from `createCase` is a field problem, not a 500.
+    if (error instanceof AppError && error.httpStatus === 422) {
+      return {
+        ok: false,
+        fieldErrors: { body: error.publicMessage },
+        message: error.publicMessage,
+        redirectTo: null,
+        reference: null,
+      };
+    }
+    throw error;
   }
+}
+
+/**
+ * The signed-out support path.
+ *
+ * Support and cancellation must stay reachable when the service is paused and when the
+ * person cannot sign in — which is precisely when they most need to reach us. A signed-out
+ * case carries `workspace_id = NULL`, which is a real scope in `supportCases.get`, not a
+ * wildcard, so it is readable by the owner queue and by nobody else.
+ *
+ * The contact address is required here because there is no session to take it from, and a
+ * message we cannot reply to is not a support channel.
+ */
+export async function recordAnonymousSupportCase(
+  db: Db,
+  input: {
+    contactEmail: string;
+    subject: string;
+    body: string;
+    servicePaused?: boolean;
+    now?: Date;
+  },
+): Promise<SupportResult> {
+  return recordSupportCase(db, { ...input, workspaceId: null });
 }
 
 /** One sentence per status. Deliberately not a decision — it only describes one. */

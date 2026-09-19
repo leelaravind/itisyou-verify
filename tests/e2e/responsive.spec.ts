@@ -8,6 +8,7 @@
  */
 import { mkdir } from 'node:fs/promises';
 import { expect, test, type Page } from '@playwright/test';
+import { SEED_MISSING, automationCookieIsPresent, signInAsAutomation } from './helpers/session';
 
 const WIDTHS = [
   { name: 'mobile-390', width: 390, height: 844 },
@@ -53,8 +54,16 @@ async function offendingElements(page: Page): Promise<string[]> {
   });
 }
 
+/**
+ * Four of the nine primary tasks are behind a session. Without one they answer 401, the
+ * status assertion fails, and nothing is measured — which is honest, but it means the
+ * largest unmeasured surface in the product stays unmeasured. So sign in first, and skip
+ * with a stated reason when there is no identity to sign in as.
+ */
 for (const viewport of WIDTHS) {
-  test(`CUST-09${WIDTHS.indexOf(viewport) + 2} no page body scrolls horizontally at ${viewport.width}px on any primary task`, async ({ page }) => {
+  test(`CUST-09${WIDTHS.indexOf(viewport) + 2} no page body scrolls horizontally at ${viewport.width}px on any primary task`, async ({ page, context }) => {
+    const seeded = (await signInAsAutomation(context)) && (await automationCookieIsPresent(context));
+    test.skip(!seeded, SEED_MISSING);
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     for (const task of PRIMARY_TASKS) {
       const response = await page.goto(task.path);
@@ -93,7 +102,10 @@ test('CUST-095 a wide table scrolls inside its own container rather than pushing
  * Not a test of behaviour — it captures the screenshots that get looked at. It asserts
  * nothing beyond the page having loaded, so it does not count as a case in the ledger.
  */
-test('capture screenshots at three widths', async ({ page }) => {
+test('capture screenshots at three widths', async ({ page, context }) => {
+  // Best effort: the public pages shoot either way, and the authenticated ones are skipped
+  // by the status check below rather than saved as pictures of a sign-in page.
+  await signInAsAutomation(context);
   await mkdir('docs/screenshots', { recursive: true });
   for (const viewport of WIDTHS) {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
