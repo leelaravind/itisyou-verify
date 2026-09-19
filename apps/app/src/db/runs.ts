@@ -561,15 +561,31 @@ export const evidence = {
   },
 
   /**
-   * Record one provider-observed event that is not yet attached to a run.
+   * Record one provider-observed event against the run it belongs to.
    *
-   * A delivery event arrives before, during or after the run it belongs to. Correlating it
-   * is the evaluator's job; a webhook that guessed would attach evidence to the wrong run.
+   * **`runId` is required, and that is the whole point of this method's shape.**
    *
-   * `evidence.run_id` is NOT NULL in the schema, so an unattached row is parked against the
-   * workspace's correlation placeholder run and re-attached by the evaluator. Where no such
-   * run exists the write is skipped rather than failing the webhook — losing one delivery
-   * event is bad; 500-ing a provider callback and having it retried forever is worse.
+   * It used to be optional, falling back to
+   * `SELECT r.id FROM runs WHERE workspace_id = ? AND status = 'PENDING' ORDER BY
+   * created_at DESC LIMIT 1` — the newest pending run in the workspace, whatever it was
+   * for. The docblock above that fallback said, correctly, that "a webhook that guessed
+   * would attach evidence to the wrong run", and then the code guessed. It described
+   * parking unattached rows against a correlation placeholder run; no placeholder was ever
+   * built, so the fallback reached for a real customer's run instead.
+   *
+   * Observed on the deployed service on 19 September 2026: two pending runs, and a delivery
+   * event for an email belonging to neither attached to the newer one purely because it was
+   * newer. Two enquiries in flight at once is ordinary, and the consequence is that one
+   * enquiry's acknowledgement can satisfy another enquiry's check — which falsifies the one
+   * claim this product exists to make, while every assertion and status mapping around it
+   * stays correct.
+   *
+   * So correlation is now the caller's responsibility and cannot be defaulted. A caller
+   * that cannot correlate must not call this: evidence that is missing reads as
+   * `UNVERIFIED`, and evidence attached to the wrong run reads as a pass.
+   *
+   * The `WHERE EXISTS` binds to a run **in the same workspace**, so a run id from another
+   * tenant writes nothing rather than crossing the boundary.
    *
    * Idempotent: the caller derives `id` from a digest of the event, so a repeat writes the
    * same primary key and `DO NOTHING` makes it a no-op.
@@ -586,28 +602,23 @@ export const evidence = {
       contentDigest: string;
       redactedSummary: string;
       expiresAt: string;
-      runId?: string | null;
+      runId: string;
     },
   ): Promise<boolean> {
     const result = await db
       .prepare(
         `INSERT INTO evidence
            (id, workspace_id, run_id, provider, origin, provider_record_id, observed_at, content_digest, redacted_summary, expires_at)
-         SELECT ?, ?, COALESCE(?, (
-                  SELECT r.id FROM runs r
-                   WHERE r.workspace_id = ? AND r.status = 'PENDING'
-                   ORDER BY r.created_at DESC LIMIT 1
-                )), ?, ?, ?, ?, ?, ?, ?
+         SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
           WHERE EXISTS (
-            SELECT 1 FROM runs r2 WHERE r2.workspace_id = ?
+            SELECT 1 FROM runs r WHERE r.id = ? AND r.workspace_id = ?
           )
          ON CONFLICT(id) DO NOTHING`,
       )
       .bind(
         params.id,
         params.workspaceId,
-        orNull(params.runId),
-        params.workspaceId,
+        params.runId,
         params.provider,
         params.origin,
         orNull(params.providerRecordId),
@@ -615,6 +626,7 @@ export const evidence = {
         params.contentDigest,
         params.redactedSummary,
         params.expiresAt,
+        params.runId,
         params.workspaceId,
       )
       .run();

@@ -246,8 +246,17 @@ export class D1ResendWebhookDataPort implements ResendWebhookDataPort {
     // and `DO NOTHING` makes the second one a no-op rather than a second row.
     const id = `evd_${digest.slice(0, 32)}`;
 
+    const runId = await this.#correlateEmailEvidence(params.workspaceId, params.evidence);
+    if (runId === null) {
+      // Nothing is written. Evidence we cannot place is not evidence about any particular
+      // enquiry, and the run it would otherwise land on is somebody's real one. Missing
+      // evidence reads as UNVERIFIED; misattributed evidence reads as a pass.
+      return;
+    }
+
     await evidence.recordProviderEvent(this.db, {
       id,
+      runId,
       workspaceId: params.workspaceId,
       provider: params.evidence.provider,
       origin: params.evidence.origin,
@@ -263,6 +272,75 @@ export class D1ResendWebhookDataPort implements ResendWebhookDataPort {
       }),
       expiresAt: addSecondsIso(params.receivedAt, EVIDENCE_RETENTION_SECONDS),
     });
+  }
+
+  /**
+   * Find the one run this delivery event is about, or decide that we cannot tell.
+   *
+   * Two handles, strongest first, and both require a *unique* answer:
+   *
+   *  1. `expected.email_message_id` — the customer told us which message to watch when they
+   *     sent the event. An exact match on the provider's own id is as good as correlation
+   *     gets and is not ambiguous even when two enquiries share a recipient.
+   *  2. `expected.email_recipient` — matched case-insensitively on the whole address. `+`
+   *     tags are deliberately NOT stripped, for the same reason `normalised_email_equals`
+   *     does not strip them: a customer-controlled variant of an address is a different
+   *     address, and treating them as equal would let one be substituted for another.
+   *
+   * Returning `null` is a real answer and the safe one. If two pending runs are waiting on
+   * the same recipient and the event carries no message id, then this event genuinely does
+   * not identify which enquiry it belongs to, and picking either would be a coin toss
+   * decided in the customer's favour. The old code took that toss implicitly, by recency.
+   *
+   * Only `PENDING` runs are considered: a decided run is not waiting on anything, and
+   * re-opening one on a late webhook would change a published verdict.
+   */
+  async #correlateEmailEvidence(
+    workspaceId: string,
+    item: EmailEventEvidence,
+  ): Promise<string | null> {
+    const byMessageId = await this.#uniqueRun(
+      `SELECT r.id AS id
+         FROM runs r
+         JOIN source_events se
+           ON se.id = r.source_event_id AND se.workspace_id = r.workspace_id
+        WHERE r.workspace_id = ?
+          AND r.status = 'PENDING'
+          AND json_extract(se.payload_json, '$.expected.email_message_id') = ?
+        LIMIT 2`,
+      [workspaceId, item.message_id],
+    );
+    if (byMessageId !== null) return byMessageId;
+
+    const recipient = (item.recipient ?? '').trim().toLowerCase();
+    if (recipient === '') return null;
+
+    return this.#uniqueRun(
+      `SELECT r.id AS id
+         FROM runs r
+         JOIN source_events se
+           ON se.id = r.source_event_id AND se.workspace_id = r.workspace_id
+        WHERE r.workspace_id = ?
+          AND r.status = 'PENDING'
+          AND lower(trim(json_extract(se.payload_json, '$.expected.email_recipient'))) = ?
+        LIMIT 2`,
+      [workspaceId, recipient],
+    );
+  }
+
+  /**
+   * One row means one answer. Two mean we do not have one.
+   *
+   * Every query above selects `LIMIT 2` precisely so that ambiguity is visible here rather
+   * than hidden behind a `LIMIT 1` that would silently return the first of several.
+   */
+  async #uniqueRun(sql: string, binds: readonly unknown[]): Promise<string | null> {
+    const result = await this.db
+      .prepare(sql)
+      .bind(...binds)
+      .all<{ id: string }>();
+    const rows = result.results;
+    return rows.length === 1 ? (rows[0]?.id ?? null) : null;
   }
 
   /**
