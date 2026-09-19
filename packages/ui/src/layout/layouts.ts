@@ -4,7 +4,8 @@
  * `PublicLayout` is indexable marketing and legal. `AppLayout` is everything behind a
  * session and is `noindex` without the caller having to remember.
  */
-import { html, type Html } from '../html.js';
+import { attrs, html, type Html } from '../html.js';
+import { safeHref } from '../url.js';
 import { CsrfField } from '../components/field.js';
 import { PRODUCT_NAME } from '../content/site.js';
 import { Shell, type NavItem } from './shell.js';
@@ -44,7 +45,11 @@ const PRODUCT_LINKS: readonly NavItem[] = [
 
 function linkList(items: readonly NavItem[]): Html {
   return html`<ul class="stack-sm">
-    ${items.map((item) => html`<li><a href="${item.href}">${item.label}</a></li>`)}
+    ${items.map((item) => {
+      // SEC-1214: through `attrs`, so the scheme guard runs on every footer link too.
+      const target = safeHref(item.href);
+      return target === null ? null : html`<li><a ${attrs({ href: target })}>${item.label}</a></li>`;
+    })}
   </ul>`;
 }
 

@@ -25,7 +25,9 @@ import {
   StandingLimitations,
   StatusBadge,
   Table,
+  attrs,
   html,
+  safeHref,
   type Html,
   type StatusKey,
 } from '@verify/ui';
@@ -70,7 +72,8 @@ function runList(): Html {
         key: 'run',
         header: 'Run',
         rowHeader: true,
-        cell: (run: DemoRun) => html`<a class="mono" href="${runAnchor(run)}">${run.id}</a>`,
+        cell: (run: DemoRun) =>
+          html`<a ${attrs({ class: 'mono', href: safeHref(runAnchor(run)) })}>${run.id}</a>`,
       },
       {
         key: 'enquiry',

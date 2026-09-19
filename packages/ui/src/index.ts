@@ -18,6 +18,7 @@ export {
   attrs,
   cx,
   escapeAttribute,
+  hrefAttr,
   html,
   join,
   raw,
@@ -27,6 +28,12 @@ export {
   type Child,
   type Html,
 } from './html.js';
+
+/*
+ * The link-target guard (SEC-1214). Every `href` and `src` this package emits goes through
+ * it, and `attrs()` applies it as a backstop for anything a caller builds by hand.
+ */
+export { SAFE_HREF_BASE, SAFE_LINK_SCHEMES, URL_BEARING_ATTRIBUTES, isExternalHref, isSafeHref, safeHref } from './url.js';
 
 /* Design tokens. */
 export {

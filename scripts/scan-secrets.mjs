@@ -19,7 +19,12 @@ const RULES = [
   { id: 'github-fine-grained', re: /\bgithub_pat_[A-Za-z0-9_]{80,}\b/ },
   { id: 'stripe-secret', re: /\bsk_(?:live|test)_[A-Za-z0-9]{20,}\b/ },
   { id: 'stripe-restricted', re: /\brk_(?:live|test)_[A-Za-z0-9]{20,}\b/ },
-  { id: 'stripe-webhook-secret', re: /\bwhsec_[A-Za-z0-9]{24,}\b/ },
+  // Underscores and hyphens are allowed after the prefix on purpose. The first version
+  // was `[A-Za-z0-9]{24,}` with a trailing word boundary, which silently missed a
+  // committed stand-in secret containing underscores — GitHub push protection would
+  // have caught it, this scanner would not have. A scanner with a shape blind spot is
+  // worse than no scanner, because it is trusted.
+  { id: 'stripe-webhook-secret', re: /\bwhsec_[A-Za-z0-9_-]{24,}/ },
   { id: 'resend-key', re: /\bre_[A-Za-z0-9]{8}_[A-Za-z0-9]{20,}\b/ },
   { id: 'hubspot-token', re: /\bpat-(?:na|eu)[0-9]?-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/ },
   { id: 'openai-key', re: /\bsk-(?:proj-)?[A-Za-z0-9_-]{32,}\b/ },

@@ -7,6 +7,7 @@
  * page holds.
  */
 import { attrs, html, type Html } from '../html.js';
+import { safeHref } from '../url.js';
 
 export interface Crumb {
   readonly label: string;
@@ -19,10 +20,13 @@ export function Breadcrumb(items: readonly Crumb[]): Html {
     <ol>
       ${items.map((item, index) => {
         const isLast = index === items.length - 1;
+        // SEC-1214: a crumb whose target does not pass the scheme guard renders as plain
+        // text. A breadcrumb is navigation, so losing one link costs the reader nothing.
+        const target = isLast ? null : safeHref(item.href);
         return html`<li>
-          ${item.href === undefined || isLast
+          ${target === null
             ? html`<span ${attrs({ 'aria-current': isLast ? 'page' : null })}>${item.label}</span>`
-            : html`<a href="${item.href}">${item.label}</a>`}
+            : html`<a ${attrs({ href: target })}>${item.label}</a>`}
         </li>`;
       })}
     </ol>
@@ -42,16 +46,20 @@ export interface PaginationOptions {
 }
 
 export function Pagination(options: PaginationOptions): Html {
-  if (options.newerHref === null && options.olderHref === null) {
+  // SEC-1214: a cursor link that fails the scheme guard is treated exactly like no link —
+  // the control renders disabled rather than pointing somewhere we cannot vouch for.
+  const newer = safeHref(options.newerHref);
+  const older = safeHref(options.olderHref);
+  if (newer === null && older === null) {
     return html`<p class="pager__status">${options.shown} ${options.noun} — this is all of them</p>`;
   }
   return html`<nav class="pager" aria-label="${options.label ?? 'Pagination'}">
-    ${options.newerHref === null
+    ${newer === null
       ? html`<span class="btn" aria-disabled="true">Newer</span>`
-      : html`<a class="btn" href="${options.newerHref}" rel="prev">Newer</a>`}
+      : html`<a ${attrs({ class: 'btn', href: newer, rel: 'prev' })}>Newer</a>`}
     <p class="pager__status">Showing ${options.shown} ${options.noun}</p>
-    ${options.olderHref === null
+    ${older === null
       ? html`<span class="btn" aria-disabled="true">Older</span>`
-      : html`<a class="btn" href="${options.olderHref}" rel="next">Older</a>`}
+      : html`<a ${attrs({ class: 'btn', href: older, rel: 'next' })}>Older</a>`}
   </nav>`;
 }

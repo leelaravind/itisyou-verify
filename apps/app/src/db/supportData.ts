@@ -360,8 +360,14 @@ interface RetentionPlan {
  */
 const RETENTION: Readonly<Record<RetentionTarget, RetentionPlan>> = {
   evidence: {
+    // Expiry-driven sweep across every tenant. The predicate is the row's own expires_at,
+    // so only rows already past it are eligible; it is keyset-paged on the primary key, so
+    // it cannot degrade into a full scan; and workspace_id is selected so the caller
+    // scopes everything it does with the result.
+    // tenant-scope:exempt expiry-driven retention sweep; see above.
     listFirstPageSql:
       'SELECT id, workspace_id FROM evidence WHERE expires_at <= ? ORDER BY id LIMIT ?',
+    // tenant-scope:exempt as above; this is the same sweep resumed from a keyset position.
     listSql:
       'SELECT id, workspace_id FROM evidence WHERE expires_at <= ? AND id > ? ORDER BY id LIMIT ?',
     listForWorkspaceFirstPageSql:
@@ -374,8 +380,14 @@ const RETENTION: Readonly<Record<RetentionTarget, RetentionPlan>> = {
     purgeSql: 'DELETE FROM evidence WHERE id IN (SELECT id FROM evidence WHERE workspace_id = ? ORDER BY id LIMIT ?)',
   },
   source_events: {
+    // Expiry-driven sweep across every tenant. The predicate is the row's own received_at
+    // against the retention cut-off, so only rows already past it are eligible; it is
+    // keyset-paged on the primary key, so it cannot degrade into a full scan; and
+    // workspace_id is selected so the caller scopes what it does next.
+    // tenant-scope:exempt expiry-driven retention sweep; see above.
     listFirstPageSql:
       'SELECT id, workspace_id FROM source_events WHERE received_at <= ? ORDER BY id LIMIT ?',
+    // tenant-scope:exempt as above; this is the same sweep resumed from a keyset position.
     listSql:
       'SELECT id, workspace_id FROM source_events WHERE received_at <= ? AND id > ? ORDER BY id LIMIT ?',
     listForWorkspaceFirstPageSql:
@@ -483,6 +495,40 @@ const RETENTION: Readonly<Record<RetentionTarget, RetentionPlan>> = {
   },
 };
 
+/**
+ * Tables that are never swept on a timer but must be emptied when a workspace is deleted.
+ *
+ * A09 widened `purgeWorkspaceRows` to cover these after finding that the deletion email
+ * promised to remove workflow configuration and provider connections that deletion was in
+ * fact leaving behind — the worst kind of gap, because the promise was already published.
+ *
+ * **The order these are purged in is a foreign-key order, not a preference.**
+ * `runs.workflow_version_id` references `workflow_versions(id)` with no `ON DELETE`
+ * clause, so it defaults to NO ACTION. Deleting `workflows` while any run still points at
+ * one of its versions fails on that constraint, halfway through a deletion. Source events
+ * must go first — they cascade to runs, attempts, assertions and evidence — and only then
+ * workflows. `privacy/deletion.ts` already sequences its steps that way; PERSIST-280 and
+ * PERSIST-281 below prove the constraint is real and that the order satisfies it.
+ *
+ * `connections` is the one that makes a published sentence true: deleting it cascades to
+ * `credential_versions`, which is what turns "the credentials you gave us are deleted"
+ * from a hope into a fact. PERSIST-282 proves that cascade fires.
+ */
+export type PurgeOnlyTarget = 'workflows' | 'connections' | 'memberships';
+export type PurgeTarget = RetentionTarget | PurgeOnlyTarget;
+
+const PURGE_ONLY: Readonly<Record<PurgeOnlyTarget, string>> = {
+  // Takes workflow_versions with it by cascade. Must run AFTER source_events.
+  workflows:
+    'DELETE FROM workflows WHERE id IN (SELECT id FROM workflows WHERE workspace_id = ? ORDER BY id LIMIT ?)',
+  // Takes credential_versions with it by cascade — the sentence in the deletion email.
+  connections:
+    'DELETE FROM connections WHERE id IN (SELECT id FROM connections WHERE workspace_id = ? ORDER BY id LIMIT ?)',
+  // Composite primary key (workspace_id, user_id), so the keyset column is user_id.
+  memberships:
+    'DELETE FROM memberships WHERE workspace_id = ? AND user_id IN (SELECT user_id FROM memberships WHERE workspace_id = ? ORDER BY user_id LIMIT ?)',
+};
+
 export interface ExpiredRowRef {
   readonly id: string;
   readonly workspace_id: string | null;
@@ -554,15 +600,29 @@ export const retention = {
   async purgeWorkspaceRows(
     db: Db,
     workspaceId: string,
-    target: RetentionTarget,
+    target: PurgeTarget,
     limit: number,
   ): Promise<number> {
-    const plan = RETENTION[target];
+    const bounded = Math.min(Math.max(1, limit), 500);
+
+    if (target in PURGE_ONLY) {
+      const sql = PURGE_ONLY[target as PurgeOnlyTarget];
+      // memberships binds the workspace twice: once for the delete's own predicate and
+      // once for the bounded keyset subquery.
+      const result = await db
+        .prepare(sql)
+        .bind(
+          ...(target === 'memberships'
+            ? [workspaceId, workspaceId, bounded]
+            : [workspaceId, bounded]),
+        )
+        .run();
+      return result.meta.changes;
+    }
+
+    const plan = RETENTION[target as RetentionTarget];
     if (plan.purgeSql === null) return 0;
-    const result = await db
-      .prepare(plan.purgeSql)
-      .bind(workspaceId, Math.min(Math.max(1, limit), 500))
-      .run();
+    const result = await db.prepare(plan.purgeSql).bind(workspaceId, bounded).run();
     return result.meta.changes;
   },
 };

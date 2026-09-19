@@ -17,7 +17,9 @@ import {
   StandingLimitations,
   StatusBadge,
   Table,
+  attrs,
   html,
+  safeHref,
   type Html,
   type StatusKey,
 } from '@verify/ui';
@@ -112,7 +114,10 @@ export function WorkspacePage(options: WorkspacePageOptions): Html {
             key: 'id',
             header: 'Run',
             rowHeader: true,
-            cell: (run: RunListItem) => html`<a class="mono" href="/app/runs/${run.id}">${run.id}</a>`,
+            cell: (run: RunListItem) =>
+              html`<a ${attrs({ class: 'mono', href: safeHref(`/app/runs/${encodeURIComponent(run.id)}`) })}
+                >${run.id}</a
+              >`,
           },
           { key: 'occurred', header: 'Enquiry received', numeric: true, cell: (run: RunListItem) => formatInstant(run.occurredAt) },
           {

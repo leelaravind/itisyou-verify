@@ -23,6 +23,7 @@ import type {
   NotificationHistoryQuery,
   RateLimitOutcome,
   RateLimiter,
+  PurgeTarget,
   ReadExportPageParams,
   RetainedCounts,
   RetentionTarget,
@@ -240,7 +241,7 @@ export class D1SupportDataPort implements SupportDataPort {
 
   async purgeWorkspaceRows(
     workspaceId: string,
-    target: RetentionTarget,
+    target: PurgeTarget,
     limit: number,
   ): Promise<number> {
     return retention.purgeWorkspaceRows(this.db, workspaceId, target, limit);

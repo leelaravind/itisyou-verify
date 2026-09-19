@@ -138,7 +138,8 @@ describe('public pages', () => {
     expect(rendered).not.toContain('<script>');
     expect(rendered).toContain('&lt;script&gt;');
     expect(rendered).not.toContain('href="javascript:');
-    expect(rendered).toContain('<a href="https://example.test/a">ok</a>');
+    // Links now carry rel, because the target goes through the shared scheme guard (SEC-1214).
+    expect(rendered).toContain('<a href="https://example.test/a" rel="nofollow noopener noreferrer">ok</a>');
   });
 });
 

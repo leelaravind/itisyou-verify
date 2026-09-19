@@ -205,6 +205,12 @@ maintenance runner is connected.
 **If the runner shows "not connected"**, anything you queue is saved and will run when a
 runner is paired. Nothing on this page will tell you a job succeeded when nothing ran it.
 
+**Pairing a runner.** Give the machine a name you will recognise and press pair. You get a
+short code, **shown once and never again** — it is not stored anywhere we can read it back.
+Type it into the runner on that machine. If you navigate away without using it, open a new
+pairing rather than going looking for the old one. Pairing asks for your six-digit code
+first, because the code you get lets a machine claim and run maintenance jobs.
+
 **Restoring a previous version** replaces the running code. Read this before you do it:
 a rollback undoes *code*, not *data*. Anything written to the database since that version
 stays written, and a change to the database's own shape is not reversed. You have to type

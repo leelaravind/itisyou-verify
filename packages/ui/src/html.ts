@@ -17,6 +17,7 @@
  */
 import { html, raw } from 'hono/html';
 import type { HtmlEscapedString } from 'hono/utils/html';
+import { URL_BEARING_ATTRIBUTES, safeHref } from './url.js';
 
 export { html, raw };
 
@@ -46,6 +47,14 @@ export function renderSync(node: Html): string {
  * Attribute *names* are restricted to a conservative character set rather than escaped:
  * an attribute name assembled from customer input is a bug, not a feature, so it fails
  * loudly instead of being silently sanitised.
+ *
+ * **URL-bearing attributes are scheme-guarded here** (SEC-1214). Escaping does nothing for
+ * an `href`: `javascript:alert(1)` contains no character escaping touches, so an escaped
+ * attribute value is still a live script URL. Any attribute named in
+ * `URL_BEARING_ATTRIBUTES` is run through `safeHref` and **dropped entirely** if it is not
+ * an allowlisted scheme — dropped rather than thrown, because one bad link must not take a
+ * whole page down with it. Components decide what to render in its place; this is the
+ * backstop that holds even for a caller who forgets.
  */
 export function attrs(map: Readonly<Record<string, string | number | boolean | null | undefined>>): Html {
   const parts: string[] = [];
@@ -58,9 +67,28 @@ export function attrs(map: Readonly<Record<string, string | number | boolean | n
       parts.push(name);
       continue;
     }
+    if (URL_BEARING_ATTRIBUTES.has(name.toLowerCase())) {
+      const target = safeHref(String(value));
+      if (target === null) continue;
+      parts.push(`${name}="${escapeAttribute(target)}"`);
+      continue;
+    }
     parts.push(`${name}="${escapeAttribute(String(value))}"`);
   }
   return raw(parts.join(' '));
+}
+
+/**
+ * Render a validated `href` attribute, or nothing at all.
+ *
+ * The one way a component in this package is allowed to write a link target. Interpolating
+ * a URL straight into `href="${…}"` is the pattern SEC-1214 found, and it is not used
+ * anywhere in this package any more.
+ */
+export function hrefAttr(value: string | null | undefined, extra: Readonly<Record<string, string | number | boolean | null | undefined>> = {}): Html {
+  const target = safeHref(value);
+  if (target === null) return attrs(extra);
+  return attrs({ href: target, ...extra });
 }
 
 /** Escape a value for use inside a double-quoted attribute. */

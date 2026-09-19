@@ -6,6 +6,7 @@
  * either submits a form or is a link, so the whole interface works with JavaScript off.
  */
 import { attrs, cx, html, type Html } from '../html.js';
+import { isExternalHref, safeHref } from '../url.js';
 
 export type ButtonVariant = 'primary' | 'default' | 'quiet' | 'danger';
 
@@ -40,14 +41,34 @@ export function Button(options: ButtonOptions): Html {
   const icon = options.icon ?? null;
 
   if (options.href !== undefined) {
+    const target = safeHref(options.href);
+    if (target === null) {
+      // SEC-1214. A target whose scheme we cannot vouch for is not offered as a link at
+      // all. Rendering the anchor without an href would leave a control that looks
+      // clickable, is not focusable, and tells nobody why — so it becomes an explicitly
+      // inert element instead, marked so the defect is findable in the rendered HTML.
+      return html`<span
+        ${attrs({
+          class: cx(className, 'btn--inert'),
+          id: options.id ?? null,
+          role: 'link',
+          'aria-disabled': 'true',
+          'data-href-rejected': 'true',
+        })}
+        >${options.label}</span
+      >`;
+    }
+    // `rel` is set whenever the target actually leaves the site, not only when the caller
+    // remembered to say so.
+    const external = options.external === true || isExternalHref(target);
     return html`<a
       ${attrs({
         class: className,
-        href: options.href,
+        href: target,
         id: options.id ?? null,
         'aria-label': options.ariaLabel ?? null,
         'aria-disabled': options.disabled === true ? 'true' : null,
-        rel: options.external === true ? 'noopener noreferrer' : null,
+        rel: external ? 'noopener noreferrer' : null,
         target: options.external === true ? '_blank' : null,
       })}
       >${options.label}${icon}</a

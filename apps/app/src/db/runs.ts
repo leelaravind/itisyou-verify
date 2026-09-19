@@ -146,6 +146,10 @@ export const runs = {
    * Exported separately from `claimDue` so the race can be exercised directly in tests.
    */
   async listDue(db: Db, now: string, limit: number): Promise<DueRun[]> {
+    // Nothing a customer controls selects these rows: the predicate is `next_check_at`,
+    // which only our own scheduler writes. The batch is capped and ordered so it stays on
+    // idx_runs_due, and every row carries the workspace_id the worker must use downstream.
+    // tenant-scope:exempt bounded due-job sweep; see above.
     const result = await db
       .prepare(
         `SELECT id, workspace_id, workflow_id, workflow_version_id, revision, observation_count, deadline_at, next_check_at

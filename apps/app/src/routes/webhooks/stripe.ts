@@ -129,7 +129,11 @@ export function createStripeWebhookRoute(deps: StripeWebhookDeps): Hono {
       // "stale timestamp" are one answer to the caller and three answers to the operator.
       log({
         event: 'stripe_webhook_rejected',
-        reason: known === null ? 'signature_unknown_endpoint' : `signature_${verified.reason}`,
+        reason: verified.valid
+          ? 'signature_unknown_endpoint'
+          : known === null
+            ? `signature_unknown_endpoint_${verified.reason}`
+            : `signature_${verified.reason}`,
       });
       return c.json(
         { error: { code: 'INVALID_SIGNATURE', message: 'Invalid signature.' } },

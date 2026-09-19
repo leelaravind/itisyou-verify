@@ -6,6 +6,7 @@
  * the caller, and `noindex` on anything behind a session.
  */
 import { attrs, html, raw, type Html } from '../html.js';
+import { safeHref } from '../url.js';
 import { CSS, THEME_SCRIPT } from '../styles.js';
 import { PRODUCT_NAME } from '../content/site.js';
 
@@ -50,8 +51,12 @@ function currentHref(nav: readonly NavItem[], path: string): string | null {
 }
 
 function navLink(item: NavItem, activeHref: string | null): Html {
+  // SEC-1214: `attrs` drops an href that fails the scheme guard, which would leave a bare
+  // anchor in the primary navigation. A nav item we cannot link to is not shown at all.
+  const target = safeHref(item.href);
+  if (target === null) return html``;
   const current = activeHref !== null && item.href === activeHref;
-  return html`<a ${attrs({ href: item.href, 'aria-current': current ? 'page' : null })}>${item.label}</a>`;
+  return html`<a ${attrs({ href: target, 'aria-current': current ? 'page' : null })}>${item.label}</a>`;
 }
 
 /**

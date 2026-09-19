@@ -184,7 +184,11 @@ export interface OwnerRouterOptions {
   readonly resolvePort?: OwnerPortResolver;
   readonly artifacts?: QualityArtifactStore;
   readonly auth?: OwnerAuthPort;
-  readonly pairing?: RunnerPairingPort;
+  /**
+   * Resolved per request, like `resolvePort`, because pairing needs the database and the
+   * router is constructed once at module scope where no binding exists yet.
+   */
+  readonly resolvePairing?: (c: Context<RouteBindings>) => Promise<RunnerPairingPort>;
   readonly now?: () => Date;
   /**
    * The deployment this router is being constructed for. Supply it and an unconfigured
@@ -225,7 +229,7 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
   const resolvePort: OwnerPortResolver = options.resolvePort ?? (async () => new MemoryOwnerDataPort());
   const artifacts: QualityArtifactStore = options.artifacts ?? new UnboundQualityArtifactStore();
   const auth: OwnerAuthPort = options.auth ?? new UnwiredOwnerAuth();
-  const pairing: RunnerPairingPort = options.pairing ?? new PairingUnavailable();
+  const resolvePairing = options.resolvePairing ?? (async () => new PairingUnavailable());
   const clock = options.now ?? (() => new Date());
 
   /** The whole page shell for an authenticated screen. */
@@ -818,6 +822,7 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
           'Pair a runner',
         );
       }
+      const pairing = await resolvePairing(c);
       const outcome = await pairing.openPairing({
         label,
         ownerId: principal.userId ?? 'unknown',

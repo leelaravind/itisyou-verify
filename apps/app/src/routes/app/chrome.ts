@@ -2,7 +2,7 @@
  * Shared chrome for the customer pages: the synthetic-data notice, the onboarding
  * progress trail, and the page heading block.
  */
-import { Callout, html, type Html } from '@verify/ui';
+import { Callout, attrs, html, safeHref, type Html } from '@verify/ui';
 
 /**
  * The banner every page carries while it is running on the synthetic port.
@@ -62,7 +62,7 @@ export function onboardingProgress(currentHref: string): Html {
         const done = currentIndex > index;
         const current = currentIndex === index;
         return html`<li ${current ? html`aria-current="step"` : null} data-done="${done ? 'yes' : 'no'}">
-          ${current || done ? html`<a href="${step.href}">${step.label}</a>` : step.label}
+          ${current || done ? html`<a ${attrs({ href: safeHref(step.href) })}>${step.label}</a>` : step.label}
         </li>`;
       })}
     </ol>

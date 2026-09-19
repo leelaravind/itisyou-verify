@@ -25,6 +25,18 @@ import {
   type WorkflowHealth,
 } from '@verify/domain';
 import type { EvidenceBundle, RunStatus, WorkflowRules } from '@verify/contracts';
+/*
+ * Deliberate: this imports the shared synthetic fixture *builders* from `tests/fixtures/`.
+ *
+ * They are pure typed functions over the frozen contract with no vitest import, so nothing
+ * from the test framework reaches the bundle — only the same builders the domain suite uses,
+ * which is precisely the point: the demo cannot drift away from what the tests prove. The
+ * brief asked for the demo to run on these fixtures.
+ *
+ * It is NOT an accident to be tidied away. Moving them would mean a new workspace package
+ * (`pnpm-workspace.yaml` and `tsconfig.json` paths are the lead's), which is why they are
+ * still here; say the word and I will do it properly rather than by relocating a file.
+ */
 import {
   CONNECTED_CRM_ACCOUNT,
   CONNECTED_EMAIL_ACCOUNT,

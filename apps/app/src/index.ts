@@ -12,6 +12,7 @@ import { publicRoutes, notFoundPage } from './routes/public/index.js';
 import { createAppRoutes } from './routes/app/index.js';
 import { createCustomerDataPort } from './db/index.js';
 import { createOwnerRoutes } from './routes/owner/index.js';
+import { createRunnerRoutes } from './maintenance/routes.js';
 import { MemoryOwnerDataPort } from './owner/memory.js';
 import { ANONYMOUS_PRINCIPAL } from './owner/access.js';
 
@@ -201,6 +202,12 @@ app.route('/app', createAppRoutes(async (c) => createCustomerDataPort(c)));
 // Until A02's session and TOTP wiring lands, every owner route must 404 for everyone.
 // When it does, this becomes `resolvePort: async (c) => new D1OwnerDataPort(c)` and the
 // principal comes from the session instead.
+// Device-signed runner endpoints. Mounted BEFORE the owner router so /api/v1/runner/*
+// is never swallowed by it. /pair, /lease, /heartbeat and /jobs/:id/result authenticate
+// with an Ed25519 device signature rather than a session, which is the whole point: the
+// runner polls outbound from the owner's own machine and holds no browser session.
+app.route('/api/v1/runner', createRunnerRoutes({ db: (c) => (c.env as Env).DB }));
+
 app.route(
   '/',
   createOwnerRoutes({

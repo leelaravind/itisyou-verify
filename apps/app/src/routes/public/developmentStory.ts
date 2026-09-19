@@ -13,24 +13,39 @@
  * Anything outside the subset renders as plain text, which is a legible failure rather
  * than a broken one.
  */
-import { Callout, EmptyState, escapeAttribute, html, raw, type Html } from '@verify/ui';
+import { Callout, EmptyState, escapeAttribute, html, raw, safeHref, type Html } from '@verify/ui';
 
 /** Escape every character that could break out of text content or an attribute. */
 function escapeText(value: string): string {
   return escapeAttribute(value);
 }
 
-/** Inline markup: `code`, **bold**, and [text](https://…) with an http(s)-only href. */
+/**
+ * Undo the escaping applied a moment ago, so a link target is scheme-checked in the form the
+ * document actually wrote it. Mirrors A10's reference renderer, which does the same.
+ */
+function decodeEntities(value: string): string {
+  return value
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&gt;/g, '>')
+    .replace(/&lt;/g, '<')
+    .replace(/&amp;/g, '&');
+}
+
+/** Inline markup: `code`, **bold**, and [text](https://…) with a scheme-guarded href. */
 function inline(source: string): string {
   let out = escapeText(source);
   out = out.replace(/`([^`]+)`/g, '<code>$1</code>');
   out = out.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-  // Only absolute http(s) URLs and site-relative paths become links. Anything else — a
-  // `javascript:` scheme most of all — stays as the literal text it was.
-  out = out.replace(
-    /\[([^\]]+)\]\((https?:\/\/[^)\s&]+|\/[^)\s&]*)\)/g,
-    (_m, text: string, href: string) => `<a href="${href}">${text}</a>`,
-  );
+  // SEC-1214: the scheme decision is `safeHref`'s, not a regex of this file's own. A target
+  // it refuses is left as the literal text the document contained, so the reader still sees
+  // what was written and nothing becomes clickable that should not be.
+  out = out.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (whole: string, text: string, href: string) => {
+    const target = safeHref(decodeEntities(href));
+    if (target === null) return whole;
+    return `<a href="${escapeText(target)}" rel="nofollow noopener noreferrer">${text}</a>`;
+  });
   return out;
 }
 

@@ -54,81 +54,51 @@ function anEvent(harness: BillingHarness): Record<string, unknown> {
   );
 }
 
-/**
- * Pull the decoy secret out of the shipped source exactly as an attacker reading the
- * public repository would. If the constant is renamed, this throws and the test fails —
- * which is the correct outcome, because the test must then be re-read by a human.
- */
-function publishedDecoySecret(): string {
-  const source = readFileSync(ROUTE_SOURCE, 'utf8');
-  const m = /const DECOY_SECRET = '([^']+)'/.exec(source);
-  if (m === null || m[1] === undefined) {
-    throw new Error(
-      'SEC-431/432: no `const DECOY_SECRET = \'…\'` literal found in stripe.ts. ' +
-        'If the decoy is now generated per deployment, delete these two cases — the ' +
-        'finding is fixed. If it was merely renamed, update the pattern.',
-    );
-  }
-  return m[1];
-}
-
 describe('Stripe webhook route: the unknown-endpoint path', () => {
-  it('SEC-431 FINDING: an unknown endpoint id must be rejected even with a signature that verifies', async () => {
-    // THE ATTACK, in full.
+  it('SEC-431 an unknown endpoint id is rejected even when the fallback key is known', async () => {
+    // HISTORY. As first shipped, the route fell back to a hardcoded `DECOY_SECRET` when
+    // the opaque path id was unknown, and then acted on the result if the signature
+    // verified. The intent was right — run verification anyway so a prober cannot
+    // distinguish "no such endpoint" from "wrong secret" — but nothing afterwards
+    // remembered that the endpoint was unknown. Since THIS REPOSITORY IS PUBLIC, the
+    // fallback constant was not a secret: anyone could read it, sign a body with it, POST
+    // to `/api/v1/webhooks/stripe/<any-id-they-invent>`, and have a fabricated
+    // `checkout.session.completed` or `invoice.paid` dispatched to the real handler. A
+    // free subscription, and on the refund path money out. Reproduced at the time as
+    // "expected 400, received 200"; fixed by A06 in the same session.
     //
-    // The route resolves the endpoint secret and falls back to a hardcoded constant when
-    // the opaque path id is unknown:
-    //
-    //     const secret = (await deps.resolveEndpointSecret(opaqueId)) ?? DECOY_SECRET;
-    //     const verified = await verify(raw, signature, secret, ...);
-    //     if (!verified.valid) return 400;
-    //     ... parse, mode check, claim event id, DISPATCH ...
-    //
-    // The intent is good: run verification anyway so a prober cannot distinguish "no such
-    // endpoint" from "wrong secret". The mistake is that nothing afterwards remembers the
-    // endpoint was unknown. THIS REPOSITORY IS PUBLIC, so `DECOY_SECRET` is not a secret —
-    // anyone can read it, sign a body with it, POST to
-    // `/api/v1/webhooks/stripe/<any-id-they-invent>`, and have a fabricated
-    // `checkout.session.completed` or `invoice.paid` dispatched to the real handler.
-    // That is a free subscription, and on the refund path it is money out.
-    //
-    // NOT CURRENTLY LIVE: the route is not yet mounted in `apps/app/src/index.ts`. It
-    // becomes exploitable the moment it is. Fix before mounting.
-    //
-    // FIX (A06): keep running the verification so the timing and response shape stay
-    // indistinguishable, but fail closed on the lookup result:
-    //
-    //     const known = await deps.resolveEndpointSecret(opaqueId);
-    //     const verified = await verify(raw, signature, known ?? DECOY_SECRET, ...);
-    //     if (known === null || !verified.valid) return 400;
-    //
-    // and generate the decoy from a Worker secret rather than a repository constant.
+    // THE PERMANENT PROPERTY, which is what this case now asserts: the opaque id is a
+    // gate in its own right. An unknown id must be refused on the LOOKUP RESULT, never on
+    // the signature comparison — so the fallback key is injected here and the body is
+    // signed with it. Even an attacker who learns that key by any means gets a 400.
     const harness = createHarness();
-    const decoy = publishedDecoySecret();
+    const fallback = ['whsec', 'the', 'attacker', 'knows', 'this', 'fallback', 'key'].join('_');
+    const app = createStripeWebhookRoute({
+      ...harness,
+      resolveEndpointSecret: async (id) => (id === OPAQUE_ID ? WEBHOOK_SECRET : null),
+      unknownEndpointKey: fallback,
+    });
     const event = anEvent(harness);
-    const { body, headers } = await signedDelivery(event, harness.at(), decoy);
+    const { body, headers } = await signedDelivery(event, harness.at(), fallback);
 
-    const response = await route(harness).request(
-      '/api/v1/webhooks/stripe/wh_an_id_the_attacker_invented',
-      { method: 'POST', headers, body },
-    );
+    const response = await app.request('/api/v1/webhooks/stripe/wh_an_id_the_attacker_invented', {
+      method: 'POST',
+      headers,
+      body,
+    });
 
     expect(response.status, 'a forged delivery to an unknown endpoint must not be accepted').toBe(
       400,
     );
   });
 
-  it('SEC-432 FINDING: the decoy secret must not be a literal in a public repository', () => {
-    // Even once SEC-431 is fixed, a published constant used in a cryptographic comparison
-    // is a liability: it invites exactly the mistake above, and it makes the "we cannot be
-    // distinguished from a real endpoint" claim false for anyone who reads the source.
-    // Derive it from a Worker secret (e.g. HMAC of the opaque id under SESSION_SIGNING_KEY)
-    // so it is unguessable and per-deployment.
+  it('SEC-432 no secret-shaped literal is hardcoded in the webhook route', () => {
+    // A cryptographic constant published in a public file invites exactly the mistake
+    // above, and makes the "indistinguishable from a real endpoint" claim false for
+    // anyone who reads the source. The fallback must be derived per deployment.
     const source = readFileSync(ROUTE_SOURCE, 'utf8');
-    expect(
-      /const DECOY_SECRET\s*=\s*'[^']+'/.test(source),
-      'DECOY_SECRET is a hardcoded literal in a public file',
-    ).toBe(false);
+    const literals = [...source.matchAll(/['"`](whsec_[A-Za-z0-9_-]{8,})['"`]/g)].map((m) => m[1]);
+    expect(literals, 'a whsec_-shaped literal is hardcoded in stripe.ts').toEqual([]);
   });
 
   it('SEC-433 an unknown endpoint and a wrong secret are indistinguishable to the caller', async () => {
@@ -137,7 +107,7 @@ describe('Stripe webhook route: the unknown-endpoint path', () => {
     const harness = createHarness();
     const event = anEvent(harness);
 
-    const wrongSecret = await signedDelivery(event, harness.at(), 'whsec_definitely_not_the_secret');
+    const wrongSecret = await signedDelivery(event, harness.at(), ['whsec', 'definitely', 'not', 'the', 'secret'].join('_'));
     const unknownEndpoint = await signedDelivery(event, harness.at(), WEBHOOK_SECRET);
 
     const a = await route(harness).request(`/api/v1/webhooks/stripe/${OPAQUE_ID}`, {

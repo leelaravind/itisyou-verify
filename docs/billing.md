@@ -393,8 +393,72 @@ when our own handler throws, after **releasing the receipt** so Stripe's retry i
 attempt rather than a deduplicated no-op (`BILL-132`). Without that release, one internal
 error would permanently swallow a paid invoice behind the dedupe constraint.
 
-The opaque path id is never confirmed or denied: an unknown id is verified against a decoy
-secret and produces a byte-identical response to a wrong signature (`BILL-106`).
+### The opaque endpoint id is a gate, not decoration
+
+The path carries an opaque id — `/api/v1/webhooks/stripe/:opaqueId` — so that a leaked or
+guessed endpoint URL is not by itself a way in. Two independent conditions must hold, and
+an id we did not issue is rejected **before any work is done on the event**:
+
+- the opaque id resolves to an endpoint we issued, **and**
+- the signature verifies under *that endpoint's* secret.
+
+Verification is still executed when the id is unknown, against a stand-in key, so the work
+done and the time taken are the same either way and the response is byte-identical to a
+wrong signature (`BILL-106`, `BILL-208`). But the rejection is on the **lookup result**,
+never on the signature comparison.
+
+**This was wrong in the first version, and A10 found it (SEC-431).** The route fell back to
+a hardcoded stand-in secret and then accepted whatever verified against it. This repository
+is permanently public, so that constant was readable by anyone: sign a fabricated
+`invoice.paid` with it, POST to an endpoint id you invent, and it would have been
+dispatched to the real handler. That is a free subscription, and money out on the refund
+path. The opaque id was decoration and the shared secret was the only gate — exactly the
+thing the opaque id exists to prevent. It was never exploitable in production because the
+route is not yet mounted in `apps/app/src/index.ts`; it would have become exploitable the
+moment it was.
+
+The stand-in key is now also assembled at runtime rather than written as a literal
+(`docs/agent-brief.md`, "Never commit a credential-shaped literal"), and
+`unknownEndpointKey` can be overridden per deployment from a Worker secret. Since the route
+fails closed on the lookup, that value carries no security weight either way — but a
+credential-shaped string in a public repository is rejected by our scanner and by GitHub
+push protection regardless, and it invites precisely the mistake above. Covered by
+`BILL-207`, `BILL-208`, `BILL-209` and `BILL-210`.
+
+### The receipt and the effect are not in one transaction
+
+Stated plainly because it is a real limitation, not a solved problem.
+
+The route claims the event id (`beginWebhookProcessing`), dispatches, then completes the
+receipt — and on a thrown handler it releases the claim (`abandonWebhookProcessing`) and
+returns 500 so Stripe's retry is a fresh attempt. That is claim-then-compensate, not a
+transaction. D1's `batch()` is a list of statements, not an interactive transaction, so
+application logic that reads between writes — which every one of these handlers does, since
+deciding whether an event is stale requires reading the stored row first — cannot be
+wrapped in one.
+
+What makes the gap safe rather than merely acknowledged is that **every handler is
+idempotent by construction**:
+
+| Handler | Why re-running it is harmless |
+| --- | --- |
+| `checkout.session.completed` | `rememberBillingCustomer` is insert-once; the order transition `active → active` is legal and terminal; the subscription write goes through the guards |
+| `customer.subscription.*` | `reconcileSubscription` returns `ignore_duplicate` for an identical snapshot |
+| `invoice.paid` | `openAllowancePeriod` is keyed by period end and refreshes terms, never counters |
+| `invoice.payment_failed` | the `past_due` write is guarded; the order transition is idempotent |
+| `charge.refunded` | `applyProviderRefund` returns `no_change` when the state would not move |
+
+So the failure modes resolve as follows. A crash **after** the effect and before the
+receipt completes leaves the receipt at `received`; the retry reads `in_flight`, returns
+200, and does nothing — the effect stands, applied once. A crash **between** the claim and
+the effect, where the compensating release also fails, is the one genuinely bad case: the
+retry is deduplicated and that event's effect is lost. The scheduled reconciliation in
+`reconcile.ts` is the net that catches it, which is one of the two reasons it exists.
+
+Closing the gap properly would mean restructuring each handler into "read, decide, then one
+`batch()` containing the receipt insert and every resulting write". That is a real change
+to the port's shape and is not something to guess at — flagged for the lead rather than
+half-done.
 
 ### Out-of-order events
 

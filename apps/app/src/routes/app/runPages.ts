@@ -22,7 +22,9 @@ import {
   StandingLimitations,
   StatusBadge,
   Table,
+  attrs,
   html,
+  safeHref,
   type Html,
   type StatusKey,
 } from '@verify/ui';
@@ -77,7 +79,10 @@ export function RunListPage(options: RunListPageOptions): Html {
                 key: 'id',
                 header: 'Run',
                 rowHeader: true,
-                cell: (run) => html`<a class="mono" href="/app/runs/${run.id}">${run.id}</a>`,
+                cell: (run) =>
+                  html`<a ${attrs({ class: 'mono', href: safeHref(`/app/runs/${encodeURIComponent(run.id)}`) })}
+                    >${run.id}</a
+                  >`,
               },
               { key: 'summary', header: 'Enquiry', cell: (run) => html`<span class="mono">${maskValues(run.summary)}</span>` },
               { key: 'ref', header: 'Reference', cell: (run) => html`<span class="mono">${run.correlationId}</span>` },
@@ -215,7 +220,11 @@ export function RunDetailPage(options: RunDetailPageOptions): Html {
 
     ${ButtonRow([
       Button({ label: 'Back to all runs', href: '/app/runs', variant: 'quiet' }),
-      Button({ label: 'Ask us about this run', href: `/app/support?run=${run.id}`, variant: 'quiet' }),
+      Button({
+        label: 'Ask us about this run',
+        href: `/app/support?run=${encodeURIComponent(run.id)}`,
+        variant: 'quiet',
+      }),
     ])}
   </div>`;
 }

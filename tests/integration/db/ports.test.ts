@@ -706,6 +706,105 @@ describe('SupportDataPort against D1', () => {
     expect(countRows(h, 'runs', 'workspace_id = ?', b.workspaceId)).toBe(1);
   });
 
+  it('PERSIST-280 the NO ACTION foreign key on runs.workflow_version_id is real', async () => {
+    seedRun(h, a, 'run_a', { nextCheckAt: null });
+    // `runs.workflow_version_id` references `workflow_versions(id)` with no ON DELETE
+    // clause, so it defaults to NO ACTION. Removing a version out from under a live run
+    // is refused. This case exists so nobody reads that missing clause as decorative.
+    await expect(
+      h.db
+        .prepare('DELETE FROM workflow_versions WHERE workspace_id = ? AND id = ?')
+        .bind(a.workspaceId, a.workflowVersionId)
+        .run(),
+    ).rejects.toThrow(/FOREIGN KEY/i);
+    expect(countRows(h, 'workflow_versions', 'workspace_id = ?', a.workspaceId)).toBe(1);
+  });
+
+  it('PERSIST-284 purging workflows first does NOT abort — it silently strands source events', async () => {
+    seedRun(h, a, 'run_a', { nextCheckAt: null });
+
+    // The failure mode here is not the one the ordering rule is usually described by.
+    // Deleting `workflows` first SUCCEEDS: the cascade on `runs.workflow_id` removes the
+    // runs, which removes the last reference to the workflow versions, so the NO ACTION
+    // constraint proved in PERSIST-280 is never reached.
+    expect(await port.purgeWorkspaceRows(a.workspaceId, 'workflows', 100)).toBe(1);
+    expect(countRows(h, 'runs', 'workspace_id = ?', a.workspaceId)).toBe(0);
+    expect(countRows(h, 'workflow_versions', 'workspace_id = ?', a.workspaceId)).toBe(0);
+
+    // …and `source_events` is left behind, because it has no foreign key to `workflows` —
+    // only to `workspaces`. A customer's enquiry payloads survive a deletion that reported
+    // success. That is why A09's step order is load-bearing: not because the wrong order
+    // aborts loudly, but because it completes quietly and leaves data the email promised
+    // to remove.
+    expect(countRows(h, 'source_events', 'workspace_id = ?', a.workspaceId)).toBe(1);
+
+    // The sweep still removes it when run afterwards, so a deletion that used the wrong
+    // order is recoverable — but only if somebody notices.
+    expect(await port.purgeWorkspaceRows(a.workspaceId, 'source_events', 100)).toBe(1);
+    expect(countRows(h, 'source_events', 'workspace_id = ?', a.workspaceId)).toBe(0);
+  });
+
+  it('PERSIST-281 the foreign-key order A09 sequences actually completes', async () => {
+    seedRun(h, a, 'run_a', { nextCheckAt: null });
+    seedRun(h, b, 'run_b', { nextCheckAt: null });
+
+    // Exactly A09's step order: source events first (cascading to runs, attempts,
+    // assertions and evidence), then workflows, then connections, then memberships.
+    expect(await port.purgeWorkspaceRows(a.workspaceId, 'source_events', 100)).toBe(1);
+    expect(await port.purgeWorkspaceRows(a.workspaceId, 'workflows', 100)).toBe(1);
+    expect(await port.purgeWorkspaceRows(a.workspaceId, 'memberships', 100)).toBe(1);
+
+    expect(countRows(h, 'workflows', 'workspace_id = ?', a.workspaceId)).toBe(0);
+    expect(countRows(h, 'workflow_versions', 'workspace_id = ?', a.workspaceId)).toBe(0);
+    expect(countRows(h, 'runs', 'workspace_id = ?', a.workspaceId)).toBe(0);
+    expect(countRows(h, 'memberships', 'workspace_id = ?', a.workspaceId)).toBe(0);
+
+    // The other tenant is entirely untouched.
+    expect(countRows(h, 'workflows', 'workspace_id = ?', b.workspaceId)).toBe(1);
+    expect(countRows(h, 'workflow_versions', 'workspace_id = ?', b.workspaceId)).toBe(1);
+    expect(countRows(h, 'runs', 'workspace_id = ?', b.workspaceId)).toBe(1);
+    expect(countRows(h, 'memberships', 'workspace_id = ?', b.workspaceId)).toBe(1);
+  });
+
+  it('PERSIST-282 purging connections cascades to the stored credential envelopes', async () => {
+    for (const [ws, suffix] of [
+      [a, 'a'],
+      [b, 'b'],
+    ] as const) {
+      h.raw
+        .prepare(
+          `INSERT INTO connections (id, workspace_id, provider, status, scopes, created_at)
+           VALUES (?, ?, 'hubspot', 'ready', '[]', ?)`,
+        )
+        .run(`conn_${suffix}`, ws.workspaceId, T0);
+      h.raw
+        .prepare(
+          `INSERT INTO credential_versions (id, connection_id, owner_scope, key_version, ciphertext, nonce, aad, created_at)
+           VALUES (?, ?, ?, 1, 'Y2lwaGVy', 'bm9uY2U=', 'v1|kv=1|ws=x', ?)`,
+        )
+        .run(`cred_${suffix}`, `conn_${suffix}`, `connection:conn_${suffix}`, T0);
+    }
+    expect(countRows(h, 'credential_versions')).toBe(2);
+
+    expect(await port.purgeWorkspaceRows(a.workspaceId, 'connections', 100)).toBe(1);
+
+    // This cascade is what makes "the credentials you gave us are deleted" a true
+    // sentence rather than a hopeful one, so it is asserted rather than assumed.
+    expect(countRows(h, 'connections', 'workspace_id = ?', a.workspaceId)).toBe(0);
+    expect(countRows(h, 'credential_versions', 'id = ?', 'cred_a')).toBe(0);
+    expect(countRows(h, 'credential_versions', 'id = ?', 'cred_b')).toBe(1);
+  });
+
+  it('PERSIST-283 a purge is bounded and resumable, and reports zero when done', async () => {
+    for (let i = 1; i <= 5; i += 1) seedRun(h, a, `run_${i}`, { nextCheckAt: null });
+    expect(await port.purgeWorkspaceRows(a.workspaceId, 'source_events', 2)).toBe(2);
+    expect(await port.purgeWorkspaceRows(a.workspaceId, 'source_events', 2)).toBe(2);
+    expect(await port.purgeWorkspaceRows(a.workspaceId, 'source_events', 2)).toBe(1);
+    // Zero is the caller's stop signal.
+    expect(await port.purgeWorkspaceRows(a.workspaceId, 'source_events', 2)).toBe(0);
+    expect(await port.purgeWorkspaceRows(a.workspaceId, 'connections', 10)).toBe(0);
+  });
+
   it('API-260 every export section returns exactly the declared columns, in order', async () => {
     for (const section of EXPORT_SECTION) {
       const page = await port.readExportPage({

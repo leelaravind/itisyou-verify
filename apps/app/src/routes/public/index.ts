@@ -147,22 +147,12 @@ publicRoutes.get('/development-story', async (c) => {
   );
 });
 
-/** The favicon: the product mark, drawn rather than fetched. */
-publicRoutes.get('/favicon.svg', (c) =>
-  c.body(
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">' +
-      '<rect width="32" height="32" rx="6" fill="#10161C"/>' +
-      '<circle cx="16" cy="16" r="9" fill="none" stroke="#F1F4F6" stroke-width="2"/>' +
-      '<path d="M11.5 16.4 14.6 19.4 20.8 12.6" fill="none" stroke="#5CCCA4" stroke-width="2.4" ' +
-      'stroke-linecap="round" stroke-linejoin="round"/>' +
-      '</svg>',
-    200,
-    {
-      'content-type': 'image/svg+xml; charset=utf-8',
-      'cache-control': 'public, max-age=86400',
-    },
-  ),
-);
+/*
+ * There is deliberately no `/favicon.svg` route here. The lead added
+ * `apps/app/public/favicon.svg`, and Workers Static Assets answer before the Worker, so a
+ * route would be a second answer to the same path that could silently diverge from the file
+ * actually served. `shell.ts` references `/favicon.svg`; the asset serves it.
+ */
 
 /** A 404 that is a real page rather than a bare string. */
 export function notFoundPage(path: string) {

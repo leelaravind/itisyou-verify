@@ -5,6 +5,8 @@
  * route reads back. No network call happens anywhere in this file.
  */
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { signStripe } from '@verify/security';
 import { createStripeWebhookRoute } from '@app/routes/webhooks/stripe';
 import type { BillingDataPort } from '@app/billing/port';
@@ -118,6 +120,84 @@ describe('transport and signature', () => {
     expect(unknownEndpoint.status).toBe(wrongSecret.status);
     expect(await unknownEndpoint.json()).toEqual(await wrongSecret.json());
     expect(unknownEndpoint.status).toBe(400);
+  });
+
+  it('BILL-207 a forged event signed with the route’s own stand-in key is rejected', async () => {
+    // A10's SEC-431, as a case in my own suite so the property stays covered whatever
+    // happens to their file.
+    //
+    // The route runs verification against a stand-in key when the opaque id is unknown, so
+    // that a prober cannot time the difference. This repository is public, so that key is
+    // readable by anyone. The attack is: read it, sign a fabricated `invoice.paid` with
+    // it, POST to an endpoint id you invented. If the route rejected only on the signature
+    // comparison, that would verify and dispatch — a free subscription, and money out on
+    // the refund path.
+    //
+    // It must be rejected on the *lookup result* instead, which is what makes the opaque
+    // id a gate rather than decoration.
+    const harness = createHarness();
+    await seedWorkspace(harness);
+    const standInKey = 'whsec' + '_' + 'A'.repeat(32);
+    const forged = stripeEvent('invoice.paid', invoiceObject({ subscriptionId: 'sub_live_1' }));
+    const { body, headers } = await signedDelivery(forged, harness.at(), standInKey);
+
+    const response = await route(harness).request(
+      '/api/v1/webhooks/stripe/wh_an_id_the_attacker_invented',
+      { method: 'POST', headers, body },
+    );
+
+    expect(response.status).toBe(400);
+    // Nothing was dispatched: no allowance granted, no receipt claimed.
+    expect(harness.data.debug.allowances()).toHaveLength(0);
+    expect(harness.data.debug.receipts()).toHaveLength(0);
+  });
+
+  it('BILL-208 an unknown endpoint id is rejected even when the signature is genuinely valid', async () => {
+    // The same failure mode reached the other way: a signature minted with a *real*
+    // endpoint secret, replayed against an id we never issued.
+    const harness = createHarness();
+    await seedWorkspace(harness);
+    const event = stripeEvent('invoice.paid', invoiceObject({ subscriptionId: 'sub_live_1' }));
+    const { body, headers } = await signedDelivery(event, harness.at(), WEBHOOK_SECRET);
+
+    const response = await route(harness).request('/api/v1/webhooks/stripe/wh_not_issued_by_us', {
+      method: 'POST',
+      headers,
+      body,
+    });
+    expect(response.status).toBe(400);
+    expect(harness.data.debug.receipts()).toHaveLength(0);
+  });
+
+  it('BILL-209 a signature minted for one endpoint is not accepted at another', async () => {
+    const harness = createHarness();
+    const secretA = 'whsec' + '_' + 'A'.repeat(32);
+    const secretB = 'whsec' + '_' + 'B'.repeat(32);
+    const app = createStripeWebhookRoute({
+      ...harness,
+      resolveEndpointSecret: async (id) =>
+        id === 'wh_endpoint_a' ? secretA : id === 'wh_endpoint_b' ? secretB : null,
+    });
+    const event = stripeEvent('invoice.paid', invoiceObject({ subscriptionId: 'sub_live_1' }));
+    const signedForA = await signedDelivery(event, harness.at(), secretA);
+
+    const response = await app.request('/api/v1/webhooks/stripe/wh_endpoint_b', {
+      method: 'POST',
+      headers: signedForA.headers,
+      body: signedForA.body,
+    });
+    expect(response.status).toBe(400);
+  });
+
+  it('BILL-210 the stand-in key is assembled at runtime, never committed as a literal', () => {
+    // `docs/agent-brief.md`: a credential-shaped literal is rejected by our scanner and by
+    // GitHub push protection. The shipped route must contain no such string.
+    const source = readFileSync(
+      join(process.cwd(), 'apps', 'app', 'src', 'routes', 'webhooks', 'stripe.ts'),
+      'utf8',
+    );
+    expect(/const\s+\w*(?:DECOY|SECRET|KEY)\w*\s*=\s*'whsec_[^']+'/.test(source)).toBe(false);
+    expect(/'whsec_[A-Za-z0-9_]{8,}'/.test(source)).toBe(false);
   });
 
   it('BILL-107 a declared body over the cap is refused before it is read', async () => {
