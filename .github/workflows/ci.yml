@@ -205,10 +205,25 @@ jobs:
             for (const [k, v] of out) if (v) console.log(k + '=' + v);
           " >> $GITHUB_ENV
 
+      # `SCREENSHOT_DIR` keeps the captured PNGs out of the tracked `docs/screenshots/`.
+      # Writing there dirties the working tree, and the gate artefact then refuses to
+      # produce a number for a tree that no longer matches any commit. They are uploaded
+      # below instead, so the pictures are still there to look at without the run having to
+      # modify the repository to produce them.
       - name: Browser suite
         id: browser
         continue-on-error: true
+        env:
+          SCREENSHOT_DIR: ${{ runner.temp }}/screenshots
         run: npx playwright test --reporter=json > reports/pw.json
+
+      - name: Upload the captured screenshots
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: screenshots-${{ github.sha }}
+          path: ${{ runner.temp }}/screenshots
+          if-no-files-found: ignore
 
       # The ledger checker runs inside this script and its exit code is recorded in the
       # artefact. It now reads reports/pw.json when the browser step produced one, so
