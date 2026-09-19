@@ -34,10 +34,15 @@ export interface StatusMeaning extends Sourced {
 }
 
 export const FOUR_STATUSES: readonly StatusMeaning[] = [
-  { status: 'VERIFIED', meaning: 'Every mandatory check has supporting evidence.', source: 'docs/development-story.md § The four statuses' },
+  {
+    status: 'VERIFIED',
+    meaning: 'Every mandatory check has supporting evidence.',
+    source: 'docs/development-story.md § The four statuses',
+  },
   {
     status: 'FAILED',
-    meaning: 'Evidence contradicts a rule, or the deadline passed while evidence access was working.',
+    meaning:
+      'Evidence contradicts a rule, or the deadline passed while evidence access was working.',
     source: 'docs/development-story.md § The four statuses',
   },
   {
@@ -45,7 +50,11 @@ export const FOUR_STATUSES: readonly StatusMeaning[] = [
     meaning: 'Access, correlation or evidence is missing or ambiguous. Not a pass. Not a failure.',
     source: 'docs/development-story.md § The four statuses',
   },
-  { status: 'PENDING', meaning: 'Still inside the agreed completion window.', source: 'docs/development-story.md § The four statuses' },
+  {
+    status: 'PENDING',
+    meaning: 'Still inside the agreed completion window.',
+    source: 'docs/development-story.md § The four statuses',
+  },
 ];
 
 /* ------------------------------------------------------------------ *
@@ -69,18 +78,21 @@ export const JOURNEY_STEPS: readonly JourneyStep[] = [
     title: 'The customer’s automation runs, and tells us it succeeded',
     body: 'That claim comes from the automation itself. Evidence carries an origin, and the customer’s own system telling us something can never support a mandatory check. It is a trigger, not proof.',
     vocabulary: 'customer_claim',
-    source: 'docs/development-story.md § The problem, § Why your own automation’s word is not evidence',
+    source:
+      'docs/development-story.md § The problem, § Why your own automation’s word is not evidence',
   },
   {
     title: 'We read the CRM record back, and the email outcome back',
     body: 'We ask HubSpot ourselves for the record, and Resend for what happened to the message — or Resend calls us and we verify its signature. Both are independent of the automation that claimed success.',
     vocabulary: 'provider_readback · provider_webhook',
-    source: 'docs/development-story.md § The idea; packages/contracts/src/evidence.ts (EvidenceOrigin)',
+    source:
+      'docs/development-story.md § The idea; packages/contracts/src/evidence.ts (EvidenceOrigin)',
   },
   {
     title: 'The customer’s rules are evaluated',
     body: 'A closed set of typed operators — exists, equals, normalised_email_equals, occurred_within, provider_status_in, one_of — over an allowlisted set of fields. A general expression language was rejected because it would make the difference between "failed" and "could not be checked" impossible to prove.',
-    vocabulary: 'exists · equals · normalised_email_equals · occurred_within · provider_status_in · one_of',
+    vocabulary:
+      'exists · equals · normalised_email_equals · occurred_within · provider_status_in · one_of',
     source: 'docs/development-story.md § Why the rule language is deliberately small; EVT-0002',
   },
   {
@@ -99,7 +111,8 @@ export const ABSENCE_RULES: Sourced & { readonly rules: readonly string[] } = {
     'We could not reach the provider → unknown, always. Our outage is not the customer’s failure.',
     'Only two situations can turn a missing outcome into a failure at the deadline: the CRM authoritatively reporting that no such record exists (RECORD_NOT_FOUND), and the email provider authoritatively reporting that no such event occurred (EVENT_NOT_OBSERVED). A timeout never qualifies.',
   ],
-  source: 'docs/development-story.md § The line between "wrong" and "unknown"; packages/domain (AUTHORITATIVE_ABSENCE_REASONS)',
+  source:
+    'docs/development-story.md § The line between "wrong" and "unknown"; packages/domain (AUTHORITATIVE_ABSENCE_REASONS)',
 };
 
 /* ------------------------------------------------------------------ *
@@ -318,7 +331,8 @@ export const FAILURES: readonly Failure[] = [
       'The failure does not announce itself. Zero rows changed is a normal-looking result, and the inserts before it succeed.',
     whatChanged:
       'The reservation is written so that exhausting the allowance violates a NOT NULL constraint, which does roll the whole batch back. It reads oddly, it is correct, and a test fails if anyone "tidies" it.',
-    source: 'docs/development-story.md § The allowance reservation that silently did nothing; EVT-0007',
+    source:
+      'docs/development-story.md § The allowance reservation that silently did nothing; EVT-0007',
   },
   {
     id: 'binding',
@@ -351,7 +365,8 @@ export const FAILURES: readonly Failure[] = [
       'Nothing in code review would have found it. The template was correct, the test asserted the template was correct, and the policy was correct in isolation. It took deploying the page and looking at a screenshot.',
     whatChanged:
       'A first fix permitted inline style attributes as a named exception. That exception is gone: the computed width moved into a small set of predefined CSS classes and the policy went back to refusing inline style attributes entirely. The classes round down — 33% draws as 30, 99% as 95, only a true 100% fills the bar. The deployed header now reads style-src-attr ’none’. The structured record’s EVT-0010 still describes the exception stage and has no later event for its removal.',
-    source: 'docs/development-story.md § 33% that displayed as 100%; EVT-0010; commits ab4b345 and 7a3c0e1',
+    source:
+      'docs/development-story.md § 33% that displayed as 100%; EVT-0010; commits ab4b345 and 7a3c0e1',
   },
   {
     id: 'emails',
@@ -373,14 +388,16 @@ export const FAILURES: readonly Failure[] = [
       'The field was stored and it changed the copy, so every layer looked wired. The domain module described the mode as though it worked, and no test bound a selectable coverage mode to a connector operation and a scheduler pass capable of delivering it. It was found by A01’s re-audit of claims against code.',
     whatChanged:
       'The mode was made unavailable rather than reworded: the enum stays because it is a real planned capability, but it is marked unsupported as data the onboarding UI reads. describeCoverage() degrades an unsupported mode to the coverage actually provided and attaches a warning that cannot be rendered away. A test now binds each offerable mode to real connector and scheduler capability.',
-    source: 'commit 3c94f8d; packages/domain/src/coverage.ts (header); docs/product-scope.md § finding 2',
+    source:
+      'commit 3c94f8d; packages/domain/src/coverage.ts (header); docs/product-scope.md § finding 2',
   },
   {
     id: 'push',
     title: 'Push protection caught us',
     wentWrong:
       'GitHub’s push protection blocked a push because test fixtures were shaped like real API keys. They were synthetic — all zeros — but shape is what a scanner sees.',
-    whyMissed: 'It was not missed; the control worked. The risk was in how the team responded to it.',
+    whyMissed:
+      'It was not missed; the control worked. The risk was in how the team responded to it.',
     whatChanged:
       'The fixtures were rewritten so they are assembled at runtime and no credential-shaped literal is committed. The alternative — clicking "allow this secret" — would have trained us to dismiss the one warning that will one day be real.',
     source: 'docs/development-story.md § Push protection caught us; EVT-0004',
@@ -390,7 +407,8 @@ export const FAILURES: readonly Failure[] = [
     title: 'A pinned action that did not exist',
     wentWrong:
       'The CI workflow pins every GitHub Action to a full commit SHA, because a tag can be repointed at new code by whoever controls the action. One of the pinned SHAs resolved to no commit at all.',
-    whyMissed: 'Pinning had been treated as done once the SHAs were written down. Pinning without verifying is a ritual, not a control.',
+    whyMissed:
+      'Pinning had been treated as done once the SHAs were written down. Pinning without verifying is a ritual, not a control.',
     whatChanged: 'All three SHAs were checked against the GitHub API instead of trusting the list.',
     source: 'docs/development-story.md § A pinned action that did not exist',
   },
@@ -399,7 +417,8 @@ export const FAILURES: readonly Failure[] = [
     title: 'A security scan that fired on English',
     wentWrong:
       'The tenant-scope source scan reported customer-facing prose as unscoped SQL. The payment-recovery notice says you can update your card and mentions runs and evidence, which a case-insensitive keyword match read as an unscoped query on customer tables.',
-    whyMissed: 'It was a false positive rather than a miss — but a security check that fires on English gets muted, and a muted check protects nothing.',
+    whyMissed:
+      'It was a false positive rather than a miss — but a security check that fires on English gets muted, and a muted check protects nothing.',
     whatChanged:
       'The detector now requires a verb and a clause, both uppercase, and a paired check fails the build on any lowercase SQL verb in the data layer. Measured rather than assumed: across 285 string literals the old rule detected 121 statements and the new rule detects exactly the same 121.',
     source: 'EVT-0012',
@@ -420,7 +439,8 @@ export const FAILURES: readonly Failure[] = [
     title: 'The story underselling its own fix',
     wentWrong:
       'The prose story still described the CSP fix as "a narrow exception — inline style attributes are permitted" after the exception had been removed and the width had become a CSS class.',
-    whyMissed: 'The code moved on and the document did not. It was caught during a later audit of the deployed site against the documentation.',
+    whyMissed:
+      'The code moved on and the document did not. It was caught during a later audit of the deployed site against the documentation.',
     whatChanged:
       'The paragraph was corrected. Underselling a fix is a smaller sin than the reverse, but it is the same class of drift — which is why this page reads the structured record at build time rather than keeping its own copy.',
     source: 'docs/development-story.md § 33% that displayed as 100% (closing note); commit 7a3c0e1',
@@ -454,8 +474,16 @@ export const METRIC_GROUPS: readonly MetricGroup[] = [
     intro:
       'Each figure is what the responsible agent recorded at that event’s timestamp, with the command output it reported. Nothing here is re-counted when this page renders, so the live tree may differ.',
     metrics: [
-      { label: 'Verification-engine cases, all passing', value: '195', source: 'EVT-0006 (VERIFY-001..VERIFY-195)' },
-      { label: 'Data and security layer cases, all passing', value: '205', source: 'EVT-0007 (API-, AUTH- and PERSIST- ranges)' },
+      {
+        label: 'Verification-engine cases, all passing',
+        value: '195',
+        source: 'EVT-0006 (VERIFY-001..VERIFY-195)',
+      },
+      {
+        label: 'Data and security layer cases, all passing',
+        value: '205',
+        source: 'EVT-0007 (API-, AUTH- and PERSIST- ranges)',
+      },
       {
         label: 'Security review cases',
         value: '156',
@@ -468,7 +496,12 @@ export const METRIC_GROUPS: readonly MetricGroup[] = [
         note: '449 already-implemented ids and 415 designed cases not yet implemented, in separate namespaces until reconciled.',
         source: 'EVT-0009',
       },
-      { label: 'Threats modelled', value: '40+', note: '30 blocking acceptance checks and 9 explicitly accepted risks.', source: 'EVT-0008' },
+      {
+        label: 'Threats modelled',
+        value: '40+',
+        note: '30 blocking acceptance checks and 9 explicitly accepted risks.',
+        source: 'EVT-0008',
+      },
       {
         label: 'SQL statements detected before and after the detector fix',
         value: '121',
@@ -482,9 +515,21 @@ export const METRIC_GROUPS: readonly MetricGroup[] = [
     title: 'Deployment, as recorded',
     intro: 'What the lead recorded after deploying and looking, not after deploying and assuming.',
     metrics: [
-      { label: 'Schema statements applied to each of two remote databases', value: '70', source: 'EVT-0003' },
-      { label: 'Public routes returning 200 on staging, policy applied', value: '13', source: 'EVT-0010' },
-      { label: 'Production routes returning 200, CSP and HSTS present', value: '11', source: 'EVT-0011' },
+      {
+        label: 'Schema statements applied to each of two remote databases',
+        value: '70',
+        source: 'EVT-0003',
+      },
+      {
+        label: 'Public routes returning 200 on staging, policy applied',
+        value: '13',
+        source: 'EVT-0010',
+      },
+      {
+        label: 'Production routes returning 200, CSP and HSTS present',
+        value: '11',
+        source: 'EVT-0011',
+      },
       {
         label: 'Live HubSpot or Resend calls from this repository',
         value: 'none',
@@ -498,15 +543,30 @@ export const METRIC_GROUPS: readonly MetricGroup[] = [
     title: 'Money and models',
     intro: 'Where a figure was not read from a bill or a tool, it is unknown, not zero.',
     metrics: [
-      { label: 'Spent so far', value: '£0.00', note: 'Of the £100 budget.', source: 'docs/development-story.md § Where it stands' },
-      { label: 'Contingency', value: '£30', note: 'Untouched.', source: 'docs/development-story.md § Where it stands' },
+      {
+        label: 'Spent so far',
+        value: '£0.00',
+        note: 'Of the £100 budget.',
+        source: 'docs/development-story.md § Where it stands',
+      },
+      {
+        label: 'Contingency',
+        value: '£30',
+        note: 'Untouched.',
+        source: 'docs/development-story.md § Where it stands',
+      },
       {
         label: 'Model usage cost',
         value: null,
         note: 'The tooling exposes no cost; no billing statement has been read. The independent audit asked for an estimate to sit beside the £0.00.',
         source: 'docs/model-routing.md § Honesty rules; docs/audit-summary.md',
       },
-      { label: 'Tokens consumed', value: null, note: 'Not exposed by the tooling; not estimated.', source: 'docs/model-routing.md § Honesty rules' },
+      {
+        label: 'Tokens consumed',
+        value: null,
+        note: 'Not exposed by the tooling; not estimated.',
+        source: 'docs/model-routing.md § Honesty rules',
+      },
       {
         label: 'Cloudflare plan tier',
         value: null,
@@ -527,16 +587,35 @@ export const METRIC_GROUPS: readonly MetricGroup[] = [
     intro:
       'A separate agent whose only job is to check whether the others’ claims are true. These are its published figures, relayed here as published; this page has not checked them again.',
     metrics: [
-      { label: 'Distinct test cases counted from the runner’s own output', value: '1,951', source: 'docs/audit-summary.md' },
+      {
+        label: 'Distinct test cases counted from the runner’s own output',
+        value: '1,951',
+        source: 'docs/audit-summary.md',
+      },
       {
         label: 'Cases skipped',
         value: '2',
         note: 'Both deliberately: the only two tests permitted to contact a real provider, which skip because no provider credential exists.',
         source: 'docs/audit-summary.md',
       },
-      { label: 'Findings raised', value: '23', note: 'Nothing is closed without the auditor re-running the test independently.', source: 'docs/audit-summary.md' },
-      { label: 'Release gate', value: 'blocked', note: 'The public site was judged live, accurate and safe; taking payment was judged not ready.', source: 'docs/audit-summary.md § The verdict' },
-      { label: 'Published uptime figure', value: null, note: 'None is published, on purpose.', source: 'apps/app/src/routes/public/index.ts (/status description)' },
+      {
+        label: 'Findings raised',
+        value: '23',
+        note: 'Nothing is closed without the auditor re-running the test independently.',
+        source: 'docs/audit-summary.md',
+      },
+      {
+        label: 'Release gate',
+        value: 'blocked',
+        note: 'The public site was judged live, accurate and safe; taking payment was judged not ready.',
+        source: 'docs/audit-summary.md § The verdict',
+      },
+      {
+        label: 'Published uptime figure',
+        value: null,
+        note: 'None is published, on purpose.',
+        source: 'apps/app/src/routes/public/index.ts (/status description)',
+      },
     ],
   },
 ];

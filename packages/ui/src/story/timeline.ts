@@ -41,7 +41,12 @@ export function TimelineSvg(entries: readonly TimelineEntry[], id: string, dayLa
   entries.forEach((entry, index) => {
     const y = TOP + index * ROW + 10;
     body += `<circle cx="${AXIS_X}" cy="${y}" r="4" class="diag-dot"/>`;
-    body += svgText(TEXT_X, y + 4, `${entry.whenLabel} · ${entry.event_id}`, 'diag-text diag-text--micro');
+    body += svgText(
+      TEXT_X,
+      y + 4,
+      `${entry.whenLabel} · ${entry.event_id}`,
+      'diag-text diag-text--micro',
+    );
     body += svgText(TEXT_X, y + 18, truncate(entry.task_id, 38), 'diag-text diag-text--strong');
     body += svgText(
       TEXT_X,
@@ -60,7 +65,8 @@ export function TimelineSvg(entries: readonly TimelineEntry[], id: string, dayLa
       'Events in the order they were recorded, each with its time, id, task and the status the record gives it. ' +
       'Rows are evenly spaced and not to scale. The list beside this figure carries the same information.',
     caption: html`Historical record, drawn from
-      <span class="mono">docs/development-story-events.json</span>. Evenly spaced by order, not by elapsed time.`,
+      <span class="mono">docs/development-story-events.json</span>. Evenly spaced by order, not by
+      elapsed time.`,
   });
 }
 
@@ -68,13 +74,22 @@ export function TimelineSvg(entries: readonly TimelineEntry[], id: string, dayLa
 export function TimelineList(entries: readonly TimelineEntry[]): Html {
   return html`<ol class="tl" data-diagram-alt="timeline">
     ${entries.map(
-      (entry) => html`<li ${attrs({ 'data-event-id': entry.event_id, 'data-story-status': entry.status ?? 'unknown' })}>
-        <time class="tl__when" datetime="${entry.timestamp}">${entry.whenLabel}</time>
-        <div class="tl__body">
-          <p class="small"><a ${attrs({ href: entry.href, class: 'mono' })}>${entry.event_id}</a> ${entry.task_id}</p>
-          <p class="tl__meta">${StoryStatusPill(entry.status)}<span>${entry.milestone_id}</span><span>${entry.agent_role}</span></p>
-        </div>
-      </li>`,
+      (entry) =>
+        html`<li
+          ${attrs({ 'data-event-id': entry.event_id, 'data-story-status': entry.status ?? 'unknown' })}
+        >
+          <time class="tl__when" datetime="${entry.timestamp}">${entry.whenLabel}</time>
+          <div class="tl__body">
+            <p class="small">
+              <a ${attrs({ href: entry.href, class: 'mono' })}>${entry.event_id}</a>
+              ${entry.task_id}
+            </p>
+            <p class="tl__meta">
+              ${StoryStatusPill(entry.status)}<span>${entry.milestone_id}</span
+              ><span>${entry.agent_role}</span>
+            </p>
+          </div>
+        </li>`,
     )}
   </ol>`;
 }

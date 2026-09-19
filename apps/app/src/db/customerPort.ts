@@ -51,6 +51,7 @@ import type { Db } from './d1';
 import { entitlements } from './entitlements';
 import { assertions, runs } from './runs';
 import { sourceEvents } from './sourceEvents';
+import { allowancePeriodKeyAt } from '../billing/period';
 import { subscriptions } from './commerce';
 import { supportCases } from './supportData';
 import { workflows, workflowVersions } from './workflows';
@@ -73,10 +74,28 @@ const refuse = (message: string, fieldErrors: Record<string, string> = {}): Writ
   redirectTo: null,
 });
 
-/** The billing period key an allowance row is opened under: calendar month, UTC. */
+/**
+ * @deprecated **Never use this for an allowance row.** Calendar month, and therefore the
+ * wrong key: `apps/app/src/billing/period.ts` owns the one spelling
+ * (`allowancePeriodKey` / `allowancePeriodKeyAt`), keyed on the paid period end.
+ *
+ * Kept exported only because `BILL-244` locks the A13-010 regression by calling it and
+ * asserting it settles nothing, and because `scheduler/observe.ts` still calls it at the
+ * settle site — that call is the live defect, and A06 owns moving it.
+ */
 export function billingPeriodFor(at: Date): string {
   return toIso(at).slice(0, 7);
 }
+
+/*
+ * There is deliberately no period-key derivation in this file.
+ *
+ * A13-010: billing opened allowance rows keyed by the paid period END and this page read
+ * them keyed by calendar month, so the two never matched and a workspace at its limit
+ * reported itself unblocked. `apps/app/src/billing/period.ts` is now the one spelling;
+ * anything here that wants a key asks `allowancePeriodKeyAt(at, currentPeriodEnd)` for it,
+ * and when there is no subscription there is no paid period and therefore no key to guess.
+ */
 
 const PROVIDER_DETAIL: Readonly<Record<ProviderKey, { displayName: string; purpose: string; requirements: readonly string[] }>> = {
   hubspot: {
@@ -636,37 +655,57 @@ export class D1CustomerDataPort implements CustomerDataPort {
 
   /* --- usage --- */
 
+  /**
+   * Usage for the period the customer is actually paying for.
+   *
+   * The period key comes from `allowancePeriodKeyAt`, never from the calendar. A
+   * subscription that started on the 20th is billed 20th to 20th, so a `YYYY-MM` key would
+   * roll the allowance over a week early — handing out runs nobody paid for and then
+   * cutting the customer off before their period ended.
+   *
+   * With no subscription there is no paid period, so there is no key to look up and no
+   * allowance row to find. That is reported as "nothing used yet against the plan
+   * allowance", not as a fabricated month.
+   */
   async usage(): Promise<UsageView> {
     const scope = await this.#scope();
-    const period = billingPeriodFor(this.#now);
-    const periodStart = `${period}-01T00:00:00.000Z`;
-    const periodEnd = toIso(
-      new Date(Date.UTC(this.#now.getUTCFullYear(), this.#now.getUTCMonth() + 1, 1)),
-    );
+    const nothingYet = (start: string, end: string): UsageView => ({
+      periodStart: start,
+      periodEnd: end,
+      runsUsed: 0,
+      runsIncluded: LIMITS.PLAN_RUNS_PER_PERIOD,
+      admissionBlocked: false,
+      subscriptionStatus: null,
+    });
 
-    if (scope === null) {
-      return {
-        periodStart,
-        periodEnd,
-        runsUsed: 0,
-        runsIncluded: LIMITS.PLAN_RUNS_PER_PERIOD,
-        admissionBlocked: false,
-        subscriptionStatus: null,
-      };
-    }
+    if (scope === null) return nothingYet(toIso(this.#now), toIso(this.#now));
 
-    const allowance = await entitlements.get(this.#db, scope.workspaceId, period);
     const subscription = await subscriptions.getForWorkspace(
       this.#db,
       scope.workspaceId,
       this.#env.STRIPE_MODE === 'live' ? 'live' : 'test',
     );
+    const periodEnd = subscription?.current_period_end ?? null;
+    if (periodEnd === null) {
+      return {
+        ...nothingYet(toIso(this.#now), toIso(this.#now)),
+        subscriptionStatus: (subscription?.status as SubscriptionStatus | undefined) ?? null,
+      };
+    }
+
+    const period = allowancePeriodKeyAt(toIso(this.#now), periodEnd);
+    const allowance = await entitlements.get(this.#db, scope.workspaceId, period);
     const used = (allowance?.consumed ?? 0) + (allowance?.reserved ?? 0);
     const included = allowance?.run_limit ?? LIMITS.PLAN_RUNS_PER_PERIOD;
 
     return {
-      periodStart,
-      periodEnd,
+      // The END is the provider's own figure and is the key the row is stored under.
+      // The START is NOT derived here: computing it means walking the anchor boundaries,
+      // and a second spelling of that walk is exactly the A13-010 defect. A06 has not
+      // exported `allowancePeriodStartAt`; requested in the handoff. Until it exists this
+      // reports when the figures were read, which is true, rather than a month we guessed.
+      periodStart: toIso(this.#now),
+      periodEnd: toIso(periodEnd),
       runsUsed: used,
       runsIncluded: included,
       // Resolved from the stored allowance, never from anything the browser sent.

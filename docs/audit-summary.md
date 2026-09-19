@@ -103,9 +103,10 @@ problem.
 ## What this audit does not prove
 
 - It is one pass, by one auditor, over a codebase that changed twice while it was running.
-- Several areas were **not** assessed: the browser end-to-end suite, backup restoration,
-  operational runbooks, and parts of the payment-recovery flow. These are recorded as
-  unassessed rather than quietly left out.
+- Several areas remain **not** assessed: backup restoration, operational runbooks, and one
+  owner-approval behaviour. These are recorded as unassessed rather than quietly left out.
+  The browser suite and the payment-recovery flow **were** assessed in a second pass — see
+  below.
 - Account-level settings for the code host and the hosting platform were accepted from
   existing records rather than re-queried.
 - Spend figures are estimates of two different kinds. No billing statement has been read.
@@ -126,6 +127,52 @@ are not the same thing:
 | Ten external visits observed | **No** — the observed count is zero |
 
 They will be reported separately until each is separately true.
+
+---
+
+---
+
+## Second pass — against one fixed commit
+
+The first pass had to chase a codebase that changed nine times underneath it. The second was
+run against a **single pinned commit with a clean working tree**, which is the only way an
+audit result means anything.
+
+**Two findings were closed**, each only after the auditor re-ran the failing check:
+
+- The credential-shaped values in the published history are now individually pinned by exact
+  content hash — eight of them, each justified, with the count printed on every clean run.
+  The history scan passes. This was fixed the way the audit asked: by naming specific values,
+  not by weakening the rule that catches them.
+- The live site is now up to date with the tested code, and the public admin entry point is
+  reachable again.
+
+**Two new findings were raised:**
+
+- **The browser test suite is 56% failing** — 14 of 36 cases pass. Everything public passes;
+  everything behind a sign-in fails, because the browser suite has no way to sign in. That
+  means the signed-in customer journey, the owner screens on a phone, and the "no sideways
+  scrolling" checks at all three screen widths are currently **unproven**. We would rather
+  publish that than leave it unmeasured. Credit where it is due: those layout tests refuse
+  to report a pass they could not measure — they fail with "the page did not render; its
+  layout was not measured", which is exactly why this was visible at all.
+- **The pinned commit does not compile**, because of in-progress work on the visual
+  development story. The accepted release commit will have to.
+
+**The payment-failure policy was assessed in full.** The founder's specification has nine
+parts. One — *nothing of yours is deleted because of a missed payment* — is **fully met**,
+and met in the most reliable way possible: the data-retention process has no knowledge of
+payment status at all, so it cannot act on it. The other eight have correct, well-tested
+logic that **nothing currently calls**. The policy text itself is accurate and well written;
+it is simply not yet connected, and in one case it promises a second recovery route that has
+not been built. Tested is not the same as working, and this summary will not conflate them.
+
+The audit's headline finding — two incompatible date formats used as the key for the same
+billing record — was **partially** fixed and **not closed**. A shared function was written
+and a safety check added, but two of the three places that need it still use the old one, and
+the safety check is missing from the code path production actually uses. The auditor proved
+this by running both functions rather than by reading the fix: one produces `2026-09-19`, the
+other `2026-09`, and the project's own validator rejects the second. It stays open.
 
 ---
 

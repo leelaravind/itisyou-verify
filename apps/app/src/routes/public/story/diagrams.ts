@@ -6,7 +6,13 @@
  * labels are short by design; every full sentence lives in the twin.
  */
 import { html, type Html } from '@verify/ui';
-import { SvgFigure, svgArrow, svgBox, svgLine, svgText } from '../../../../../../packages/ui/src/story/index.js';
+import {
+  SvgFigure,
+  svgArrow,
+  svgBox,
+  svgLine,
+  svgText,
+} from '../../../../../../packages/ui/src/story/index.js';
 
 /* ------------------------------------------------------------------ *
  * Customer journey
@@ -15,8 +21,20 @@ import { SvgFigure, svgArrow, svgBox, svgLine, svgText } from '../../../../../..
 /** The four verdict boxes, equal in weight. The absence case is drawn as large as the pass. */
 const VERDICT_BOXES = [
   { tone: 'verified', lines: ['Verified', 'every mandatory check has supporting evidence'], h: 44 },
-  { tone: 'failed', lines: ['Failed', 'evidence contradicts a rule, or the provider', 'confirmed absence at the deadline'], h: 58 },
-  { tone: 'unverified', lines: ['Unverified', 'we could not check — not a pass, not a failure'], h: 44 },
+  {
+    tone: 'failed',
+    lines: [
+      'Failed',
+      'evidence contradicts a rule, or the provider',
+      'confirmed absence at the deadline',
+    ],
+    h: 58,
+  },
+  {
+    tone: 'unverified',
+    lines: ['Unverified', 'we could not check — not a pass, not a failure'],
+    h: 44,
+  },
   { tone: 'pending', lines: ['Pending', 'still inside the agreed completion window'], h: 44 },
 ] as const;
 
@@ -24,7 +42,13 @@ export function JourneyDiagram(): Html {
   let body = '';
 
   // 1. enquiry
-  body += svgBox({ x: 60, y: 8, w: 240, h: 36, lines: ['An enquiry arrives', 'a website form, for example'] });
+  body += svgBox({
+    x: 60,
+    y: 8,
+    w: 240,
+    h: 36,
+    lines: ['An enquiry arrives', 'a website form, for example'],
+  });
   body += svgArrow(180, 44, 180, 68);
 
   // 2. the customer's automation
@@ -33,7 +57,11 @@ export function JourneyDiagram(): Html {
     y: 68,
     w: 240,
     h: 48,
-    lines: ['The customer’s automation runs', 'and reports success to us', 'customer_claim: a trigger, not proof'],
+    lines: [
+      'The customer’s automation runs',
+      'and reports success to us',
+      'customer_claim: a trigger, not proof',
+    ],
     mono: true,
   });
   body += svgArrow(120, 116, 92, 140);
@@ -67,15 +95,43 @@ export function JourneyDiagram(): Html {
     y: 224,
     w: 240,
     h: 52,
-    lines: ['The customer’s rules are evaluated', 'a closed set of typed operators', 'over allowlisted fields'],
+    lines: [
+      'The customer’s rules are evaluated',
+      'a closed set of typed operators',
+      'over allowlisted fields',
+    ],
   });
   body += svgArrow(180, 276, 180, 296);
 
   // the absence rules, stated in the picture, not only beside it
-  body += svgText(180, 312, 'Absence is answered honestly:', 'diag-text diag-text--strong', 'middle');
-  body += svgText(180, 326, 'provider unreachable → Unverified, always', 'diag-text diag-text--micro', 'middle');
-  body += svgText(180, 340, 'only RECORD_NOT_FOUND or EVENT_NOT_OBSERVED', 'diag-text diag-text--micro', 'middle');
-  body += svgText(180, 354, 'at the deadline can turn absence into Failed', 'diag-text diag-text--micro', 'middle');
+  body += svgText(
+    180,
+    312,
+    'Absence is answered honestly:',
+    'diag-text diag-text--strong',
+    'middle',
+  );
+  body += svgText(
+    180,
+    326,
+    'provider unreachable → Unverified, always',
+    'diag-text diag-text--micro',
+    'middle',
+  );
+  body += svgText(
+    180,
+    340,
+    'only RECORD_NOT_FOUND or EVENT_NOT_OBSERVED',
+    'diag-text diag-text--micro',
+    'middle',
+  );
+  body += svgText(
+    180,
+    354,
+    'at the deadline can turn absence into Failed',
+    'diag-text diag-text--micro',
+    'middle',
+  );
   body += svgText(180, 372, 'one of four verdicts', 'diag-text diag-text--mono', 'middle');
 
   // 5. the four verdicts, one column, equal width
@@ -101,8 +157,8 @@ export function JourneyDiagram(): Html {
       'We read the CRM record back from HubSpot and the email outcome back from Resend, evaluate the customer’s rules over that evidence, ' +
       'and reach one of four verdicts: Verified, Failed, Unverified or Pending. An unreachable provider always gives Unverified; ' +
       'only an authoritative absence at the deadline gives Failed. The steps are listed in full beside this figure.',
-    caption: html`How a run is judged. The Unverified box is drawn the same size as the Verified one on purpose: "we
-      could not check" is a first-class answer, not a footnote.`,
+    caption: html`How a run is judged. The Unverified box is drawn the same size as the Verified one
+    on purpose: "we could not check" is a first-class answer, not a footnote.`,
   });
 }
 
@@ -152,7 +208,15 @@ function chipRow(chips: readonly Chip[], y: number, tone: 'plain' | 'sunken'): s
   const startX = 176 - total / 2;
   return chips
     .map((chip, index) =>
-      svgBox({ x: startX + index * (w + gap), y, w, h: 30, lines: [chip.name, chip.role], mono: true, tone }),
+      svgBox({
+        x: startX + index * (w + gap),
+        y,
+        w,
+        h: 30,
+        lines: [chip.name, chip.role],
+        mono: true,
+        tone,
+      }),
     )
     .join('');
 }
@@ -167,11 +231,23 @@ export function SystemDiagram(): Html {
   // the Worker
   body += `<rect x="8" y="56" width="336" height="244" rx="6" class="diag-box"/>`;
   body += svgText(176, 74, 'One Cloudflare Worker (Hono)', 'diag-text diag-text--strong', 'middle');
-  body += svgText(176, 88, 'routers, each owned by one specialist', 'diag-text diag-text--mono', 'middle');
+  body += svgText(
+    176,
+    88,
+    'routers, each owned by one specialist',
+    'diag-text diag-text--mono',
+    'middle',
+  );
   ROUTE_CHIPS.forEach((row, index) => {
     body += chipRow(row, 100 + index * 38, 'sunken');
   });
-  body += svgText(176, 226, 'shared packages the Worker is built from', 'diag-text diag-text--mono', 'middle');
+  body += svgText(
+    176,
+    226,
+    'shared packages the Worker is built from',
+    'diag-text diag-text--mono',
+    'middle',
+  );
   PACKAGE_CHIPS.forEach((row, index) => {
     body += chipRow(row, 232 + index * 34, 'plain');
   });
@@ -179,7 +255,15 @@ export function SystemDiagram(): Html {
   // storage and the clock
   body += svgArrow(92, 300, 92, 328);
   body += svgArrow(260, 328, 260, 300);
-  body += svgBox({ x: 8, y: 328, w: 168, h: 56, lines: ['Cloudflare D1', 'SQLite · EU-West', 'staging + production'], mono: true, tone: 'sunken' });
+  body += svgBox({
+    x: 8,
+    y: 328,
+    w: 168,
+    h: 56,
+    lines: ['Cloudflare D1', 'SQLite · EU-West', 'staging + production'],
+    mono: true,
+    tone: 'sunken',
+  });
   body += svgBox({
     x: 184,
     y: 328,
@@ -199,7 +283,11 @@ export function SystemDiagram(): Html {
     y: 412,
     w: 328,
     h: 52,
-    lines: ['HubSpot · Resend · Stripe (external)', 'adapters built and tested against mocks', 'never run against a live account'],
+    lines: [
+      'HubSpot · Resend · Stripe (external)',
+      'adapters built and tested against mocks',
+      'never run against a live account',
+    ],
     mono: true,
     tone: 'external',
   });
@@ -216,7 +304,7 @@ export function SystemDiagram(): Html {
       'The Worker is built from five shared packages: contracts, domain, security, connectors and ui. It reads and writes Cloudflare D1 in EU-West, ' +
       'a one-minute cron trigger drives it in production only, and a dashed box for HubSpot, Resend and Stripe notes that the adapters exist ' +
       'but have never run against a live account. The full list is beside this figure.',
-    caption: html`One Worker, one database, one cron, five packages. The dashed box is dashed because it has never
-      been exercised live.`,
+    caption: html`One Worker, one database, one cron, five packages. The dashed box is dashed
+    because it has never been exercised live.`,
   });
 }

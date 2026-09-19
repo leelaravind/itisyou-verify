@@ -51,7 +51,9 @@ export function StoryStatusPill(status: StoryStatus | null): Html {
       >not in the status vocabulary</span
     >`;
   }
-  return html`<span ${attrs({ class: 'story-status', 'data-story-status': status })}>${storyStatusLabel(status)}</span>`;
+  return html`<span ${attrs({ class: 'story-status', 'data-story-status': status })}
+    >${storyStatusLabel(status)}</span
+  >`;
 }
 
 /* ------------------------------------------------------------------ *
@@ -72,7 +74,9 @@ export interface DisclosureOptions {
  * limitations, failures and verdicts stay in the flow.
  */
 export function Disclosure(options: DisclosureOptions): Html {
-  return html`<details ${attrs({ class: 'disc', id: options.id ?? null, open: options.open === true })}>
+  return html`<details
+    ${attrs({ class: 'disc', id: options.id ?? null, open: options.open === true })}
+  >
     <summary class="disc__summary">${options.summary}</summary>
     <div class="disc__body">${options.body}</div>
   </details>`;
@@ -106,10 +110,16 @@ export interface StatTileOptions {
 }
 
 export function StatTile(options: StatTileOptions): Html {
-  return html`<div ${attrs({ class: 'stat', 'data-stat': options.label, 'data-known': options.value === null ? 'no' : 'yes' })}>
-    ${options.value === null
-      ? html`<p class="stat__value stat__value--unknown" data-unknown="true">unknown</p>`
-      : html`<p class="stat__value">${options.value}${options.unit === undefined ? null : html`<span class="stat__unit">${options.unit}</span>`}</p>`}
+  return html`<div
+    ${attrs({ class: 'stat', 'data-stat': options.label, 'data-known': options.value === null ? 'no' : 'yes' })}
+  >
+    ${
+      options.value === null
+        ? html`<p class="stat__value stat__value--unknown" data-unknown="true">unknown</p>`
+        : html`<p class="stat__value">
+            ${options.value}${options.unit === undefined ? null : html`<span class="stat__unit">${options.unit}</span>`}
+          </p>`
+    }
     <p class="stat__label">${options.label}</p>
     ${options.note === undefined ? null : html`<p class="stat__note">${options.note}</p>`}
     ${SourceLine(options.source)}
@@ -156,14 +166,18 @@ function listOr(items: readonly string[], empty: string, mono = false): Html {
  * to go and check.
  */
 export function DecisionCard(event: DecisionCardEvent): Html {
-  return html`<article ${attrs({ class: 'card stack', id: event.event_id, 'data-event-id': event.event_id, 'data-story-status': event.status ?? 'unknown' })}>
+  return html`<article
+    ${attrs({ class: 'card stack', id: event.event_id, 'data-event-id': event.event_id, 'data-story-status': event.status ?? 'unknown' })}
+  >
     <div class="stack-sm">
       <p class="dcard__meta">
-        <span>${event.event_id}</span><span>·</span><span>${event.when}</span><span>·</span><span>${event.milestone_id}</span
-        ><span>·</span><span>${event.task_id}</span>
+        <span>${event.event_id}</span><span>·</span><span>${event.when}</span><span>·</span
+        ><span>${event.milestone_id}</span><span>·</span><span>${event.task_id}</span>
       </p>
       <h3 class="card__title">${event.goal}</h3>
-      <div class="row">${StoryStatusPill(event.status)}<span class="micro mono">${event.agent_role}</span></div>
+      <div class="row">
+        ${StoryStatusPill(event.status)}<span class="micro mono">${event.agent_role}</span>
+      </div>
     </div>
 
     <div class="stack-sm">
@@ -181,14 +195,15 @@ export function DecisionCard(event: DecisionCardEvent): Html {
       <p class="small">${event.decision_reason}</p>
     </div>
 
-    ${event.limitations === null
-      ? null
-      : Callout({
-          tone: 'limit',
-          title: 'Limitation, as recorded',
-          body: html`<p data-limitation>${event.limitations}</p>`,
-        })}
-
+    ${
+      event.limitations === null
+        ? null
+        : Callout({
+            tone: 'limit',
+            title: 'Limitation, as recorded',
+            body: html`<p data-limitation>${event.limitations}</p>`,
+          })
+    }
     ${Disclosure({
       summary: 'Evidence, files changed, commit and model',
       body: html`<div class="stack-sm">

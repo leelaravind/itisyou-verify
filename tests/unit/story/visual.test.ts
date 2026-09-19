@@ -52,11 +52,23 @@ function allMatches(markup: string, re: RegExp): string[] {
 }
 
 /**
- * One decision card. The opening tag is matched in full: a bare `id="EVT-0002"` would first
- * hit the substring inside `data-event-id="EVT-0002"` on the timeline list, higher up.
+ * One decision card. The marker is the attribute run `attrs()` emits at runtime — Prettier
+ * reflows the template around it but cannot touch it — and it is anchored on the class so a
+ * bare `id="EVT-0002"` cannot first hit the substring inside `data-event-id="EVT-0002"` on
+ * the timeline list, higher up.
  */
 function card(markup: string, eventId: string): string {
-  return block(markup, `<article class="card stack" id="${eventId}"`, '</article>');
+  return block(markup, `class="card stack" id="${eventId}"`, '</article>');
+}
+
+/** A phrase from a template, tolerant of the line breaks Prettier puts between its words. */
+function phrase(text: string): RegExp {
+  return new RegExp(
+    text
+      .split(/\s+/)
+      .map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+      .join('\\s+'),
+  );
 }
 
 /** Inline style attributes and event handlers, matched only inside a tag — escaped prose cannot trip it. */
@@ -112,7 +124,9 @@ let full = '';
 
 beforeAll(async () => {
   body = await render(StoryVisualPage());
-  full = await render(PublicLayout({ title: 'Story', path: STORY_VISUAL_PATH, body: StoryVisualPage() }));
+  full = await render(
+    PublicLayout({ title: 'Story', path: STORY_VISUAL_PATH, body: StoryVisualPage() }),
+  );
 });
 
 /* ------------------------------------------------------------------ statuses */
@@ -122,16 +136,24 @@ describe('statuses never outrun the record', () => {
     const rendered = allMatches(body, /data-story-status="([^"]+)"/g);
     expect(rendered.length).toBeGreaterThan(0);
     for (const status of rendered) {
-      expect(JSON_STATUSES.has(status), `rendered status "${status}" is not in the record`).toBe(true);
+      expect(JSON_STATUSES.has(status), `rendered status "${status}" is not in the record`).toBe(
+        true,
+      );
     }
     expect(rendered).not.toContain('unknown');
   });
 
   it('DOC-101 each event renders exactly the status its JSON event carries, on the card and in the list', () => {
     for (const event of RAW_EVENTS) {
-      const re = new RegExp(`data-event-id="${event.event_id}"[^>]*data-story-status="([^"]+)"`, 'g');
+      const re = new RegExp(
+        `data-event-id="${event.event_id}"[^>]*data-story-status="([^"]+)"`,
+        'g',
+      );
       const found = allMatches(body, re);
-      expect(found.length, `${event.event_id} should appear on the card and in the timeline list`).toBe(2);
+      expect(
+        found.length,
+        `${event.event_id} should appear on the card and in the timeline list`,
+      ).toBe(2);
       for (const status of found) expect(status).toBe(event.status);
     }
   });
@@ -143,7 +165,8 @@ describe('statuses never outrun the record', () => {
       expect(body).not.toContain(`data-story-status="${status}"`);
     }
     expect(body).toContain(`data-absent-statuses="${absent.join(' ')}"`);
-    expect(body).toContain('nothing here is\n          externally confirmed'.replace(/\s+/g, ' ').slice(0, 12));
+    // the strongest status in the vocabulary is named as absent, whatever the template's line breaks
+    expect(body).toMatch(/nothing here is\s+externally confirmed/);
   });
 
   it('DOC-103 a status outside the vocabulary renders as "not in the status vocabulary", never as one of the six', async () => {
@@ -155,7 +178,8 @@ describe('statuses never outrun the record', () => {
     const rendered = card(markup, 'EVT-9002');
     expect(rendered).toContain('not in the status vocabulary');
     expect(rendered).toContain('data-story-status="unknown"');
-    for (const status of STORY_STATUSES) expect(rendered).not.toContain(`data-story-status="${status}"`);
+    for (const status of STORY_STATUSES)
+      expect(rendered).not.toContain(`data-story-status="${status}"`);
     expect(markup).not.toContain('shipped');
   });
 
@@ -174,13 +198,17 @@ describe('statuses never outrun the record', () => {
 
 describe('unknown is unknown, never zero', () => {
   it('DOC-104 a stat tile with no recorded value says unknown and contains no numeral', async () => {
-    const tile = await render(StatTile({ label: 'Tokens consumed', value: null, source: 'docs/model-routing.md' }));
+    const tile = await render(
+      StatTile({ label: 'Tokens consumed', value: null, source: 'docs/model-routing.md' }),
+    );
     expect(tile).toContain('data-unknown="true"');
     expect(tile).toContain('>unknown<');
     expect(tile).not.toMatch(/>\s*0\s*</);
     expect(tile).toContain('data-known="no"');
 
-    const unknownTiles = [...body.matchAll(/<div class="stat"[^>]*data-known="no">([\s\S]*?)<\/div>/g)];
+    const unknownTiles = [
+      ...body.matchAll(/<div\s+class="stat"[^>]*data-known="no"\s*>([\s\S]*?)<\/div>/g),
+    ];
     expect(unknownTiles.length).toBeGreaterThanOrEqual(4);
     for (const [, inner] of unknownTiles) {
       expect(inner).toContain('data-unknown="true"');
@@ -192,8 +220,8 @@ describe('unknown is unknown, never zero', () => {
     const withoutSha = RAW_EVENTS.filter((e) => e.commit_sha === null);
     expect(withoutSha.length).toBeGreaterThan(0);
     for (const event of withoutSha) {
-      const card = card(body, event.event_id);
-      expect(card).toContain('<dd>not recorded</dd>');
+      const rendered = card(body, event.event_id);
+      expect(rendered).toContain('<dd>not recorded</dd>');
     }
   });
 
@@ -262,7 +290,7 @@ describe('nothing moves, and it says so', () => {
     expect(full).not.toMatch(/<animate|<animateTransform|<set\s/);
     expect(body).toContain('data-historical');
     expect(body).toContain('Historical record');
-    expect(body).toContain('nothing is animated');
+    expect(body).toMatch(phrase('nothing is animated'));
   });
 
   it('DOC-112 the reduced-motion path is static by construction: a guard exists and every figure has an HTML twin', () => {
@@ -270,7 +298,9 @@ describe('nothing moves, and it says so', () => {
     const figures = allMatches(body, /data-figure="([^"]+)"/g);
     expect(figures.sort()).toEqual(['journey', 'system', 'timeline']);
     for (const id of figures) {
-      expect(body, `figure ${id} needs a data-diagram-alt twin`).toContain(`data-diagram-alt="${id}"`);
+      expect(body, `figure ${id} needs a data-diagram-alt twin`).toContain(
+        `data-diagram-alt="${id}"`,
+      );
     }
   });
 
@@ -304,11 +334,12 @@ describe('nothing moves, and it says so', () => {
 describe('decision cards are verbatim', () => {
   it('DOC-114 decision, alternatives and reason appear word for word for every event', () => {
     for (const event of RAW_EVENTS) {
-      const card = card(body, event.event_id);
-      expect(card).toContain(esc(event.decision_summary));
-      expect(card).toContain(esc(event.decision_reason));
-      for (const alternative of event.alternatives_considered) expect(card).toContain(esc(alternative));
-      if (event.alternatives_considered.length === 0) expect(card).toContain('None recorded.');
+      const rendered = card(body, event.event_id);
+      expect(rendered).toContain(esc(event.decision_summary));
+      expect(rendered).toContain(esc(event.decision_reason));
+      for (const alternative of event.alternatives_considered)
+        expect(rendered).toContain(esc(alternative));
+      if (event.alternatives_considered.length === 0) expect(rendered).toContain('None recorded.');
     }
   });
 
@@ -338,19 +369,21 @@ describe('decision cards are verbatim', () => {
     expect(single.indexOf('THE LIMITATION')).toBeLessThan(single.indexOf('<details'));
 
     for (const event of RAW_EVENTS) {
-      const card = card(body, event.event_id);
-      const at = card.indexOf(esc(event.limitations));
+      const rendered = card(body, event.event_id);
+      const at = rendered.indexOf(esc(event.limitations));
       expect(at, `${event.event_id} limitation missing`).toBeGreaterThan(-1);
-      expect(at).toBeLessThan(card.indexOf('<details'));
+      expect(at).toBeLessThan(rendered.indexOf('<details'));
     }
   });
 
   it('DOC-116 every test evidence reference is rendered verbatim, and an event with none says so', () => {
     for (const event of RAW_EVENTS) {
-      const card = card(body, event.event_id);
-      for (const ref of event.test_evidence_refs) expect(card).toContain(esc(ref));
+      const rendered = card(body, event.event_id);
+      for (const ref of event.test_evidence_refs) expect(rendered).toContain(esc(ref));
       if (event.test_evidence_refs.length === 0) {
-        expect(card).toContain('None recorded — and the record therefore claims nothing tested.');
+        expect(rendered).toContain(
+          'None recorded — and the record therefore claims nothing tested.',
+        );
       }
     }
   });
@@ -367,7 +400,7 @@ describe('timeline', () => {
     const svg = block(body, 'data-diagram="timeline"', '</svg>');
     expect(svg).toContain('not to scale');
     for (const event of RAW_EVENTS) expect(svg).toContain(event.event_id);
-    expect(body).toContain('Evenly spaced by order, not by elapsed time');
+    expect(body).toMatch(phrase('Evenly spaced by order, not by elapsed time'));
   });
 });
 
@@ -376,7 +409,8 @@ describe('timeline', () => {
 describe('customer journey', () => {
   it('DOC-118 the journey draws all four verdicts and makes the absence case explicit', () => {
     const svg = block(body, 'data-diagram="journey"', '</svg>');
-    for (const word of ['Verified', 'Failed', 'Unverified', 'Pending']) expect(svg).toContain(`>${word}<`);
+    for (const word of ['Verified', 'Failed', 'Unverified', 'Pending'])
+      expect(svg).toContain(`>${word}<`);
     expect(svg).toContain('not a pass, not a failure');
     expect(svg).toContain('provider unreachable → Unverified, always');
     expect(svg).toContain('customer_claim: a trigger, not proof');
@@ -394,7 +428,7 @@ describe('customer journey', () => {
     expect(nothing).toBe(DEMO_RUNS.filter((run) => run.observed === null).length);
     expect(nothing).toBeGreaterThan(0);
     // labelled synthetic, and not a live claim
-    expect(body).toContain('Four real verdicts about invented evidence');
+    expect(body).toMatch(phrase('Four real verdicts about invented evidence'));
   });
 });
 
@@ -402,19 +436,36 @@ describe('customer journey', () => {
 
 describe('system and roles', () => {
   it('DOC-120 the twelve roles, the lead, and the eight system pieces are all named', () => {
-    const roles = block(body, 'aria-label="The twelve specialist roles, the lead, and what each owned"', '</table>');
+    const roles = block(
+      body,
+      'aria-label="The twelve specialist roles, the lead, and what each owned"',
+      '</table>',
+    );
     for (let n = 1; n <= 12; n += 1) {
       expect(roles).toContain(`<span class="mono">A${String(n).padStart(2, '0')}</span>`);
     }
     expect(roles).toContain('<span class="mono">lead</span>');
     const pieces = block(body, 'data-diagram-alt="system"', '</dl>');
-    for (const name of ['contracts', 'domain', 'connectors', 'security', 'ui', 'One Cloudflare Worker', 'Cloudflare D1', 'One-minute cron']) {
+    for (const name of [
+      'contracts',
+      'domain',
+      'connectors',
+      'security',
+      'ui',
+      'One Cloudflare Worker',
+      'Cloudflare D1',
+      'One-minute cron',
+    ]) {
       expect(pieces).toContain(`<dt>${name}</dt>`);
     }
   });
 
   it('DOC-121 a role with no model recorded against its number says so and names no model', () => {
-    const roles = block(body, 'aria-label="The twelve specialist roles, the lead, and what each owned"', '</table>');
+    const roles = block(
+      body,
+      'aria-label="The twelve specialist roles, the lead, and what each owned"',
+      '</table>',
+    );
     for (const id of ['A06', 'A07', 'A08', 'A09', 'A12']) {
       expect(roles).toContain(`data-model-unrecorded="${id}"`);
       const row = block(roles, `<span class="mono">${id}</span>`, '</tr>');
@@ -433,13 +484,25 @@ describe('system and roles', () => {
 describe('honesty rules', () => {
   it('DOC-122 the page states that the provider integration has never run against a live account', () => {
     expect(body).toContain('data-never-live');
-    expect(body).toContain('never been run against a live HubSpot or Resend account');
+    expect(body).toMatch(phrase('never been run against a live HubSpot or Resend account'));
     const svg = block(body, 'data-diagram="system"', '</svg>');
     expect(svg).toContain('never run against a live account');
   });
 
   it('DOC-123 every named failure is told in three parts: what went wrong, why the tests missed it, what changed', () => {
-    const required = ['allowance', 'binding', 'owner', 'meter', 'emails', 'coverage', 'push', 'sha', 'detector', 'haiku', 'drift'];
+    const required = [
+      'allowance',
+      'binding',
+      'owner',
+      'meter',
+      'emails',
+      'coverage',
+      'push',
+      'sha',
+      'detector',
+      'haiku',
+      'drift',
+    ];
     for (const id of required) {
       const article = block(body, `data-failure="${id}"`, '</article>');
       expect(article).toContain('What went wrong');
@@ -455,7 +518,9 @@ describe('honesty rules', () => {
 
   it('DOC-126 no email address, credential-shaped string or private identifier reaches the page', () => {
     expect(full).not.toMatch(/\b[A-Za-z0-9._%+-]{2,}@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/);
-    expect(full).not.toMatch(/\b(?:sk|rk|pat|whsec|re|xox[abprs]|ghp|gho|github_pat)[_-][A-Za-z0-9_-]{12,}/);
+    expect(full).not.toMatch(
+      /\b(?:sk|rk|pat|whsec|re|xox[abprs]|ghp|gho|github_pat)[_-][A-Za-z0-9_-]{12,}/,
+    );
     expect(full).not.toMatch(/\beyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\./);
     expect(full).not.toMatch(/-----BEGIN [A-Z ]*PRIVATE KEY-----/);
   });
@@ -472,10 +537,14 @@ describe('honesty rules', () => {
 
 describe('route', () => {
   it('DOC-125 the router answers 200 HTML at the story path with the public cache policy', async () => {
-    const response = await storyRoutes.request(STORY_VISUAL_PATH, {}, {
-      ENVIRONMENT: 'test',
-      PUBLIC_BASE_URL: 'http://localhost',
-    });
+    const response = await storyRoutes.request(
+      STORY_VISUAL_PATH,
+      {},
+      {
+        ENVIRONMENT: 'test',
+        PUBLIC_BASE_URL: 'http://localhost',
+      },
+    );
     expect(response.status).toBe(200);
     expect(response.headers.get('content-type')).toContain('text/html');
     expect(response.headers.get('cache-control')).toBe('public, max-age=0, must-revalidate');

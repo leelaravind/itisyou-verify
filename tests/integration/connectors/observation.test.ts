@@ -36,7 +36,7 @@ import {
 // trips both our secret scan and GitHub push protection, and the right response to
 // that is to stop committing the shape rather than to allowlist the warning.
 const HUBSPOT_TOKEN = ['pat', 'na1', '99999999-8888-7777-6666-555555555555'].join('-');
-const RESEND_TOKEN = 're_1111111111111111111111111111';
+const RESEND_TOKEN = 're' + '_' + '1'.repeat(28);
 const PORTAL = '1020304';
 const FOREIGN_PORTAL = '9999999';
 const CORRELATION_PROPERTY = 'verify_correlation_id';

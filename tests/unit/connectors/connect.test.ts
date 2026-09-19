@@ -24,7 +24,7 @@ import { T_INSIDE_WINDOW } from '../../fixtures/index.js';
 
 const WORKSPACE = 'ws_00000000000000000001';
 const HUBSPOT_TOKEN = ['pat','na1','11111111-2222-3333-4444-555555555555'].join('-');
-const RESEND_TOKEN = 're_0000000000000000000000000000';
+const RESEND_TOKEN = 're' + '_' + '0'.repeat(28);
 const WEBHOOK_SECRET = 'whsec' + '_' + 'MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw';
 const PORTAL = '1020304';
 const FOREIGN_PORTAL = '9999999';

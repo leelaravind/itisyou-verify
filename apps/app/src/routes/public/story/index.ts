@@ -34,5 +34,19 @@ storyRoutes.get(STORY_VISUAL_PATH, (c) =>
   ),
 );
 
-export { StoryVisualPage, journeyRunsFromDemo, renderedStatuses, type JourneyRun, type StoryVisualPageOptions } from './page.js';
-export { STORY_RECORD, narrowStoryEvent, narrowStoryRecord, sortByTime, countByStatus, type StoryEvent, type StoryRecord } from './events.js';
+export {
+  StoryVisualPage,
+  journeyRunsFromDemo,
+  renderedStatuses,
+  type JourneyRun,
+  type StoryVisualPageOptions,
+} from './page.js';
+export {
+  STORY_RECORD,
+  narrowStoryEvent,
+  narrowStoryRecord,
+  sortByTime,
+  countByStatus,
+  type StoryEvent,
+  type StoryRecord,
+} from './events.js';

@@ -35,7 +35,13 @@ import { maskDisplayValue } from '../demo.js';
 import { DEMO_RUNS } from '../demoData.js';
 import { formatInstant } from '../shared.js';
 import { JourneyDiagram, SystemDiagram } from './diagrams.js';
-import { STORY_RECORD, countByStatus, sortByTime, type StoryEvent, type StoryRecord } from './events.js';
+import {
+  STORY_RECORD,
+  countByStatus,
+  sortByTime,
+  type StoryEvent,
+  type StoryRecord,
+} from './events.js';
 import {
   ABSENCE_RULES,
   FAILURES,
@@ -226,12 +232,13 @@ function journeySection(runs: readonly JourneyRun[]): Html {
       <div class="story-alt stack" data-diagram-alt="journey">
         <ol class="steps">
           ${JOURNEY_STEPS.map(
-            (step) => html`<li>
-              <h3>${step.title}</h3>
-              <p>${step.body}</p>
-              ${step.vocabulary === undefined ? null : html`<p class="micro mono">${step.vocabulary}</p>`}
-              ${SourceLine(step.source)}
-            </li>`,
+            (step) =>
+              html`<li>
+                <h3>${step.title}</h3>
+                <p>${step.body}</p>
+                ${step.vocabulary === undefined ? null : html`<p class="micro mono">${step.vocabulary}</p>`}
+                ${SourceLine(step.source)}
+              </li>`,
           )}
         </ol>
       </div>
@@ -249,15 +256,20 @@ function journeySection(runs: readonly JourneyRun[]): Html {
     <div class="stack-sm">
       <h3>Four real verdicts about invented evidence</h3>
       <p class="small muted measure">
-        These rows are produced by running the live verification engine over fixed synthetic fixtures — the
-        same runs the <a href="/demo">worked example</a> shows. No customer, no database, no provider call.
-        They are here because a diagram can only claim what the engine would actually decide.
+        These rows are produced by running the live verification engine over fixed synthetic
+        fixtures — the same runs the <a href="/demo">worked example</a> shows. No customer, no
+        database, no provider call. They are here because a diagram can only claim what the engine
+        would actually decide.
       </p>
     </div>
     ${Table({
       caption: 'Synthetic runs decided by the real engine',
       columns: [
-        { key: 'verdict', header: 'Verdict', cell: (run: JourneyRun) => StatusBadge({ status: run.status }) },
+        {
+          key: 'verdict',
+          header: 'Verdict',
+          cell: (run: JourneyRun) => StatusBadge({ status: run.status }),
+        },
         {
           key: 'retrieved',
           header: 'What we retrieved',
@@ -298,19 +310,32 @@ function timelineSection(record: StoryRecord): Html {
     )}
     <div class="row" data-status-counts>
       ${present.map(
-        (status) => html`<span class="row">${StoryStatusPill(status)}<span class="micro mono">${String(counts.get(status) ?? 0)}</span></span>`,
+        (status) =>
+          html`<span class="row"
+            >${StoryStatusPill(status)}<span class="micro mono"
+              >${String(counts.get(status) ?? 0)}</span
+            ></span
+          >`,
       )}
-      ${outOfVocabulary.length === 0
-        ? null
-        : html`<span class="row">${StoryStatusPill(null)}<span class="micro mono">${String(outOfVocabulary.length)}</span></span>`}
+      ${
+        outOfVocabulary.length === 0
+          ? null
+          : html`<span class="row"
+              >${StoryStatusPill(null)}<span class="micro mono"
+                >${String(outOfVocabulary.length)}</span
+              ></span
+            >`
+      }
     </div>
-    ${absent.length === 0
-      ? null
-      : html`<p class="small muted measure" data-absent-statuses="${absent.join(' ')}">
-          The vocabulary also allows ${absent.map((s) => storyStatusLabel(s)).join(', ')}. No event carries
-          ${absent.length === 1 ? 'that status' : 'those statuses'}, so none is drawn. In particular, nothing here is
-          externally confirmed.
-        </p>`}
+    ${
+      absent.length === 0
+        ? null
+        : html`<p class="small muted measure" data-absent-statuses="${absent.join(' ')}">
+            The vocabulary also allows ${absent.map((s) => storyStatusLabel(s)).join(', ')}. No
+            event carries ${absent.length === 1 ? 'that status' : 'those statuses'}, so none is
+            drawn. In particular, nothing here is externally confirmed.
+          </p>`
+    }
     <div class="grid grid-2">
       ${TimelineSvg(entries, 'timeline', span)}
       <div class="story-alt">${TimelineList(entries)}</div>
@@ -335,12 +360,13 @@ function systemSection(): Html {
       <div class="story-alt" data-diagram-alt="system">
         <dl class="kv">
           ${SYSTEM_PIECES.map(
-            (piece) => html`<dt>${piece.name}</dt>
-              <dd class="stack-sm">
-                <span>${piece.body}</span>
-                <span class="micro">owned by ${piece.ownedBy}</span>
-                ${SourceLine(piece.source)}
-              </dd>`,
+            (piece) =>
+              html`<dt>${piece.name}</dt>
+                <dd class="stack-sm">
+                  <span>${piece.body}</span>
+                  <span class="micro">owned by ${piece.ownedBy}</span>
+                  ${SourceLine(piece.source)}
+                </dd>`,
           )}
         </dl>
       </div>
@@ -348,25 +374,37 @@ function systemSection(): Html {
     ${Table({
       caption: 'The twelve specialist roles, the lead, and what each owned',
       columns: [
-        { key: 'id', header: 'Role', rowHeader: true, cell: (role: Role) => html`<span class="mono">${role.id}</span>` },
+        {
+          key: 'id',
+          header: 'Role',
+          rowHeader: true,
+          cell: (role: Role) => html`<span class="mono">${role.id}</span>`,
+        },
         { key: 'name', header: 'Name', cell: (role: Role) => role.name },
-        { key: 'owns', header: 'Owned', cell: (role: Role) => html`<span class="mono small">${role.owns}</span>` },
+        {
+          key: 'owns',
+          header: 'Owned',
+          cell: (role: Role) => html`<span class="mono small">${role.owns}</span>`,
+        },
         {
           key: 'model',
           header: 'Model recorded',
           cell: (role: Role) =>
             role.model === null
-              ? html`<span class="muted" data-model-unrecorded="${role.id}">not recorded against this role</span>`
-              : html`<span class="mono">${role.model}</span> <span class="micro">(${role.modelSource ?? ''})</span>`,
+              ? html`<span class="muted" data-model-unrecorded="${role.id}"
+                  >not recorded against this role</span
+                >`
+              : html`<span class="mono">${role.model}</span>
+                  <span class="micro">(${role.modelSource ?? ''})</span>`,
         },
       ],
       rows: allRoles,
     })}
     <p class="small muted measure">
-      A model is listed only where a record ties it to the role number. The routing document also attributes
-      commerce, customer experience, support and growth to the strongest model by function, without a role
-      number; that mapping is not inferred here. This page itself was produced by a later role, A14, which is
-      not among the twelve.
+      A model is listed only where a record ties it to the role number. The routing document also
+      attributes commerce, customer experience, support and growth to the strongest model by
+      function, without a role number; that mapping is not inferred here. This page itself was
+      produced by a later role, A14, which is not among the twelve.
     </p>
     ${SourceLine('docs/agent-brief.md § Repository layout and ownership; docs/model-routing.md § Catalogue; EVT-0001, 0005, 0006, 0007, 0008, 0009')}
   </section>`;
@@ -374,14 +412,20 @@ function systemSection(): Html {
 
 function decisionsSection(record: StoryRecord): Html {
   const events = sortByTime(record.events);
-  return html`<section class="story-section stack" id="decisions" aria-labelledby="decisions-heading">
+  return html`<section
+    class="story-section stack"
+    id="decisions"
+    aria-labelledby="decisions-heading"
+  >
     ${sectionHead(
       'decisions',
       'Decision cards',
       'What was decided, what else was considered, and why',
       'These fields are rendered from the structured record word for word. Where the record says "none", the card says none.',
     )}
-    <div class="grid grid-2">${events.map((event) => DecisionCard(toDecisionCardEvent(event)))}</div>
+    <div class="grid grid-2">
+      ${events.map((event) => DecisionCard(toDecisionCardEvent(event)))}
+    </div>
   </section>`;
 }
 
@@ -395,24 +439,29 @@ function failuresSection(): Html {
     )}
     <div class="stack-lg">
       ${FAILURES.map(
-        (failure) => html`<article class="fail stack" id="${`broke-${failure.id}`}" data-failure="${failure.id}">
-          <h3>${failure.title}</h3>
-          <div class="fail__grid">
-            <div class="stack-sm">
-              <p class="eyebrow">What went wrong</p>
-              <p>${failure.wentWrong}</p>
+        (failure) =>
+          html`<article
+            class="fail stack"
+            id="${`broke-${failure.id}`}"
+            data-failure="${failure.id}"
+          >
+            <h3>${failure.title}</h3>
+            <div class="fail__grid">
+              <div class="stack-sm">
+                <p class="eyebrow">What went wrong</p>
+                <p>${failure.wentWrong}</p>
+              </div>
+              <div class="stack-sm">
+                <p class="eyebrow">Why the tests did not catch it</p>
+                <p>${failure.whyMissed}</p>
+              </div>
+              <div class="stack-sm">
+                <p class="eyebrow">What changed</p>
+                <p>${failure.whatChanged}</p>
+              </div>
             </div>
-            <div class="stack-sm">
-              <p class="eyebrow">Why the tests did not catch it</p>
-              <p>${failure.whyMissed}</p>
-            </div>
-            <div class="stack-sm">
-              <p class="eyebrow">What changed</p>
-              <p>${failure.whatChanged}</p>
-            </div>
-          </div>
-          ${SourceLine(failure.source)}
-        </article>`,
+            ${SourceLine(failure.source)}
+          </article>`,
       )}
     </div>
   </section>`;
@@ -427,23 +476,24 @@ function evidenceSection(): Html {
       'Where a number was not recorded, it says unknown. It never says zero.',
     )}
     ${METRIC_GROUPS.map(
-      (group) => html`<div class="stack" id="${`evidence-${group.id}`}">
-        <div class="stack-sm">
-          <h3>${group.title}</h3>
-          <p class="small muted measure">${group.intro}</p>
-        </div>
-        <div class="stats">
-          ${group.metrics.map((metric) =>
-            StatTile({
-              label: metric.label,
-              value: metric.value,
-              ...(metric.unit === undefined ? {} : { unit: metric.unit }),
-              ...(metric.note === undefined ? {} : { note: metric.note }),
-              source: metric.source,
-            }),
-          )}
-        </div>
-      </div>`,
+      (group) =>
+        html`<div class="stack" id="${`evidence-${group.id}`}">
+          <div class="stack-sm">
+            <h3>${group.title}</h3>
+            <p class="small muted measure">${group.intro}</p>
+          </div>
+          <div class="stats">
+            ${group.metrics.map((metric) =>
+              StatTile({
+                label: metric.label,
+                value: metric.value,
+                ...(metric.unit === undefined ? {} : { unit: metric.unit }),
+                ...(metric.note === undefined ? {} : { note: metric.note }),
+                source: metric.source,
+              }),
+            )}
+          </div>
+        </div>`,
     )}
   </section>`;
 }
@@ -453,62 +503,69 @@ function standingSection(): Html {
     ${sectionHead('standing', 'Where it stands', 'Built, live, and not yet true — kept separate')}
     <div class="grid grid-2">
       ${STANDING.map(
-        (item) => html`<section class="card stack-sm" data-standing="${item.heading}">
-          <h3 class="card__title">${item.heading}</h3>
-          <p class="small">${item.body}</p>
-          ${SourceLine(item.source)}
-        </section>`,
+        (item) =>
+          html`<section class="card stack-sm" data-standing="${item.heading}">
+            <h3 class="card__title">${item.heading}</h3>
+            <p class="small">${item.body}</p>
+            ${SourceLine(item.source)}
+          </section>`,
       )}
     </div>
     ${Callout({
       tone: 'limit',
       title: 'The provider integration has never run live',
       body: html`<p data-never-live>
-        The HubSpot and Resend connectors have never been run against a live HubSpot or Resend account. The
-        credentials do not exist yet. Until they do, the connector path is proven against mocks, and this page
-        will not pretend otherwise.
+        The HubSpot and Resend connectors have never been run against a live HubSpot or Resend
+        account. The credentials do not exist yet. Until they do, the connector path is proven
+        against mocks, and this page will not pretend otherwise.
       </p>`,
     })}
   </section>`;
 }
 
 function provenanceSection(): Html {
-  return html`<section class="story-section stack" id="provenance" aria-labelledby="provenance-heading">
+  return html`<section
+    class="story-section stack"
+    id="provenance"
+    aria-labelledby="provenance-heading"
+  >
     ${sectionHead('provenance', 'Provenance', 'Which parts of this page are verified, and which are relayed')}
     <div class="measure stack">
       <p class="small">
-        <strong>Read from the record at build time.</strong> The timeline, every decision card and every figure
-        labelled with an event id come from <span class="mono">docs/development-story-events.json</span>, the
-        same file <span class="mono">scripts/verify-story.mjs</span> validates. If the record changes, this page
-        changes with it.
+        <strong>Read from the record at build time.</strong> The timeline, every decision card and
+        every figure labelled with an event id come from
+        <span class="mono">docs/development-story-events.json</span>, the same file
+        <span class="mono">scripts/verify-story.mjs</span> validates. If the record changes, this
+        page changes with it.
       </p>
       <p class="small">
-        <strong>Produced by the real engine.</strong> The four verdicts in the journey table are computed by the
-        verification engine over synthetic fixtures when this page is built — real decisions about invented facts.
+        <strong>Produced by the real engine.</strong> The four verdicts in the journey table are
+        computed by the verification engine over synthetic fixtures when this page is built — real
+        decisions about invented facts.
       </p>
       <p class="small">
-        <strong>Relayed from other documents.</strong> The narrative, the roles table and the failures are this
-        page's presentation of the prose story, the brief, the routing document, commit messages and source
-        comments. Each carries its source. The audit figures are an independent auditor's published numbers and
-        were not re-verified here.
+        <strong>Relayed from other documents.</strong> The narrative, the roles table and the
+        failures are this page's presentation of the prose story, the brief, the routing document,
+        commit messages and source comments. Each carries its source. The audit figures are an
+        independent auditor's published numbers and were not re-verified here.
       </p>
       <p class="small">
-        <strong>Not re-counted.</strong> Test totals are as the responsible agent recorded them at that moment.
-        The tree has moved since, so a count taken today may differ. That is a property of a historical record,
-        and the record is what this page shows.
+        <strong>Not re-counted.</strong> Test totals are as the responsible agent recorded them at
+        that moment. The tree has moved since, so a count taken today may differ. That is a property
+        of a historical record, and the record is what this page shows.
       </p>
     </div>
     ${Disclosure({
       summary: 'Known disagreements between the sources',
       body: html`<ul class="dcard__list">
         <li>
-          EVT-0010 records the CSP fix at the stage where inline style attributes were permitted as a named
-          exception; the prose story and the deployed policy record that the exception was later removed. The
-          structured record has no event for the removal yet.
+          EVT-0010 records the CSP fix at the stage where inline style attributes were permitted as
+          a named exception; the prose story and the deployed policy record that the exception was
+          later removed. The structured record has no event for the removal yet.
         </li>
         <li>
-          The Markdown copy served at <a href="/development-story">/development-story</a> is read from a static
-          asset that can lag the source document. This page does not use a copy.
+          The Markdown copy served at <a href="/development-story">/development-story</a> is read
+          from a static asset that can lag the source document. This page does not use a copy.
         </li>
       </ul>`,
     })}
@@ -522,7 +579,8 @@ function provenanceSection(): Html {
 export function StoryVisualPage(options: StoryVisualPageOptions = {}): Html {
   const record = options.record ?? STORY_RECORD;
   const runs = options.runs ?? journeyRunsFromDemo();
-  const generated = record.generated_at === null ? 'an unrecorded time' : formatInstant(record.generated_at);
+  const generated =
+    record.generated_at === null ? 'an unrecorded time' : formatInstant(record.generated_at);
 
   return html`<div class="wrap section stack-lg" data-story-visual>
     <div class="stack">
@@ -530,30 +588,25 @@ export function StoryVisualPage(options: StoryVisualPageOptions = {}): Html {
         <p class="eyebrow">Development story — visual</p>
         <h1>How ITISYOU Verify works, and how it was built</h1>
         <p class="lede measure">
-          For a reader who is not an engineer: what the product does, in pictures drawn from the project's own
-          record, and what went wrong on the way. Nothing here is rounded up.
+          For a reader who is not an engineer: what the product does, in pictures drawn from the
+          project's own record, and what went wrong on the way. Nothing here is rounded up.
         </p>
       </div>
       ${Callout({
         tone: 'note',
         title: 'Historical record',
         body: html`<p data-historical>
-            Everything on this page describes work already done, as recorded at ${generated}. Nothing is live,
-            nothing is animated, and no figure is re-counted when the page renders. The prose version is at
-            <a href="/development-story">/development-story</a>.
-          </p>`,
+          Everything on this page describes work already done, as recorded at ${generated}. Nothing
+          is live, nothing is animated, and no figure is re-counted when the page renders. The prose
+          version is at
+          <a href="/development-story">/development-story</a>.
+        </p>`,
       })}
       ${toc()}
     </div>
 
-    ${problemSection()}
-    ${journeySection(runs)}
-    ${timelineSection(record)}
-    ${systemSection()}
-    ${decisionsSection(record)}
-    ${failuresSection()}
-    ${evidenceSection()}
-    ${standingSection()}
+    ${problemSection()} ${journeySection(runs)} ${timelineSection(record)} ${systemSection()}
+    ${decisionsSection(record)} ${failuresSection()} ${evidenceSection()} ${standingSection()}
     ${provenanceSection()}
   </div>`;
 }

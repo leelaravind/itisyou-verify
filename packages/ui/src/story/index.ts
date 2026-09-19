@@ -24,5 +24,16 @@ export {
   type StatTileOptions,
   type StoryStatus,
 } from './components.js';
-export { SvgFigure, esc, svgArrow, svgBox, svgLine, svgText, truncate, type BoxTone, type SvgBoxOptions, type SvgFigureOptions } from './svg.js';
+export {
+  SvgFigure,
+  esc,
+  svgArrow,
+  svgBox,
+  svgLine,
+  svgText,
+  truncate,
+  type BoxTone,
+  type SvgBoxOptions,
+  type SvgFigureOptions,
+} from './svg.js';
 export { TimelineList, TimelineSvg, type TimelineEntry } from './timeline.js';

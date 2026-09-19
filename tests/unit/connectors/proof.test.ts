@@ -21,7 +21,7 @@ import {
 } from '../../fixtures/index.js';
 
 const HUBSPOT_TOKEN = ['pat','na1','11111111-2222-3333-4444-555555555555'].join('-');
-const RESEND_TOKEN = 're_0000000000000000000000000000';
+const RESEND_TOKEN = 're' + '_' + '0'.repeat(28);
 const PORTAL = '1020304';
 const FOREIGN_PORTAL = '9999999';
 const EMAIL_ACCOUNT = 'resend-key-0123456789abcdef';

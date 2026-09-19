@@ -17,9 +17,15 @@ import { escapeAttribute, html, raw, type Html } from '../html.js';
 export const esc = escapeAttribute;
 
 /** Visual tone of a box. The four status tones are for verdicts only, never decoration. */
-export type BoxTone = 'plain' | 'sunken' | 'external' | 'verified' | 'failed' | 'unverified' | 'pending';
+export type BoxTone =
+  'plain' | 'sunken' | 'external' | 'verified' | 'failed' | 'unverified' | 'pending';
 
-const VERDICT_TONES: ReadonlySet<BoxTone> = new Set(['verified', 'failed', 'unverified', 'pending']);
+const VERDICT_TONES: ReadonlySet<BoxTone> = new Set([
+  'verified',
+  'failed',
+  'unverified',
+  'pending',
+]);
 
 export interface SvgBoxOptions {
   readonly x: number;
@@ -39,7 +45,9 @@ const LINE_HEIGHT = 14;
 export function svgBox(options: SvgBoxOptions): string {
   const tone = options.tone ?? 'plain';
   const boxClass = tone === 'plain' ? 'diag-box' : `diag-box diag-box--${tone}`;
-  const firstClass = VERDICT_TONES.has(tone) ? `diag-text diag-text--${tone}` : 'diag-text diag-text--strong';
+  const firstClass = VERDICT_TONES.has(tone)
+    ? `diag-text diag-text--${tone}`
+    : 'diag-text diag-text--strong';
   const restClass = options.mono === true ? 'diag-text diag-text--mono' : 'diag-text';
   const count = options.lines.length;
   const cx = options.x + options.w / 2;
@@ -80,7 +88,13 @@ export function svgArrow(x1: number, y1: number, x2: number, y2: number): string
 }
 
 /** A plain line with no head — for an axis or a bracket. */
-export function svgLine(x1: number, y1: number, x2: number, y2: number, className = 'diag-line'): string {
+export function svgLine(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  className = 'diag-line',
+): string {
   return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" class="${className}"/>`;
 }
 

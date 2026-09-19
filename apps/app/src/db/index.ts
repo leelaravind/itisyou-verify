@@ -119,3 +119,12 @@ export type { CustomerPortInput } from './customerPort';
 
 export { D1OwnerDataPort, D1OwnerAuth, createOwnerDataPort, createOwnerAuth } from './ownerPort';
 export type { OwnerPortInput } from './ownerPort';
+
+export { D1ApprovalClaims, createApprovalClaims } from './approvalClaims';
+export {
+  AUTOMATION_AUTH_SUBJECT,
+  automationSeedExports,
+  buildAutomationSeed,
+  seedAutomationIdentity,
+} from './automationSeed';
+export type { AutomationSeed, AutomationSeedRequest } from './automationSeed';

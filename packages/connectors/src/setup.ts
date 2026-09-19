@@ -14,6 +14,37 @@
 import { HUBSPOT_READ_SCOPE } from './hubspot.js';
 import type { ProviderId } from './types.js';
 
+/**
+ * Where a Resend callback lands.
+ *
+ * Declared here, beside the customer-facing instruction that tells them to point a webhook
+ * at it, so the sentence and the route cannot drift apart. `apps/app/src/routes/webhooks/
+ * resend.ts` imports this rather than repeating the string.
+ *
+ * The final segment is an **opaque per-connection id**, not the workspace id and not the
+ * connection id: the endpoint must not be guessable from anything the customer's own
+ * identity reveals. It is a gate, not a secret — the route rejects an id it did not issue
+ * before it does any work on the event, which is what stops a leaked URL being a
+ * capability on its own.
+ */
+export const RESEND_WEBHOOK_PATH_PREFIX = '/api/v1/webhooks/resend/';
+
+/** The path for one connection's endpoint. */
+export function resendWebhookPath(opaqueEndpointId: string): string {
+  return `${RESEND_WEBHOOK_PATH_PREFIX}${encodeURIComponent(opaqueEndpointId)}`;
+}
+
+/**
+ * The absolute URL to show the customer.
+ *
+ * Returns `null` when there is no endpoint id yet, so a caller cannot accidentally render
+ * a half-built URL ending in a slash and have somebody paste it into Resend.
+ */
+export function resendWebhookUrl(baseUrl: string, opaqueEndpointId: string | null): string | null {
+  if (opaqueEndpointId === null || opaqueEndpointId === '') return null;
+  return `${baseUrl.replace(/\/+$/, '')}${resendWebhookPath(opaqueEndpointId)}`;
+}
+
 export interface SetupField {
   /** Matches the `fieldErrors` key `establishConnection` returns. */
   readonly name: 'access_token' | 'webhook_secret';
@@ -58,6 +89,12 @@ export interface ProviderSetupGuide {
   readonly cannotProve: readonly string[];
   /** What happens immediately after the paste, so nobody is surprised by a live call. */
   readonly whatHappensNext: string;
+  /**
+   * The path prefix of the endpoint the customer must point a webhook at, or `null` when
+   * this provider needs no webhook. Compose it with `resendWebhookUrl(baseUrl, id)` —
+   * never by hand, and never render it without an endpoint id.
+   */
+  readonly webhookPathPrefix: string | null;
   readonly docUrl: string;
 }
 
@@ -105,6 +142,7 @@ const HUBSPOT_GUIDE: ProviderSetupGuide = Object.freeze({
   ]),
   whatHappensNext:
     'As soon as you paste it we make one read-only call to HubSpot to check the token works and to find out which account it belongs to. If it fails, nothing is saved at all.',
+  webhookPathPrefix: null,
   docUrl: 'https://developers.hubspot.com/docs/guides/apps/private-apps/overview',
 });
 
@@ -115,7 +153,10 @@ const RESEND_GUIDE: ProviderSetupGuide = Object.freeze({
   instructions: Object.freeze([
     { step: 1, text: 'In Resend, open API Keys and create a key with Full access. Read the note above first — Resend has no read-only option.' },
     { step: 2, text: 'Copy the key. It starts re_.' },
-    { step: 3, text: 'Open Webhooks in Resend and add an endpoint pointing at the URL we show you on this page.' },
+    {
+      step: 3,
+      text: 'Open Webhooks in Resend and add an endpoint pointing at the URL shown beside this step. It is unique to your connection — do not share it, and do not retype it from memory.',
+    },
     {
       step: 4,
       text: 'Subscribe that endpoint to email.sent, email.delivered, email.delivery_delayed, email.bounced, email.complained and email.failed.',
@@ -166,6 +207,7 @@ const RESEND_GUIDE: ProviderSetupGuide = Object.freeze({
   ]),
   whatHappensNext:
     'As soon as you paste the key we make one read-only call to Resend to check it works. The connection then stays in testing until a correctly signed webhook message arrives and we can read it.',
+  webhookPathPrefix: RESEND_WEBHOOK_PATH_PREFIX,
   docUrl: 'https://resend.com/docs/dashboard/webhooks/introduction',
 });
 
