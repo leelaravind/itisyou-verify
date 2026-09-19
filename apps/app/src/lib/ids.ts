@@ -33,6 +33,7 @@ export const ID_PREFIX = {
   runAttempt: 'att',
   assertion: 'asr',
   evidence: 'evd',
+  evidenceInbox: 'ebx',
   webhookReceipt: 'whr',
   outbox: 'obx',
   order: 'ord',
