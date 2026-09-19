@@ -12,9 +12,57 @@ export type EvidenceOrigin =
   /** The customer's own automation told us. A trigger, never proof. */
   | 'customer_claim';
 
+/**
+ * Whether the call that produced this evidence actually left the process.
+ *
+ * ## Why this had to be added to a frozen contract
+ *
+ * `origin` records the *channel* an observation arrived through. It does not record
+ * whether that channel was real. A connector stamps `provider_readback` whenever its HTTP
+ * layer returns a normal 200 — and that HTTP layer takes an injectable `fetchImpl`, which
+ * tests replace with a stub. The consequence, found by an independent review rather than
+ * by anyone who wrote the code: **a test double and a genuine provider read-back produce
+ * byte-identical evidence records.**
+ *
+ * That matters more here than it would almost anywhere else. The entire argument for a
+ * VERIFIED result is that `provider_readback` and `provider_webhook` are independent of
+ * `customer_claim` — we went and looked ourselves rather than believing the automation's
+ * own report. If a fixture can wear the `provider_readback` label and nothing downstream
+ * can tell, then that independence is an intention rather than a property, and the
+ * strongest claim this product makes rests on something unverifiable.
+ *
+ * So provenance is recorded separately from channel, and the two answer different
+ * questions: `origin` asks *how did this reach us*, `transport` asks *did it come from
+ * outside this process*.
+ *
+ * ## The rule that makes it worth recording
+ *
+ * `live` may only be set by the code path that used the runtime's own `fetch`. It must
+ * never be settable from test wiring, a fixture, a builder, or a default. Anything else —
+ * an injected implementation, a replayed cassette, a synthetic demo record — is
+ * `simulated`, including when the simulation is faithful. A field that a test can set to
+ * `live` is worth less than no field at all, because it would launder exactly the doubt
+ * it exists to record.
+ *
+ * `unknown` exists for evidence written before this field did. It is not a synonym for
+ * `live`, and nothing may treat it as one.
+ */
+export type EvidenceTransport =
+  /** The call left this process and reached the provider over the network. */
+  | 'live'
+  /** A stub, fixture, cassette or synthetic record. Faithful or not, it is not proof. */
+  | 'simulated'
+  /** Recorded before provenance was tracked. Never to be read as `live`. */
+  | 'unknown';
+
 export interface CrmRecordEvidence {
   readonly kind: 'crm_record';
   readonly origin: EvidenceOrigin;
+  /**
+   * Did the call that produced this leave the process? Optional for now so existing
+   * records remain valid; absent is read as `unknown`, never as `live`.
+   */
+  readonly transport?: EvidenceTransport;
   readonly provider: string;
   readonly provider_account_id: string;
   readonly record_id: string;
@@ -28,6 +76,11 @@ export interface CrmRecordEvidence {
 export interface EmailEventEvidence {
   readonly kind: 'email_event';
   readonly origin: EvidenceOrigin;
+  /**
+   * Did the call that produced this leave the process? Optional for now so existing
+   * records remain valid; absent is read as `unknown`, never as `live`.
+   */
+  readonly transport?: EvidenceTransport;
   readonly provider: string;
   readonly provider_account_id: string;
   readonly message_id: string;
