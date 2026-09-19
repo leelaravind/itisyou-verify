@@ -27,9 +27,9 @@
  * `index.ts` caches the money app per isolate, capturing `env.DB` and the root key on the
  * first request to `/api/v1/events`. In production that is one environment per isolate and
  * correct. In a test file it means only ONE case may drive `/api/v1/events`, or the second
- * would silently hit the first case's database. `CUST-404` is that case.
+ * would silently hit the first case's database. `CUST-444` is that case.
  *
- * Case ids `CUST-400..CUST-408`.
+ * Case ids `CUST-440..CUST-448`.
  */
 import { randomBytes } from 'node:crypto';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -198,7 +198,7 @@ async function workspace(options: Parameters<typeof signedInWorkspace>[0] = {}):
 }
 
 describe('obtaining a workflow signing key from the activation page', () => {
-  it('CUST-400 before issuance the page says no key exists and offers to issue one; the row is NULL', async () => {
+  it('CUST-440 before issuance the page says no key exists and offers to issue one; the row is NULL', async () => {
     const s = await workspace();
     expect(keyRow(s)).toEqual({ signing_key_ref: null, signing_key_hash: null });
 
@@ -211,7 +211,7 @@ describe('obtaining a workflow signing key from the activation page', () => {
     expect(served.html).not.toContain('data-signing-secret');
   });
 
-  it('CUST-401 issuing writes the ref and the hash of the shown secret, and audits the ref only', async () => {
+  it('CUST-441 issuing writes the ref and the hash of the shown secret, and audits the ref only', async () => {
     const s = await workspace();
     const served = await postIssue(s);
     expect(served.status).toBe(200);
@@ -235,7 +235,7 @@ describe('obtaining a workflow signing key from the activation page', () => {
     expect(JSON.parse(audit[0]?.redacted_metadata ?? '{}')).toEqual({ key_ref: shown.keyId });
   });
 
-  it('CUST-402 the secret is not retrievable: the next GET shows the key id and a rotate control, never the secret', async () => {
+  it('CUST-442 the secret is not retrievable: the next GET shows the key id and a rotate control, never the secret', async () => {
     const s = await workspace();
     const shown = issuedKey((await postIssue(s)).html);
 
@@ -249,7 +249,7 @@ describe('obtaining a workflow signing key from the activation page', () => {
     expect(served.text).not.toContain('not issued yet');
   });
 
-  it('CUST-403 after issuance the secret appears in no log line, no audit row and no stored row', async () => {
+  it('CUST-443 after issuance the secret appears in no log line, no audit row and no stored row', async () => {
     const s = await workspace();
     const captured: unknown[][] = [];
     for (const method of ['log', 'info', 'warn', 'error', 'debug'] as const) {
@@ -272,14 +272,15 @@ describe('obtaining a workflow signing key from the activation page', () => {
     // What IS stored is the domain-separated hash and the public reference.
     expect(stored).toContain(await hashToken(shown.secret, HASH_DOMAIN));
     expect(stored).toContain(shown.keyId);
-    // Belt and braces on the two stores the brief names explicitly.
+    // The dump above is only evidence if the stores the brief names are actually in it. A
+    // renamed table would otherwise make this assertion pass by looking at nothing.
+    for (const table of ['audit_events', 'notification_deliveries', 'quality_artifacts']) {
+      expect(stored).toContain(`${table}: `);
+    }
     expect(JSON.stringify(auditRows(s))).not.toContain(shown.secret);
-    expect(
-      JSON.stringify(s.h.raw.prepare('SELECT * FROM notifications').all()),
-    ).not.toContain(shown.secret);
   });
 
-  it('CUST-404 rotation is a new ref: the old key stops being accepted, the new one is, and the row says so', async () => {
+  it('CUST-444 rotation is a new ref: the old key stops being accepted, the new one is, and the row says so', async () => {
     const s = await workspace({ consumed: 0 });
 
     const first = issuedKey((await postIssue(s)).html);
@@ -318,7 +319,7 @@ describe('obtaining a workflow signing key from the activation page', () => {
     expect(audit).toEqual(['workflow.signing_key_issued', 'workflow.signing_key_rotated']);
   });
 
-  it('CUST-405 with no EVENT_SIGNING_ROOT_KEY issuance answers 503 with an explicit configuration error and writes nothing', async () => {
+  it('CUST-445 with no EVENT_SIGNING_ROOT_KEY issuance answers 503 with an explicit configuration error and writes nothing', async () => {
     const s = await workspace();
     const errors: unknown[][] = [];
     vi.spyOn(console, 'error').mockImplementation((...args: unknown[]) => {
@@ -345,7 +346,7 @@ describe('obtaining a workflow signing key from the activation page', () => {
     expect(page.html).not.toMatch(/<button[^>]*>\s*Issue signing key/);
   });
 
-  it('CUST-406 a workspace viewer cannot issue or rotate', async () => {
+  it('CUST-446 a workspace viewer cannot issue or rotate', async () => {
     const s = await workspace();
     s.h.raw
       .prepare("UPDATE memberships SET role = 'workspace_viewer' WHERE workspace_id = ? AND user_id = ?")
@@ -358,7 +359,7 @@ describe('obtaining a workflow signing key from the activation page', () => {
     expect(auditRows(s)).toEqual([]);
   });
 
-  it('CUST-407 a cross-site POST cannot rotate a customer key out from under them', async () => {
+  it('CUST-447 a cross-site POST cannot rotate a customer key out from under them', async () => {
     const s = await workspace();
     const shown = issuedKey((await postIssue(s)).html);
 
@@ -373,7 +374,7 @@ describe('obtaining a workflow signing key from the activation page', () => {
     expect(auditRows(s)).toHaveLength(1);
   });
 
-  it('CUST-408 signed out, the route is the sign-in page and nothing is written', async () => {
+  it('CUST-448 signed out, the route is the sign-in page and nothing is written', async () => {
     const s = await workspace();
     const served = await postIssue(s, { signedIn: false });
     expect(served.status).toBe(401);

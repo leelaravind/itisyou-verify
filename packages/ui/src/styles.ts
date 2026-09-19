@@ -196,6 +196,47 @@ a:hover{text-decoration-thickness:2px}
 .claimrule__split::before,.claimrule__split::after{content:"";flex:1 1 auto;border-top:1px solid var(--c-rule-strong)}
 .claimrule__verdict{flex:0 0 auto}
 
+/* ---- the comparator: the claim rule's multi-field, two-column sibling ------- */
+/* Specified in design/MAPPING.md §8 and built from that specification, not from any
+   generated markup. A real table: the field name is a shared row header, so a reader never
+   matches rows by eye, and a screen reader hears one row as one unit with its verdict first.
+   No animation anywhere near a verdict; no inline style (style-src-attr 'none'). */
+.compare{border:1px solid var(--c-rule);border-radius:var(--r-container);background:var(--c-surface);overflow:hidden}
+.compare__table{width:100%;border-collapse:collapse;font-size:var(--t-small)}
+.compare__table caption{text-align:left;padding:var(--s3) var(--s4);border-bottom:1px solid var(--c-rule)}
+.compare__caption{font-weight:640;margin:0;color:var(--c-ink)}
+.compare__detail{font-family:var(--f-mono);font-size:var(--t-micro);color:var(--c-faint);margin:var(--s1) 0 0;letter-spacing:0.02em}
+.compare__table th,.compare__table td{text-align:left;vertical-align:top;padding:var(--s3) var(--s4);border-bottom:1px solid var(--c-rule)}
+.compare__table thead th{font-family:var(--f-mono);font-size:var(--t-micro);text-transform:uppercase;letter-spacing:0.08em;color:var(--c-muted);font-weight:600;white-space:nowrap}
+.compare__table tbody tr:last-child th,.compare__table tbody tr:last-child td{border-bottom:0}
+.compare__field{display:flex;flex-direction:column;gap:var(--s1);align-items:flex-start;font-weight:600}
+.compare__field .badge{white-space:normal;text-align:left;align-items:flex-start}
+/* Machine output is mono and tabular, so two values differing in one digit misalign visibly. */
+.compare__value{font-family:var(--f-mono);font-variant-numeric:tabular-nums;overflow-wrap:anywhere;min-width:0;margin:0}
+.compare__cell--reported .compare__value{color:var(--c-muted)}
+/* A contradiction emphasises BOTH values. We know they disagree, not which side is wrong. */
+.compare__cell--emphasis .compare__value{color:var(--c-ink);font-weight:600}
+/* UNVERIFIED: the words "no reading" in a dashed box. The check did not close, so neither
+   does its outline. Never an empty cell, an em dash or a spinner. */
+.compare__cell--unverified .compare__value{display:inline-block;border:1px dashed var(--c-unverified);border-radius:var(--r-control);padding:0.1rem 0.45rem;color:var(--c-unverified)}
+.compare__cell--pending .compare__value{color:var(--c-muted)}
+.compare__reason{font-size:var(--t-small);font-weight:400;color:var(--c-ink);margin:0}
+.compare__foot{border-top:2px solid var(--c-rule-strong);padding:var(--s3) var(--s4)}
+.compare__verdict{display:flex;flex-wrap:wrap;gap:var(--s2) var(--s3);align-items:center;margin:0;font-size:var(--t-small)}
+.compare__foot .verdict-gap{margin-top:var(--s3)}
+/* Below the evidence margin's own breakpoint the table stacks as TRIPLETS — one field, its
+   verdict, its two values — never as two sequential lists. The heads are hidden visually
+   and repeated per cell from data-label; explicit ARIA roles keep the table a table. */
+@media (max-width:39.99rem){
+  .compare__table,.compare__table caption,.compare__table tbody,.compare__table tr{display:block}
+  .compare__table thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  .compare__table tr{border-bottom:1px solid var(--c-rule);padding-bottom:var(--s2)}
+  .compare__table tbody tr:last-child{border-bottom:0}
+  .compare__table th,.compare__table td{display:block;border-bottom:0;padding-top:var(--s2);padding-bottom:var(--s1)}
+  .compare__table tbody th{padding-top:var(--s3)}
+  .compare__table td::before{content:attr(data-label);display:block;font-family:var(--f-mono);font-size:var(--t-micro);text-transform:uppercase;letter-spacing:0.08em;color:var(--c-muted);margin-bottom:0.15rem}
+}
+
 /* ---- buttons ------------------------------------------------------------- */
 .btn{
   display:inline-flex;align-items:center;justify-content:center;gap:var(--s2);
@@ -229,11 +270,40 @@ a:hover{text-decoration-thickness:2px}
   white-space:nowrap;
 }
 .badge__glyph{flex:0 0 auto}
+/*
+  The four statuses are NOT separable by colour. Measured pairwise (design/MAPPING.md §2)
+  they sit at 1.03–1.24:1 in light mode and 1.01–1.11:1 in dark: in greyscale, or to a
+  reader who cannot tell the hues apart, all four are one mark. So every badge carries
+  four signals, any one of which separates the four on its own — a glyph with its own
+  silhouette, a text label that is always rendered, a border in the status colour (the
+  signal that survives forced-colours mode, where backgrounds are overridden and borders
+  are kept), and a border STYLE: solid for the three settled answers, dashed for
+  UNVERIFIED. The container's outline is broken because the check is.
+
+  UNVERIFIED is deliberately not quieter than the other three. Same size, weight, type
+  and tint strength; only the dash differs. It is a first-class answer — "we do not know"
+  — and the whole product is the claim that we say that instead of rounding it up. A
+  verdict drawn smaller than a pass teaches the reader to skim past the one that most
+  needs reading. No status modifier below may set font-size, font-weight, padding,
+  opacity or border-width; CUST-411 fails if one does.
+
+  RESIDUAL RISK, carried forward rather than declared solved: amber carries a
+  conventional "warning" association and may still read as a soft failure. It was kept
+  because the alternative — a neutral grey — reads as "unimportant", which is the worse
+  error for this status, and because the value is already measured (6.42:1 light,
+  9.47:1 dark). Separation from FAILED is carried by form (dash vs solid, bar vs cross)
+  and by wording, not by hue. If readers are observed treating UNVERIFIED as a failure,
+  the fix is the wording and the follow-up line under the verdict, not the hue.
+*/
 .badge--verified{color:var(--c-verified);background:var(--c-verified-tint)}
 .badge--failed{color:var(--c-failed);background:var(--c-failed-tint)}
-.badge--unverified{color:var(--c-unverified);background:var(--c-unverified-tint)}
+.badge--unverified{color:var(--c-unverified);background:var(--c-unverified-tint);border-style:dashed}
 .badge--pending{color:var(--c-pending);background:var(--c-pending-tint)}
 .badge--lg{font-size:var(--t-small);padding:0.42rem 0.7rem}
+/* The follow-up line an UNVERIFIED headline verdict must carry: what could not be checked,
+   and why. In the flow, at body size, never behind a control. */
+.verdict-gap{font-size:var(--t-small);margin:0;padding-left:var(--s3);border-left:2px dashed var(--c-unverified)}
+.verdict-gap+.verdict-gap{margin-top:var(--s2)}
 
 /* ---- callout ------------------------------------------------------------- */
 .callout{border:1px solid var(--c-rule);border-left-width:3px;border-radius:var(--r-control);background:var(--c-surface);padding:var(--s4)}

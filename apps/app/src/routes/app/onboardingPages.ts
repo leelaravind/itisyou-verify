@@ -24,6 +24,7 @@ import {
   RunVerdict,
   StatusBadge,
   Table,
+  gapsFrom,
   html,
   type Html,
   type StatusKey,
@@ -45,6 +46,7 @@ import type {
   ConnectorCompatibility,
   OrderSummaryView,
   ProofRunView,
+  SigningKeyIssueResult,
   WorkflowDetail,
   WriteResult,
 } from './port.js';
@@ -586,6 +588,7 @@ export function ProofPage(options: ProofPageOptions): Html {
                   ${RunVerdict({
                     status: proof.status as StatusKey,
                     explanation: explainRunStatus(proof.status),
+                    gaps: gapsFrom(proof.results, (result) => explainAssertion(result).sentence),
                   })}
                   ${proof.statusReason === null ? null : html`<p class="small mono">${proof.statusReason}</p>`}
                 </div>`,
@@ -762,10 +765,102 @@ export function ReviewPage(options: ReviewPageOptions): Html {
     </div>`,
   });
 }
-
 /* ------------------------------------------------------------------ 7. activation */
 
-export function ActivationPage(activation: ActivationView): Html {
+export interface ActivationPageOptions {
+  readonly csrfToken: string | null;
+  /** The outcome of the issue/rotate POST this response answers. Null on a plain GET. */
+  readonly issued: SigningKeyIssueResult | null;
+}
+
+const ISSUE_SIGNING_KEY_PATH = '/app/onboarding/activation/signing-key';
+
+/**
+ * The one-time secret display.
+ *
+ * Rendered only on the response to the POST that derived it. The secret is never stored,
+ * so no later GET can show it, and the page says so in the words a customer reads before
+ * closing the tab. The two `data-` hooks are what the integration test asserts on; they
+ * appear nowhere else in the product, which is itself the property being tested.
+ */
+function issuedKeyPanel(issued: Extract<SigningKeyIssueResult, { outcome: 'issued' }>): Html {
+  return Callout({
+    tone: 'warn',
+    title: issued.rotated
+      ? 'Your signing key was rotated. Copy the new secret now.'
+      : 'Your signing key was issued. Copy the secret now.',
+    body: html`<div class="stack-sm">
+      <p>
+        <strong>This secret will not be shown again.</strong> We keep only a reference and a hash, so we
+        cannot recover it for you. If you lose it, rotate: a new key is issued and this one stops being
+        accepted immediately.
+      </p>
+      <dl class="kv">
+        <dt>Key id</dt>
+        <dd><code data-signing-key-id>${issued.keyId}</code></dd>
+        <dt>Secret</dt>
+        <dd><code data-signing-secret>${issued.secret}</code></dd>
+      </dl>
+      ${
+        issued.rotated
+          ? html`<p>The previous key is no longer accepted. Update your automation before its next event.</p>`
+          : null
+      }
+    </div>`,
+  });
+}
+
+function signingKeyOutcome(issued: SigningKeyIssueResult | null): Html | null {
+  if (issued === null) return null;
+  if (issued.outcome === 'issued') return issuedKeyPanel(issued);
+  if (issued.outcome === 'unconfigured') {
+    return Callout({
+      tone: 'warn',
+      title: 'Signing keys cannot be issued on this deployment',
+      body: html`<p role="alert">${issued.message}</p>`,
+    });
+  }
+  return formMessage(issued.message);
+}
+
+/**
+ * The control. A real form posting to a real route when the key can be issued; an explicitly
+ * inert element saying why when it cannot — never a disabled button, which is still a button.
+ */
+function signingKeyControl(activation: ActivationView, csrfToken: string | null): Html {
+  const hasKey = activation.signingKeyId !== null;
+  const label = hasKey ? 'Rotate signing key' : 'Issue signing key';
+  if (!activation.signingKeyIssuance.canIssue) {
+    return UnavailableAction({
+      label,
+      reason: activation.signingKeyIssuance.cannotIssueReason ?? 'Not available right now.',
+    });
+  }
+  return html`<form method="post" action="${ISSUE_SIGNING_KEY_PATH}" class="stack-sm">
+    ${CsrfField(csrfToken)}
+    <p class="small muted">
+      ${
+        hasKey
+          ? 'Rotating issues a new key and stops accepting the old one immediately. Have your automation ready to take the new secret.'
+          : 'The secret is shown once, on the next page, and never again.'
+      }
+    </p>
+    ${ButtonRow([
+      Button({
+        label,
+        variant: hasKey ? 'danger' : 'primary',
+        type: 'submit',
+        name: 'intent',
+        value: hasKey ? 'rotate' : 'issue',
+      }),
+    ])}
+  </form>`;
+}
+
+export function ActivationPage(
+  activation: ActivationView,
+  options: ActivationPageOptions = { csrfToken: null, issued: null },
+): Html {
   return stepShell({
     href: '/app/onboarding/activation',
     eyebrow: 'Step 7 of 7',
@@ -774,6 +869,8 @@ export function ActivationPage(activation: ActivationView): Html {
       ? 'Send your first signed event and the first run will appear here.'
       : 'The subscription is not active, so we are not accepting events for this workflow yet.',
     body: html`<div class="stack-lg">
+      ${signingKeyOutcome(options.issued)}
+
       ${
         activation.active
           ? null
@@ -796,14 +893,27 @@ export function ActivationPage(activation: ActivationView): Html {
             <dd>${activation.eventEndpoint}</dd>
             <dt>Workflow id</dt>
             <dd>${activation.workflowId}</dd>
-            <dt>Signing key</dt>
+            <dt>Key id</dt>
+            <dd>${activation.signingKeyId ?? 'not issued yet'}</dd>
+            <dt>Key fingerprint</dt>
             <dd>${activation.signingKeyHint ?? 'not issued yet'}</dd>
           </dl>
+          <p class="small muted">
+            Send the key id in <code>X-Verify-Key-Id</code> and the signature in
+            <code>X-Verify-Signature</code> as <code>t=&lt;unix seconds&gt;,v1=&lt;hex&gt;</code>, where the
+            hex is HMAC-SHA-256 over <code>t.body</code> under your secret.
+          </p>
           <p class="small muted">
             The signing key proves the event came from you. It does not make the event true — we still go and
             read the evidence ourselves.
           </p>
         </div>`,
+      })}
+
+      ${Card({
+        title: activation.signingKeyId === null ? 'Your signing key' : 'Rotate your signing key',
+        headingLevel: 2,
+        body: signingKeyControl(activation, options.csrfToken),
       })}
 
       ${

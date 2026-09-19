@@ -197,20 +197,44 @@ once `CONN-900` (a real HubSpot read) and `CONN-901` (a real Resend read) in
 credential and passed**, rather than skipping for want of one. Today both skip: `node
 scripts/build-gate-artefact.mjs` reports `confirmed live 0 / 2` and names both as pending.
 
-**One path is permanently excluded from this trigger, by design, and the trigger must not
-be written to depend on it:** Resend's `provider_webhook` origin. A valid Svix signature
-proves the bytes match the shared secret and are fresh; it does not prove the request that
-carried them was ever really received by the platform, and every webhook unit test computes
-a genuinely valid signature over a synthetic event (`CONN-117` now asserts this: `transport`
-is absent on that evidence, reading as `unknown`, never `live`). Asserting `live` there
-would reproduce, inside the fix, the exact defect the field exists to catch. Whether
-`provider_webhook` should ever be allowed to support a mandatory assertion, and under what
-rule, is a separate question for whoever owns `apps/app/src/routes/webhooks/resend.ts` —
-routed there, not decided here.
+**One path — Resend's `provider_webhook` origin — is permanently absent from this trigger,
+and it is worth being exact about why, because the reason is a ruling, not a workaround for
+an evidence path nobody could confirm.**
 
-`'unknown'` is read the same way an absent `origin` always was: not a free pass. A record
-with no confirmed transport supports nothing more today than it did before this field
-existed, and stage (c) is what makes that explicit in the decision logic itself.
+**The two origins earn their independence differently, so they need different evidence.**
+`provider_readback` claims *we went and asked*. What could undermine that claim is that
+nobody went — and `transport` is exactly the property that verifies whether anyone did,
+which is why stage (c) requires it there. `provider_webhook` claims something else
+entirely: *the provider signed this*. What could undermine that claim is a forged
+signature, and the signature check (already run, on the raw bytes, before anything is
+normalised) is what verifies it. Whether the bytes crossed a real network on their way to
+us is irrelevant to the claim being made — a genuinely signed payload is evidence about the
+provider's own state regardless of the path it travelled.
+
+So `transport` is not a missing property of webhook evidence, and its permanent `'unknown'`
+is not an unconfirmable gap someone gave up on. It is a property that **does not apply**,
+and recording it as `'unknown'` rather than inventing a value for it is the honest encoding
+of that. Every webhook unit test computes a genuinely valid signature over a synthetic
+event — `CONN-117` asserts exactly this: `transport` is absent on that evidence, reading as
+`'unknown'`, never `'live'` — and that is correct forever, not merely until someone works
+out how to instrument real receipt. The question of whether the route that receives a
+Resend callback could determine real receipt does not need answering: knowing that would
+not make the webhook's claim stronger, because the claim never rested on receipt in the
+first place.
+
+**Consequence, stated now rather than discovered at the flip:** stage (c) changes the bar
+for `provider_readback` only. A `provider_webhook`-supported mandatory assertion is
+unaffected by stage (c) — it already carries the evidence its claim depends on — and
+nobody should read the eventual flip as retiring the `'unknown'` category. Two different
+transports will remain `'unknown'` on purpose after stage (c) lands: pre-`6509969` records
+(absent because the field didn't exist yet) and every `provider_webhook` record (absent
+because the property doesn't apply). Only the first kind is what stage (c) is measuring
+against.
+
+`'unknown'` is read the same way an absent `origin` always was: not a free pass. A
+`provider_readback` record with no confirmed transport supports nothing more today than it
+did before this field existed, and stage (c) is what makes that explicit in the decision
+logic itself — for that one origin.
 
 ---
 

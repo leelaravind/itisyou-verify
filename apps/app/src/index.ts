@@ -14,6 +14,7 @@ import { createAppRoutes } from './routes/app/index.js';
 import { createCustomerDataPort, createOwnerDataPort, createOwnerAuth } from './db/index.js';
 import { createOwnerRoutes } from './routes/owner/index.js';
 import { createRunnerRoutes } from './maintenance/routes.js';
+import { D1RunnerPairingPort } from './maintenance/ownerPort.js';
 import { createVisitCounter } from './growth/visits.js';
 import { createStripeWebhookRoute } from './routes/webhooks/stripe.js';
 import { createStripeWebhookDeps } from './billing/mount.js';
@@ -441,6 +442,17 @@ async function ownerRoute(c: Context<Bindings>): Promise<Response> {
     // was what failed, and only a live request showed it.
     environment: c.env.ENVIRONMENT,
     resolvePort: async (ctx) => createOwnerDataPort(ctx),
+    /*
+     * Without this the whole maintenance runner is dead, and silently so.
+     *
+     * `createOwnerRoutes` defaults `resolvePairing` to a `PairingUnavailable` stub, so
+     * with nothing passed here no pairing code can ever be minted. `runner_devices` then
+     * stays empty forever, which means every device-signed endpoint under
+     * `/api/v1/runner/*` can only ever answer 401 — not because a request was wrong, but
+     * because no device could exist to make a right one. One missing line disabled a
+     * whole subsystem, and each individual part of it was correct and tested.
+     */
+    resolvePairing: async (ctx) => new D1RunnerPairingPort((ctx.env as Env).DB),
     // The evidence pack lives in D1, not in the asset directory. apps/app/public is
     // served to anyone, and these reports name failing case ids and internal paths —
     // publishing them there would make "authenticated download" a fiction.

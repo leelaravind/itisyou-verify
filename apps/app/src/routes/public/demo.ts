@@ -18,6 +18,7 @@ import {
   Callout,
   Card,
   ClaimRule,
+  Comparator,
   CoverageNotice,
   HealthReadout,
   KeyValues,
@@ -26,8 +27,10 @@ import {
   StatusBadge,
   Table,
   attrs,
+  gapsFrom,
   html,
   safeHref,
+  type ComparatorRow,
   type Html,
   type StatusKey,
 } from '@verify/ui';
@@ -97,8 +100,29 @@ function runList(): Html {
   });
 }
 
-/** One run, in full: the claim rule, the verdict, every check, and the evidence metadata. */
+/** The plain sentence A03's `explainRun()` produced for one of this run's checks. */
+function sentenceFor(run: DemoRun, ruleId: string): string {
+  return run.assertionExplanations.find((e) => e.rule_id === ruleId)?.sentence ?? '';
+}
+
+/**
+ * One run, in full: the comparator, the verdict, every check, and the evidence metadata.
+ *
+ * The comparator is the same component the real run detail renders, fed by the same
+ * `AssertionResult` shape, so the demo cannot show a comparison the product would not.
+ */
 function runDetail(run: DemoRun): Html {
+  const rows: readonly ComparatorRow[] = run.results.map((result) => ({
+    field: result.label,
+    status: result.status,
+    reported: maskDisplayValue(result.expected_display) ?? '',
+    retrieved: maskDisplayValue(result.observed_display),
+    reason:
+      result.status === 'UNKNOWN' || result.status === 'PENDING'
+        ? sentenceFor(run, result.rule_id)
+        : null,
+  }));
+
   return html`<section class="stack" id="${run.id}">
     <div class="row-between">
       <div class="stack-sm">
@@ -108,17 +132,30 @@ function runDetail(run: DemoRun): Html {
       ${StatusBadge({ status: run.status as StatusKey, large: true })}
     </div>
 
-    ${ClaimRule({
-      status: run.status as StatusKey,
-      claim: maskDisplayValue(run.claim) ?? '',
-      observed: maskDisplayValue(run.observed),
-    })}
+    ${
+      run.results.length > 1
+        ? Comparator({
+            caption: `Enquiry ${run.correlationId} — ${maskDisplayValue(run.summary) ?? ''}`,
+            detail: `Checked ${formatInstant(run.decidedAt)} · window closed ${formatInstant(run.deadlineAt)}`,
+            rows,
+            verdict: run.status as StatusKey,
+          })
+        : ClaimRule({
+            status: run.status as StatusKey,
+            claim: maskDisplayValue(run.claim) ?? '',
+            observed: maskDisplayValue(run.observed),
+          })
+    }
 
     ${Card({
       title: 'The verdict',
       headingLevel: 3,
       body: html`<div class="stack">
-        ${RunVerdict({ status: run.status as StatusKey, explanation: run.explanation })}
+        ${RunVerdict({
+          status: run.status as StatusKey,
+          explanation: run.explanation,
+          gaps: gapsFrom(run.results, (result) => sentenceFor(run, result.rule_id)),
+        })}
         <p class="small mono">${run.decisionReason}</p>
       </div>`,
     })}

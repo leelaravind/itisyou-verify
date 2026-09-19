@@ -58,6 +58,30 @@ async function getPublic(path: string): Promise<string> {
   return response.text();
 }
 
+/**
+ * Every `<span class="badge …">` element, whole. A badge contains a nested `sr-only` span,
+ * so a lazy regex would stop at the inner close; this walks span depth instead.
+ */
+function badgesIn(html: string): readonly string[] {
+  const out: string[] = [];
+  const open = /<span[^>]*class="badge[^"]*"[^>]*>/g;
+  let match: RegExpExecArray | null;
+  while ((match = open.exec(html)) !== null) {
+    let depth = 1;
+    let cursor = match.index + match[0].length;
+    const tag = /<\/?span\b[^>]*>/g;
+    tag.lastIndex = cursor;
+    let inner: RegExpExecArray | null;
+    while (depth > 0 && (inner = tag.exec(html)) !== null) {
+      depth += inner[0].startsWith('</') ? -1 : 1;
+      cursor = inner.index + inner[0].length;
+    }
+    out.push(html.slice(match.index, cursor));
+    open.lastIndex = cursor;
+  }
+  return out;
+}
+
 /** The declarations of every rule whose selector list contains `selector`, joined. */
 function declarationsFor(css: string, selector: string): string {
   const out: string[] = [];
@@ -139,7 +163,7 @@ describe('the four statuses survive the removal of colour', () => {
       { id: 'run_p', status: 'PENDING' },
     ]);
     const { html } = await getSignedIn(open, '/app/runs');
-    const badges = html.match(/<span[^>]*class="badge[^"]*"[\s\S]*?<\/span\s*>/g) ?? [];
+    const badges = badgesIn(html);
     const byStatus = new Map<string, string>();
     for (const badge of badges) {
       const status = /data-status="([A-Z]+)"/.exec(badge)?.[1];
@@ -172,7 +196,7 @@ describe('an UNVERIFIED verdict shows the shape of the hole', () => {
     const { status, html } = await getSignedIn(open, '/app/runs/run_unv');
     expect(status).toBe(200);
 
-    const gaps = html.match(/<[^>]*data-verdict-gap[^>]*>[\s\S]*?<\/[a-z]+>/g) ?? [];
+    const gaps = html.match(/<p class="verdict-gap"[^>]*>[\s\S]*?<\/p>/g) ?? [];
     expect(gaps.length, 'an UNVERIFIED headline verdict must carry a follow-up line').toBe(1);
     const gap = visibleText(gaps[0] ?? '');
     expect(gap).toContain('The acknowledgement email was delivered');
@@ -211,7 +235,9 @@ describe('an UNVERIFIED verdict shows the shape of the hole', () => {
 
   it('CUST-416 the public demo shows the follow-up line on its unverified run and on no other', async () => {
     const html = await getPublic('/demo');
-    const sections = html.match(/<section class="stack" id="run_syn_\d+">[\s\S]*?<\/section>/g) ?? [];
+    // One chunk per run section, each running to the next run's section (cards are
+    // sections too, so a lazy `</section>` match would stop at the first nested card).
+    const sections = html.split(/(?=<section class="stack" id="run_)/).slice(1);
     expect(sections.length).toBeGreaterThanOrEqual(4);
     let unverified = 0;
     for (const section of sections) {

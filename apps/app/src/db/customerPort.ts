@@ -20,7 +20,7 @@
 import type { AssertionResult } from '@verify/domain';
 import type { CoverageMode, RunStatus, SubscriptionStatus } from '@verify/contracts';
 import { LIMITS, formatMoney, money } from '@verify/contracts';
-import { generateCsrfToken, maskToken } from '@verify/security';
+import { generateCsrfToken, maskToken, sha256Hex, stableStringify } from '@verify/security';
 import { AppError } from '@verify/contracts';
 import type {
   ActivationView,
@@ -61,6 +61,12 @@ import { subscriptions } from './commerce';
 import { createCase } from '../support/cases';
 import { D1SupportDataPort } from './supportPort';
 import { workflows, workflowVersions, type WorkflowRow } from './workflows';
+import {
+  DEFAULT_CONFIGURED_STATE,
+  composeWorkflowRules,
+  parseConfiguredState,
+  type ConfiguredWorkflowState,
+} from './ruleCompiler';
 
 /* -------------------------------------------------------------------------- */
 /* helpers                                                                     */
@@ -441,12 +447,108 @@ export class D1CustomerDataPort implements CustomerDataPort {
   }
 
   /**
-   * Both rule edits publish a new immutable workflow version rather than mutating one, so
-   * a report from last week still shows the rules that actually decided it. Refusing here
-   * rather than writing a half-formed version: composing valid `WorkflowRules` from these
-   * two forms is A03's decision table, and guessing at it would silently change what
-   * VERIFIED means.
+   * The workflow this workspace configures.
+   *
+   * Exactly one per workspace today, the same assumption `workflow()` and `activation()`
+   * already make ("first row is canonical"). Created here, lazily, on first configuration —
+   * nothing in onboarding creates one earlier, because nothing asked for one to exist before
+   * there was something to configure.
    */
+  async #workflowForConfiguration(scope: ResolvedSession): Promise<WorkflowRow> {
+    const existing = (await workflows.list(this.#db, scope.workspaceId, { limit: 1 })).items[0];
+    if (existing !== undefined) return existing;
+    const id = newId(ID_PREFIX.workflow, this.#now.getTime());
+    await workflows.create(this.#db, {
+      id,
+      workspaceId: scope.workspaceId,
+      name: 'Verification workflow',
+      coverageMode: 'customer_triggered',
+      createdAt: nowIso(this.#now),
+    });
+    const created = await workflows.get(this.#db, scope.workspaceId, id);
+    if (created === null) {
+      throw new Error('workflowForConfiguration: created workflow vanished before it could be read');
+    }
+    return created;
+  }
+
+  /** What this workflow is already configured to check, read back through the schema. */
+  async #currentConfiguredState(
+    scope: ResolvedSession,
+    workflow: WorkflowRow,
+  ): Promise<ConfiguredWorkflowState> {
+    if (workflow.current_version_id === null) return DEFAULT_CONFIGURED_STATE;
+    const version = await workflowVersions.get(
+      this.#db,
+      scope.workspaceId,
+      workflow.current_version_id,
+    );
+    return parseConfiguredState(version?.rules_json ?? null);
+  }
+
+  /**
+   * Both rule edits publish a new immutable workflow version rather than mutating one, so a
+   * report from last week still shows the rules that actually decided it (constraint 1).
+   * `composeWorkflowRules` (`ruleCompiler.ts`) is the only path to a `WorkflowRules` document
+   * — a state that does not parse against `workflowRulesSchema` writes nothing at all
+   * (constraint 2), and this is the one place both save methods reach that decision.
+   */
+  async #publishRules(
+    scope: ResolvedSession,
+    workflow: WorkflowRow,
+    state: ConfiguredWorkflowState,
+  ): Promise<{ readonly ok: true } | { readonly ok: false; readonly path: readonly (string | number)[]; readonly message: string }> {
+    const composed = composeWorkflowRules(state);
+    if (!composed.ok) {
+      return { ok: false, path: composed.failure.path, message: composed.failure.message };
+    }
+
+    const at = nowIso(this.#now);
+    const rulesJson = JSON.stringify(composed.rules);
+    const rulesHash = await sha256Hex(
+      `verify.workflow_rules.v1:${stableStringify(composed.rules)}`,
+    );
+    await workflowVersions.publish(this.#db, {
+      id: newId(ID_PREFIX.workflowVersion, this.#now.getTime()),
+      workspaceId: scope.workspaceId,
+      workflowId: workflow.id,
+      rulesJson,
+      rulesHash,
+      deadlineSeconds: composed.rules.deadline_seconds,
+      schemaVersion: composed.rules.schema_version,
+      createdBy: scope.userId,
+      createdAt: at,
+    });
+    // The hash and nothing else: the full rules document is already in `rules_json` on the
+    // version row itself, and an audit trail is read by more people than that row is.
+    await auditEvents.record(this.#db, {
+      id: newId(ID_PREFIX.auditEvent, this.#now.getTime()),
+      actor: scope.userId,
+      actorKind: 'user',
+      workspaceId: scope.workspaceId,
+      action: 'workflow.rules_published',
+      target: workflow.id,
+      occurredAt: at,
+      redactedMetadata: JSON.stringify({ rules_hash: rulesHash }),
+    });
+    return { ok: true };
+  }
+
+  /** `composeWorkflowRules`'s schema path, translated into this form's own field names. */
+  #mappingFieldErrors(path: readonly (string | number)[]): Record<string, string> {
+    return path[0] === 'crm_correlation_property' ? { correlationProperty: 'Use letters, numbers and underscores only.' } : {};
+  }
+
+  /** As above, for the expected-outcome form. */
+  #outcomeFieldErrors(path: readonly (string | number)[]): Record<string, string> {
+    if (path[0] === 'deadline_seconds') {
+      return {
+        deadlineSeconds: `Choose between ${LIMITS.MIN_DEADLINE_SECONDS} and ${LIMITS.MAX_DEADLINE_SECONDS} seconds.`,
+      };
+    }
+    return {};
+  }
+
   async saveFieldMapping(input: FieldMappingInput): Promise<WriteResult> {
     const scope = await this.#scope();
     if (scope === null) return refuse('Sign in to change this workflow.');
@@ -458,9 +560,18 @@ export class D1CustomerDataPort implements CustomerDataPort {
         correlationProperty: 'Use letters, numbers and underscores only.',
       });
     }
-    return refuse(
-      'Nothing was saved. Publishing a rules change needs the rule compiler, which is not wired into this environment yet, and writing a partial workflow version would change what a VERIFIED result means.',
-    );
+
+    const workflow = await this.#workflowForConfiguration(scope);
+    const current = await this.#currentConfiguredState(scope, workflow);
+    const next: ConfiguredWorkflowState = {
+      ...current,
+      correlationProperty: input.correlationProperty,
+    };
+    const published = await this.#publishRules(scope, workflow, next);
+    if (!published.ok) {
+      return refuse(published.message, this.#mappingFieldErrors(published.path));
+    }
+    return ok('/app/onboarding/outcome', 'The field mapping was saved.');
   }
 
   async saveExpectedOutcome(input: ExpectedOutcomeInput): Promise<WriteResult> {
@@ -478,9 +589,38 @@ export class D1CustomerDataPort implements CustomerDataPort {
         deadlineSeconds: `Choose between ${LIMITS.MIN_DEADLINE_SECONDS} and ${LIMITS.MAX_DEADLINE_SECONDS} seconds.`,
       });
     }
-    return refuse(
-      'Nothing was saved. Publishing a rules change needs the rule compiler, which is not wired into this environment yet.',
-    );
+    if (
+      !input.requireRecordExists &&
+      !input.requireCorrelationMatch &&
+      !input.requireEmailDelivered &&
+      !input.requireRecipientMatch
+    ) {
+      return refuse('At least one check has to be required, or VERIFIED would mean nothing.', {
+        requireRecordExists: 'Select at least one check.',
+      });
+    }
+
+    const workflow = await this.#workflowForConfiguration(scope);
+    const current = await this.#currentConfiguredState(scope, workflow);
+    if (current.correlationProperty === '') {
+      return refuse(
+        'Map your CRM reference field before setting the expected outcome — there is nothing to check against yet.',
+      );
+    }
+    const next: ConfiguredWorkflowState = {
+      ...current,
+      deadlineSeconds: input.deadlineSeconds,
+      coverageMode: input.coverageMode,
+      requireRecordExists: input.requireRecordExists,
+      requireCorrelationMatch: input.requireCorrelationMatch,
+      requireEmailDelivered: input.requireEmailDelivered,
+      requireRecipientMatch: input.requireRecipientMatch,
+    };
+    const published = await this.#publishRules(scope, workflow, next);
+    if (!published.ok) {
+      return refuse(published.message, this.#outcomeFieldErrors(published.path));
+    }
+    return ok('/app/onboarding/proof', 'The expected outcome was saved.');
   }
 
   /**
@@ -597,11 +737,116 @@ export class D1CustomerDataPort implements CustomerDataPort {
       subscriptionStatus: (subscription?.status as SubscriptionStatus | undefined) ?? null,
       eventEndpoint: endpoint,
       workflowId: workflow?.id ?? '',
+      signingKeyId: workflow?.signing_key_ref ?? null,
       signingKeyHint:
         workflow?.signing_key_hash === undefined || workflow.signing_key_hash === null
           ? null
           : maskToken(workflow.signing_key_hash),
+      signingKeyIssuance: this.#signingKeyIssuance(scope, workflow),
       firstRunId: firstRun?.id ?? null,
+    };
+  }
+
+  #rootKey(): string {
+    return this.#env.EVENT_SIGNING_ROOT_KEY ?? '';
+  }
+
+  /** What the page says next to the control — the same conditions `issueSigningKey` enforces. */
+  #signingKeyIssuance(
+    scope: ResolvedSession,
+    workflow: WorkflowRow | undefined,
+  ): SigningKeyIssuanceView {
+    if (workflow === undefined) {
+      return {
+        canIssue: false,
+        cannotIssueReason: 'There is no workflow to issue a key for yet. Finish the setup steps first.',
+      };
+    }
+    if (scope.role !== 'workspace_admin') {
+      return {
+        canIssue: false,
+        cannotIssueReason: 'Only a workspace admin can issue or rotate the signing key.',
+      };
+    }
+    if (this.#rootKey().length === 0) {
+      return { canIssue: false, cannotIssueReason: SIGNING_KEY_UNCONFIGURED };
+    }
+    return { canIssue: true, cannotIssueReason: null };
+  }
+
+  /**
+   * Issue or rotate this workspace's workflow signing key.
+   *
+   * The first production caller of `issueWorkflowSigningKey`, and through it the first of
+   * `workflows.setSigningKey`. Both existed, both were tested, nothing reached either, and
+   * so no customer had ever held a key.
+   *
+   * The secret goes back to the page and nowhere else. It is not in the audit row (that
+   * carries the public reference only), it is not logged, and it is not stored — the row
+   * holds `hashToken(secret, 'workflow_signing')`, from which nothing can be signed.
+   *
+   * With no root key the derivation refuses before anything is minted or written, and that
+   * refusal comes back as a typed configuration error: not rethrown into a 500, and not
+   * papered over with a key derived from the empty string.
+   */
+  async issueSigningKey(): Promise<SigningKeyIssueResult> {
+    const scope = await this.#scope();
+    if (scope === null) {
+      return { outcome: 'refused', reason: 'not_signed_in', message: 'Sign in to issue a signing key.' };
+    }
+    if (scope.role !== 'workspace_admin') {
+      return {
+        outcome: 'refused',
+        reason: 'not_permitted',
+        message: 'Only a workspace admin can issue or rotate the signing key. Nothing was changed.',
+      };
+    }
+    const workflow = (await workflows.list(this.#db, scope.workspaceId, { limit: 1 })).items[0];
+    if (workflow === undefined) {
+      return {
+        outcome: 'refused',
+        reason: 'no_workflow',
+        message: 'There is no workflow to issue a key for yet. Nothing was changed.',
+      };
+    }
+
+    const rotated = workflow.signing_key_ref !== null;
+    const at = nowIso(this.#now);
+    let issued: IssuedSigningKey;
+    try {
+      issued = await issueWorkflowSigningKey(
+        { db: this.#db, rootKey: this.#rootKey(), now: at },
+        { workspaceId: scope.workspaceId, workflowId: workflow.id },
+      );
+    } catch (error) {
+      if (error instanceof AppError && error.code === 'EVENT_SIGNING_UNCONFIGURED') {
+        return { outcome: 'unconfigured', message: SIGNING_KEY_UNCONFIGURED };
+      }
+      if (error instanceof AppError && error.code === 'WORKFLOW_NOT_FOUND') {
+        return { outcome: 'refused', reason: 'no_workflow', message: error.publicMessage };
+      }
+      throw error;
+    }
+
+    // The public reference and nothing else. Not the secret; and not the hash either — it
+    // already sits on the workflow row, and an audit trail is read by more people.
+    await auditEvents.record(this.#db, {
+      id: newId(ID_PREFIX.auditEvent, this.#now.getTime()),
+      actor: scope.userId,
+      actorKind: 'user',
+      workspaceId: scope.workspaceId,
+      action: rotated ? 'workflow.signing_key_rotated' : 'workflow.signing_key_issued',
+      target: workflow.id,
+      occurredAt: at,
+      redactedMetadata: JSON.stringify({ key_ref: issued.keyId }),
+    });
+
+    return {
+      outcome: 'issued',
+      keyId: issued.keyId,
+      secret: issued.secret,
+      rotated,
+      issuedAt: issued.issuedAt,
     };
   }
 
