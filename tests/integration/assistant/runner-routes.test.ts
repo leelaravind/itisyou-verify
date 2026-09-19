@@ -125,7 +125,11 @@ describe('runner routes — signed everywhere, and pairing can actually begin', 
     const app = createRunnerRoutes({ db: () => h.db, now: () => NOW.toISOString() });
     const pairing = new D1RunnerPairingPort(h.db);
 
-    const opened = await pairing.openPairing({ label: 'desk machine', ownerId: 'usr_owner', now: NOW });
+    const opened = await pairing.openPairing({
+      label: 'desk machine',
+      ownerId: 'usr_owner',
+      now: NOW,
+    });
     expect(opened.ok).toBe(true);
     if (!opened.ok) throw new Error(opened.dependency);
     expect(opened.invitation.code).toMatch(/^[0-9A-HJKMNP-TV-Z]{5}-[0-9A-HJKMNP-TV-Z]{5}$/);
@@ -133,7 +137,9 @@ describe('runner routes — signed everywhere, and pairing can actually begin', 
 
     // The database holds a hash, never the code.
     const pending = h.raw
-      .prepare('SELECT status, pairing_code_hash, public_key, label FROM runner_devices WHERE id = ?')
+      .prepare(
+        'SELECT status, pairing_code_hash, public_key, label FROM runner_devices WHERE id = ?',
+      )
       .get(opened.invitation.deviceId) as {
       status: string;
       pairing_code_hash: string | null;
@@ -177,7 +183,11 @@ describe('runner routes — signed everywhere, and pairing can actually begin', 
       pairing_code_hash: string | null;
       public_key: string;
     };
-    expect(active).toEqual({ status: 'active', pairing_code_hash: null, public_key: publicKeyBase64 });
+    expect(active).toEqual({
+      status: 'active',
+      pairing_code_hash: null,
+      public_key: publicKeyBase64,
+    });
 
     // A principal with no user row cannot open a pairing: the FK refuses, the port says so
     // in plain words, and no half-written device row exists.
