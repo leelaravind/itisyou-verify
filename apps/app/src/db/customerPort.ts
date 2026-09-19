@@ -836,7 +836,16 @@ export class D1CustomerDataPort implements CustomerDataPort {
       }
     }
     if ((this.#env.STRIPE_PRICE_ID ?? '') === '' || (this.#env.STRIPE_SECRET_KEY ?? '') === '') {
-      blockers.push('Payments are not enabled in this environment.');
+      // Naming the secret is not a leak -- these are variable names, not values -- and the
+      // person reading it on a bare deployment is the operator, who would otherwise go
+      // looking through code to find out which of the two is missing.
+      const missing = [
+        (this.#env.STRIPE_SECRET_KEY ?? '') === '' ? 'STRIPE_SECRET_KEY' : null,
+        (this.#env.STRIPE_PRICE_ID ?? '') === '' ? 'STRIPE_PRICE_ID' : null,
+      ].filter((name): name is string => name !== null);
+      blockers.push(
+        `Payments are not enabled in this environment: ${missing.join(' and ')} is not set. That is our configuration, not something on your side.`,
+      );
     }
 
     // Every value here is resolved from server-side constants. Nothing is read from the
@@ -867,8 +876,52 @@ export class D1CustomerDataPort implements CustomerDataPort {
         `No checkout session was created and no card was charged. ${summary.blockers.join(' ')}`,
       );
     }
+
+    // No second configuration gate here. `orderSummary` above already refuses when either
+    // Stripe secret is missing, and adding a duplicate check would have been unreachable
+    // code guarding a money path -- the exact shape of defect this method was just fixed
+    // for. The secret is read once, below, having been proven present.
+    const secretKey = this.#env.STRIPE_SECRET_KEY ?? '';
+
+    const { startCheckout, createBillingRuntime } = await import('../billing/index');
+    const { D1BillingDataPort } = await import('./billingPort');
+    const { createStripeClient } = await import('@verify/connectors/stripe');
+
+    const result = await startCheckout(
+      {
+        ...createBillingRuntime(this.#env as never, {
+          data: new D1BillingDataPort(this.#db),
+          gateway: createStripeClient({
+            secretKey,
+            ...(this.#fetchImpl === undefined ? {} : { fetchImpl: this.#fetchImpl }),
+          }),
+          now: () => toIso(this.#now),
+          newId: (prefix: string) => newId(prefix, this.#now.getTime()),
+        }),
+        // Eligibility is `orderSummary`'s question, already answered above. Asking it
+        // again through this port keeps billing unable to take money on its own say-so.
+        checkEligibility: async () => {
+          const current = await this.orderSummary();
+          return current.ready
+            ? { eligible: true }
+            : { eligible: false, reason: current.blockers.join(' ') };
+        },
+      },
+      {
+        workspaceId: scope.workspaceId,
+        ...(scope.email === undefined ? {} : { customerEmail: scope.email }),
+      },
+    );
+
+    if (result.outcome === 'checkout_ready') {
+      // Stripe's hosted page. The card is entered there and never reaches us.
+      return ok(result.checkoutUrl, 'Continue on Stripe to finish subscribing.');
+    }
+    if (result.outcome === 'already_subscribed') {
+      return ok('/app/onboarding/activation', 'This workspace is already subscribed.');
+    }
     return refuse(
-      'No checkout session was created and no card was charged. Stripe is not configured in this environment, so there is no hosted Checkout to hand you to.',
+      `No checkout session was created and no card was charged. ${result.detail ?? result.reason}`,
     );
   }
 
