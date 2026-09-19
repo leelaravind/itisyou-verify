@@ -54,7 +54,9 @@ const PORT: AssistantDataPort = {
     created_at: NOW,
     deadline_at: NOW,
     observation_count: 0,
-    assertions: [{ label: POISON, mandatory: true, status: 'UNVERIFIED', reason_code: 'NO_EVIDENCE' }],
+    assertions: [
+      { label: POISON, mandatory: true, status: 'UNVERIFIED', reason_code: 'NO_EVIDENCE' },
+    ],
   }),
   campaignFacts: async () => null,
   maintenanceKindEnabled: async () => true,

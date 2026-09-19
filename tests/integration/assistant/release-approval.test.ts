@@ -68,8 +68,7 @@ function approvalRow(h: TestDb, id: string) {
   return h.raw
     .prepare('SELECT id, action_type, status, consumed_at FROM approvals WHERE id = ?')
     .get(id) as
-    | { id: string; action_type: string; status: string; consumed_at: string | null }
-    | undefined;
+    { id: string; action_type: string; status: string; consumed_at: string | null } | undefined;
 }
 
 function jobRows(h: TestDb) {
@@ -254,7 +253,12 @@ describe('execute_approved_release — the approval is loaded, checked and spent
     console.info('[OWNER-229 after first submit] approvals row   =', JSON.stringify(approval));
     console.info('[OWNER-229 after first submit] audit           =', JSON.stringify(audit));
     expect(jobs).toEqual([
-      { id: first.jobId, typed_kind: 'execute_approved_release', approval_id: 'apr_release', state: 'queued' },
+      {
+        id: first.jobId,
+        typed_kind: 'execute_approved_release',
+        approval_id: 'apr_release',
+        state: 'queued',
+      },
     ]);
     expect(approval).toEqual({
       id: 'apr_release',
@@ -271,11 +275,19 @@ describe('execute_approved_release — the approval is loaded, checked and spent
     // The stored payload is the validated object, not the caller's JSON text.
     expect(
       JSON.parse(
-        (h.raw.prepare('SELECT payload_json FROM maintenance_jobs WHERE id = ?').get(first.jobId) as {
-          payload_json: string;
-        }).payload_json,
+        (
+          h.raw
+            .prepare('SELECT payload_json FROM maintenance_jobs WHERE id = ?')
+            .get(first.jobId) as {
+            payload_json: string;
+          }
+        ).payload_json,
       ),
-    ).toEqual({ kind: 'execute_approved_release', environment: 'production', approval_id: 'apr_release' });
+    ).toEqual({
+      kind: 'execute_approved_release',
+      environment: 'production',
+      approval_id: 'apr_release',
+    });
 
     // The double-submit: same approval, same payload, a moment later. The gate sees the
     // row is consumed and refuses before the compare-and-set is even attempted.
