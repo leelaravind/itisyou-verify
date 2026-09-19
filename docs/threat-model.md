@@ -768,7 +768,7 @@ while being deliberately cross-tenant. Four statements pass for that reason. All
 correct sweeps; none is declared, and an accidental pass is indistinguishable from a real
 one when a genuinely unscoped query is added beside them. `SEC-206` judges the predicate
 only, excluding INSERT (which has no predicate, and whose `workspace_id` column value is
-the scoping). **Proving test.** `SEC-206` — FAILING. Fix by adding a per-statement
+the scoping). **Proving test.** `SEC-206` — PASSING (verified 19 September 2026, and recorded passed by CI at `af23e906`). It was failing when this paragraph was written and the paragraph was not updated when it started passing, which is how the repository came to assert a security test was broken while `security-acceptance.md` said it passed. Fix by adding a per-statement
 `tenant-scope:exempt <reason>`.
 
 ### T-XSS-03 — `javascript:` survives into an href · **MEDIUM** · OPEN

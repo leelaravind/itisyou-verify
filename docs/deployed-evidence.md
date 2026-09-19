@@ -6,8 +6,22 @@ tests, and nothing here is a claim about code that was only read.
 **Commit:** `e9524a6` · **Environment:** staging
 (`verify-itisyou-staging.kpleelaaravind.workers.dev`) · **Recorded:** 19 September 2026
 
-Staging rather than production because production was still serving an older build at the
-time of writing; its intake answered 500. That is stated rather than worked around.
+Staging rather than production because production was still serving an older build when
+this was written; its intake answered 500.
+
+**That is no longer true, and the correction belongs here rather than in a new document.**
+Production was released at `af23e906` on 19 September 2026 at 22:28:31Z (version
+`9f8c213d-84ee-4f1a-b630-991ef7d31cbc`). `POST /api/v1/events` now answers
+**401 `SIGNATURE_INVALID`** to an unsigned request instead of 500. The independent auditor
+caught this sentence going stale mid-audit, which is the ordinary fate of any document that
+states a deployment's condition: it was accurate when written and false three hours later.
+
+Production verified after that release: `/` `/demo` `/pricing` `/how-it-works` `/security`
+`/support` all 200; `/admin/login` 200 and public; `/api/v1/runner/status` 401; `/owner`
+404 to an anonymous visitor; `/health` reporting `"database":"reachable"`.
+
+The evidence below is still staging's, and is left as staging's. Re-labelling it production
+because production now runs the same commit would be asserting something nobody observed.
 
 ---
 

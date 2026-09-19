@@ -650,6 +650,84 @@ describe('the webhook data port', () => {
     expect(countRows(h, 'evidence')).toBe(0);
   });
 
+  /**
+   * F1, found by the independent auditor on 19 September 2026.
+   *
+   * CONN-342 seeds both runs BEFORE the callback, so the ambiguity is visible at park time
+   * and the row is stored `ambiguous`, which is never claimable. That is not the dangerous
+   * ordering. The dangerous one is the ordering the inbox exists for: the delivery arrives
+   * FIRST, when no run exists at all, so it parks as `unmatched` -- correctly, nothing
+   * could have matched it -- and only afterwards do two runs appear naming that same
+   * message id.
+   *
+   * `reason = 'unmatched'` then says nothing about whether the row is still unambiguous.
+   * Without a claim-time re-check the first run the scheduler reaches takes the evidence,
+   * which is a tie broken by arrival order: the recipient-fallback defect again, and able
+   * to publish a VERIFIED verdict against the wrong enquiry.
+   */
+  it('CONN-345 a callback parked before its runs is not claimed once two runs name it', async () => {
+    // Nothing exists yet. This is the ordering the inbox was built for.
+    await port.recordEmailEvidence({
+      workspaceId: ws.workspaceId,
+      connectionId: 'conn_a',
+      eventId: 'evt_early_ambiguous',
+      evidence: { ...emailEvent('M_LATE_DUP', 'delivered'), recipient: 'a@example.test' },
+      receivedAt: NOW,
+    });
+    expect(
+      (h.raw.prepare('SELECT reason FROM evidence_inbox').get() as { reason: string }).reason,
+      'it must park as unmatched: at this instant nothing could have matched it',
+    ).toBe('unmatched');
+
+    // Only now do two enquiries turn up naming the same message.
+    seedRun(h, ws, 'first', { nextCheckAt: null, emailRecipient: 'a@example.test', emailMessageId: 'M_LATE_DUP' });
+    seedRun(h, ws, 'second', { nextCheckAt: null, emailRecipient: 'b@example.test', emailMessageId: 'M_LATE_DUP' });
+
+    expect(
+      await port.claimInboxForRun({
+        workspaceId: ws.workspaceId,
+        runId: 'first',
+        messageId: 'M_LATE_DUP',
+        now: NOW,
+      }),
+    ).toBe(0);
+    expect(
+      await port.claimInboxForRun({
+        workspaceId: ws.workspaceId,
+        runId: 'second',
+        messageId: 'M_LATE_DUP',
+        now: NOW,
+      }),
+    ).toBe(0);
+    expect(countRows(h, 'evidence'), 'neither run may take evidence it cannot prove is its').toBe(0);
+  });
+
+  it('CONN-346 a decided run cannot claim parked evidence and reopen its verdict', async () => {
+    await port.recordEmailEvidence({
+      workspaceId: ws.workspaceId,
+      connectionId: 'conn_a',
+      eventId: 'evt_early_decided',
+      evidence: { ...emailEvent('M_DECIDED', 'delivered'), recipient: 'a@example.test' },
+      receivedAt: NOW,
+    });
+    seedRun(h, ws, 'done', {
+      nextCheckAt: null,
+      status: 'VERIFIED',
+      emailRecipient: 'a@example.test',
+      emailMessageId: 'M_DECIDED',
+    });
+
+    expect(
+      await port.claimInboxForRun({
+        workspaceId: ws.workspaceId,
+        runId: 'done',
+        messageId: 'M_DECIDED',
+        now: NOW,
+      }),
+    ).toBe(0);
+    expect(countRows(h, 'evidence')).toBe(0);
+  });
+
   it('CONN-343 a provider replaying the same callback writes one parked row', async () => {
     const send = () =>
       port.recordEmailEvidence({
