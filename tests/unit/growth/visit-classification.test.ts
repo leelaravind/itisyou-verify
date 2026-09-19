@@ -4,6 +4,9 @@
  * The properties: no durable identifier survives a day, no raw address is ever stored, our
  * own traffic never counts, and a crawler never counts.
  */
+import { readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
   type VisitRequestInput,
@@ -113,5 +116,33 @@ describe('visit classification', () => {
   it('ADS-068 a non-GET request is not counted as a visit', () => {
     expect(classifyVisit({ ...VISIT, method: 'HEAD' }, 'sid')).toBe('bot_suspected');
     expect(classifyVisit({ ...VISIT, method: 'POST' }, 'sid')).toBe('bot_suspected');
+  });
+
+  it('ADS-113 no growth or ads source file embeds a raw control character', () => {
+    // A single raw NUL in analytics.ts once made the whole file register as binary, so
+    // `grep` printed "Binary file ... matches" and no lines — a search for a constant in
+    // that file silently found nothing while the constant sat there. The compiler, the
+    // tests and the linter were all happy. A control character used as a delimiter must be
+    // written as an escape sequence, never pasted in literally. This test is the guard.
+    const roots = [
+      new URL('../../../apps/app/src/growth/', import.meta.url),
+      new URL('../../../packages/connectors/src/ads/', import.meta.url),
+    ];
+    const offenders: string[] = [];
+    for (const root of roots) {
+      const dir = fileURLToPath(root);
+      for (const name of readdirSync(dir)) {
+        if (!name.endsWith('.ts')) continue;
+        const bytes = readFileSync(join(dir, name));
+        for (const [index, byte] of bytes.entries()) {
+          // Tab, line feed and carriage return are the only control bytes source may hold.
+          if (byte < 0x20 && byte !== 0x09 && byte !== 0x0a && byte !== 0x0d) {
+            offenders.push(`${name}: byte 0x${byte.toString(16).padStart(2, '0')} at offset ${index}`);
+            break;
+          }
+        }
+      }
+    }
+    expect(offenders).toEqual([]);
   });
 });

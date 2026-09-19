@@ -10,6 +10,9 @@ import { Hono } from 'hono';
 import { CSS, THEME_SCRIPT, render } from '@verify/ui';
 import { publicRoutes, notFoundPage } from './routes/public/index.js';
 import { appRoutes } from './routes/app/index.js';
+import { createOwnerRoutes } from './routes/owner/index.js';
+import { MemoryOwnerDataPort } from './owner/memory.js';
+import { ANONYMOUS_PRINCIPAL } from './owner/access.js';
 
 export interface Env {
   readonly ASSETS: Fetcher;
@@ -172,8 +175,31 @@ app.get('/health', async (c) => {
  * Routers
  * ------------------------------------------------------------------ */
 
-app.route('/', publicRoutes);
+// `/app` first so the customer application cannot be shadowed by a public route.
 app.route('/app', appRoutes);
+
+// Owns two prefixes, `/admin` and `/owner`, so it mounts at the root. `/admin/login`
+// is deliberately reachable by anyone on the internet; what is protected is every
+// privileged action behind it, and an unauthorised request to an owner route returns
+// an ordinary 404 rather than a 403 that would confirm the route exists.
+//
+// The principal is pinned to ANONYMOUS here, and that is load bearing. The in-memory
+// port's own default is a fully authenticated platform owner with recent MFA — a
+// development convenience that fails OPEN. Mounting it unconfigured served the entire
+// owner dashboard to anonymous visitors on staging, which is how this was found: by
+// deploying and fetching `/owner`, not by reading the code, where it looks correct.
+//
+// Until A02's session and TOTP wiring lands, every owner route must 404 for everyone.
+// When it does, this becomes `resolvePort: async (c) => new D1OwnerDataPort(c)` and the
+// principal comes from the session instead.
+app.route(
+  '/',
+  createOwnerRoutes({
+    resolvePort: async () => new MemoryOwnerDataPort({ principal: ANONYMOUS_PRINCIPAL }),
+  }),
+);
+
+app.route('/', publicRoutes);
 
 /* ------------------------------------------------------------------ *
  * Static assets, then a rendered 404

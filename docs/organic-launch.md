@@ -10,6 +10,60 @@ stays reserved and untouched** (`docs/advertising.md`).
 
 ---
 
+## 0. STOP — pre-flight rules gate
+
+**I could not read a single subreddit's rules from this environment.** Every Reddit host is
+unreachable from here and `indiehackers.com/guidelines` returns HTTP 404 (see §2). Hacker
+News is the only destination whose rules I read at the source.
+
+That means the rules check below is **not a caveat, it is the gate**. Work through it for
+the destination you are about to post to. If any step contradicts the plan, **stop and tell
+the lead** — do not reword the post to get around a rule.
+
+### Gate A — do this once, before any destination
+
+1. Open `https://verify.itisyou.app/demo`. Confirm it loads over HTTPS on a phone and on a
+   desktop, and that it needs no account, no email and no JavaScript.
+2. On that page, confirm the health card reading **33%** shows a bar filled to roughly one
+   third — not full, not green-to-the-end. Every post below tells the story of that bar
+   being wrong. People will check.
+3. Confirm `ANALYTICS_SALT` is set in the deployed environment. Without it no visit is
+   counted at all and the launch report will read zero.
+4. Open one of the UTM'd links from this document in a private window. Confirm it lands on
+   the demo with the parameters still on the URL and no redirect stripping them.
+
+### Gate B — do this for each destination, immediately before posting
+
+5. **Open the destination and read its rules.** Exactly where:
+   - r/n8n → `https://www.reddit.com/r/n8n/` — the sidebar rules in full, plus the wiki and
+     any pinned "read before posting" thread.
+   - r/automate → `https://www.reddit.com/r/automate/` — same three places.
+   - Indie Hackers → resolve §7.1 first. `indiehackers.com` and `r/indiehackers` are
+     different places with different moderation, and I could not establish which rules
+     apply where.
+   - Show HN → already read: `https://news.ycombinator.com/showhn.html` and
+     `https://news.ycombinator.com/newsguidelines.html`, quoted in §4.1.
+6. **Find the specific rule governing self-promotion**, sharing your own project, or
+   posting a link to something you built. Read it in full, not the summary.
+7. **If self-promotion is banned outright: stop.** Drop the destination and tell the lead.
+   Do not post it as a "question", do not put the link in a comment instead, do not post it
+   without the link. Those are the workarounds the rule exists to catch.
+8. **If self-promotion is allowed only on a given day, under a given flair, or in a
+   designated thread: use that route exactly.** Note which one, so the launch report can
+   say where it went.
+9. **Check for an account-age or karma minimum**, and whether link posts are restricted or
+   require flair. Confirm the account you are about to use meets it.
+10. **Confirm the account has genuine prior history in that community.** If it does not,
+    stop — see §5.2. A new account posting a link to its own product is the single most
+    reliable way to lose the `verify.itisyou.app` domain site-wide.
+11. **Confirm you are free for the next several hours** to answer replies. On Show HN this
+    is an explicit rule; everywhere else it is the difference between a discussion and an
+    advert.
+
+Only when every box on that destination's row is ticked does the post go out.
+
+---
+
 ## 1. What is being promised, and what is not
 
 **Organic reach is not promised.** Ten external visits is a **target, not a forecast**. A
@@ -150,10 +204,21 @@ https://verify.itisyou.app/demo?utm_source=hn&utm_medium=organic&utm_campaign=or
 > ask why nobody replied to their enquiry.
 >
 > So this checks the outcome instead of the run. You tell it what a given enquiry should
-> have produced, it goes to HubSpot and Resend itself and reads back what is actually
-> there, and it reports one of four things: verified, failed, unverified, or still pending.
-> "Unverified" is a first-class answer — it means we could not get enough evidence to say,
-> and it is deliberately not a pass and not a failure.
+> have produced; it is built to query HubSpot and Resend directly for the record and the
+> message event, check what comes back against rules you wrote, and report one of four
+> things: verified, failed, unverified, or still pending. "Unverified" is a first-class
+> answer — not enough evidence to say — and it is deliberately not a pass and not a failure.
+>
+> **Straight about what I have and have not actually run:** the HubSpot and Resend adapters
+> have never been pointed at a live account. I hold no provider credentials, and every
+> connector test injects a fake HTTP layer — the provider responses are synthetic, built
+> from each vendor's own API documentation. What *has* been exercised for real is the rule
+> evaluator and the decision table, over synthetic evidence: which assertion outcomes
+> combine into VERIFIED vs FAILED vs UNVERIFIED, what happens when evidence is missing
+> rather than contradictory, and when a missed deadline is allowed to count as a failure.
+> So read "queries HubSpot and Resend" as what the code is written to do, not as something
+> I have watched work end to end against a real portal. That distinction is the whole
+> product, so it would be a poor look to fudge it here.
 >
 > The link is a demo with four seeded runs, no signup. What I would most like feedback on
 > is the fourth one, where the honest answer is "I don't know".
@@ -250,15 +315,26 @@ future paid campaign on Reddit.
 >
 > So I built the check as a separate thing. Your automation sends it a signed event saying
 > "enquiry X should now have a CRM record with correlation id Y and an acknowledgement to
-> Z". It then goes to HubSpot and Resend itself, reads back what is actually there, and
-> checks it against rules you wrote. You get one of four answers: verified, failed,
-> unverified, or pending. Your workflow's own "success" is treated as a trigger to go and
-> look, never as proof.
+> Z". It is built to go to HubSpot and Resend directly for the record and the message event
+> and check them against rules you wrote. You get one of four answers: verified, failed,
+> unverified, or pending. Your workflow's own "success" is a trigger to go and look, never
+> proof on its own.
 >
-> The part I care about most is "unverified". If it cannot get the evidence — the CRM
-> connection is down, the correlation value is missing, the record is ambiguous — it says
-> so. It does not round that up to a pass or down to a failure. Absence of evidence is not
-> evidence of either.
+> **Where it actually is, honestly:** the HubSpot and Resend adapters have not been run
+> against a live account. I have no provider credentials yet, and every connector test
+> injects a fake HTTP layer with synthetic responses shaped from the vendors' API docs. The
+> part that *is* properly exercised is the evaluator and the decision table, over synthetic
+> evidence — which assertion outcomes produce which of the four statuses, what happens when
+> evidence is missing rather than contradictory, and when a blown deadline is allowed to
+> count as a failure at all. I would rather say that plainly than let "reads it back from
+> HubSpot" imply I have pointed it at a real portal and watched it work, because the thing
+> this is supposed to catch is software reporting on its own success with no independent
+> evidence. Doing that in the post introducing it would be quite the own goal.
+>
+> The part I care about most is "unverified". The design is that missing or ambiguous
+> evidence — connection down, correlation value absent, two candidate records — is reported
+> as exactly that, never rounded up to a pass or down to a failure. Absence of evidence is
+> not evidence of either.
 >
 > **What it genuinely cannot do**, because this is the bit people find out later and get
 > annoyed about:
@@ -357,6 +433,9 @@ before spending the second destination.
   sentence, since this audience is broader and the post should be shorter.
 - Keep the limitations list and the CSP bug in full. They are the parts that make it a
   build log rather than an advert.
+- **Keep the "Where it actually is, honestly" paragraph verbatim.** It is the one paragraph
+  that must not be trimmed for length. If the post has to be shorter, cut the background,
+  not the disclosure.
 
 **Link:**
 
@@ -408,10 +487,17 @@ what happened → what I learned, with the ask at the end:
 > **Problem.** The failure that costs you the client is the one that doesn't throw. Green
 > execution log, no CRM record. You find out when they ring.
 >
-> **What I built.** A separate service that checks the outcome rather than the run: it reads
-> the record back from HubSpot and the message event from Resend itself, checks both against
-> rules you wrote, and returns verified / failed / unverified / pending. "Unverified" is a
+> **What I built.** A separate service that checks the outcome rather than the run. It is
+> built to query HubSpot for the record and Resend for the message event, check both against
+> rules you wrote, and return verified / failed / unverified / pending. "Unverified" is a
 > real answer — missing or ambiguous evidence is never rounded to a pass.
+>
+> **What I have actually run, as opposed to written.** The HubSpot and Resend adapters have
+> never touched a live account — no credentials yet, and every connector test injects a fake
+> HTTP layer with synthetic responses built from the vendors' API docs. The evaluator and
+> decision table are properly exercised over synthetic evidence. I am flagging it because
+> the product's entire pitch is that a system reporting on its own success is not evidence,
+> and I would rather not make that mistake in the post that introduces it.
 >
 > **What I learned, and where I want a second opinion.** Onboarding is heavy. You need a
 > correlation value written into a named HubSpot property on every enquiry, a signing key,
@@ -480,26 +566,8 @@ not be first.
 
 ## 9. Pre-flight checklist
 
-Performed by the founder, in order. Nothing is posted until every box on that destination's
-row is ticked.
-
-**Before anything:**
-
-- [ ] `https://verify.itisyou.app/demo` loads correctly over HTTPS, on mobile and desktop.
-- [ ] The 33% progress bar renders at 33%. The bug in every post above is fixed, and the
-      post will be read by people who check.
-- [ ] The demo requires no signup, no email and no JavaScript.
-- [ ] `ANALYTICS_SALT` is set in the deployed environment, or no visit is counted at all.
-- [ ] A UTM'd link has been opened once and confirmed to land correctly with parameters
-      intact and no redirect stripping them.
-
-**Per destination:**
-
-- [ ] Rules read on screen, and the specific self-promotion rule identified.
-- [ ] Account-age / karma requirement checked, and the account being used meets it.
-- [ ] The account has genuine prior history in that community, or the post is not made.
-- [ ] Posting at a sensible hour for a UK/US technical audience, with the founder free to
-      answer replies for the next several hours.
+**Moved to §0, at the top of this document, where it cannot be read past.** It is a gate,
+not a closing formality, and keeping a second copy here would guarantee the two drift apart.
 
 ---
 
@@ -521,13 +589,44 @@ That last one is not modesty. "No customers yet, nothing launched" is true, it i
 correct register for all four destinations, and it removes any temptation to imply traction
 we do not have.
 
-**One judgement call recorded for the lead:** the posts say the service "reads the record
-back from HubSpot and the message event from Resend itself". That is what the code does
-(`EvidenceOrigin: 'provider_readback'`; `packages/connectors/src/hubspot.ts` and
-`resend.ts`). It has not been exercised against a live HubSpot or Resend account from this
-repository. The posts do not claim it has, and pairing it with "no customers yet, nothing
-launched" keeps the reader's expectation correct — but if the lead wants the claim softened
-to describe the design rather than the behaviour, say so and I will reword all four.
+### 10.1 Observed behaviour versus designed behaviour
+
+Every sentence in all four posts has been sorted into one of two buckets, and anything in
+the second is worded as design, not as something we have watched happen.
+
+| Claim in the posts | Status | What backs it |
+| --- | --- | --- |
+| Four outcomes: verified / failed / unverified / pending, and never a fifth | **Observed** | `RUN_STATUS` is a closed tuple; the evaluator and decision table are exercised across `tests/unit/domain/` |
+| Missing or ambiguous evidence resolves to UNVERIFIED, never to a pass | **Observed** | Evaluator tests over synthetic evidence |
+| A blown deadline only counts as FAILED when evidence access was working | **Observed** | Same |
+| The customer's own "success" signal is a trigger, not proof | **Observed** | `EvidenceOrigin: 'customer_claim'` is the weakest tier by construction; no path lets it satisfy a mandatory assertion |
+| The demo shows four seeded runs and needs no account, email or JavaScript | **Observed** | `apps/app/src/routes/public/demo.ts`, server-rendered |
+| The CSP bug that rendered 33% as a full green bar | **Observed** | It happened; the fix is in the policy with a comment saying why |
+| Setup cost: correlation property, signing key, an extra call in the customer's flow | **Observed** | It is the documented onboarding in `docs/product-scope.md` §5 |
+| Every limitation in the "what it cannot do" lists | **Observed** | True by absence — there is no code path that could do those things |
+| **Querying HubSpot and Resend for the record and the message event** | **DESIGNED, NOT OBSERVED** | `packages/connectors/src/hubspot.ts` / `resend.ts` exist and are tested, but against an injected fake HTTP layer. The connector tests state it outright: "No real portal, no real contact, no real token." |
+
+**The claim was softened in all four posts, on the lead's instruction, and the reason is
+recorded here because it is the right reason:** a reader in r/n8n hears "reads the record
+back from HubSpot" as *this has been pointed at a real portal and it worked*. It has not. We
+hold no provider credentials, every connector test stubs the transport, and the only two
+provider-backed cases in the ledger — `CONN-050` (a real HubSpot sandbox read) and
+`CONN-051` (a real Resend test-mode event read) — are both still `planned`, never run.
+
+The gap between "the code does this" and "we have observed it doing this" is precisely the
+gap this product exists to complain about: a system reporting on its own success without
+independent evidence. Making that claim in the post that introduces us would be the same
+error we are selling against, in public, on page one.
+
+Each post now says what *was* tested instead — stubbed provider responses built from the
+vendors' own API documentation, with the real evaluator and decision table run over
+synthetic evidence. That is true, it is more specific than a hedge, and in these communities
+it reads as someone worth replying to.
+
+**Standing rule for any future post:** a sentence describing behaviour must name behaviour
+someone has observed. Where it has not been observed, say what was tested instead. When
+`CONN-050` and `CONN-051` move from `planned` to passing, this row moves to **Observed** and
+the wording in all four posts can be tightened — not before.
 
 ---
 
@@ -552,12 +651,59 @@ Reported as three separate figures (§1). Additional honesty required in the lau
 
 ---
 
+## 12. Appendix — build-log material not yet used
+
+Held for a future post rather than crammed into the first one. Both are true, both are
+small, and both are the kind of specific that these communities reward.
+
+### The separator that made a source file invisible to `grep`
+
+The visit session id is a salted hash over the date, the salt, the address, the user agent
+and the language header. Those fields are joined before hashing, and the separator has to be
+something that cannot occur inside any of them — otherwise two different field splits can
+produce the same hash input, and two different visitors collapse into one session.
+
+A NUL byte has exactly that property, so a NUL byte is what ended up in the file. Not the
+escape sequence — the actual byte, `0x00`, sitting in the middle of `analytics.ts`.
+
+It worked perfectly. It also made the file **register as binary**: `grep` reported
+`Binary file apps/app/src/growth/analytics.ts matches` and printed nothing, so a search for
+a constant in that file silently returned no lines instead of the line it was sitting on.
+The compiler was happy, the tests passed, the linter passed, and the only symptom was a
+search quietly failing to find something that was there.
+
+The fix is one character of syntax: write `'\u001f'` as an escape rather than embedding the
+raw control character, and use the unit separator instead of NUL. Same "cannot occur in the
+input" property, plain-ASCII source, and the file is text again.
+
+The lesson worth telling: a correct value and a correct *encoding of that value in source*
+are different things, and the failure mode of getting the second one wrong is not an error —
+it is a tool going quiet. The reasoning is now recorded in a comment at the constant itself,
+so the next person reaching for a separator finds it.
+
+### Two provider-backed tests that have never run
+
+`CONN-050` and `CONN-051` are the only cases in the whole ledger marked `provider_backed`:
+a real HubSpot sandbox read, and a real Resend test-mode event read. Both are still
+`planned`. Everything else about the connectors is exercised against an injected fake
+transport.
+
+That is an honest position for a pre-launch project, and the interesting part is that the
+ledger makes it *visible* — `provider_backed: true` plus `status: planned` is a machine-
+readable admission that the integration has never touched a real system. Most projects
+discover that fact in production.
+
+---
+
 ### Approval
 
 - [ ] I have read all four posts and the claims check in §10.
 - [ ] I accept that organic reach is not promised and ten visits is a target, not a forecast.
 - [ ] I will perform the §9 pre-flight, including reading each community's rules on screen.
 - [ ] I understand r/msp is dropped and why.
+- [ ] I have completed the §0 pre-flight gate for the destination I am about to post to.
+- [ ] I accept that the posts say the HubSpot and Resend adapters have never run against a
+      live account, and I will not remove that line to make the post read better.
 - [ ] I will publish these myself. Nothing here is posted on my behalf.
 
 **Signed:** ______________________  **Date:** ______________

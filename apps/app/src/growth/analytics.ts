@@ -48,9 +48,27 @@ export interface VisitIdentityInput {
  * throws rather than silently degrading to something worse than useless.
  */
 /**
- * Field separator for the hash input. A unit separator cannot occur in an IP address, a
- * user-agent or an Accept-Language header, so two different field splits can never produce
- * the same hash input. Written as an escape so the source file stays plain ASCII.
+ * Field separator for the hash input.
+ *
+ * Why a separator at all: the fields are concatenated before hashing, so the delimiter has
+ * to be a character that cannot appear inside any of them. Without that, two different
+ * field splits can produce the same hash input and two different visitors collapse into one
+ * session id. A space is not safe — user-agent strings are full of them.
+ *
+ * Why this one, and not a NUL: a NUL byte has the same "cannot occur in the input" property
+ * and was the first choice. Embedding the raw byte in the source is what made it a mistake.
+ * A single 0x00 anywhere in a file makes the whole file register as **binary**, so `grep`
+ * prints `Binary file ... matches` and no lines at all — a search for a constant in this
+ * file silently returned nothing while the constant sat there in plain sight. The compiler,
+ * the tests and the linter were all perfectly happy. The only symptom was a tool going
+ * quiet.
+ *
+ * So: the unit separator (U+001F), written as an **escape sequence** rather than embedded
+ * literally, which keeps this file plain ASCII and searchable. If you ever change this,
+ * change the escape, never paste the character itself.
+ *
+ * Changing this value changes every session id. That is safe only while no visit rows
+ * exist; after launch it would split one visitor's day into two sessions.
  */
 const FIELD_SEPARATOR = '\u001f';
 
