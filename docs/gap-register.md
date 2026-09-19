@@ -45,6 +45,22 @@ syntactic damage and rules out nothing else.
 
 ---
 
+## A correction to this register, found by the auditor
+
+The **Owner** column named agents that were not on the roster — A16, A19 and A21 own rows and
+appear nowhere in the roster table above, while A05b and A11b own eleven rows and are
+recorded there as interrupted. Not one of the twelve roster agents was recorded as running.
+
+That is worse than a clerical slip. An owner column is the thing that makes a gap register
+different from a list of complaints: it is the claim that someone is accountable. Names that
+do not resolve to a live assignment are unassigned work wearing owner labels, which reads as
+covered and is not. The owner instructed that there be no unresolved "not mine" findings, and
+a name nobody holds is the same failure in a politer form.
+
+Owners are now written as **workstreams**, not agent numbers, because an agent is terminated
+by a usage limit and a workstream is not. The roster table says who holds each workstream
+today and is the only place an agent identity appears.
+
 ## Gap register
 
 Legend — **Closure evidence** means what would have to be true to close the row, and is
@@ -126,7 +142,7 @@ passing unit test is evidence about a function, not about a product.
 | `SEC-632` blocks its worker for 218s | Root-caused by two agents independently. Not a pool-pressure problem; a synchronous `execFileSync` holding the event loop past birpc's fixed 60s timer | Make it async, split it, or move it out of vitest into the release gate | A09 | — | Full suite green with no unhandled RPC error |
 | `SEC-206` tenant scope in the predicate | Failing | Fix | A02 | — | Case passes |
 | Migration 0002 forward-compatibility | **Known unresolved.** A previous Worker writing the older AAD shape would be rejected by the CHECK constraint | Decide: widen, or accept with a documented rollback restriction | A02 + lead | — | Stated decision with reasoning |
-| Backup restoration proven | **DEPLOYMENT-VERIFIED.** Run against real remote D1, not a local harness. Proven on real D1: 2 tenants, 0 cross-tenant leaks, byte-identical digests, statuses preserved; both drill DBs deleted | — | lead | — | Recorded in the story |
+| Backup restoration | **CLAIM WITHDRAWN 19 Sep.** I recorded this as DEPLOYMENT-VERIFIED citing "recorded in the story". The development story contains **no such event** — the citation was false. A manual drill against remote D1 was performed earlier and its results reported at the time, but both drill databases were deleted, so it is not reproducible now and no test covers it. The in-repo backup test is in-memory SQLite with  and one tenant | A restore drill that is repeatable, and a test that covers it | lead | — | A drill re-run against real D1 with its commands and output recorded, or a test that does it |
 
 ### Test reporting and cleanup
 

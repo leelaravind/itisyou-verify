@@ -184,8 +184,107 @@ function mask(s) {
   return `${s.slice(0, 6)}***${s.slice(-2)} (${s.length} chars)`;
 }
 
-function git(argv) {
-  return execFileSync('git', argv, { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 });
+/**
+ * Every child process this script starts is bounded and killed on timeout.
+ *
+ * `execFileSync`'s `timeout`/`killSignal` pair is the bound: the child is sent `SIGKILL`
+ * if it outlives it, and the call throws rather than hanging. Nothing here spawns a
+ * process it does not wait for, so there is no orphan on the success path; on the failure
+ * path the kill is the cleanup. An unbounded spawn is what produced SEC-632, and an
+ * unbounded asynchronous one would only move the failure somewhere harder to see.
+ */
+const GIT_TIMEOUT_MS = 120_000;
+
+function git(argv, options = {}) {
+  return execFileSync('git', argv, {
+    encoding: 'utf8',
+    maxBuffer: 256 * 1024 * 1024,
+    timeout: GIT_TIMEOUT_MS,
+    killSignal: 'SIGKILL',
+    ...options,
+  });
+}
+
+/**
+ * Read many objects through ONE `git cat-file` process instead of one process each.
+ *
+ * WHY THIS EXISTS — the SEC-632 root cause, measured rather than guessed.
+ *
+ * The first version of this pass called `git cat-file -t`, then `-s`, then
+ * `cat-file blob`, once each, per object named by `rev-list --objects --all`. On this
+ * repository that is 1,826 candidate objects and 1,165 readable blobs, so ~4,150 process
+ * creations. Process creation on Windows costs roughly 24 ms, which is the entire runtime:
+ *
+ *     before: `scan-secrets.mjs --history` = 110,957 ms
+ *     after : the same scan, same objects  =   1,718 ms      (~65x)
+ *
+ * That cost then blocked a vitest worker's event loop for minutes, past birpc's hard-coded
+ * 60 s RPC timeout, which made the whole suite exit 1 under a green summary. The scanner
+ * was the defect; how it was invoked only made the defect visible.
+ *
+ * `--batch-check` and `--batch` both take object names on stdin and answer for each in
+ * turn, so a chunk of 500 objects costs one spawn rather than a thousand. The chunking is
+ * the work bound: peak memory is capped by the chunk rather than by the repository, so
+ * this stays flat on a history far larger than ours.
+ *
+ * Equivalence was measured, not assumed: old and new read the same 1,165 blobs, with zero
+ * in one and not the other and zero decoded-length mismatches.
+ */
+const CAT_FILE_CHUNK = 500;
+
+/** `--batch-check`: one header line per object, no contents. Cheap and text-only. */
+function batchCheck(shas) {
+  const out = new Map();
+  for (let i = 0; i < shas.length; i += CAT_FILE_CHUNK) {
+    const chunk = shas.slice(i, i + CAT_FILE_CHUNK);
+    let text;
+    try {
+      text = git(['cat-file', '--batch-check'], { input: `${chunk.join('\n')}\n` });
+    } catch {
+      continue; // an unreadable chunk is skipped, exactly as the per-object version did
+    }
+    for (const line of text.split('\n')) {
+      const parts = line.trim().split(' ');
+      // `<sha> missing` for an unknown object; `<sha> <type> <size>` otherwise.
+      if (parts.length !== 3) continue;
+      out.set(parts[0], { type: parts[1], size: Number(parts[2]) });
+    }
+  }
+  return out;
+}
+
+/**
+ * `--batch`: the same, with contents. Returns a Map of sha → decoded text.
+ *
+ * Read as a Buffer and parsed by byte offset, because a blob's contents are arbitrary
+ * bytes and a `\n` inside one must not be mistaken for a record separator. The record
+ * shape is `<sha> SP <type> SP <size> LF <size bytes> LF`, so every boundary comes from
+ * the declared length rather than from scanning for a delimiter.
+ */
+function batchRead(shas) {
+  const out = new Map();
+  for (let i = 0; i < shas.length; i += CAT_FILE_CHUNK) {
+    const chunk = shas.slice(i, i + CAT_FILE_CHUNK);
+    let buffer;
+    try {
+      buffer = git(['cat-file', '--batch'], { input: `${chunk.join('\n')}\n`, encoding: null });
+    } catch {
+      continue;
+    }
+    let offset = 0;
+    while (offset < buffer.length) {
+      const lineEnd = buffer.indexOf(10, offset);
+      if (lineEnd === -1) break;
+      const header = buffer.toString('utf8', offset, lineEnd).trim().split(' ');
+      offset = lineEnd + 1;
+      if (header.length !== 3) break; // `missing`, or a shape we do not understand
+      const size = Number(header[2]);
+      if (!Number.isFinite(size) || size < 0) break;
+      out.set(header[0], buffer.toString('utf8', offset, offset + size));
+      offset += size + 1; // the trailing LF git writes after the contents
+    }
+  }
+  return out;
 }
 
 // 1. Tracked working-tree files.
@@ -239,7 +338,11 @@ if (scanHistory) {
   } catch {
     objects = '';
   }
+  // Candidates first, in one pass over the object list. Exactly the same filtering the
+  // per-object version did — path-based binary skip, then the pinned blob allowlist — so
+  // what is scanned is unchanged and only the number of processes is different.
   const seen = new Set();
+  const candidates = [];
   for (const line of objects.split('\n')) {
     const sp = line.indexOf(' ');
     if (sp === -1) continue;
@@ -252,15 +355,23 @@ if (scanHistory) {
       exemptedBlobs += 1;
       continue;
     }
-    try {
-      const type = git(['cat-file', '-t', sha]).trim();
-      if (type !== 'blob') continue;
-      const size = Number(git(['cat-file', '-s', sha]).trim());
-      if (size > 4 * 1024 * 1024) continue;
-      scanText(`history:${path}@${sha.slice(0, 8)}`, git(['cat-file', 'blob', sha]));
-    } catch {
-      /* ignore unreadable objects */
-    }
+    candidates.push({ sha, path });
+  }
+
+  // One `--batch-check` pass gives type and size without reading a byte of content, so a
+  // tree, a commit or an oversized blob costs nothing to rule out.
+  const meta = batchCheck(candidates.map((c) => c.sha));
+  const readable = candidates.filter((c) => {
+    const m = meta.get(c.sha);
+    return m !== undefined && m.type === 'blob' && m.size <= 4 * 1024 * 1024;
+  });
+
+  // Then one `--batch` pass for the contents of what survived.
+  const contents = batchRead(readable.map((c) => c.sha));
+  for (const { sha, path } of readable) {
+    const text = contents.get(sha);
+    if (text === undefined) continue; // unreadable object; skipped, as before
+    scanText(`history:${path}@${sha.slice(0, 8)}`, text);
   }
 }
 

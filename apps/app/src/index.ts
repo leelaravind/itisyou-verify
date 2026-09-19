@@ -23,6 +23,7 @@ import { newId } from './lib/ids.js';
 import { handleScheduled } from './scheduler/index.js';
 import { createRetentionSweeper } from './scheduler/retention.js';
 import { D1SupportDataPort } from './db/supportPort.js';
+import { createPublicSupportRoute } from './support/publicRoute.js';
 import { createNotificationDelivery } from './notifications/delivery.js';
 import { D1QualityArtifactStore } from './owner/quality.js';
 import { createMoneyRoutes } from './money/index.js';
@@ -450,6 +451,18 @@ async function ownerRoute(c: Context<Bindings>): Promise<Response> {
 }
 
 app.route('/', storyRoutes);
+
+/**
+ * The signed-out support route, mounted BEFORE `publicRoutes` so `GET /support/contact`
+ * reaches the form rather than the informational page.
+ *
+ * It exists because support was only reachable by someone already signed in — which is
+ * exactly backwards for the person most likely to need it: a customer who cannot get in.
+ * It deliberately takes no workspace or run field, so a stranger cannot attach a case to
+ * a tenant, and it shares one redact-then-triage implementation with the signed-in path
+ * rather than growing a second one that would drift.
+ */
+app.route('/', createPublicSupportRoute({ db: (c) => (c.env as Env).DB }));
 
 app.route('/', publicRoutes);
 

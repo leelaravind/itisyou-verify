@@ -104,13 +104,22 @@ const RULES = [
   // 2. Capabilities the frozen contract forbids.
   {
     id: 'remediation-claim',
-    re: /\b(?:auto[- ]?(?:heal|healed|healing|remediat\w*|fix\w*|repair\w*)|self[- ]?heal\w*|automatically (?:fixes|repairs|resolves|remediates))\b/i,
+    // The first version required a hyphen-joined form or the adverb "automatically", so
+    // the independent auditor defeated it in one attempt with the plainest possible
+    // English: "We fix your broken automation for you." A rule that catches the jargon
+    // and misses the sentence is worse than useless, because it certifies the page.
+    //
+    // The negative lookahead keeps denials out of the findings. This site says "It does
+    // not fix anything" and "We never modify your CRM" prominently and on purpose, and a
+    // gate that fired on those would push someone to soften the very sentences that make
+    // the product honest.
+    re: /\b(?:auto[- ]?(?:heal|healed|healing|remediat\w*|fix\w*|repair\w*)|self[- ]?heal\w*|(?:automatically|we|it) (?:fix|fixes|repair|repairs|remediate|remediates|re-?runs?|retr(?:y|ies))|(?:we|it) resolves? (?:your|their|the customer)\b(?![^.]{0,40}\b(?:not|never|nothing|no )))/i,
     why: 'claims the service acts on a customer system; it only observes and reports',
   },
   // 3. Absolutist vocabulary.
   {
     id: 'absolutist-claim',
-    re: /\b(?:verification guaranteed|guaranteed (?:verification|accuracy|uptime|delivery)|undeniable|absolute (?:certainty|proof|consensus|truth)|100% (?:accurate|reliable|certain)|never fails|cannot fail|zero[- ]trust:?\s*strict)\b/i,
+    re: /\b(?:verification guaranteed|guarantee(?:d|s|ing)? (?:[\w%]+ ){0,2}(?:verification|accuracy|uptime|delivery|results?)|undeniable|absolute (?:certainty|proof|consensus|truth)|100%? (?:accurate|accuracy|reliable|certain|of)|never fails|cannot fail|zero[- ]trust:?\s*strict)\b/i,
     why: 'asserts a certainty the engine cannot produce; UNVERIFIED is a normal outcome',
   },
   {

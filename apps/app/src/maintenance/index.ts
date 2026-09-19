@@ -86,6 +86,15 @@ export {
   type StoredResult,
 } from './jobs.js';
 
+export {
+  createD1ReleaseApprovalAuthority,
+  noActionTypeCoversRelease,
+  type ReleaseApprovalAuthority,
+  type ReleaseApprovalRejection,
+  type ReleaseCoverage,
+  type ReleasePayload,
+} from './approvalAuthority.js';
+
 export { createRunnerRoutes, type RunnerRouteDeps } from './routes.js';
 
 /** Live bindings for A07's owner ports in `apps/app/src/owner/runner.ts`. */

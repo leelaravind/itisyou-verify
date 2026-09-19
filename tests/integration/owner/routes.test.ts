@@ -649,8 +649,10 @@ describe('owner routes — honest rendering', () => {
     expect(noApproval.status).toBe(422);
     expect(await noApproval.text()).toMatch(/needs an approval bound to the exact deployment/i);
 
-    // With a standing approval, everything this route can verify has passed, and what is
-    // left is named precisely rather than as "not wired".
+    // A standing approval is not the same as an approval for *this*. Granting one to delete
+    // stale rows used to carry the owner all the way through this route, because the only
+    // check was "granted and unexpired". It is now refused by action type, and the refusal
+    // names the real gap: nothing on this deployment binds an approval to a deployment id.
     await h.post('/owner/approvals', {
       action_type: 'cleanup_execute',
       summary: 'Restore the previous deployment after the bad release',
@@ -670,9 +672,18 @@ describe('owner routes — honest rendering', () => {
     });
     expect(restore.status).toBe(422);
     const restoreBody = await restore.text();
-    expect(restoreBody).toContain('data-dependency="true"');
     expect(restoreBody).toMatch(/Nothing has been restored/i);
-    expect(restoreBody).toMatch(/does not carry one/i);
+    expect(restoreBody).toMatch(/does not authorise replacing the running code/i);
+    // Refused, so the approval is untouched and still spendable on what it was for.
+    expect((await h.port.approvals())[0]?.status).toBe('granted');
+
+    // A restore with no deployment chosen is refused too — the field was on the form and
+    // the route never read it.
+    const noDeployment = await h.post('/owner/operations/restore', {
+      approval_id: approvalId,
+      confirm: 'restore',
+    });
+    expect(await noDeployment.text()).toMatch(/choose the deployment to restore/i);
 
     // Pairing with no connector bound mints no code and says so.
     const pair = await h.post('/owner/operations/runner/pair', { label: 'my laptop' });

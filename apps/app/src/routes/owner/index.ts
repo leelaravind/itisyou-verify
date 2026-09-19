@@ -38,7 +38,7 @@ import {
 } from '../../owner/access.js';
 import { bootstrapOwner, type BootstrapResult } from '../../owner/bootstrap.js';
 import { isControlKey } from '../../owner/controls.js';
-import { approvalStanding } from '../../owner/approvals.js';
+import { approvalStanding, isOwnerActionType } from '../../owner/approvals.js';
 
 /**
  * The maintenance kinds this panel offers as a one-press button.
@@ -994,6 +994,26 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
           'Restore deployment',
         );
       }
+      // The form has had a `deployment_id` field on it all along and this route never read
+      // it. That is worse than not having the field: the refusal below used to say "the
+      // deployment id is recorded", which was untrue twice over — nothing read it and
+      // nothing wrote it. Read it, require it, and say only what is true.
+      const deploymentId = (form.single['deployment_id'] ?? '').trim();
+      if (deploymentId.length === 0) {
+        return respondToWrite(
+          c,
+          port,
+          principal,
+          {
+            ok: false,
+            message:
+              'Choose the deployment to restore. Nothing has been restored and nothing has been recorded.',
+            redirectTo: null,
+            dependency: null,
+          },
+          'Restore deployment',
+        );
+      }
       const approvalId = (form.single['approval_id'] ?? '').trim();
       if (approvalId.length === 0) {
         return respondToWrite(
@@ -1029,10 +1049,39 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
           'Restore deployment',
         );
       }
+      // An approval that is *usable* is not the same as an approval that authorises **this**.
+      // `approvalStanding` only asks whether a row is granted and unexpired, so before this
+      // check a refund approval — or a cleanup approval — read as "the approval stands" on a
+      // page that restores code to every customer. None of the four declared action types
+      // covers a release, so any of them appearing here is a mismatch, not an authorisation.
+      if (isOwnerActionType(approval.action_type)) {
+        return respondToWrite(
+          c,
+          port,
+          principal,
+          {
+            ok: false,
+            message:
+              `That approval was granted for ${approval.action_type}, which does not authorise replacing the ` +
+              'running code. Nothing has been restored and the approval has not been used. No approval type on ' +
+              'this deployment binds to a deployment id, so there is at present nothing that can authorise a ' +
+              'restore from this page — that is a missing action type, not a mistake you made.',
+            redirectTo: null,
+            dependency: null,
+          },
+          'Restore deployment',
+        );
+      }
       // Everything this route can check has now been checked. What remains is genuinely
       // outstanding, and is stated precisely rather than as "not wired": A08's runner port
       // carries a kind and an idempotency key and no approval id, and
       // `execute_approved_release` is refused without one. The gap is one field.
+      //
+      // The approval is deliberately **not** consumed here. Consume-before-act protects an
+      // action that is about to happen; this one is refused before anything could reach a
+      // provider, so spending the approval would burn the owner's authorisation on nothing.
+      // The moment the release job can carry an approval id, the consumption belongs
+      // immediately above that call — not here.
       return respondToWrite(
         c,
         port,
@@ -1042,10 +1091,11 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
           message: null,
           redirectTo: null,
           dependency:
-            'The approval stands and the deployment id is recorded, but the release cannot be queued yet: ' +
-            'the release job refuses to be created without a bound approval id, and the runner ' +
-            'port this panel calls does not carry one. Nothing has been restored, and nothing is pretending to have ' +
-            'been. `wrangler rollback` from a machine with deploy access does the same job today.',
+            'The approval stands, but the release cannot be queued yet: the release job refuses to be created ' +
+            'without a bound approval id, and the runner port this panel calls does not carry one. Nothing has ' +
+            'been restored, nothing has been recorded against that deployment, and the approval has not been ' +
+            'used — so it is still there when this can actually run. `wrangler rollback` from a machine with ' +
+            'deploy access does the same job today.',
         },
         'Restore deployment',
       );

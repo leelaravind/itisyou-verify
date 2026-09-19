@@ -82,6 +82,15 @@ const WORKSPACE_SCOPED_TABLES = [
   'subscriptions',
   'entitlements',
   'refunds',
+  // Added after the retention sweep for these four carried `workspace_id` in its SELECT
+  // list with no predicate constraining it — legitimate for an expiry-driven global sweep,
+  // the same shape already established for evidence/source_events above, but invisible to
+  // this check because the table itself was never on this list. A column in the SELECT list
+  // is not a predicate, and this list is what makes that distinction reachable at all.
+  'webhook_receipts',
+  'audit_events',
+  'notification_deliveries',
+  'support_cases',
 ];
 
 const EXEMPT_MARKER = 'tenant-scope:exempt';

@@ -182,6 +182,11 @@ describe('provider-backed: a real HubSpot read', () => {
       expect(evidence.provider).toBe('hubspot');
       expect(evidence.provider_account_id).toBe(HUBSPOT_PORTAL);
       expect(evidence.origin).toBe('provider_readback');
+      // The one assertion every other connector test in this repository cannot make: no
+      // `fetchImpl` was supplied above, so this call went through the runtime's own `fetch`
+      // and left the process for real. If this ever reads `simulated`, either an `fetchImpl`
+      // has been added above by mistake, or `transport` has stopped meaning what it says.
+      expect(evidence.transport).toBe('live');
       expect(typeof evidence.record_id).toBe('string');
       expect(evidence.record_id.length).toBeGreaterThan(0);
       expect(Number.isNaN(Date.parse(evidence.observed_at))).toBe(false);
@@ -237,6 +242,9 @@ describe('provider-backed: a real Resend read', () => {
       ).toBe(true);
       expect(evidence.provider).toBe('resend');
       expect(evidence.origin).toBe('provider_readback');
+      // As in the HubSpot case above: no `fetchImpl` was supplied, so this is the one code
+      // path in the repository allowed to claim `live`, and only because it actually ran.
+      expect(evidence.transport).toBe('live');
       expect(evidence.provider_account_id.startsWith('resend-key-')).toBe(true);
       expect(Number.isNaN(Date.parse(evidence.occurred_at))).toBe(false);
 

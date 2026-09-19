@@ -26,6 +26,7 @@
  */
 import { CONNECTOR_URL_GUARD_OPTIONS, checkRedirect, checkUrl } from './url-guard.js';
 import type { ProviderId } from './types.js';
+import type { EvidenceTransport } from '@verify/contracts';
 
 /** Frozen API bases, keyed by provider. Never assembled from customer input. */
 export const PROVIDER_BASE_URL: Readonly<Record<ProviderId, string>> = Object.freeze({
@@ -113,6 +114,15 @@ export interface GuardedResponse {
   /** The URL that finally answered, after any followed redirects. */
   readonly finalUrl: string;
   readonly redirects: number;
+  /**
+   * Whether this call left the process. Derived **only** from whether the caller supplied
+   * `fetchImpl` — never from the response's status, headers or body, and never settable by
+   * a caller directly. Every test in this repository passes `fetchImpl`, so every response
+   * a test can produce is `simulated`; the only way to get `live` is to not intercept the
+   * request at all, which means it actually reached the network. See `EvidenceTransport` in
+   * `@verify/contracts` for why this distinction has to be unforgeable to be worth anything.
+   */
+  readonly transport: EvidenceTransport;
 }
 
 function timeoutSignal(ms: number): AbortSignal {
@@ -200,6 +210,11 @@ export async function guardedFetch(request: GuardedRequest): Promise<GuardedResp
   const timeoutMs = request.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const maxBytes = request.maxBytes ?? DEFAULT_MAX_RESPONSE_BYTES;
   const doFetch = request.fetchImpl ?? globalThis.fetch;
+  // The one and only place this is decided. `request.fetchImpl` is either `undefined` — the
+  // ambient runtime `fetch` will actually make the call — or something a caller supplied,
+  // which by construction never leaves this process. Nothing later in this function, and
+  // nothing in a connector, can override it.
+  const transport: EvidenceTransport = request.fetchImpl === undefined ? 'live' : 'simulated';
   const scrub = (text: string): string => redactSecrets(text, secrets);
 
   const first = checkUrl(request.url, CONNECTOR_URL_GUARD_OPTIONS);
@@ -263,6 +278,7 @@ export async function guardedFetch(request: GuardedRequest): Promise<GuardedResp
         bodyText,
         finalUrl: current.href,
         redirects,
+        transport,
       };
     }
 

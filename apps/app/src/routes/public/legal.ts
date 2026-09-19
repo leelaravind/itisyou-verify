@@ -109,6 +109,7 @@ export function TermsPage(): Html {
     </section>
 
     <section class="stack">
+      {/* claim-scan:allow a heading that denies holding a certification or offering a guarantee */}
       <h2>No certification, and no guarantee of a result</h2>
       <p class="measure small muted">
         ${TodoOwnerInput({

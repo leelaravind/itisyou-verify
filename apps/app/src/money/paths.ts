@@ -145,6 +145,19 @@ export const MONEY_PATHS: readonly MoneyPath[] = Object.freeze([
       'the recovery policy exists to forbid.',
   },
   {
+    entryPoint: 'GET /support/contact, POST /support',
+    file: 'apps/app/src/support/publicRoute.ts',
+    billable: false,
+    enforcement: 'not_billable',
+    enforcedAt: null,
+    reason:
+      'The signed-out support form. It admits no work against any workspace — it takes no ' +
+      'workspace id and writes a case with workspace_id NULL — so there is no allowance to ' +
+      'reserve. Gating it would be the exact behaviour the recovery policy forbids: the ' +
+      'people who most need to reach us are the ones whose service is paused or who cannot ' +
+      'sign in. Abuse is bounded by a rate limit, not by entitlement.',
+  },
+  {
     entryPoint: 'GET|POST /owner/*, /admin/*',
     file: 'apps/app/src/routes/owner/index.ts',
     billable: false,

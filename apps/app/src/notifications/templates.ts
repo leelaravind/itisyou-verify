@@ -40,13 +40,29 @@
  *    `cancel_at_period_end`, or `customer.subscription.deleted`, through the same route.
  *    Both map to one key, so one cancellation sends one message. CUST-364.
  *
- * **The other ten still have no triggering event.** `sign_in_link` is the one that costs
+ * Re-audited again 2026-09-19 (A09). **Three more are now reached**, by the request layer
+ * in `apps/app/src/privacy/requests.ts` rather than by anything in this file:
+ *
+ *  - `data_export_ready` — `requestWorkspaceExport` builds the export, mints a download
+ *    link whose expiry comes from `exportLinkExpiry` in `send.ts` (which until then had no
+ *    caller at all), and delivers. `API-401`–`API-404`.
+ *  - `deletion_scheduled` — `requestWorkspaceDeletion` → `scheduleWorkspaceDeletion`.
+ *    `API-411`, `API-412`.
+ *  - `deletion_completed` — `runDueWorkspaceDeletions` once the grace period has passed,
+ *    and **only when `deleteWorkspace` reports `complete`**, so this message is never sent
+ *    after a partial purge. `API-414`, `API-415`.
+ *
+ * Each is proven from the entry point through the real delivery chain to a row read back
+ * out of `notification_deliveries`, in `tests/integration/support/privacy-triggers.test.ts`,
+ * with `API-421`–`API-423` asserting that none of the three carries a credential, a card
+ * detail, a payment-method id or another tenant's data.
+ *
+ * **The other seven still have no triggering event.** `sign_in_link` is the one that costs
  * the most: `issueSignInToken` mints a token the owner path never emails, and the customer
- * path refuses outright and says so. `welcome`, `data_export_ready`, `deletion_scheduled`,
- * `deletion_completed`, `allowance_approaching`, `allowance_reached`,
- * `first_material_failure`, `recovery` and `provider_disconnected` are each waiting on the
- * path that owns the event, not on this file. None of them is dead code; every one is a
- * missing wire, and the list is in A06b's handoff with the owner named.
+ * path refuses outright and says so. `welcome`, `allowance_approaching`,
+ * `allowance_reached`, `first_material_failure`, `recovery` and `provider_disconnected` are
+ * each waiting on the path that owns the event, not on this file. None of them is dead
+ * code; every one is a missing wire, and the list is in A06b's handoff with the owner named.
  *
  * So the words here are correct, and ten of them are unreached. That is not an argument for leaving a
  * false sentence in one — a template ships the moment somebody wires it, and the wiring

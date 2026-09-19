@@ -17,7 +17,9 @@ import {
   MAX_REQUESTED_PROPERTIES,
   classifyHubSpotError,
   ConnectorTransportError,
+  guardedFetch,
   normaliseHubSpotContact,
+  providerUrl,
   selectProperties,
 } from '@verify/connectors';
 import { CORRELATION_VALUE, RECIPIENT, T_EVENT, T_INSIDE_WINDOW } from '../../fixtures/index.js';
@@ -501,6 +503,81 @@ describe('HubSpot fetchEvidence — correlation search', () => {
     const result = await makeConnector(fetchImpl).fetchEvidence({ ...base, locator: {} });
     expect(result.gaps[0]?.code).toBe('INVALID_EVIDENCE');
     expect(calls).toHaveLength(0);
+  });
+});
+
+describe('HubSpot fetchEvidence — transport is unforgeable from test wiring', () => {
+  const base = {
+    credentials,
+    connection: connection(),
+    locator: { correlation_value: CORRELATION_VALUE },
+    occurredAt: T_EVENT,
+    now: T_INSIDE_WINDOW,
+  };
+
+  // Every test in this file passes `fetchImpl`, exactly like this one. If any of them could
+  // produce `transport: 'live'`, the field would be worthless — it would mean nothing more
+  // than `origin: 'provider_readback'` already did before this file existed. This is the
+  // test that fails if that boundary is ever loosened.
+  it('CONN-500 a stubbed fetch can never produce transport: live, however convincing its reply', async () => {
+    const { fetchImpl } = router({ search: () => json({ total: 1, results: [contactPayload()] }) });
+    const result = await makeConnector(fetchImpl).fetchEvidence(base);
+    expect(result.evidence).toHaveLength(1);
+    expect(result.evidence[0]?.transport).toBe('simulated');
+    expect(result.evidence[0]?.transport).not.toBe('live');
+  });
+
+  it('CONN-501 a stub that smuggles transport: "live" into the response body is still simulated', async () => {
+    // `GuardedResponse.transport` is derived only from whether `fetchImpl` was supplied —
+    // never from anything the response says. A malicious or careless stub cannot talk its
+    // way past it by putting the word "live" somewhere in the payload.
+    const { fetchImpl } = router({
+      search: () =>
+        json({
+          total: 1,
+          results: [contactPayload({ transport: 'live', origin: 'provider_readback' })],
+        }),
+    });
+    const result = await makeConnector(fetchImpl).fetchEvidence(base);
+    expect(result.evidence).toHaveLength(1);
+    expect(result.evidence[0]?.transport).toBe('simulated');
+  });
+
+  it('CONN-502 the by-id read path is equally unforgeable', async () => {
+    const { fetchImpl } = router({ contact: () => json(contactPayload()) });
+    const result = await makeConnector(fetchImpl).fetchEvidence({
+      ...base,
+      locator: { record_id: '33451' },
+    });
+    expect(result.evidence).toHaveLength(1);
+    expect(result.evidence[0]?.transport).toBe('simulated');
+  });
+
+  it('CONN-503 omitting transport from the normalise context reads as absent, never as live', () => {
+    const ctx = {
+      provider_account_id: PORTAL,
+      origin: 'provider_readback' as const,
+      observedAt: T_INSIDE_WINDOW,
+      // transport intentionally not supplied.
+    };
+    const result = normaliseHubSpotContact(contactPayload(), ctx);
+    expect(result.ok && result.evidence.transport).toBeUndefined();
+    // The documented contract: absent is read as 'unknown', and 'unknown' is never 'live'.
+    expect(result.ok && (result.evidence.transport ?? 'unknown')).toBe('unknown');
+  });
+
+  it('CONN-504 guardedFetch itself reports simulated for any injected fetchImpl, whatever it returns', async () => {
+    // The lowest-level proof: call the actual `guardedFetch` used by every connector, with a
+    // stub that returns a perfectly ordinary 200. There is no field on the request or the
+    // stubbed response that can make this come back `live` — the only input the derivation
+    // reads is whether `fetchImpl` was supplied at all.
+    const response = await guardedFetch({
+      url: providerUrl('hubspot', '/oauth/v2/private-apps/get/access-token-info'),
+      method: 'POST',
+      fetchImpl: (async () => json({ hubId: Number(PORTAL) })) as unknown as typeof fetch,
+    });
+    expect(response.transport).toBe('simulated');
+    expect(response.transport).not.toBe('live');
   });
 });
 

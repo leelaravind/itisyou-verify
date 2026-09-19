@@ -144,8 +144,19 @@ describe('owner data reads', () => {
     // owner who reads zero costs believes the business is more profitable than it is.
     expect(view.finance.variableCostsMinor).toBeNull();
     expect(view.finance.outstandingCommitmentsMinor).toBeNull();
-    // Health has no probe wired, and says so rather than claiming ok.
-    expect(view.health.every((h2) => h2.state === 'unknown')).toBe(true);
+    // Health has no probe wired, and says so rather than claiming ok — for everything
+    // except the money path, which is not a probe at all. `moneyPathReadiness` reads what
+    // the running Worker is *able* to do from its own configuration, so it is knowable
+    // without asking anything, and reporting it as "unknown" would be its own false
+    // modesty. The property this case is really about is that nothing defaults optimistic,
+    // and that holds for it too: with no secrets present it must not read `ok`.
+    const money = view.health.filter((h2) => h2.component === 'money_path');
+    expect(money).toHaveLength(1);
+    expect(money[0]?.state).not.toBe('ok');
+    expect(money[0]?.detail).toMatch(/EVENT_SIGNING_ROOT_KEY/);
+    expect(
+      view.health.filter((h2) => h2.component !== 'money_path').every((h2) => h2.state === 'unknown'),
+    ).toBe(true);
     expect(view.assembledAt).toBe(NOW.toISOString());
   });
 

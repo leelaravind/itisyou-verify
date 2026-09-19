@@ -516,6 +516,37 @@
       ],
       "limitations": "It proves no banned phrase is present. It does not prove the remaining claims are true; only checking each against the code does that. The rendered pass is only as current as the pages fed to it.",
       "next_step": "Run the served-pages pass against the candidate deployment on every release."
+    },
+    {
+      "event_id": "EVT-0017",
+      "timestamp": "2026-09-19T17:10:00Z",
+      "milestone_id": "M-AUDIT",
+      "task_id": "T-AUDIT-PASS-3",
+      "agent_role": "evidence-and-completion-auditor",
+      "model_id": "claude-opus-5",
+      "status": "attempted",
+      "goal": "Reproduce six claims other specialists and the lead had closed, by issuing real requests against a candidate and reading the resulting state.",
+      "inputs": [
+        "docs/gap-register.md",
+        "a local candidate worker"
+      ],
+      "changed_artifacts": [
+        "docs/audit-summary.md",
+        "docs/gap-register.md",
+        "scripts/scan-claims.mjs"
+      ],
+      "commit_sha": "0c7fc08cee3b1264c1c0716b82ecef5f8770b0aa",
+      "decision_summary": "The auditor closed one open question and opened seven findings. It established what the lead had not: with a REAL signing key id present and EVENT_SIGNING_ROOT_KEY absent, the intake answers 503 SIGNING_KEY_UNREADABLE rather than 401 — the fault is ours and the status says so. It also refused to verify notifications, because doing so required inventing a Stripe webhook secret, and a green result under a fabricated credential is indistinguishable in a register from a real one.",
+      "alternatives_considered": "Accept the lead's own demonstration of the lead's own claim scanner. Rejected: the auditor defeated that gate in one attempt with plain English.",
+      "decision_reason": "Three findings landed on the lead. The claim scanner passed \"we fix your broken automation for you\" and \"we guarantee 100% accuracy\" while catching \"guaranteed accuracy\" — it turned on a verb ending, so it certified the page it was meant to guard. The gap register cited the development story as evidence for backup restoration, and the story contains no such event; the citation was false and the row is withdrawn. And the register's owner column named agents that were not on the roster, which is unassigned work wearing owner labels.",
+      "test_evidence_refs": [
+        "503 SIGNING_KEY_UNREADABLE reproduced with a seeded workflow and no root key",
+        "12 further denial legs: wrong workflow 403, stale/future timestamp 401, stale occurred_at 422, bad schema 422, 64KiB 413",
+        "scan-claims now exits 1 on all three phrases that previously passed",
+        "HEAD moved four times during the pass: 5b7c450 to 25a41fc to 4b27b01 to 0c7fc08"
+      ],
+      "limitations": "Nothing in this pass is deployment-verified; every measurement is local. There is no frozen candidate — HEAD moved four times while the audit ran, and one request returned 503 worker restarted mid-request. The auditor's own could-not-verify list has eight entries.",
+      "next_step": "Freeze a candidate commit before the next audit pass. Notifications stay unverified until a real Stripe webhook secret exists."
     }
   ]
 }

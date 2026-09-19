@@ -63,6 +63,8 @@ afterEach(() => {
 });
 
 interface Harness {
+  /** The signed-in owner's cookies, for the few cases that call the port directly. */
+  readonly cookie: string;
   get(path: string): Promise<Response>;
   post(path: string, fields?: Record<string, string>): Promise<Response>;
 }
@@ -102,6 +104,7 @@ async function mount(): Promise<Harness> {
     }),
   );
   return {
+    cookie,
     get: async (path) => app.request(`${ORIGIN}${path}`, { headers: { cookie } }, ENV),
     post: async (path, fields = {}) =>
       app.request(
@@ -660,5 +663,189 @@ describe("the owner panel's own refund button spends the approval", () => {
     expect(one<{ status: string }>('SELECT status FROM approvals WHERE id = ?', id)?.status).toBe(
       'consumed',
     );
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* the approval-required actions that are NOT refunds, campaigns or cleanups   */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Enumerating the approval-required actions turned up two that no case covered.
+ *
+ * `OWNER_ACTION_TYPES` declares four. Three of them now consume — `refund_issue`,
+ * `campaign_launch`, `cleanup_execute`, proven above against rows. The fourth,
+ * `budget_limit_change`, has a canonical payload, a maximum check and **no action behind
+ * it**: `owner.budget_limits` sat in the same `writeSetting` allowlist as the business
+ * address, so a ceiling — including `platform:advertising`, the owner's reserved £15 — was
+ * one ordinary settings save away from being raised with no approval at all. Nothing routed
+ * to it today, which is exactly the shape of a gap that closes itself the first time
+ * somebody adds a form.
+ *
+ * And `/owner/operations/restore` read an approval id, checked only that the row was
+ * granted and unexpired, ignored the `deployment_id` field on its own form, and then told
+ * the owner "the deployment id is recorded". Nothing read it and nothing wrote it.
+ */
+describe('the approval-required actions that had no case', () => {
+  it('OWNER-371 a spending ceiling cannot be raised through the ordinary settings save', async () => {
+    const app = await mount();
+    const raised = JSON.stringify({
+      currency: 'GBP',
+      limits: { 'platform:advertising': 100_000 },
+      safetyBufferMinor: 200,
+    });
+
+    // The port is the surface every route shares, and the principal is the real signed-in
+    // owner rather than a fabricated one — so this is the same call any future budget form
+    // would make, not a narrower one.
+    const port = new D1OwnerDataPort({
+      db: h.db,
+      env: { ...ENV, DB: h.db } as unknown as Env,
+      request: new Request(`${ORIGIN}/owner/settings`, { headers: { cookie: app.cookie } }),
+      now: NOW,
+    });
+    const result = await port.writeSetting(
+      {
+        principal: await port.principal(),
+        capability: 'settings.write',
+        now: NOW,
+        requestId: 'req-owner-371',
+      },
+      'owner.budget_limits',
+      raised,
+    );
+
+    expect(result.ok).toBe(false);
+    expect(result.message ?? '').toMatch(/approval/i);
+    // The row is the assertion: a refusal that still wrote the value would be the worst of
+    // both, and a return value alone cannot tell the two apart.
+    expect(
+      one<{ value_json: string }>(
+        'SELECT value_json FROM settings WHERE key = ?',
+        'owner.budget_limits',
+      ),
+    ).toBeUndefined();
+
+    // And an ordinary setting on the same path still saves, so this is a refusal of one
+    // key and not a broken settings page.
+    const ok = await app.post('/owner/settings/retention', {
+      runRetentionDays: '90',
+      evidenceRetentionDays: '90',
+      auditRetentionDays: '365',
+    });
+    expect(ok.status).toBeLessThan(500);
+  });
+
+  it('OWNER-372 a restore refuses an approval granted for something else, and records nothing', async () => {
+    const app = await mount();
+    // A perfectly good refund approval. It is granted and unexpired, so the old
+    // standing-only check read it as "the approval stands" on the page that replaces the
+    // running code every customer is served.
+    await app.post('/owner/approvals', {
+      action_type: 'refund_issue',
+      summary: 'Refund September in full — the connection never worked',
+      maximum_amount: '49.00',
+      payload_json: JSON.stringify(REFUND_PAYLOAD),
+    });
+    const id = one<{ id: string }>('SELECT id FROM approvals ORDER BY created_at DESC')?.id ?? '';
+    expect(id).not.toBe('');
+
+    const wrongType = await app.post('/owner/operations/restore', {
+      confirm: 'restore',
+      deployment_id: 'deployment-abc',
+      approval_id: id,
+    });
+    expect(await wrongType.text()).toMatch(/does not authorise replacing the running code/i);
+    // Refused before anything could be spent: the approval is still the owner's to use.
+    expect(one<{ status: string }>('SELECT status FROM approvals WHERE id = ?', id)?.status).toBe(
+      'granted',
+    );
+
+    // `deployment_id` has been a field on this form all along and the route never read it.
+    // An empty one used to sail past every check.
+    const noDeployment = await app.post('/owner/operations/restore', {
+      confirm: 'restore',
+      deployment_id: '',
+      approval_id: id,
+    });
+    expect(await noDeployment.text()).toMatch(/choose the deployment to restore/i);
+
+    // Every action type the approvals page can mint is one of the four declared ones, and
+    // every one of them is refused here. So today there is no approval a person can grant
+    // that authorises a restore — the route fails closed, and says why rather than implying
+    // the owner picked the wrong row. That is the state to report, not to paper over.
+    for (const actionType of ['campaign_launch', 'budget_limit_change', 'cleanup_execute']) {
+      h.raw
+        .prepare(
+          `UPDATE approvals SET action_type = ?, status = 'granted', consumed_at = NULL WHERE id = ?`,
+        )
+        .run(actionType, id);
+      const refused = await app.post('/owner/operations/restore', {
+        confirm: 'restore',
+        deployment_id: 'deployment-abc',
+        approval_id: id,
+      });
+      const refusedBody = await refused.text();
+      expect(refusedBody).toMatch(/does not authorise replacing the running code/i);
+      expect(refusedBody).toMatch(/missing action type/i);
+      // Nothing recorded, nothing spent, for any of them.
+      expect(refusedBody).not.toMatch(/deployment id is recorded/i);
+      expect(
+        one<{ status: string; consumed_at: string | null }>(
+          'SELECT status, consumed_at FROM approvals WHERE id = ?',
+          id,
+        ),
+      ).toMatchObject({ status: 'granted', consumed_at: null });
+    }
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* the money path, as a fact the owner can read off the running Worker          */
+/* -------------------------------------------------------------------------- */
+
+describe('the owner can see whether this deployment can actually take money', () => {
+  it('OWNER-373 the overview names the missing money-path secrets instead of showing nothing', async () => {
+    const app = await mount();
+    const body = await (await app.get('/owner')).text();
+
+    // `moneyPathReadiness` documented itself as used by `/health` and by this view. It was
+    // used by neither. This is the half of that claim the owner panel owns.
+    expect(body).toMatch(/money_path/);
+    // The state must never read as fine while a secret is absent — the test environment has
+    // no EVENT_SIGNING_ROOT_KEY and no Stripe key, so both capabilities are lost.
+    expect(body).toMatch(/money_path: degraded/i);
+    expect(body).toMatch(/EVENT_SIGNING_ROOT_KEY/);
+    // And it says what is lost, in the owner's terms, not just which names are missing.
+    expect(body).toMatch(/no signed event can be verified/i);
+    expect(body).toMatch(/wrangler secret put/);
+  });
+
+  it('OWNER-374 with both secrets present the same row reads ok, so it is a measurement not a constant', async () => {
+    // Same code path, different configuration. A row that said "degraded" regardless would
+    // pass the case above while telling the owner nothing.
+    const port = new D1OwnerDataPort({
+      db: h.db,
+      env: {
+        ...ENV,
+        DB: h.db,
+        // Presence-only placeholders. `checkBillingSecrets` tests for a non-empty string
+        // and nothing here authenticates against anything — no request leaves the process
+        // in this case. They are not credentials and must never be treated as any.
+        EVENT_SIGNING_ROOT_KEY: 'a'.repeat(64),
+        STRIPE_SECRET_KEY: 'present-not-a-credential',
+        STRIPE_PRICE_ID: 'present-not-a-credential',
+        STRIPE_WEBHOOK_SECRET: 'present-not-a-credential',
+        STRIPE_WEBHOOK_PATH_ID: 'present-not-a-credential',
+        STRIPE_WEBHOOK_UNKNOWN_KEY: 'present-not-a-credential',
+        STRIPE_MODE: 'test',
+      } as unknown as Env,
+      request: new Request(`${ORIGIN}/owner`),
+      now: NOW,
+    });
+    const view = await port.overview(NOW);
+    const row = view.health.find((entry) => entry.component === 'money_path');
+    expect(row?.state).toBe('ok');
+    expect(row?.observedAt).toBe(NOW.toISOString());
   });
 });
