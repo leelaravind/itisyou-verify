@@ -642,12 +642,23 @@ describe("the owner panel's own refund button and the approval it spends", () =>
         ?.consumed_at,
     ).toBeNull();
 
-    // The property this case used to carry -- one approval can authorise at most one
-    // submission -- now lives where a provider exists to submit to: BILL-141 asserts
-    // `createRefund` is called exactly once across a retry, and `decideRefund` consumes
-    // through `consumeApproval` strictly before that call.
+    // The property this case used to carry -- one approval authorises at most one
+    // submission -- lives in BILL-259, which drives `decideRefund` with a real consumer
+    // and asserts the ordering. My first version of this comment cited BILL-141; the
+    // auditor checked and BILL-141 replays with a DIFFERENT approval, so its refusal comes
+    // from the refund state machine rather than from single-use. A wrong citation in a
+    // comment is worse than none, because the next reader trusts it instead of checking.
   });
 
+  /**
+   * Vacuous on this harness and kept deliberately, labelled.
+   *
+   * With no STRIPE_SECRET_KEY the port returns before any approval is claimed, so this
+   * passes whatever the amount is. It is not evidence about amount binding. That property
+   * is asserted where an approval is actually claimed: BILL-213, "an approval for an
+   * amount one penny different authorises nothing". Checked rather than assumed, because
+   * the citation I wrote a few lines above this one was wrong the first time.
+   */
   it('OWNER-369 a refund a penny different from the approved one consumes nothing', async () => {
     const app = await mount();
     const id = await seedRefundApproval();
@@ -674,15 +685,28 @@ describe("the owner panel's own refund button and the approval it spends", () =>
     const id = one<{ id: string }>('SELECT id FROM approvals ORDER BY created_at DESC')?.id ?? '';
     expect(id).not.toBe('');
 
-    const response = await app.post('/owner/refunds', { ...REFUND_FORM, approval_id: id });
+    // The property is COMPATIBILITY: an approval granted through the panel must hash to
+    // the same canonical payload the refund path recomputes. If the two hashed
+    // differently, every approval the owner grants would be unusable.
+    //
+    // My previous rewrite of this case asserted the refund response merely did not say
+    // "does not match" -- which it could not say, because the port returns before any hash
+    // is compared. The test would have passed with two completely incompatible hash
+    // functions. The auditor called that out as a green-seeking rewrite and was right, so
+    // the property is asserted directly against the stored hash instead of inferred from a
+    // response that never reaches it.
+    const stored = one<{ canonical_payload_hash: string; action_type: string }>(
+      'SELECT canonical_payload_hash, action_type FROM approvals WHERE id = ?',
+      id,
+    );
+    expect(stored?.action_type).toBe('refund_issue');
 
-    // The property is COMPATIBILITY: an approval granted through the panel must be one the
-    // refund action recognises. If the grant path and the refund path hashed the payload
-    // differently, the action would refuse it as not matching -- so the assertion is that
-    // it is NOT rejected on those grounds, and stops only on the missing provider.
-    const body = await response.text();
-    expect(body).not.toMatch(/not usable|does not match|already been used/i);
-    expect(body).toMatch(/STRIPE_SECRET_KEY/);
+    const { ownerPayloadHash } = await import('@app/owner/approvals');
+    const recomputed = await ownerPayloadHash({
+      action_type: 'refund_issue',
+      payload: REFUND_PAYLOAD,
+    } as never);
+    expect(stored?.canonical_payload_hash).toBe(recomputed);
   });
 });
 

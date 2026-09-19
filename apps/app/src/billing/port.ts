@@ -63,6 +63,16 @@ export interface SubscriptionRecord {
   readonly cancelAtPeriodEnd: boolean;
   readonly reconciledAt: string | null;
   /**
+   * The payment a refund would be issued against, and the period it covered.
+   *
+   * Stripe refunds a specific payment, never "a subscription", so `decideRefund` requires
+   * one of these. We learn it from `invoice.paid` and it is overwritten each period, so it
+   * names the MOST RECENT paid period only. `issueRefund` compares the period before using
+   * it rather than refunding whatever happens to be latest.
+   */
+  readonly latestPaymentIntentId: string | null;
+  readonly latestPaymentPeriodEnd: string | null;
+  /**
    * Unix seconds of the provider event that last wrote this row. The monotonic guard: an
    * event with a smaller value may never overwrite the row. Column exists in
    * `migrations/0001_init.sql`.
@@ -172,6 +182,15 @@ export interface BillingDataPort {
     workspaceId: string,
     environment: BillingEnvironment,
   ): Promise<SubscriptionRecord | null>;
+
+  /** Record the payment that just succeeded, so a refund has something to aim at. */
+  recordPaymentTarget(params: {
+    readonly workspaceId: string;
+    readonly providerSubscriptionId: string;
+    readonly environment: BillingEnvironment;
+    readonly paymentIntentId: string;
+    readonly periodEnd: string | null;
+  }): Promise<void>;
 
   findSubscriptionByProviderId(
     providerSubscriptionId: string,

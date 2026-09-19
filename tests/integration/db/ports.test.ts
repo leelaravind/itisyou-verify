@@ -372,6 +372,8 @@ describe('BillingDataPort against D1', () => {
       currentPeriodEnd: LATER,
       cancelAtPeriodEnd: false,
       reconciledAt: null,
+      latestPaymentIntentId: null,
+      latestPaymentPeriodEnd: null,
       providerEventCreated: 1000,
       updatedAt: T0,
     };
@@ -411,6 +413,8 @@ describe('BillingDataPort against D1', () => {
       currentPeriodEnd: LATER,
       cancelAtPeriodEnd: false,
       reconciledAt: null,
+      latestPaymentIntentId: null,
+      latestPaymentPeriodEnd: null,
       providerEventCreated: 1000,
       updatedAt: T0,
     };

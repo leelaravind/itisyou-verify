@@ -192,7 +192,7 @@ function unknownHealth(component: string, detail: string): ServiceHealthView {
  * nothing at all.
  */
 export interface SignInLinkOutcome {
-  readonly delivery: 'sent' | 'no_transport';
+  readonly delivery: 'sent' | 'no_transport' | 'send_failed';
 }
 
 export interface OwnerPortInput {
@@ -200,6 +200,15 @@ export interface OwnerPortInput {
   readonly env: Env;
   readonly request: { readonly headers: Headers; readonly url: string };
   readonly now?: Date;
+  /**
+   * Injected transport for the provider paths. Absent in production.
+   *
+   * It exists because its absence was itself a defect: with no way to supply a transport,
+   * no test could reach the branch where this port talks to Stripe, and the owner's refund
+   * control sat dead behind a green suite. `customerPort` already had this; the asymmetry
+   * is what let the two diverge.
+   */
+  readonly fetchImpl?: typeof fetch;
 }
 
 export class D1OwnerDataPort implements OwnerDataPort {
@@ -209,6 +218,7 @@ export class D1OwnerDataPort implements OwnerDataPort {
   readonly #env: Env;
   readonly #request: { readonly headers: Headers; readonly url: string };
   readonly #now: Date;
+  readonly #fetchImpl: typeof fetch | undefined;
   #principal: OwnerPrincipal | undefined = undefined;
   #runnerPort: MaintenanceRunnerPort | undefined = undefined;
   #assistantPort: AssistantStatusPort | undefined = undefined;
@@ -225,6 +235,7 @@ export class D1OwnerDataPort implements OwnerDataPort {
     this.#env = input.env;
     this.#request = input.request;
     this.#now = input.now ?? new Date();
+    this.#fetchImpl = input.fetchImpl;
     this.#claims = new D1ApprovalClaims(input.db);
   }
 
@@ -651,9 +662,16 @@ export class D1OwnerDataPort implements OwnerDataPort {
     const { createStripeClient } = await import('@verify/connectors/stripe');
     return createBillingRuntime(this.#env as never, {
       data: new D1BillingDataPort(this.#db),
-      gateway: createStripeClient({ secretKey }),
-      now: () => new Date().toISOString(),
-      newId: (prefix: string) => newId(prefix, Date.now()),
+      gateway: createStripeClient({
+        secretKey,
+        ...(this.#fetchImpl === undefined ? {} : { fetchImpl: this.#fetchImpl }),
+      }),
+      // The PORT's clock and id factory, not this builder's own. Two clocks in one
+      // operation is how a money path ends up with two notions of "now" -- the auditor
+      // found this builder reaching for `new Date()` while the port held an injected
+      // `#now`, which also made the behaviour untestable at a fixed instant.
+      now: () => this.#now.toISOString(),
+      newId: (prefix: string) => newId(prefix, this.#now.getTime()),
     });
   }
 
@@ -781,6 +799,25 @@ export class D1OwnerDataPort implements OwnerDataPort {
       );
     }
 
+    // Stripe refunds a specific payment, never "a subscription". Until 20 September 2026
+    // this method called `requestRefund` and then `decideRefund` and could never get past
+    // the second: it passed no payment target, so every attempt returned
+    // REFUND_TARGET_REQUIRED and left an orphan `queued_for_owner` row the owner's own
+    // control could not then action. The control was dead and the suite was green over it.
+    //
+    // So the target is resolved FIRST, and a refusal here creates nothing.
+    const subscription = await runtime.data.findSubscriptionForWorkspace(
+      input.workspaceId,
+      this.#env.STRIPE_MODE === 'live' ? 'live' : 'test',
+    );
+    const paymentIntentId = subscription?.latestPaymentIntentId ?? null;
+    if (paymentIntentId === null) {
+      await this.#audit(ctx, 'owner.refund.no_target', input.orderId);
+      return writeFailed(
+        'No refund was submitted and no approval was spent. We have not recorded a payment to refund against for this workspace: the payment reference is learned when an invoice is paid, so there is nothing to aim a refund at yet.',
+      );
+    }
+
     try {
       const { requestRefund, decideRefund } = await import('../billing/index');
       const requested = await requestRefund(runtime, {
@@ -801,6 +838,7 @@ export class D1OwnerDataPort implements OwnerDataPort {
         decision: 'approve',
         approval,
         policyRule,
+        paymentIntentId,
         consumeApproval: async ({ approval: granted }) => {
           const claim = await claimApproval(granted, payload, {
             store: this.#claims,
@@ -1483,6 +1521,21 @@ export class D1OwnerDataPort implements OwnerDataPort {
         'That approval payload is not readable, so there is nothing to bind an approval to.',
         { payload_json: 'This has to be valid JSON.' },
       );
+    }
+
+    // A refund approval binds a policy rule into the hash. The rule was accepted as
+    // whatever string the owner pasted, so an approval could be granted for a rule nobody
+    // published. It failed closed at use -- `issueRefund` now rejects an unpublished rule
+    // -- but an approval that can never authorise anything is a trap, not a safeguard, and
+    // the auditor was right that "no remaining path" was too strong a claim.
+    if (input.actionType === 'refund_issue') {
+      const rule = (payload as { policy_rule?: unknown } | null)?.policy_rule;
+      const { isRefundPolicyRule } = await import('../billing/index');
+      if (typeof rule !== 'string' || !isRefundPolicyRule(rule)) {
+        return writeFailed('That is not a published refund policy rule.', {
+          payload_json: 'policy_rule has to be one of the published rules.',
+        });
+      }
     }
 
     const id = newId(ID_PREFIX.approval, ctx.now.getTime());
@@ -2670,10 +2723,24 @@ export class D1OwnerAuth implements OwnerAuthPort {
       },
     ] as never);
 
-    // What actually happened, so the page can say it. `deliverNotifications` records an
-    // unsent notification as `no_email_transport_configured` rather than throwing, so a
-    // deployment without a transport reaches here with nothing sent.
-    return { delivery: report.sent > 0 ? 'sent' : 'no_transport' };
+    // What actually happened, and the three outcomes are kept apart deliberately.
+    //
+    // The first version of this returned only `sent | no_transport`, so ANY failed send
+    // rendered "this deployment has no email delivery configured" -- on production, which
+    // has both RESEND_API_KEY and RESEND_FROM_ADDRESS. The auditor caught it: in removing
+    // five false configuration statements I had added a sixth. A transport that exists and
+    // failed is a different fact from one that was never configured, and the visitor is
+    // owed the difference: one is worth retrying, the other is not.
+    if (report.sent > 0) return { delivery: 'sent' };
+    return { delivery: this.#hasEmailTransport() ? 'send_failed' : 'no_transport' };
+  }
+
+  /** Whether this deployment could send at all, as opposed to tried and failed. */
+  #hasEmailTransport(): boolean {
+    return (
+      (this.#env.RESEND_API_KEY ?? '').length > 0 &&
+      (this.#env.RESEND_FROM_ADDRESS ?? '').length > 0
+    );
   }
 
   /**

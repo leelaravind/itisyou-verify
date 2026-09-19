@@ -30,6 +30,8 @@ function storedSubscription(overrides: Partial<SubscriptionRecord> = {}): Subscr
     currentPeriodEnd: '2026-10-19T00:00:00.000Z',
     cancelAtPeriodEnd: false,
     reconciledAt: null,
+    latestPaymentIntentId: null,
+    latestPaymentPeriodEnd: null,
     providerEventCreated: 1_000,
     updatedAt: '2026-09-19T00:00:00.000Z',
     ...overrides,

@@ -27,6 +27,8 @@ async function stored(
     currentPeriodEnd: '2026-10-19T09:00:00.000Z',
     cancelAtPeriodEnd: false,
     reconciledAt: null,
+    latestPaymentIntentId: null,
+    latestPaymentPeriodEnd: null,
     providerEventCreated: 1_798_000_000,
     updatedAt: harness.at(),
     ...overrides,

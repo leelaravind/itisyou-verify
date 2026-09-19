@@ -121,7 +121,9 @@ export interface TotpResult {
  */
 export interface OwnerAuthPort {
   /** Always returns. Never reveals whether the address has an account. */
-  requestSignInLink(email: string): Promise<{ readonly delivery: 'sent' | 'no_transport' }>;
+  requestSignInLink(
+    email: string,
+  ): Promise<{ readonly delivery: 'sent' | 'no_transport' | 'send_failed' }>;
   verifyTotp(principal: OwnerPrincipal, code: string, now: Date): Promise<TotpResult>;
   bootstrap(
     input: { readonly presentedToken: string; readonly verifiedAuthSubject: string | null },
@@ -137,7 +139,9 @@ export interface OwnerAuthPort {
  * a wrong code was entered.
  */
 export class UnwiredOwnerAuth implements OwnerAuthPort {
-  async requestSignInLink(): Promise<{ readonly delivery: 'sent' | 'no_transport' }> {
+  async requestSignInLink(): Promise<{
+    readonly delivery: 'sent' | 'no_transport' | 'send_failed';
+  }> {
     // This port is unwired by definition, so nothing was sent, and it says so. Returning
     // `sent` here would reproduce the exact defect the real port was just fixed for.
     return { delivery: 'no_transport' };

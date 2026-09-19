@@ -363,6 +363,24 @@ async function handleInvoicePaid(
     }
   }
 
+  // The one moment we genuinely learn what a refund could be issued against. Stripe
+  // refunds a specific payment, never "a subscription", so without this the owner's refund
+  // control has nothing to aim at -- which is exactly the state it was in until the
+  // auditor found it on 20 September 2026.
+  //
+  // Recorded with the period it covered, so a later refund can check it is aiming at the
+  // payment for the period it was asked about rather than whichever is most recent.
+  const paymentIntentId = readId(invoice, 'payment_intent');
+  if (paymentIntentId !== null && workspaceId !== null && subscriptionId !== null) {
+    await data.recordPaymentTarget({
+      workspaceId,
+      providerSubscriptionId: subscriptionId,
+      environment: config.environment,
+      paymentIntentId,
+      periodEnd: invoicePeriodEnd(invoice),
+    });
+  }
+
   return processed('invoice_paid', workspaceId, readString(invoice, 'billing_reason') ?? '');
 }
 
@@ -532,6 +550,10 @@ async function persistSubscription(
     currentPeriodEnd: snapshot.currentPeriodEnd,
     cancelAtPeriodEnd: snapshot.cancelAtPeriodEnd,
     reconciledAt: stored?.reconciledAt ?? null,
+    // Carried through a snapshot write rather than cleared: the payment target is learned
+    // from `invoice.paid` and a `customer.subscription.updated` must not erase it.
+    latestPaymentIntentId: stored?.latestPaymentIntentId ?? null,
+    latestPaymentPeriodEnd: stored?.latestPaymentPeriodEnd ?? null,
     providerEventCreated: snapshot.providerEventCreated,
     updatedAt: at,
   };
