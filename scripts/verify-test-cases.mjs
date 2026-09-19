@@ -56,6 +56,9 @@ const PREFIX_CATEGORY = {
   ADS: 'advertising_analytics',
   RESIL: 'accessibility_resilience',
   DOC: 'stories_release_hygiene',
+  // Lead ruling 2026-09-19: A10's independent security regression suite gets its own
+  // prefix rather than being renamed into API/AUTH. Its cases are real and counted.
+  SEC: 'api_security_privacy',
 };
 
 const CATEGORY_MINIMUM = {

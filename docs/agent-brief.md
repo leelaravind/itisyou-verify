@@ -120,7 +120,7 @@ ID prefixes by category: `VERIFY` (rules/evidence), `CONN` (connectors), `PERSIS
 `CUST` (customer lifecycle/UI), `OWNER` (owner panel/approvals/quality/cleanup), `API`
 (validation/security/privacy), `BUDGET` (budgets/models/maintenance), `ADS`
 (advertising/analytics), `RESIL` (accessibility/resilience/deployment), `DOC`
-(development stories/release hygiene).
+(development stories/release hygiene), `SEC` (security regression tests owned by A10).
 
 A case counts once. Repeated runs, viewport copies and snapshots without assertions do
 not count. Never weaken a test to make a bug pass.

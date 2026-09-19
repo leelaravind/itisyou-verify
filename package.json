@@ -26,7 +26,8 @@
     "migrate:production": "node scripts/migrate.mjs --env production",
     "release:staging": "node scripts/release.mjs --env staging",
     "release:production": "node scripts/release.mjs --env production",
-    "test:security": "vitest run tests/security"
+    "test:security": "vitest run tests/security",
+    "verify:story": "node scripts/verify-story.mjs"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.9.0",
