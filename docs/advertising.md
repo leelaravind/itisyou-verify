@@ -577,3 +577,110 @@ The brief asked this be verified in the account rather than taken from documenta
 
 Until those three are known the £15 ceiling cannot be converted into a funding figure, so
 nothing is funded and no campaign exists.
+
+---
+
+## The proposed campaign, exactly as it would be built
+
+Written 20 September 2026, for approval. **Nothing here has been created in the account.**
+The account currently has zero campaigns and has spent £0.00.
+
+### Blocked on two owner actions
+
+1. **Google re-authentication.** `ads.google.com` now asks to verify identity before the
+   campaign builder will open. That is a sign-in step and is the owner's to complete.
+2. **Two decisions**, below, because both change what the £15 actually buys.
+
+### Decision one — postpay exposure
+
+The new account (`227-475-1523`) is **postpay**. There is no account-level ceiling: Google
+extends credit and charges the card at a threshold. The old account was prepay, where the
+maximum possible loss equalled the balance, and that is a genuinely stronger control.
+
+On postpay the £15 can only be enforced by a **campaign total budget** with a fixed start
+and end date. Google's documentation states billed spend will not exceed a campaign total
+budget, and both removed legacy campaigns in this account used that setting, so it is
+demonstrably available here rather than merely documented.
+
+The residual risk is honest and small: a campaign total budget bounds *that campaign*. It
+does not stop a second campaign being created later. The account will hold exactly one.
+
+### Decision two — VAT, and why the media budget is not £15
+
+The payments profile is an **Individual** UK profile, so UK VAT at 20% is expected on top
+of media spend. The authorisation is £15 **all in**.
+
+| | |
+| --- | --- |
+| Media budget (campaign total) | **£12.50** |
+| VAT at 20% | £2.50 |
+| **Total** | **£15.00** |
+
+If VAT turns out not to apply, the campaign spends £12.50 and the remainder is unused —
+the safe direction to be wrong in. Setting £15 of media and discovering VAT on top would
+bill £18.00 and breach the authorisation by £3.
+
+### The campaign
+
+| Setting | Value | Why |
+| --- | --- | --- |
+| Type | Search only | No Display or Partners: they spend a small budget on impressions that will not read a technical page. |
+| Networks | Google Search, **Search Partners off**, **Display off** | |
+| Budget | **Campaign total £12.50**, not a daily budget | A daily budget limits a rate, not a total, and cannot cap £15. |
+| Dates | 7 consecutive days, fixed start and end | Google requires at least three days for a total budget; seven gives weekday coverage. |
+| Bidding | Manual CPC, max **£0.60** | Not Maximise Clicks: it spends to the budget by design. Manual keeps the worst case predictable. |
+| Locations | United Kingdom, **"Presence: people in"** | The default includes people merely *interested in* a location and wastes budget abroad. |
+| Languages | English | |
+| Audience | None | Nothing that could profile a visitor. |
+| Landing page | `https://verify.itisyou.app/demo` | Needs no account, no email, no JavaScript. |
+| Tracking | UTM parameters only, no pixel, no remarketing tag | |
+
+At £0.60 maximum CPC, £12.50 buys **at most ~20 clicks**. Ten genuine visits is a
+plausible outcome and is not a forecast.
+
+### Keywords — exact match only
+
+Exact match throughout. Broad match on a £12.50 budget is how the money leaves in an hour
+against searches nobody intended to buy.
+
+```
+[did my zapier automation actually run]
+[check if automation created crm record]
+[verify n8n workflow completed]
+[automation silently failed no error]
+[how to know if workflow actually worked]
+```
+
+Negative keywords: `free`, `tutorial`, `course`, `jobs`, `salary`, `what is automation`,
+`zapier login`, `make.com login`.
+
+### The ad
+
+Every line has to survive the claim scanner and be true of the deployed service today.
+
+**Headlines**
+1. `Did the automation actually do it?`
+2. `Check the outcome, not the run log`
+3. `Reads HubSpot and Resend directly`
+
+**Descriptions**
+1. `Your workflow says success. We check whether the CRM record and the acknowledgement email actually exist, by reading them back ourselves.`
+2. `Four answers: verified, failed, unverified, pending. Missing evidence is never reported as a pass. One workflow shape, HubSpot and Resend only.`
+
+No superlative, no guarantee, no claim of accuracy or uptime, and the limitation is in the
+ad rather than discovered after the click.
+
+### What must be true before it runs
+
+1. The independent auditor's advertising verdict is **yes** — specifically that nothing
+   remains which would make the product misrepresent itself to a visitor arriving from an
+   advert. It has been asked that question directly.
+2. The owner approves the two decisions above.
+3. The campaign is created **paused**, its saved settings are read back and recorded here,
+   and only then enabled.
+
+### Reporting
+
+Visits, signups and customers will be reported as three separate numbers, never summed.
+Spend will be reported as billed, accrued and committed separately; an unknown charge will
+be reported as unknown rather than as zero.
