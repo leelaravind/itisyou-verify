@@ -53,6 +53,8 @@ const APP = 'apps/app';
 let failed = false;
 /** HEAD at the moment of the release, filled in by the candidate-commit step. */
 let candidateSha = null;
+/** True once wrangler has actually deployed. Post-deploy gates cannot undo that. */
+let deployed = false;
 
 function step(name, fn) {
   process.stdout.write(`\n▸ ${name}\n`);
@@ -245,6 +247,7 @@ try {
       return;
     }
     run('npx', ['wrangler', 'deploy', '--env', env], { cwd: APP });
+    deployed = true;
   });
 
   step('post-deploy smoke check', () => {
@@ -303,6 +306,19 @@ try {
   process.exit(0);
 } catch (err) {
   console.error(`\nrelease — ABORTED: ${err.message}`);
-  console.error('Nothing was deployed.' + (failed ? '' : ' Fix the failure above and run again.'));
+  if (deployed) {
+    // Saying "nothing was deployed" here would be false, and falsely reassuring in the
+    // one direction that matters: the build IS live and a gate has just objected to it.
+    // The post-deploy gates — the smoke check and the scan of pages as actually served —
+    // run after wrangler by necessity, because they measure the running service. So a
+    // failure in them is a failure of something already serving traffic.
+    console.error(
+      `\nTHE DEPLOY ALREADY HAPPENED. ${env} is running this build and the failure above is\n` +
+        'about the running service, not about a build that was stopped. Either fix forward\n' +
+        'and release again, or roll back deliberately — but do not read this as "no change".',
+    );
+  } else {
+    console.error('Nothing was deployed.' + (failed ? '' : ' Fix the failure above and run again.'));
+  }
   process.exit(1);
 }

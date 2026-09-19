@@ -172,6 +172,10 @@ const ALLOW_MARKER = 'claim-scan:allow';
  */
 const ALLOWED_RENDERED_SENTENCES = new Map([
   [
+    'we retry automatically within a bounded number of attempts',
+    'we retry OUR OWN read of the provider, which is the opposite of acting on the customer system — the sentence exists to explain that an outage is not their failure',
+  ],
+  [
     'We never see inside n8n, Make, Zapier or whatever runs your workflow.',
     'names competitors to state OUR blindness, not their shortcomings — it makes the product weaker-sounding, not stronger, which is why it is trustworthy',
   ],
