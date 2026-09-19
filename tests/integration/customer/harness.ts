@@ -180,6 +180,12 @@ export function unreachableDb(message = 'D1_ERROR: database unreachable (simulat
   } as never;
 }
 
+/** `GET path` with no cookie at all, against the seeded database. */
+export async function getAnonymous(session: SignedIn, path: string): Promise<Served> {
+  const response = await worker.fetch(new Request(`${BASE}${path}`), envFor(session.h), ctx);
+  return { status: response.status, html: await response.text() };
+}
+
 /** `GET path` with the session cookie, against a database binding the test chooses. */
 export async function getSignedInAgainst(
   db: unknown,

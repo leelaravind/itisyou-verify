@@ -40,12 +40,14 @@ import {
 import { packetHash, type CampaignApproval, type CampaignPacket } from '../growth/approval';
 import { initialLifecycle, transition } from '../growth/lifecycle';
 import {
+  CONTROL_DESCRIPTION,
   CONTROL_KEYS,
   controlSettingKey,
   defaultControlState,
   defaultControls,
   isControlKey,
   type ControlKey,
+  type ControlState,
   type Controls,
 } from '../owner/controls';
 import {
@@ -964,6 +966,17 @@ export class D1OwnerDataPort implements OwnerDataPort {
     campaignId: string,
     approvalId: string,
   ): Promise<OwnerWriteResult> {
+    // The stop switch, checked before anything else — including before the campaign is
+    // read. Advertising is the one control with money directly behind it, and its pause was
+    // enforced by nothing: an owner could press it, be told "Paused.", and still activate a
+    // campaign from the next page. The approval gate above and this pause are two halves of
+    // the same control over the reserved £15, and a half that does not work is not a half.
+    const adsPause = await this.#pausedControl('ads');
+    if (adsPause !== null) {
+      await this.#audit(ctx, 'owner.campaign.activate_paused', campaignId);
+      return writeFailed(adsPause);
+    }
+
     const row = await this.#db
       .prepare(`${CAMPAIGN_COLUMNS} WHERE id = ?`)
       .bind(campaignId)
@@ -1082,8 +1095,40 @@ export class D1OwnerDataPort implements OwnerDataPort {
   }
 
   async resumeCampaign(ctx: ActionContext, campaignId: string): Promise<OwnerWriteResult> {
+    // Resuming is the other way a paused advertising switch could be walked around, so it
+    // is checked here too. The refusal comes before the dependency sentence deliberately:
+    // "advertising is paused" is a truer answer than "no provider is connected", and if the
+    // provider were connected tomorrow this line would still be the right one.
+    const adsPause = await this.#pausedControl('ads');
+    if (adsPause !== null) {
+      await this.#audit(ctx, 'owner.campaign.resume_paused', campaignId);
+      return writeFailed(adsPause);
+    }
     await this.#audit(ctx, 'owner.campaign.resume_blocked', campaignId);
     return writeBlocked(NO_ADS);
+  }
+
+  /**
+   * Is this control paused right now, and what should the owner be told if so?
+   *
+   * Read at the moment of the action, never cached: a stop switch that acts on a value
+   * read at start-up is a stop switch with a delay nobody documented. Returns `null` when
+   * the control is off, so a call site reads as "if paused, refuse".
+   */
+  async #pausedControl(key: ControlKey): Promise<string | null> {
+    const stored = await settings.getJson<ControlState | null>(
+      this.#db,
+      controlSettingKey(key),
+      null,
+    );
+    if (stored === null || typeof stored !== 'object' || stored.paused !== true) return null;
+    const description = CONTROL_DESCRIPTION[key];
+    const since = stored.since === null ? '' : ` It has been paused since ${stored.since}.`;
+    const note = stored.note === null || stored.note.length === 0 ? '' : ` Your note: ${stored.note}`;
+    return (
+      `${description.label} is paused, so this was refused and nothing has changed.${since}${note} ` +
+      `Turn the switch back on in Controls if you want this to be possible again.`
+    );
   }
 
   /* ---------------------------------------------------------------- operations */

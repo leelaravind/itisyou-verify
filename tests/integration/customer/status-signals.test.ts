@@ -147,7 +147,9 @@ describe('the four statuses survive the removal of colour', () => {
       '.badge--pending',
     ]) {
       const declarations = declarationsFor(css, modifier);
-      expect(declarations, modifier).not.toMatch(/font-size|font-weight|padding|opacity|border-width/);
+      expect(declarations, modifier).not.toMatch(
+        /font-size|font-weight|padding|opacity|border-width/,
+      );
     }
     // The badge that carries the dash also carries full colour, not a faint grey: it says
     // "unresolved", not "unimportant".
@@ -208,7 +210,9 @@ describe('an UNVERIFIED verdict shows the shape of the hole', () => {
   it('CUST-414 the follow-up line sits inside the verdict block, directly under the badge', async () => {
     open = await unverifiedRun();
     const { html } = await getSignedIn(open, '/app/runs/run_unv');
-    const verdict = /<div[^>]*data-run-verdict="UNVERIFIED"[\s\S]*?<\/div>\s*<\/div>/.exec(html)?.[0];
+    const verdict = /<div[^>]*data-run-verdict="UNVERIFIED"[\s\S]*?<\/div>\s*<\/div>/.exec(
+      html,
+    )?.[0];
     expect(verdict).toBeDefined();
     expect(verdict).toContain('data-verdict-gap');
     // Not behind a disclosure, not in a tooltip.

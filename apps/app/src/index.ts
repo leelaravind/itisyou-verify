@@ -27,6 +27,17 @@ import { D1SupportDataPort } from './db/supportPort.js';
 import { createPublicSupportRoute } from './support/publicRoute.js';
 import { createNotificationDelivery } from './notifications/delivery.js';
 import { D1QualityArtifactStore } from './owner/quality.js';
+import {
+  CONTROL_DESCRIPTION,
+  CONTROL_KEYS,
+  SUSPENDABLE_PATHS,
+  controlSettingKey,
+  defaultControls,
+  suspendingControl,
+  type ControlState,
+  type Controls,
+} from './owner/controls.js';
+import { settings } from './db/audit.js';
 import { createMoneyRoutes } from './money/index.js';
 import { createWorkflowSigningKeyStore } from './db/workflowSigningKeys.js';
 
@@ -179,6 +190,77 @@ app.use('*', async (c, next) => {
   const vary = headers.get('vary');
   headers.set('vary', vary === null || vary === '' ? 'Cookie' : `${vary}, Cookie`);
 });
+
+/* ------------------------------------------------------------------ *
+ * The owner's stop switches
+ * ------------------------------------------------------------------ */
+
+/**
+ * The middleware that makes a pause switch mean something.
+ *
+ * `isPathSuspended` existed, was unit-tested, and **was called by nothing**. The owner
+ * could pause new orders, be told "Paused.", and watch orders keep being taken. That is
+ * the emergency brake on this product, and a brake that reports success without acting is
+ * worse than a missing one: a missing brake sends someone to find another way to stop.
+ *
+ * Three properties, in this order:
+ *
+ *  1. **No database read on a path no control can ever suspend.** `SUSPENDABLE_PATHS` is a
+ *     static list derived from the enforcement registry, matched in memory first. Every
+ *     page on the site therefore costs nothing for this; only the handful of paths a switch
+ *     names pay for a settings read. A brake that made every request slower would be turned
+ *     off, and a brake that is off is the thing we are fixing.
+ *  2. **It refuses out loud.** 503 with a body that names which control is on, what it
+ *     stops, and — as important — what still works. Never a 404: a customer who believes
+ *     the service is broken behaves differently from one who knows it was paused.
+ *  3. **It fails open, and says so in the log.** If the settings read throws, the request
+ *     proceeds. A pause is a deliberate, reversible, owner-initiated state; a database
+ *     hiccup turning into a site-wide outage is not a safer failure than an order getting
+ *     through, and the owner has other ways to stop.
+ *
+ * Mounted before the routers so it sees every request, and after the security headers so a
+ * refusal carries them too.
+ */
+app.use('*', async (c, next) => {
+  const path = new URL(c.req.url).pathname;
+  if (!SUSPENDABLE_PATHS.some((p) => path === p || path.startsWith(`${p}/`))) return next();
+
+  let controls: Controls;
+  try {
+    controls = await readControls(c.env.DB as never);
+  } catch (error) {
+    console.error('controls_unreadable', { path, message: String(error) });
+    return next();
+  }
+
+  const key = suspendingControl(path, controls);
+  if (key === null) return next();
+
+  const description = CONTROL_DESCRIPTION[key];
+  console.log('path_suspended', { path, control: key });
+  return c.json(
+    {
+      error: {
+        code: 'SERVICE_PAUSED',
+        control: key,
+        // What was stopped, and what was not. The second half is the part a customer needs.
+        message: `${description.stops} ${description.doesNotStop}`,
+      },
+    },
+    503,
+    { 'cache-control': 'no-store', 'retry-after': '3600' },
+  );
+});
+
+/** Read the four control states. One indexed settings read per key, and only when asked. */
+async function readControls(db: Parameters<typeof settings.getJson>[0]): Promise<Controls> {
+  const out: Record<string, ControlState> = { ...defaultControls() };
+  for (const key of CONTROL_KEYS) {
+    const stored = await settings.getJson<ControlState | null>(db, controlSettingKey(key), null);
+    if (stored !== null && typeof stored === 'object') out[key] = stored;
+  }
+  return out as Controls;
+}
 
 /* ------------------------------------------------------------------ *
  * Visit counting

@@ -117,3 +117,49 @@ export async function customerSurfaceReady(page: Page): Promise<boolean> {
   const response = await page.goto('/app');
   return response?.status() === 200;
 }
+
+/**
+ * The seed now creates the workspace and the membership (2026-09-19), so `/app` answers
+ * 200 and the sixteen cases behind `CUSTOMER_WORKSPACE_MISSING` are measurable. Measuring
+ * them showed the next fixture gap: the workspace has **no workflow, no connections and no
+ * runs**, so `/app` renders "No workflow set up yet", every onboarding step past
+ * compatibility redirects, and there is no run detail to open. The cases that need those
+ * rows skip with this reason rather than fail — the page is doing the right thing with an
+ * empty workspace, and sixteen red lines would say the opposite.
+ *
+ * **What the seed needs next:** a workflow with a current version (so mapping, outcome,
+ * proof and review render), two connection rows, and a handful of decided runs with
+ * assertion rows — one per status, so a run detail of each kind can be opened.
+ */
+export const CUSTOMER_WORKFLOW_MISSING =
+  'The seeded workspace has no workflow, so /app renders "No workflow set up yet", the onboarding steps past ' +
+  'compatibility redirect, and there is no run to open. The seed needs a workflow with a current version, ' +
+  'connections and a few decided runs with assertions. This is a thin fixture, not a page defect.';
+
+/** True when the seeded workspace has a workflow to measure against. */
+export async function customerWorkflowReady(page: Page): Promise<boolean> {
+  const response = await page.goto('/app');
+  if (response?.status() !== 200) return false;
+  const heading = (await page.getByRole('heading', { level: 1 }).first().textContent()) ?? '';
+  return heading.trim() !== 'No workflow set up yet';
+}
+
+/**
+ * The path of a run detail in the seeded workspace, discovered from the run list rather
+ * than assumed from a synthetic fixture id. `status` narrows to a run wearing that badge.
+ * `null` when the list has no such run — the caller skips with a stated reason.
+ */
+export async function firstRunPath(page: Page, status?: string): Promise<string | null> {
+  const response = await page.goto('/app/runs');
+  if (response?.status() !== 200) return null;
+  const rows = page.locator('tbody tr');
+  const count = await rows.count();
+  for (let i = 0; i < count; i += 1) {
+    const row = rows.nth(i);
+    if (status !== undefined && (await row.locator(`[data-status="${status}"]`).count()) === 0)
+      continue;
+    const href = await row.locator('a[href^="/app/runs/"]').first().getAttribute('href');
+    if (href !== null) return href;
+  }
+  return null;
+}

@@ -70,17 +70,84 @@ export function isProtectedPath(path: string): boolean {
 }
 
 /**
- * Which paths one control suspends when it is on. Deliberately narrow: a control stops the
- * thing it names and nothing adjacent.
+ * How each control is actually enforced — the registry the middleware, the campaign
+ * actions and the controls page all read.
+ *
+ * ## Why this replaced a bare path list
+ *
+ * `SUSPENDED_BY` used to be four string arrays, and three separate things were wrong with
+ * it at once, each invisible from inside this file:
+ *
+ *  1. **Nothing called `isPathSuspended`.** The switches wrote a settings row, returned
+ *     "Paused." and changed nothing the Worker served. That is the emergency brake, and a
+ *     brake that reports success without acting is worse than no brake: a missing one sends
+ *     someone to find another way to stop, and a lying one does not.
+ *  2. **The paths did not exist.** `new_orders` named `/app/checkout` and `/app/order`;
+ *     the real checkout is `POST /app/onboarding/checkout`. So even wired, it would have
+ *     suspended nothing. `chatbot` named `/app/assistant` and `/owner/assistant/ask`, and
+ *     **no route serves the assistant at all** on this deployment.
+ *  3. **Two controls cannot be paths and an empty array could not say so.** `ads` stops an
+ *     owner action, and `expensive_verification` stops background work in the scheduler.
+ *     An empty list read as "enforced, suspends nothing", which is indistinguishable from
+ *     "not enforced" — and they mean opposite things.
+ *
+ * So enforcement is now declared, not implied, and the declaration is the single source
+ * every consumer reads. A control that is `none` renders on the controls page as not
+ * enforced, because a switch the owner can press that stops nothing must say so on its
+ * face rather than in a comment in this file.
  */
-const SUSPENDED_BY: Readonly<Record<ControlKey, readonly string[]>> = {
-  ads: [],
-  new_orders: ['/app/checkout', '/app/order'],
-  expensive_verification: [],
-  chatbot: ['/app/assistant', '/owner/assistant/ask'],
-  // `ads` and `expensive_verification` suspend background work rather than a page; the
-  // empty lists are correct and are asserted by a test so nobody "fixes" them later.
+export type ControlEnforcement =
+  /** Suspended by a middleware in front of these exact paths. Prefix match on `/`. */
+  | { readonly kind: 'http_paths'; readonly paths: readonly string[] }
+  /** Suspended inside a named action, because it stops work rather than a page. */
+  | { readonly kind: 'action'; readonly sites: readonly string[]; readonly what: string }
+  /** Not enforced anywhere. The owner is told, on the switch. */
+  | { readonly kind: 'none'; readonly why: string; readonly owner: string };
+
+export const CONTROL_ENFORCEMENT: Readonly<Record<ControlKey, ControlEnforcement>> = {
+  /*
+   * Advertising is the one switch with money directly behind it: the owner reserved £15 and
+   * instructed that ads must not activate without separate approval. The approval gate and
+   * this pause are two halves of one control, so this is enforced where a campaign can
+   * actually start — not at a path, because activation is an owner action and pausing a
+   * page would leave the action reachable.
+   */
+  ads: {
+    kind: 'action',
+    sites: ['D1OwnerDataPort.activateCampaign', 'D1OwnerDataPort.resumeCampaign'],
+    what: 'No campaign can be activated or resumed while advertising is paused.',
+  },
+  /*
+   * Narrow on purpose. `POST /app/onboarding/checkout` is the only request that can start a
+   * subscription. The review page above it stays reachable deliberately: it carries the
+   * seven-day recovery policy, and hiding the terms is not part of pausing sales.
+   */
+  new_orders: { kind: 'http_paths', paths: ['/app/onboarding/checkout'] },
+  expensive_verification: {
+    kind: 'none',
+    why:
+      'This would stop the retries and extra provider reads inside the scheduler tick, which is ' +
+      'where the cost is. Nothing consults it there yet, so pressing this changes nothing.',
+    owner: 'the scheduler owner (apps/app/src/scheduler/)',
+  },
+  chatbot: {
+    kind: 'none',
+    why:
+      'No route serves the assistant on this deployment, so there is nothing for this switch to ' +
+      'suspend. It becomes enforceable the moment an assistant route is mounted.',
+    owner: 'whoever mounts the assistant route',
+  },
 };
+
+/** The paths any control could suspend. Checked in memory before any database read. */
+export const SUSPENDABLE_PATHS: readonly string[] = Object.values(CONTROL_ENFORCEMENT).flatMap(
+  (enforcement) => (enforcement.kind === 'http_paths' ? enforcement.paths : []),
+);
+
+/** Is this control enforced at all? Rendered next to the switch, so it cannot lie silently. */
+export function isControlEnforced(key: ControlKey): boolean {
+  return CONTROL_ENFORCEMENT[key].kind !== 'none';
+}
 
 export type Controls = Readonly<Record<ControlKey, ControlState>>;
 
@@ -100,14 +167,26 @@ export function defaultControls(): Controls {
  * protected path, however many controls are on.
  */
 export function isPathSuspended(path: string, controls: Controls): boolean {
-  if (isProtectedPath(path)) return false;
+  return suspendingControl(path, controls) !== null;
+}
+
+/**
+ * Which control suspends this path, or null.
+ *
+ * The middleware needs the key, not just a boolean: a customer told "this is paused" is
+ * owed which thing was paused and what still works, and that sentence lives in
+ * {@link CONTROL_DESCRIPTION} against the key.
+ */
+export function suspendingControl(path: string, controls: Controls): ControlKey | null {
+  if (isProtectedPath(path)) return null;
   for (const key of CONTROL_KEYS) {
     const control = controls[key];
     if (!control.paused) continue;
-    const paths = SUSPENDED_BY[key];
-    if (paths.some((p) => path === p || path.startsWith(`${p}/`))) return true;
+    const enforcement = CONTROL_ENFORCEMENT[key];
+    if (enforcement.kind !== 'http_paths') continue;
+    if (enforcement.paths.some((p) => path === p || path.startsWith(`${p}/`))) return key;
   }
-  return false;
+  return null;
 }
 
 /** What a control actually stops, in the owner's words. Rendered next to every switch. */

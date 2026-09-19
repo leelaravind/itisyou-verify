@@ -33,6 +33,33 @@
  * Over http the name is `verify_session`; over https it is `__Host-verify_session`. A
  * `__Host-` cookie without `Secure` is rejected by the browser, so seeding the wrong name
  * sets nothing and the suite silently behaves as though it were signed out.
+ *
+ * ## A second identity: `SEED_WORKFLOW_ADMIN=1`, opt-in only
+ *
+ * Set `SEED_WORKFLOW_ADMIN=1` in the environment to also seed a **separate** `workspace_admin`
+ * identity, scoped to the same synthetic workspace and nothing else. This is not the viewer
+ * identity elevated — it is its own user, its own session, its own membership row — because a
+ * standing credential that can both read and write is a different, larger risk than two
+ * standing credentials each scoped to what they need.
+ *
+ * The owner's written reason for granting it, verbatim:
+ *
+ * > Without an identity that can configure a workflow, no workflow can be configured in any
+ * > test, so the vertical slice can never be proven, so the product would ship on unit tests
+ * > alone. This project has now found five separate workstreams whose code was correct,
+ * > thoroughly tested and reachable by no request. Shipping on that basis is the specific
+ * > failure the slice exists to prevent, and it is a larger risk than a scoped admin
+ * > credential.
+ *
+ * The bounds that make the grant safe, each enforced below rather than merely intended:
+ *   - a separate user and session, never the viewer's credential widened;
+ *   - membership only in `ws_automation_test`, which is `is_synthetic = 1` — `AUTH-460` in
+ *     the integration suite asserts this identity has no membership anywhere else, so a bug
+ *     that pointed it at a real workspace would fail a test, not ship quietly;
+ *   - no owner or platform scope of any kind (`is_platform_owner = 0`, asserted the same way
+ *     the viewer's is below);
+ *   - it does not exist unless `SEED_WORKFLOW_ADMIN=1` is set — a deployment that does not
+ *     opt in seeds only the read-only viewer, exactly as before this identity existed.
  */
 import { execFileSync } from 'node:child_process';
 import { webcrypto } from 'node:crypto';
@@ -65,10 +92,13 @@ const BASE_URL =
 // ---------------------------------------------------------------------------
 
 const AUTOMATION_SUBJECT = 'automation@itisyou.test';
+/** A distinct user, a distinct subject — never the viewer's identity elevated. */
+const AUTOMATION_ADMIN_SUBJECT = 'automation-admin@itisyou.test';
 /** Stable, so a re-seed reuses the workspace rather than accumulating them. */
 const WORKSPACE_ID = 'ws_automation_test';
 const MAX_LIFETIME_SECONDS = 12 * 60 * 60;
 const CROCKFORD = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+const SEED_WORKFLOW_ADMIN = process.env.SEED_WORKFLOW_ADMIN === '1';
 
 function base64url(bytes) {
   return Buffer.from(bytes)
@@ -146,6 +176,13 @@ const userId = newId('usr', now.getTime());
 
 const sessionId = await hashToken(sessionCookieValue, 'session');
 
+// The admin identity's own values — computed unconditionally (it is cheap and keeps the
+// branching below to "which SQL and output to include", not "which values exist").
+const adminSessionCookieValue = base64url(randomBytes(32));
+const adminCsrfToken = base64url(randomBytes(32));
+const adminUserId = newId('usr', now.getTime());
+const adminSessionId = await hashToken(adminSessionCookieValue, 'session');
+
 /**
  * Everything the identity needs, in one file.
  *
@@ -163,34 +200,63 @@ const sessionId = await hashToken(sessionCookieValue, 'session');
  * `is_synthetic = 1` so every count, list and owner view that filters synthetic data
  * continues to exclude it, and nobody mistakes it for a customer.
  */
-execute(
-  [
-    // The user row is created once and reused; a fresh session is minted every time,
-    // because the session is the thing that expires.
+const statements = [
+  // The user row is created once and reused; a fresh session is minted every time,
+  // because the session is the thing that expires.
+  `INSERT INTO users (id, auth_subject, display_name, is_platform_owner, created_at)
+   VALUES (${quote(userId)}, ${quote(AUTOMATION_SUBJECT)}, 'Automation test identity', 0, ${quote(createdAt)})
+   ON CONFLICT(auth_subject) DO UPDATE SET display_name = excluded.display_name;`,
+
+  // `is_platform_owner = 0` is asserted rather than assumed: a previous seed against a
+  // database somebody had edited must not silently hand the suite owner rights.
+  `UPDATE users SET is_platform_owner = 0 WHERE auth_subject = ${quote(AUTOMATION_SUBJECT)};`,
+
+  // The synthetic workspace the customer pages render.
+  `INSERT INTO workspaces (id, name, status, is_synthetic, retention_policy_version, created_at)
+   VALUES (${quote(WORKSPACE_ID)}, 'Automation test workspace', 'active', 1, 1, ${quote(createdAt)})
+   ON CONFLICT(id) DO UPDATE SET status = 'active', is_synthetic = 1;`,
+
+  // Read-only. This is the line that keeps the credential harmless.
+  `INSERT INTO memberships (workspace_id, user_id, role, created_at)
+   SELECT ${quote(WORKSPACE_ID)}, id, 'workspace_viewer', ${quote(createdAt)}
+     FROM users WHERE auth_subject = ${quote(AUTOMATION_SUBJECT)}
+   ON CONFLICT(workspace_id, user_id) DO UPDATE SET role = 'workspace_viewer';`,
+
+  `INSERT INTO sessions (id, user_id, created_at, expires_at, last_seen_at, mfa_verified_at, is_automation)
+   SELECT ${quote(sessionId)}, id, ${quote(createdAt)}, ${quote(expiresAt)}, ${quote(createdAt)}, ${quote(createdAt)}, 1
+     FROM users WHERE auth_subject = ${quote(AUTOMATION_SUBJECT)};`,
+];
+
+/**
+ * The second identity, gated behind `SEED_WORKFLOW_ADMIN=1` — see the file header for the
+ * written reason and the bounds it must hold to. Everything below is a mirror of the block
+ * above with one deliberate difference: the membership role is `workspace_admin`, and the
+ * subject, user id and session are entirely separate rows.
+ */
+if (SEED_WORKFLOW_ADMIN) {
+  statements.push(
     `INSERT INTO users (id, auth_subject, display_name, is_platform_owner, created_at)
-     VALUES (${quote(userId)}, ${quote(AUTOMATION_SUBJECT)}, 'Automation test identity', 0, ${quote(createdAt)})
+     VALUES (${quote(adminUserId)}, ${quote(AUTOMATION_ADMIN_SUBJECT)}, 'Automation workflow-admin test identity', 0, ${quote(createdAt)})
      ON CONFLICT(auth_subject) DO UPDATE SET display_name = excluded.display_name;`,
 
-    // `is_platform_owner = 0` is asserted rather than assumed: a previous seed against a
-    // database somebody had edited must not silently hand the suite owner rights.
-    `UPDATE users SET is_platform_owner = 0 WHERE auth_subject = ${quote(AUTOMATION_SUBJECT)};`,
+    // Asserted, not assumed — same reasoning as the viewer's identical line above.
+    `UPDATE users SET is_platform_owner = 0 WHERE auth_subject = ${quote(AUTOMATION_ADMIN_SUBJECT)};`,
 
-    // The synthetic workspace the customer pages render.
-    `INSERT INTO workspaces (id, name, status, is_synthetic, retention_policy_version, created_at)
-     VALUES (${quote(WORKSPACE_ID)}, 'Automation test workspace', 'active', 1, 1, ${quote(createdAt)})
-     ON CONFLICT(id) DO UPDATE SET status = 'active', is_synthetic = 1;`,
-
-    // Read-only. This is the line that keeps the credential harmless.
+    // The *same* synthetic workspace — not a second one. Scoping this identity to a
+    // workspace that is `is_synthetic = 1` is what "cannot touch a real one" means in
+    // practice: there is no membership row anywhere else for it to touch through.
     `INSERT INTO memberships (workspace_id, user_id, role, created_at)
-     SELECT ${quote(WORKSPACE_ID)}, id, 'workspace_viewer', ${quote(createdAt)}
-       FROM users WHERE auth_subject = ${quote(AUTOMATION_SUBJECT)}
-     ON CONFLICT(workspace_id, user_id) DO UPDATE SET role = 'workspace_viewer';`,
+     SELECT ${quote(WORKSPACE_ID)}, id, 'workspace_admin', ${quote(createdAt)}
+       FROM users WHERE auth_subject = ${quote(AUTOMATION_ADMIN_SUBJECT)}
+     ON CONFLICT(workspace_id, user_id) DO UPDATE SET role = 'workspace_admin';`,
 
     `INSERT INTO sessions (id, user_id, created_at, expires_at, last_seen_at, mfa_verified_at, is_automation)
-     SELECT ${quote(sessionId)}, id, ${quote(createdAt)}, ${quote(expiresAt)}, ${quote(createdAt)}, ${quote(createdAt)}, 1
-       FROM users WHERE auth_subject = ${quote(AUTOMATION_SUBJECT)};`,
-  ].join('\n'),
-);
+     SELECT ${quote(adminSessionId)}, id, ${quote(createdAt)}, ${quote(expiresAt)}, ${quote(createdAt)}, ${quote(createdAt)}, 1
+       FROM users WHERE auth_subject = ${quote(AUTOMATION_ADMIN_SUBJECT)};`,
+  );
+}
+
+execute(statements.join('\n'));
 
 const seed = {
   environment: env,
@@ -204,6 +270,18 @@ const seed = {
   createdAt,
   expiresAt,
   lifetimeSeconds: MAX_LIFETIME_SECONDS,
+  ...(SEED_WORKFLOW_ADMIN
+    ? {
+        admin: {
+          workspaceId: WORKSPACE_ID,
+          workspaceRole: 'workspace_admin',
+          sessionCookieName,
+          sessionCookieValue: adminSessionCookieValue,
+          csrfCookieName,
+          csrfToken: adminCsrfToken,
+        },
+      }
+    : {}),
 };
 
 if (asJson) {
@@ -217,6 +295,12 @@ if (asJson) {
       `export E2E_AUTOMATION_CSRF_COOKIE_NAME=${csrfCookieName}`,
       `export E2E_AUTOMATION_WORKSPACE=${WORKSPACE_ID}`,
       `export E2E_BASE_URL=${BASE_URL}`,
+      ...(SEED_WORKFLOW_ADMIN
+        ? [
+            `export E2E_AUTOMATION_ADMIN_SESSION=${adminSessionCookieValue}`,
+            `export E2E_AUTOMATION_ADMIN_CSRF=${adminCsrfToken}`,
+          ]
+        : []),
       '',
     ].join('\n'),
   );

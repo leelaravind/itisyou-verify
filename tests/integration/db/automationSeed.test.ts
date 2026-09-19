@@ -10,10 +10,12 @@ import { readFileSync } from 'node:fs';
 import { AppError } from '@verify/contracts';
 import { hashToken } from '@verify/security';
 import {
+  AUTOMATION_WORKSPACE_ID,
   automationSeedExports,
   buildAutomationSeed,
   createApprovalClaims,
   seedAutomationIdentity,
+  seedAutomationWorkflowAdmin,
   users,
 } from '@app/db';
 import { CLAIM_APPROVAL_SQL } from '@app/owner/approvals';
@@ -262,6 +264,75 @@ describe('the automation seed', () => {
     // Asserted on every seed, not assumed from the last one.
     const role = (h.raw.prepare('SELECT role FROM memberships').get() as { role: string }).role;
     expect(role).toBe('workspace_viewer');
+  });
+
+  it('AUTH-460 the workflow-admin identity cannot reach a real workspace: it holds exactly one membership, and that workspace is synthetic', async () => {
+    // A real customer workspace, seeded independently — the thing this identity must never
+    // be able to touch.
+    const realWorkspaceId = 'ws_real_customer';
+    const realUserId = 'usr_real_customer';
+    h.raw
+      .prepare('INSERT INTO users (id, auth_subject, created_at) VALUES (?, ?, ?)')
+      .run(realUserId, 'real-customer@example.com', NOW.toISOString());
+    h.raw
+      .prepare(
+        "INSERT INTO workspaces (id, name, status, is_synthetic, created_at) VALUES (?, 'Real customer', 'active', 0, ?)",
+      )
+      .run(realWorkspaceId, NOW.toISOString());
+    h.raw
+      .prepare(
+        "INSERT INTO memberships (workspace_id, user_id, role, created_at) VALUES (?, ?, 'workspace_admin', ?)",
+      )
+      .run(realWorkspaceId, realUserId, NOW.toISOString());
+
+    const seed = await seedAutomationWorkflowAdmin(h.db, {
+      environment: 'development',
+      baseUrl: HTTP_ORIGIN,
+      now: NOW,
+    });
+
+    expect(seed.workspaceId).toBe(AUTOMATION_WORKSPACE_ID);
+    expect(seed.workspaceRole).toBe('workspace_admin');
+    // A distinct row, never the viewer's row widened.
+    const viewer = await seedAutomationIdentity(h.db, {
+      environment: 'development',
+      baseUrl: HTTP_ORIGIN,
+      now: NOW,
+    });
+    expect(seed.userId).not.toBe(viewer.userId);
+
+    // The assertion that makes the grant safe: every membership this user holds, anywhere
+    // in the database, points only at a workspace with `is_synthetic = 1`. If a future
+    // change ever pointed it at a real workspace, this fails — the grant does not rely on
+    // nobody ever writing that row by mistake.
+    const memberships = h.raw
+      .prepare(
+        `SELECT m.workspace_id, w.is_synthetic
+           FROM memberships m JOIN workspaces w ON w.id = m.workspace_id
+          WHERE m.user_id = ?`,
+      )
+      .all(seed.userId) as { workspace_id: string; is_synthetic: number }[];
+    expect(memberships).toHaveLength(1);
+    expect(memberships[0]?.workspace_id).toBe(AUTOMATION_WORKSPACE_ID);
+    expect(memberships[0]?.is_synthetic).toBe(1);
+    expect(memberships.some((m) => m.workspace_id === realWorkspaceId)).toBe(false);
+
+    // And through the real port: the session this identity holds resolves to the synthetic
+    // workspace and nothing else — there is no parameter anywhere on `CustomerDataPort` a
+    // caller could use to ask this session for a different workspace's data.
+    const port = new D1CustomerDataPort({
+      db: h.db,
+      env: env(HTTP_ORIGIN),
+      request: {
+        headers: new Headers({ cookie: `${seed.sessionCookieName}=${seed.sessionCookieValue}` }),
+        url: `${HTTP_ORIGIN}/app`,
+      },
+      now: NOW,
+    });
+    const session = await port.session();
+    expect(session?.workspaceId).toBe(AUTOMATION_WORKSPACE_ID);
+    expect(session?.workspaceId).not.toBe(realWorkspaceId);
+    expect(session?.role).toBe('workspace_admin');
   });
 
   it('AUTH-446 the exported handshake names every variable the suite reads', async () => {

@@ -108,7 +108,8 @@ export function orderComparatorRows(
  */
 export function comparatorSentence(rows: readonly ComparatorRow[], verdict: StatusKey): string {
   const total = rows.length;
-  const items = (n: number): string => `${String(n)} of ${String(total)} item${total === 1 ? '' : 's'}`;
+  const items = (n: number): string =>
+    `${String(n)} of ${String(total)} item${total === 1 ? '' : 's'}`;
   const count = (status: AssertionKey): number =>
     rows.filter((row) => presentedStatus(row, verdict) === status).length;
   switch (verdict) {
@@ -177,7 +178,8 @@ export function Comparator(options: ComparatorOptions): Html {
                 ${AssertionBadge({ status: presented })}
                 <span>${row.field}</span>
                 ${
-                  presented === 'UNKNOWN' || (presented === 'PENDING' && typeof row.reason === 'string')
+                  presented === 'UNKNOWN' ||
+                  (presented === 'PENDING' && typeof row.reason === 'string')
                     ? html`<p class="compare__reason" data-row-reason>
                         ${row.reason ?? 'Why this check could not be completed was not recorded.'}
                       </p>`
