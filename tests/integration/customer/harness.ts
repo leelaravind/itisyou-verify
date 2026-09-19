@@ -108,6 +108,104 @@ export function seedRunsFor(
   }
 }
 
+export interface SeededAssertion {
+  readonly ruleId: string;
+  readonly label: string;
+  readonly status: 'PENDING' | 'SUPPORTED' | 'CONTRADICTED' | 'UNKNOWN';
+  readonly reasonCode: string;
+  readonly expected: string;
+  /** What we retrieved. `null` is a real value here: it means we retrieved nothing. */
+  readonly observed?: string | null;
+  readonly mandatory?: boolean;
+  readonly observedAt?: string | null;
+}
+
+/**
+ * Put assertion results on a seeded run, with raw SQL, at revision 1.
+ *
+ * `assertions.listForRun` orders by `rule_id`, so a test that needs one row to arrive
+ * *after* another from the database gives it the later rule id — the page's own ordering
+ * is then the only thing that can move it.
+ */
+export function seedAssertionsFor(
+  session: SignedIn,
+  runId: string,
+  rows: readonly SeededAssertion[],
+): void {
+  const insert = session.h.raw.prepare(
+    `INSERT INTO assertions
+       (id, run_id, workspace_id, revision, rule_id, label, mandatory, status, reason_code,
+        expected_display, observed_display, observed_at, evidence_id)
+     VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, NULL)`,
+  );
+  rows.forEach((row, index) => {
+    insert.run(
+      `asr_${runId}_${String(index)}`,
+      runId,
+      session.workspaceId,
+      row.ruleId,
+      row.label,
+      row.mandatory === false ? 0 : 1,
+      row.status,
+      row.reasonCode,
+      row.expected,
+      row.observed ?? null,
+      row.observedAt ?? null,
+    );
+  });
+}
+
+/**
+ * A `DB` binding whose every statement fails the way an unreachable D1 fails: at
+ * execution, not at preparation. `prepare` and `bind` succeed so the code under test gets
+ * as far as it would in production before the outage bites.
+ */
+export function unreachableDb(message = 'D1_ERROR: database unreachable (simulated)'): never {
+  const statement: Record<string, unknown> = {};
+  statement['bind'] = () => statement;
+  statement['first'] = async () => {
+    throw new Error(message);
+  };
+  statement['all'] = async () => {
+    throw new Error(message);
+  };
+  statement['run'] = async () => {
+    throw new Error(message);
+  };
+  return {
+    prepare: () => statement,
+    batch: async () => {
+      throw new Error(message);
+    },
+  } as never;
+}
+
+/** `GET path` with the session cookie, against a database binding the test chooses. */
+export async function getSignedInAgainst(
+  db: unknown,
+  path: string,
+  headers: Record<string, string> = {},
+): Promise<Served> {
+  const response = await worker.fetch(
+    new Request(`${BASE}${path}`, {
+      headers: { cookie: `__Host-verify_session=${SESSION_VALUE}`, ...headers },
+    }),
+    {
+      ASSETS: { fetch: async () => new Response('', { status: 404 }) },
+      DB: db,
+      ENVIRONMENT: 'test',
+      PUBLIC_BASE_URL: BASE,
+      STRIPE_MODE: 'test',
+    } as never,
+    ctx,
+  );
+  return {
+    status: response.status,
+    html: await response.text(),
+    contentType: response.headers.get('content-type') ?? '',
+  };
+}
+
 const ctx = { waitUntil: () => {}, passThroughOnException: () => {} } as never;
 
 function envFor(h: TestDb): never {
@@ -123,6 +221,14 @@ function envFor(h: TestDb): never {
 export interface Served {
   readonly status: number;
   readonly html: string;
+  readonly contentType?: string;
+}
+
+/** The inlined stylesheet as served — the bytes the browser actually applies. */
+export function servedStylesheet(markup: string): string {
+  return (markup.match(/<style[^>]*>([\s\S]*?)<\/style>/g) ?? [])
+    .map((block) => block.replace(/<\/?style[^>]*>/g, ''))
+    .join('\n');
 }
 
 /** `GET path` carrying the seeded session cookie, through the Worker entry point. */

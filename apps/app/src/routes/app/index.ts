@@ -44,8 +44,15 @@ import {
 } from './syntheticPort.js';
 import { SELECTABLE_COVERAGE_MODES } from '@verify/domain';
 import type { CoverageMode } from '@verify/contracts';
-import type { CustomerDataPort, ProofRunView, SupportResult, WriteResult } from './port.js';
+import type {
+  CustomerDataPort,
+  ProofRunView,
+  SigningKeyIssueResult,
+  SupportResult,
+  WriteResult,
+} from './port.js';
 import { html, type Html } from '@verify/ui';
+import { isSameOriginRequest } from '@verify/security';
 
 export type PortResolver = (c: Context<RouteBindings>) => Promise<CustomerDataPort>;
 
@@ -68,6 +75,24 @@ async function formBody(c: Context<RouteBindings>): Promise<Record<string, strin
 function checked(body: Record<string, string>, name: string): boolean {
   const value = body[name];
   return value !== undefined && value !== '' && value !== 'off';
+}
+
+/** One status per refusal, so a probe can tell "sign in" from "not yours" from "not here". */
+const SIGNING_KEY_REFUSAL_STATUS: Readonly<
+  Record<Extract<SigningKeyIssueResult, { outcome: 'refused' }>['reason'], number>
+> = {
+  not_signed_in: 401,
+  not_permitted: 403,
+  cross_site: 403,
+  no_workflow: 404,
+  unavailable: 422,
+};
+
+function signingKeyStatus(result: SigningKeyIssueResult): number {
+  if (result.outcome === 'issued') return 200;
+  // A configuration fault on our side, said as one. Not a 500 and not a 4xx blaming the caller.
+  if (result.outcome === 'unconfigured') return 503;
+  return SIGNING_KEY_REFUSAL_STATUS[result.reason];
 }
 
 export function createAppRoutes(resolve: PortResolver = syntheticResolver): Hono<RouteBindings> {
@@ -489,10 +514,61 @@ export function createAppRoutes(resolve: PortResolver = syntheticResolver): Hono
           path: '/app/onboarding/activation',
           accountLabel: maskedAccountLabel(session.email),
           csrfToken: session.csrfToken,
-          body: ActivationPage(await port.activation()),
+          body: ActivationPage(await port.activation(), {
+            csrfToken: session.csrfToken,
+            issued: null,
+          }),
         }),
       ),
     ),
+  );
+
+  /**
+   * Issue or rotate the workflow signing key.
+   *
+   * This is the request that had never existed. `workflows.setSigningKey` had a writer,
+   * `issueWorkflowSigningKey` had tests, the activation page rendered a hint — and no
+   * browser could reach any of it, so no customer could ever hold a key. The response to
+   * THIS request is the only place the secret is ever rendered. It is answered directly,
+   * `no-store`, rather than by redirect: a redirect would need the secret carried somewhere
+   * between two requests, and there is nowhere it may be carried.
+   *
+   * Rotation is destructive to the customer's own integration — the old key stops being
+   * accepted at once — so a forged cross-site POST must not be able to trigger it. The
+   * customer routes do not yet validate the double-submit token (`session()` mints a fresh
+   * one per request and no cookie half exists), so the gate here is the request's proven
+   * origin, against the configured public origin or the origin actually served. Absence
+   * of proof is not proof of absence: no `Origin` and no `Referer` refuses.
+   */
+  routes.post('/onboarding/activation/signing-key', async (c) =>
+    withSession(c, async (port, session) => {
+      const sameOrigin =
+        isSameOriginRequest(c.req.raw, c.env.PUBLIC_BASE_URL) ||
+        isSameOriginRequest(c.req.raw, new URL(c.req.url).origin);
+      const result: SigningKeyIssueResult = sameOrigin
+        ? await port.issueSigningKey()
+        : {
+            outcome: 'refused',
+            reason: 'cross_site',
+            message:
+              'That request did not come from this site, so nothing was changed. Use the button on this page.',
+          };
+      return page(
+        c,
+        shell(port, {
+          title: 'Activation',
+          path: '/app/onboarding/activation',
+          accountLabel: maskedAccountLabel(session.email),
+          csrfToken: session.csrfToken,
+          // Re-read after the write, so the key id in the facts list is the one just issued.
+          body: ActivationPage(await port.activation(), {
+            csrfToken: session.csrfToken,
+            issued: result,
+          }),
+        }),
+        { status: signingKeyStatus(result) },
+      );
+    }),
   );
 
   /* ----------------------------------------------------------------------- runs */

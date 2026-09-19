@@ -64,16 +64,18 @@ function scene(): Scene {
   return {
     h,
     post: (fields) =>
-      app.request(
+      Promise.resolve(
+        app.request(
         '/support',
         {
           method: 'POST',
           headers: { 'content-type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams(fields).toString(),
-        },
-        env,
+            body: new URLSearchParams(fields).toString(),
+          },
+          env,
+        ),
       ),
-    get: (path) => app.request(path, {}, env),
+    get: (path) => Promise.resolve(app.request(path, {}, env)),
     cases: () =>
       h.raw.prepare('SELECT * FROM support_cases ORDER BY created_at').all() as Record<
         string,

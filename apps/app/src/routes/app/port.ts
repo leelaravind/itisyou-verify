@@ -189,13 +189,28 @@ export interface OrderSummaryView {
   readonly ready: boolean;
 }
 
+/** Whether the signed-in person can obtain a signing key here and, if not, why not. */
+export interface SigningKeyIssuanceView {
+  readonly canIssue: boolean;
+  /**
+   * Non-null exactly when `canIssue` is false. Plain language, and when the reason is the
+   * deployment's own configuration it names the missing secret, because the person reading
+   * it on a bare deployment is the operator.
+   */
+  readonly cannotIssueReason: string | null;
+}
+
 export interface ActivationView {
   readonly active: boolean;
   readonly subscriptionStatus: SubscriptionStatus | null;
   /** The endpoint the customer's automation must call. */
   readonly eventEndpoint: string;
   readonly workflowId: string;
+  /** The public key reference the automation sends in `X-Verify-Key-Id`. Null until issued. */
+  readonly signingKeyId: string | null;
+  /** A freshly generated mask of the stored key hash, or null when none has been issued. Never the secret. */
   readonly signingKeyHint: string | null;
+  readonly signingKeyIssuance: SigningKeyIssuanceView;
   /** Null until a first run has actually arrived. */
   readonly firstRunId: string | null;
 }
@@ -230,6 +245,31 @@ export interface WriteResult {
   /** Where to send the browser on success, for the POST-redirect-GET pattern. */
   readonly redirectTo: string | null;
 }
+
+/**
+ * The outcome of issuing or rotating a workflow signing key.
+ *
+ * `issued` carries the secret **once**. The page renders it on the response to the POST that
+ * derived it and nowhere else: the secret is derived from the deployment's root key, not
+ * stored, so no later read can show it. Nothing may log it, audit it, notify it or persist
+ * it — the row keeps a domain-separated hash and the public reference only.
+ */
+export type SigningKeyIssueResult =
+  | {
+      readonly outcome: 'issued';
+      readonly keyId: string;
+      readonly secret: string;
+      /** True when a key already existed: the old reference has just stopped resolving. */
+      readonly rotated: boolean;
+      readonly issuedAt: string;
+    }
+  | {
+      readonly outcome: 'refused';
+      readonly reason: 'not_signed_in' | 'not_permitted' | 'no_workflow' | 'cross_site' | 'unavailable';
+      readonly message: string;
+    }
+  /** No `EVENT_SIGNING_ROOT_KEY` on this deployment. A configuration error, said as one; nothing was written. */
+  | { readonly outcome: 'unconfigured'; readonly message: string };
 
 export interface SupportResult extends WriteResult {
   /** A reference the customer can quote. Null when nothing was actually recorded. */
@@ -308,6 +348,15 @@ export interface CustomerDataPort {
   /** Create a Stripe Checkout session. The price is resolved server-side, never posted. */
   createCheckout(): Promise<WriteResult>;
   activation(): Promise<ActivationView>;
+  /**
+   * Issue the workflow's signing key, or rotate it if one exists.
+   *
+   * Rotation is a new `signing_key_ref`, not an edit: the old key stops being accepted on
+   * the very next request. Only a workspace admin may call this. An implementation must
+   * refuse with `unconfigured` when the deployment has no root key — never derive from an
+   * empty string, never throw into a 500, never report success.
+   */
+  issueSigningKey(): Promise<SigningKeyIssueResult>;
 
   /* results */
   listRuns(options: { readonly cursor?: string; readonly limit: number }): Promise<RunPage>;
