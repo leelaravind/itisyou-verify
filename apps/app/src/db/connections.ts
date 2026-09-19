@@ -263,6 +263,79 @@ export const credentials = {
       .first<CredentialEnvelopeRow>();
   },
 
+  /**
+   * Store one recovery code, addressed by the hash of the code itself.
+   *
+   * The hash IS the primary key. That is what makes consumption a single conditional
+   * UPDATE rather than a scan-then-write, and a SHA-256 of a 100-bit code is not
+   * reversible by anyone who can read the table. The sealed body is a marker, not the
+   * code: there is deliberately nothing here that could give a code back.
+   */
+  async insertRecoveryCode(
+    db: Db,
+    params: {
+      rowId: string;
+      ownerScope: string;
+      keyVersion: number;
+      ciphertext: string;
+      nonce: string;
+      aad: string;
+      createdAt: string;
+    },
+  ): Promise<void> {
+    // tenant-scope:exempt user-scoped recovery code; owner_scope is 'user:<id>:recovery'
+    // and this table has no workspace column. See activeForUser above.
+    await db
+      .prepare(
+        `INSERT INTO credential_versions (id, connection_id, owner_scope, key_version, ciphertext, nonce, aad, created_at)
+         VALUES (?, NULL, ?, ?, ?, ?, ?, ?)`,
+      )
+      .bind(
+        params.rowId,
+        params.ownerScope,
+        params.keyVersion,
+        params.ciphertext,
+        params.nonce,
+        params.aad,
+        params.createdAt,
+      )
+      .run();
+  },
+
+  /**
+   * Consume one recovery code, once.
+   *
+   * `WHERE retired_at IS NULL` is the whole single-use property. Two people presenting the
+   * same printed code race on this statement and the loser is told it is wrong — which is
+   * true, because it is no longer a code.
+   */
+  async consumeRecoveryCode(
+    db: Db,
+    params: { rowId: string; ownerScope: string; at: string },
+  ): Promise<boolean> {
+    // tenant-scope:exempt user-scoped recovery code, addressed by its own hash.
+    const result = await db
+      .prepare(
+        `UPDATE credential_versions SET retired_at = ?
+          WHERE id = ? AND owner_scope = ? AND retired_at IS NULL`,
+      )
+      .bind(params.at, params.rowId, params.ownerScope)
+      .run();
+    return result.meta.changes === 1;
+  },
+
+  /** How many unused recovery codes remain for a scope. Never the codes themselves. */
+  async countActiveForScope(db: Db, ownerScope: string): Promise<number> {
+    // tenant-scope:exempt user-scoped count; credential_versions has no workspace column.
+    const row = await db
+      .prepare(
+        'SELECT COUNT(*) AS n FROM credential_versions WHERE owner_scope = ? AND retired_at IS NULL',
+      )
+      .bind(ownerScope)
+      .first<{ n: number }>();
+    return Number(row?.n ?? 0);
+  },
+
   async retireAllForScope(db: Db, ownerScope: string, at: string): Promise<number> {
     // Used for account deletion and TOTP reset, where the caller supplies the scope it
     // has already proven it owns.

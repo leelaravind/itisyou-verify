@@ -48,7 +48,7 @@ describe('maskToken', () => {
 describe('redactObject', () => {
   it('API-087 returns only allowlisted keys', () => {
     // secret-scan:allow — invented string proving redaction works; not a real credential
-    const input = { email: 'ada@example.com', api_key: 'sk_live_super_secret_value', count: 3 };
+    const input = { email: 'ada@example.com', api_key: 'sk_live_dropped', count: 3 };
     expect(redactObject(input, ['email', 'count'])).toEqual({
       email: 'a**@example.com',
       count: 3,

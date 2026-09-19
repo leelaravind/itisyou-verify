@@ -148,6 +148,38 @@ export const settings = {
       .run();
   },
 
+  /**
+   * Claim a strictly-increasing counter stored under `key`, once.
+   *
+   * One statement. The upsert writes only when the presented value is strictly greater
+   * than the stored one, so `meta.changes === 1` means "this value had never been accepted
+   * and now has been". It exists for the TOTP replay guard, where two concurrent
+   * submissions of the same correct code must not both succeed — the arithmetic cannot
+   * tell a first use from a second, and this can.
+   */
+  async claimMonotonicCounter(
+    db: Db,
+    params: { key: string; counter: number; at: string },
+  ): Promise<boolean> {
+    const result = await db
+      .prepare(
+        `INSERT INTO settings (key, value_json, updated_at) VALUES (?, ?, ?)
+         ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json, updated_at = excluded.updated_at
+          WHERE CAST(settings.value_json AS INTEGER) < CAST(excluded.value_json AS INTEGER)`,
+      )
+      .bind(params.key, String(params.counter), params.at)
+      .run();
+    return result.meta.changes === 1;
+  },
+
+  /** Read a monotonic counter. `null` when it has never been set. */
+  async readCounter(db: Db, key: string): Promise<number | null> {
+    const row = await settings.get(db, key);
+    if (row === null) return null;
+    const parsed = Number(row.value_json);
+    return Number.isFinite(parsed) ? parsed : null;
+  },
+
   async list(db: Db, limit = 100): Promise<SettingRow[]> {
     const result = await db
       .prepare('SELECT key, value_json, updated_at, updated_by FROM settings ORDER BY key ASC LIMIT ?')

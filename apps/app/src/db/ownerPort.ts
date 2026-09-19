@@ -221,6 +221,8 @@ export class D1OwnerDataPort implements OwnerDataPort {
   }
 
   async #settledRevenueMinor(): Promise<number | null> {
+    // tenant-scope:exempt the platform owner's view is cross-tenant by definition;
+    // this is the whole business, not one customer's slice of it.
     const row = await this.#db
       .prepare("SELECT COALESCE(SUM(amount_minor), 0) AS n FROM orders WHERE status = 'active'")
       .first<{ n: number }>();
@@ -228,6 +230,8 @@ export class D1OwnerDataPort implements OwnerDataPort {
   }
 
   async #refundedMinor(): Promise<number | null> {
+    // tenant-scope:exempt the platform owner's view is cross-tenant by definition;
+    // this is the whole business, not one customer's slice of it.
     const row = await this.#db
       .prepare("SELECT COALESCE(SUM(amount_minor), 0) AS n FROM refunds WHERE state = 'succeeded'")
       .first<{ n: number }>();
@@ -320,6 +324,8 @@ export class D1OwnerDataPort implements OwnerDataPort {
    * carries its workspace_id and the contact is masked before it leaves this method.
    */
   async customers(): Promise<readonly CustomerRow[]> {
+    // tenant-scope:exempt the owner's customer list is the cross-tenant view; the contact
+    // is masked before it leaves this method and every row names its workspace.
     const result = await this.#db
       .prepare(
         `SELECT w.id, w.name, w.status, w.is_synthetic, w.created_at,
@@ -379,6 +385,8 @@ export class D1OwnerDataPort implements OwnerDataPort {
     const rows =
       workspaceId === null
         ? (
+            // tenant-scope:exempt owner order list across every workspace; the
+            // workspace variant below is scoped through ordersRepo.listForWorkspace.
             await this.#db
               .prepare(
                 `SELECT id, workspace_id, status, amount_minor, currency, rejection_reason, created_at
@@ -435,6 +443,8 @@ export class D1OwnerDataPort implements OwnerDataPort {
       });
     }
 
+    // tenant-scope:exempt owner exception queue; every row carries its workspace_id and
+    // the owner's job is precisely to see across tenants.
     const broken = await this.#db
       .prepare(
         `SELECT id, workspace_id, provider, status FROM connections
@@ -453,6 +463,7 @@ export class D1OwnerDataPort implements OwnerDataPort {
       });
     }
 
+    // tenant-scope:exempt owner exception queue; rows carry their own workspace_id.
     const exhausted = await this.#db
       .prepare(
         `SELECT id, workspace_id, billing_period FROM entitlements
@@ -516,6 +527,8 @@ export class D1OwnerDataPort implements OwnerDataPort {
     if (reason.trim().length < 3) {
       return writeFailed('Give a reason the customer can read.', { reason: 'Say why.' });
     }
+    // tenant-scope:exempt the owner rejects an order by its id from their own queue; the
+    // status predicate is what makes it safe, and the row returns its workspace_id.
     const row = await this.#db
       .prepare(
         `UPDATE orders SET status = 'rejected', rejection_reason = ?, updated_at = ?
@@ -544,6 +557,8 @@ export class D1OwnerDataPort implements OwnerDataPort {
 
   /** tenant-scope:exempt owner verification queue across every workspace. */
   async recentRuns(limit: number): Promise<readonly OwnerRunView[]> {
+    // tenant-scope:exempt owner verification queue; each id is re-read scoped by the
+    // workspace_id this query returns, so nothing downstream is unscoped.
     const result = await this.#db
       .prepare(
         `SELECT id, workspace_id FROM runs ORDER BY created_at DESC, id DESC LIMIT ?`,
@@ -560,6 +575,8 @@ export class D1OwnerDataPort implements OwnerDataPort {
 
   /** tenant-scope:exempt owner run lookup; the workspace is resolved from the row itself. */
   async run(runId: string): Promise<OwnerRunView | null> {
+    // tenant-scope:exempt resolves the workspace FROM the run id, then #runView re-reads
+    // every row scoped by it.
     const row = await this.#db
       .prepare('SELECT workspace_id FROM runs WHERE id = ?')
       .bind(runId)
@@ -627,6 +644,8 @@ export class D1OwnerDataPort implements OwnerDataPort {
 
   /** tenant-scope:exempt owner connection health across every workspace. */
   async connections(): Promise<readonly OwnerConnectionView[]> {
+    // tenant-scope:exempt owner connection health across every workspace; the mask is
+    // generated here from a fresh read and no credential is in the projection.
     const result = await this.#db
       .prepare(
         `SELECT id, workspace_id, provider, status, last_check_at, last_error_code,
@@ -676,6 +695,9 @@ export class D1OwnerDataPort implements OwnerDataPort {
   }
 
   async revokeConnection(ctx: ActionContext, connectionId: string): Promise<OwnerWriteResult> {
+    // tenant-scope:exempt resolves the workspace FROM the connection id the owner clicked,
+    // which is the only unscoped read; `connections.revoke` below then carries the
+    // resolved workspace_id in its own predicate.
     const row = await this.#db
       .prepare('SELECT workspace_id FROM connections WHERE id = ?')
       .bind(connectionId)

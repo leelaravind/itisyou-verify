@@ -28,6 +28,87 @@ import { fileURLToPath } from 'node:url';
 const ROOT = resolve(fileURLToPath(new URL('.', import.meta.url)), '..');
 const LEDGER_PATH = join(ROOT, 'docs', 'test-cases.json');
 const TESTS_DIR = join(ROOT, 'tests');
+const SCANNER_PATH = join(ROOT, 'scripts', 'scan-secrets.mjs');
+
+// ---------------------------------------------------------------------------
+// Secret shapes. There is exactly one list of these in the repository — the
+// scanner's — and it is read from there rather than copied. Two lists of secret
+// shapes drift, and the one that drifts is always the one nobody is watching.
+//
+// The ledger quotes test source verbatim, and some fixtures are credential-shaped
+// on purpose. Their `secret-scan:allow` marker does not survive harvesting, so a
+// naive ledger trips the scanner and GitHub push protection. The generator redacts
+// on the way in; this checker refuses a ledger where that did not happen.
+// ---------------------------------------------------------------------------
+
+/**
+ * Parse the scanner's RULES array out of its source. Returns [{id, re}].
+ * Throws rather than returning an empty list: a redaction pass that silently
+ * matches nothing is worse than no redaction, because it is trusted.
+ */
+function loadSecretRules(scannerPath = SCANNER_PATH) {
+  let src;
+  try {
+    src = readFileSync(scannerPath, 'utf8');
+  } catch (error) {
+    throw new Error(`cannot read the secret rules from ${scannerPath}: ${error.message}`);
+  }
+  const start = src.indexOf('const RULES = [');
+  if (start === -1) throw new Error(`no \`const RULES = [\` block found in ${scannerPath}`);
+  const open = src.indexOf('[', start);
+  let depth = 0;
+  let end = -1;
+  let inLine = false;
+  let inStr = null;
+  let inRe = false;
+  for (let i = open; i < src.length; i += 1) {
+    const ch = src[i];
+    const prev = src[i - 1];
+    if (inLine) { if (ch === '\n') inLine = false; continue; }
+    if (inStr) { if (ch === inStr && prev !== '\\') inStr = null; continue; }
+    if (inRe) { if (ch === '/' && prev !== '\\') inRe = false; continue; }
+    if (ch === '/' && src[i + 1] === '/') { inLine = true; continue; }
+    if (ch === "'" || ch === '"' || ch === '`') { inStr = ch; continue; }
+    // a regex literal always follows `re:` here, which is enough to disambiguate
+    if (ch === '/' && /re\s*:\s*$/.test(src.slice(Math.max(0, i - 8), i))) { inRe = true; continue; }
+    if (ch === '[') depth += 1;
+    else if (ch === ']') { depth -= 1; if (depth === 0) { end = i; break; } }
+  }
+  if (end === -1) throw new Error(`the RULES block in ${scannerPath} is not terminated`);
+
+  const block = src.slice(open, end + 1);
+  const entry = /\{\s*id:\s*'([^']+)'\s*,\s*re:\s*\/((?:\\.|\[(?:\\.|[^\]])*\]|[^/\\])+)\/([gimsuy]*)\s*\}/g;
+  const rules = [];
+  let m;
+  while ((m = entry.exec(block)) !== null) {
+    const flags = m[3].includes('g') ? m[3] : `${m[3]}g`;
+    rules.push({ id: m[1], re: new RegExp(m[2], flags) });
+  }
+  if (rules.length === 0) throw new Error(`parsed zero rules from ${scannerPath}; the rule shape must have changed`);
+  return rules;
+}
+
+/**
+ * Replace credential-shaped substrings with a placeholder that names what the fixture is.
+ * The ledger's job is to describe the requirement, not to reproduce a fixture byte for byte.
+ */
+function redactSecrets(text, rules) {
+  if (typeof text !== 'string' || text === '') return text;
+  let out = text;
+  for (const rule of rules) {
+    const re = new RegExp(rule.re.source, rule.re.flags.includes('g') ? rule.re.flags : `${rule.re.flags}g`);
+    out = out.replace(re, (match) => {
+      if (rule.id === 'basic-auth-url') {
+        const scheme = /^([a-z][a-z0-9+.-]*):\/\//i.exec(match);
+        return `${scheme ? scheme[1] : 'https'}://<credentials-in-url>@`;
+      }
+      const assigned = /^([A-Za-z_][A-Za-z0-9_-]*)\s*([:=])/.exec(match);
+      if (assigned) return `${assigned[1]}${assigned[2]} '<REDACTED-FIXTURE>'`;
+      return '<REDACTED-FIXTURE>';
+    });
+  }
+  return out;
+}
 
 const ARGS = new Set(process.argv.slice(2));
 const QUIET = ARGS.has('--quiet');
@@ -140,6 +221,41 @@ if (!Array.isArray(ledger.cases)) {
   process.exit(1);
 }
 const cases = ledger.cases;
+
+// ---------------------------------------------------------------------------
+// No credential-shaped literal may survive into the ledger.
+//
+// The ledger quotes test source, and several fixtures are credential-shaped on
+// purpose. In their own files a `secret-scan:allow` marker exempts them; that
+// marker does not survive harvesting, so an unsanitised ledger trips the secret
+// scanner and GitHub push protection — which has already blocked this repository.
+// The generator redacts; this refuses the file if it did not.
+// ---------------------------------------------------------------------------
+let secretRules;
+try {
+  secretRules = loadSecretRules();
+} catch (error) {
+  console.error(`FATAL  ${error.message}`);
+  console.error('       The ledger cannot be checked for credential-shaped text, so it is not safe to pass.');
+  process.exit(1);
+}
+for (const c of cases) {
+  if (c === null || typeof c !== 'object') continue;
+  for (const field of ['requirement', 'risk', 'setup', 'expected', 'implementation_ref']) {
+    const value = c[field];
+    if (typeof value !== 'string') continue;
+    for (const rule of secretRules) {
+      const re = new RegExp(rule.re.source, rule.re.flags.replace('g', ''));
+      if (re.test(value)) {
+        fail(
+          typeof c.id === 'string' ? c.id : 'ledger',
+          `\`${field}\` contains text matching the \`${rule.id}\` secret shape. Harvested text must be redacted before it reaches the ledger — regenerate with the redaction pass rather than editing this file by hand.`,
+        );
+        break;
+      }
+    }
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Per-case structure

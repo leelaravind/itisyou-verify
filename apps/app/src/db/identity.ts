@@ -87,6 +87,41 @@ export const users = {
     return result.meta.changes === 1;
   },
 
+  /**
+   * True when any platform owner exists.
+   *
+   * The permanent "bootstrap is closed" condition, and a property of the data rather than
+   * of a flag somebody could reset.
+   */
+  async platformOwnerExists(db: Db): Promise<boolean> {
+    const row = await db
+      .prepare('SELECT 1 AS present FROM users WHERE is_platform_owner = 1 LIMIT 1')
+      .first<{ present: number }>();
+    return row !== null;
+  },
+
+  /**
+   * Promote a verified user to platform owner, at most once for the life of the deployment.
+   *
+   * `AND NOT EXISTS (an owner)` is inside the same statement as the write. Two bootstrap
+   * requests arriving together — the realistic case, because a leaked deployment secret
+   * gets tried repeatedly — evaluate that condition against the same committed state and
+   * exactly one of them writes. Returns `null` when the path is closed.
+   */
+  async promoteToPlatformOwnerOnce(db: Db, authSubject: string): Promise<string | null> {
+    const row = await db
+      .prepare(
+        `UPDATE users SET is_platform_owner = 1
+          WHERE auth_subject = ?
+            AND disabled_at IS NULL
+            AND NOT EXISTS (SELECT 1 FROM users WHERE is_platform_owner = 1)
+          RETURNING id`,
+      )
+      .bind(authSubject)
+      .first<{ id: string }>();
+    return row?.id ?? null;
+  },
+
   async disable(db: Db, userId: string, at: string): Promise<boolean> {
     const result = await db
       .prepare('UPDATE users SET disabled_at = ? WHERE id = ? AND disabled_at IS NULL')

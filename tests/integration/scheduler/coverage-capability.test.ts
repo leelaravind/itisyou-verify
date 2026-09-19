@@ -87,8 +87,8 @@ describe('coverage modes are bound to real capabilities', () => {
       const capabilities = getConnector(provider).capabilities();
       expect(capabilities.can_search_by_correlation || capabilities.can_read_by_id).toBe(true);
       // A correlation search is a lookup, not enumeration. If a connector ever gains real
-      // enumeration it must say so with a new flag, and VERIFY-208 will then demand the
-      // scheduler pass before the mode can be offered.
+      // enumeration it must say so with a new flag, and the support-matches-capability
+      // case above will then demand the scheduler pass before the mode can be offered.
       expect(Object.keys(capabilities)).not.toContain('can_enumerate_records');
     }
   });

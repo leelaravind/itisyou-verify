@@ -34,7 +34,7 @@ import {
   type TotpCheck,
   type TotpEnrolment,
 } from '@verify/security';
-import { auditEvents, credentials, loginTokens, sessions, users } from '../db';
+import { auditEvents, credentials, loginTokens, sessions, settings, users } from '../db';
 import type { Db } from '../db/d1';
 import type { Env } from './context';
 import { ID_PREFIX, newId } from './ids';
@@ -316,7 +316,6 @@ export async function enrolTotp(
   // the audit trail of how many codes existed.
   await credentials.retireAllForScope(db, recoveryScope(params.userId), at);
   const recovery = await createRecoveryCodes();
-  const statements = [];
   for (let i = 0; i < recovery.hashes.length; i += 1) {
     const hash = recovery.hashes[i] as string;
     const marker = await sealCredentialFor(
@@ -324,24 +323,16 @@ export async function enrolTotp(
       recoveryAad(params.userId),
       key,
     );
-    statements.push(
-      db
-        .prepare(
-          `INSERT INTO credential_versions (id, connection_id, owner_scope, key_version, ciphertext, nonce, aad, created_at)
-           VALUES (?, NULL, ?, ?, ?, ?, ?, ?)`,
-        )
-        .bind(
-          recoveryRowId(hash),
-          recoveryScope(params.userId),
-          marker.key_version,
-          marker.ciphertext,
-          marker.nonce,
-          marker.aad,
-          at,
-        ),
-    );
+    await credentials.insertRecoveryCode(db, {
+      rowId: recoveryRowId(hash),
+      ownerScope: recoveryScope(params.userId),
+      keyVersion: marker.key_version,
+      ciphertext: marker.ciphertext,
+      nonce: marker.nonce,
+      aad: marker.aad,
+      createdAt: at,
+    });
   }
-  await db.batch(statements);
 
   // The counter starts fresh so a code minted during enrolment cannot be replayed after.
   await resetTotpCounter(db, params.userId, params.now);
@@ -379,23 +370,15 @@ export function totpCounterKey(userId: string): string {
 }
 
 async function resetTotpCounter(db: Db, userId: string, now: Date): Promise<void> {
-  await db
-    .prepare(
-      `INSERT INTO settings (key, value_json, updated_at) VALUES (?, ?, ?)
-       ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json, updated_at = excluded.updated_at`,
-    )
-    .bind(totpCounterKey(userId), '0', nowIso(now))
-    .run();
+  await settings.set(db, {
+    key: totpCounterKey(userId),
+    valueJson: '0',
+    updatedAt: nowIso(now),
+  });
 }
 
 async function readTotpCounter(db: Db, userId: string): Promise<number | null> {
-  const row = await db
-    .prepare('SELECT value_json FROM settings WHERE key = ?')
-    .bind(totpCounterKey(userId))
-    .first<{ value_json: string }>();
-  if (row === null) return null;
-  const parsed = Number(row.value_json);
-  return Number.isFinite(parsed) ? parsed : null;
+  return settings.readCounter(db, totpCounterKey(userId));
 }
 
 /**
@@ -408,15 +391,11 @@ async function readTotpCounter(db: Db, userId: string): Promise<number | null> {
  * a read-then-write silently loses.
  */
 async function claimTotpCounter(db: Db, userId: string, counter: number, now: Date): Promise<boolean> {
-  const result = await db
-    .prepare(
-      `INSERT INTO settings (key, value_json, updated_at) VALUES (?, ?, ?)
-       ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json, updated_at = excluded.updated_at
-        WHERE CAST(settings.value_json AS INTEGER) < CAST(excluded.value_json AS INTEGER)`,
-    )
-    .bind(totpCounterKey(userId), String(counter), nowIso(now))
-    .run();
-  return result.meta.changes === 1;
+  return settings.claimMonotonicCounter(db, {
+    key: totpCounterKey(userId),
+    counter,
+    at: nowIso(now),
+  });
 }
 
 export type TotpVerifyOutcome =
@@ -537,15 +516,13 @@ export async function consumeRecoveryCode(
 ): Promise<TotpVerifyOutcome> {
   const at = nowIso(now);
   const hash = await hashRecoveryCode(code);
-  const result = await db
-    .prepare(
-      `UPDATE credential_versions SET retired_at = ?
-        WHERE id = ? AND owner_scope = ? AND retired_at IS NULL`,
-    )
-    .bind(at, recoveryRowId(hash), recoveryScope(userId))
-    .run();
+  const consumed = await credentials.consumeRecoveryCode(db, {
+    rowId: recoveryRowId(hash),
+    ownerScope: recoveryScope(userId),
+    at,
+  });
 
-  if (result.meta.changes !== 1) {
+  if (!consumed) {
     await recordMfaAudit(db, userId, 'auth.recovery.rejected', now);
     return { ok: false, refusal: 'mismatch', dependency: null };
   }
@@ -566,29 +543,16 @@ export async function consumeRecoveryCode(
 
 /** How many unused recovery codes remain. Shown to the owner; never the codes themselves. */
 export async function countRecoveryCodes(db: Db, userId: string): Promise<number> {
-  const row = await db
-    .prepare(
-      'SELECT COUNT(*) AS n FROM credential_versions WHERE owner_scope = ? AND retired_at IS NULL',
-    )
-    .bind(recoveryScope(userId))
-    .first<{ n: number }>();
-  return Number(row?.n ?? 0);
+  return credentials.countActiveForScope(db, recoveryScope(userId));
 }
 
 /* -------------------------------------------------------------------------- */
 /* platform owner bootstrap                                                    */
 /* -------------------------------------------------------------------------- */
 
-/**
- * True when any platform owner exists. The permanent "bootstrap is closed" condition.
- *
- * tenant-scope:exempt platform-wide identity question; `users` is not workspace-scoped.
- */
+/** True when any platform owner exists. The permanent "bootstrap is closed" condition. */
 export async function platformOwnerExists(db: Db): Promise<boolean> {
-  const row = await db
-    .prepare('SELECT 1 AS present FROM users WHERE is_platform_owner = 1 LIMIT 1')
-    .first<{ present: number }>();
-  return row !== null;
+  return users.platformOwnerExists(db);
 }
 
 /**
@@ -603,21 +567,11 @@ export async function platformOwnerExists(db: Db): Promise<boolean> {
  * somebody could reset or a secret somebody forgot to delete.
  */
 export async function promoteToPlatformOwner(db: Db, authSubject: string): Promise<string> {
-  const subject = normaliseAuthSubject(authSubject);
-  const row = await db
-    .prepare(
-      `UPDATE users SET is_platform_owner = 1
-        WHERE auth_subject = ?
-          AND disabled_at IS NULL
-          AND NOT EXISTS (SELECT 1 FROM users WHERE is_platform_owner = 1)
-        RETURNING id`,
-    )
-    .bind(subject)
-    .first<{ id: string }>();
-  if (row === null) {
+  const userId = await users.promoteToPlatformOwnerOnce(db, normaliseAuthSubject(authSubject));
+  if (userId === null) {
     throw new AppError(409, 'BOOTSTRAP_CLOSED', 'Bootstrap is not available.');
   }
-  return row.id;
+  return userId;
 }
 
 /* -------------------------------------------------------------------------- */
