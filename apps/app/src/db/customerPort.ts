@@ -867,6 +867,28 @@ export class D1CustomerDataPort implements CustomerDataPort {
    * this environment, so there is nothing to redirect to. The wording matters more than
    * the code path: a customer who believes a payment was attempted will wait for it.
    */
+  /**
+   * The billing runtime, assembled in one place.
+   *
+   * Spelled once because a second spelling is how a money path acquires two different
+   * clocks, two different id factories, or -- as happened with the period key -- two
+   * different notions of the same thing.
+   */
+  async #billingRuntime(): Promise<import('../billing/runtime').BillingRuntime> {
+    const { createBillingRuntime } = await import('../billing/index');
+    const { D1BillingDataPort } = await import('./billingPort');
+    const { createStripeClient } = await import('@verify/connectors/stripe');
+    return createBillingRuntime(this.#env as never, {
+      data: new D1BillingDataPort(this.#db),
+      gateway: createStripeClient({
+        secretKey: this.#env.STRIPE_SECRET_KEY ?? '',
+        ...(this.#fetchImpl === undefined ? {} : { fetchImpl: this.#fetchImpl }),
+      }),
+      now: () => toIso(this.#now),
+      newId: (prefix: string) => newId(prefix, this.#now.getTime()),
+    });
+  }
+
   async createCheckout(): Promise<WriteResult> {
     const scope = await this.#scope();
     if (scope === null) return refuse('Sign in before subscribing.');
@@ -883,21 +905,12 @@ export class D1CustomerDataPort implements CustomerDataPort {
     // for. The secret is read once, below, having been proven present.
     const secretKey = this.#env.STRIPE_SECRET_KEY ?? '';
 
-    const { startCheckout, createBillingRuntime } = await import('../billing/index');
-    const { D1BillingDataPort } = await import('./billingPort');
-    const { createStripeClient } = await import('@verify/connectors/stripe');
+    const { startCheckout } = await import('../billing/index');
+    void secretKey;
 
     const result = await startCheckout(
       {
-        ...createBillingRuntime(this.#env as never, {
-          data: new D1BillingDataPort(this.#db),
-          gateway: createStripeClient({
-            secretKey,
-            ...(this.#fetchImpl === undefined ? {} : { fetchImpl: this.#fetchImpl }),
-          }),
-          now: () => toIso(this.#now),
-          newId: (prefix: string) => newId(prefix, this.#now.getTime()),
-        }),
+        ...(await this.#billingRuntime()),
         // Eligibility is `orderSummary`'s question, already answered above. Asking it
         // again through this port keeps billing unable to take money on its own say-so.
         checkEligibility: async () => {
@@ -1266,11 +1279,32 @@ export class D1CustomerDataPort implements CustomerDataPort {
           'There is no subscription to manage yet, so there is nothing to open and nothing to cancel.',
       };
     }
-    return {
-      href: null,
-      reason:
-        'The billing portal could not be opened. A portal link has to be created through Stripe with a secret key, and Stripe is not configured in this environment.',
-    };
+    if ((this.#env.STRIPE_SECRET_KEY ?? '') === '') {
+      return {
+        href: null,
+        reason:
+          'The billing portal could not be opened: this deployment has no STRIPE_SECRET_KEY, so there is no portal session to create. That is our configuration, not something on your side.',
+      };
+    }
+
+    try {
+      const { openBillingPortal } = await import('../billing/index');
+      const opened = await openBillingPortal(await this.#billingRuntime(), {
+        workspaceId: scope.workspaceId,
+      });
+      return { href: opened.portalUrl, reason: null };
+    } catch (error) {
+      // A portal we could not open is reported as not opened. The previous version of this
+      // method returned that sentence unconditionally -- including on deployments where
+      // Stripe WAS configured -- so the customer was told a configuration fact that was
+      // false and the portal was never attempted.
+      return {
+        href: null,
+        reason: `The billing portal could not be opened. ${
+          error instanceof AppError ? error.message : 'Stripe did not return a portal link.'
+        } Nothing has been changed.`,
+      };
+    }
   }
 
   /* --- support --- */
