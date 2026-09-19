@@ -599,6 +599,39 @@
       ],
       "limitations": "The fix is not applied to the tree: packages/contracts and the rule compiler are owned elsewhere, so it is a patch proven in an isolated copy and the lead decides. No HubSpot or Resend credential exists on this project; every run is against the in-process harness with scripted connectors, and nothing has been exercised against a live provider. Nothing is deployed.",
       "next_step": "Lead decides on the contract diff. If accepted, apply the patch, re-run VERIFY-227 to VERIFY-242 in the tree, and the patch's own requalification of the demo and story replaces today's interim wording."
+    },
+    {
+      "event_id": "EVT-0019",
+      "timestamp": "2026-09-19T20:30:00Z",
+      "milestone_id": "M-RESILIENCE",
+      "task_id": "T-RESTORE-DRILL",
+      "agent_role": "lead",
+      "model_id": "claude-opus-5",
+      "status": "tested",
+      "goal": "Replace a withdrawn backup-restoration claim with evidence that exists.",
+      "inputs": [
+        "verify-itisyou-db-staging (real remote D1)"
+      ],
+      "changed_artifacts": [
+        "docs/resilience-evidence.md",
+        "docs/gap-register.md"
+      ],
+      "commit_sha": "6c1ae9a0ab4530c022b9dd1856487b7473156ed7",
+      "decision_summary": "Exported real remote staging D1, restored into an isolated database, then seeded two synthetic tenants with full referential structure and repeated the export-and-restore into a second isolated database so the comparison was between two databases that both held data. Both drill databases deleted afterwards and the listing confirms none remain.",
+      "alternatives_considered": [
+        "Restore staging as-is. Rejected: staging holds one workspace and no runs, so it would have proved only that the command runs."
+      ],
+      "decision_reason": "The earlier claim was withdrawn because its citation did not resolve — the register said the evidence was in the story and the story had no such event. Re-running the drill was cheaper than arguing about whether the first one counted, and the schema refusing the first seed attempt outright was itself worth recording: a drill against a schema that accepts anything proves much less.",
+      "test_evidence_refs": [
+        "counts preserved 3/3/3/3 across workspaces, runs, evidence and source_events",
+        "run statuses preserved as VERIFIED,UNVERIFIED,FAILED rather than collapsed",
+        "evidence content digests byte-identical",
+        "zero evidence rows crossing tenants, zero orphan runs, zero orphan evidence in the restored copy",
+        "42 schema objects in both",
+        "both drill databases deleted, wrangler d1 list shows none remaining"
+      ],
+      "limitations": "Three runs is not three million, so this says nothing about volume. It is export-and-restore, not point-in-time recovery. No live provider outage has been observed because no provider credential exists. An actual rollback of a deployed environment followed by a probe has not been done and is not claimed.",
+      "next_step": "Roll back a deployed environment and probe it; observe a real provider outage once a credential exists."
     }
   ]
 }
