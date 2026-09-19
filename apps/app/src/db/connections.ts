@@ -71,6 +71,110 @@ export const connections = {
     return row;
   },
 
+  /**
+   * Record a connection the provider has just confirmed, together with the sealed
+   * credentials that proved it — in **one** batch, which D1 runs as one transaction.
+   *
+   * Why one statement list rather than an upsert followed by a credential write: the two
+   * halves are only true together. A connection row saying `ready` with no credential
+   * behind it is a page telling the customer they are connected while every run that
+   * follows fails to open anything; a credential with no connection row is unreachable.
+   * Either both land or neither does.
+   *
+   * The caller has already validated against the provider — nothing here checks a
+   * credential, and nothing here seals one. It stores what it is given, and it is only
+   * ever given envelopes.
+   */
+  async establish(
+    db: Db,
+    params: {
+      newConnectionId: string;
+      workspaceId: string;
+      provider: Provider;
+      status: ConnectionStatus;
+      externalAccountId: string | null;
+      scopes: readonly string[];
+      lastCheckAt: string;
+      credentials: readonly {
+        id: string;
+        purpose: string;
+        keyVersion: number;
+        ciphertext: string;
+        nonce: string;
+        aad: string;
+      }[];
+    },
+  ): Promise<string> {
+    const existing = await connections.getByProvider(db, params.workspaceId, params.provider);
+    const connectionId = existing?.id ?? params.newConnectionId;
+    const scope = connectionScope(connectionId);
+
+    const statements = [
+      db
+        .prepare(
+          `INSERT INTO connections
+             (id, workspace_id, provider, external_account_id, status, scopes, last_check_at, last_error_code, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?)
+           ON CONFLICT(workspace_id, provider) DO UPDATE SET
+             external_account_id = excluded.external_account_id,
+             status              = excluded.status,
+             scopes              = excluded.scopes,
+             last_check_at       = excluded.last_check_at,
+             last_error_code     = NULL,
+             revoked_at          = NULL`,
+        )
+        .bind(
+          connectionId,
+          params.workspaceId,
+          params.provider,
+          orNull(params.externalAccountId),
+          params.status,
+          JSON.stringify(params.scopes),
+          params.lastCheckAt,
+          params.lastCheckAt,
+        ),
+    ];
+
+    for (const credential of params.credentials) {
+      // Retire only the previous version *of this purpose*: a Resend connection holds an
+      // API token and a signing secret under one scope, and storing one must not retire
+      // the other.
+      // tenant-scope:exempt credential_versions is scoped by owner_scope; the connection
+      // id it is built from was just proven to belong to this workspace above.
+      statements.push(
+        db
+          .prepare(
+            `UPDATE credential_versions SET retired_at = ?
+              WHERE owner_scope = ? AND retired_at IS NULL AND aad LIKE ?`,
+          )
+          .bind(params.lastCheckAt, scope, `%|purpose=${credential.purpose}`),
+      );
+      // tenant-scope:exempt same scope rule as the retire above; the two must stay in one
+      // batch or a failure between them leaves a connection with no usable credential.
+      statements.push(
+        db
+          .prepare(
+            `INSERT INTO credential_versions
+               (id, connection_id, owner_scope, key_version, ciphertext, nonce, aad, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          )
+          .bind(
+            credential.id,
+            connectionId,
+            scope,
+            credential.keyVersion,
+            credential.ciphertext,
+            credential.nonce,
+            credential.aad,
+            params.lastCheckAt,
+          ),
+      );
+    }
+
+    await db.batch(statements);
+    return connectionId;
+  },
+
   async getByProvider(
     db: Db,
     workspaceId: string,
@@ -183,6 +287,10 @@ export const credentials = {
   /**
    * Store a new sealed credential and retire the previous active one in a single batch,
    * so there is never a moment with two active versions for one scope.
+   *
+   * Note the retire is unqualified: this is for a scope holding exactly one secret (a
+   * user's TOTP seed). A provider connection holds more than one — an API token and a
+   * signing secret — and goes through `connections.establish`, which retires per purpose.
    */
   async store(
     db: Db,

@@ -22,8 +22,10 @@ import type { CoverageMode, RunStatus, SubscriptionStatus } from '@verify/contra
 import { LIMITS, formatMoney, money } from '@verify/contracts';
 import { generateCsrfToken, maskToken, sha256Hex, stableStringify } from '@verify/security';
 import { AppError } from '@verify/contracts';
+import { establishConnection, type ProviderId } from '@verify/connectors';
 import type {
   ActivationView,
+  ConnectionCredentialsInput,
   ConnectionView,
   ConnectorCompatibility,
   CustomerDataPort,
@@ -71,6 +73,14 @@ import {
 /* -------------------------------------------------------------------------- */
 /* helpers                                                                     */
 /* -------------------------------------------------------------------------- */
+
+/**
+ * The wrapping key version `CREDENTIAL_KEY_V1` is. It is bound into the AAD by
+ * `sealCredentialFor`, so it is authenticated rather than an editable column, and a second
+ * key would arrive as `CREDENTIAL_KEY_V2` with its own number. `lib/auth.ts` says 1 for the
+ * same binding; the two must not drift.
+ */
+const CREDENTIAL_KEY_VERSION = 1;
 
 /**
  * Said the same way on the page before the button and on the response after it.
@@ -211,6 +221,12 @@ export interface CustomerPortInput {
   readonly env: Env;
   readonly request: { readonly headers: Headers; readonly url: string };
   readonly now?: Date;
+  /**
+   * Injected only so a test can stand in for the provider. Production leaves it undefined
+   * and the connectors use the runtime's own `fetch`, which is the only path that has ever
+   * been allowed to reach `api.hubapi.com` or `api.resend.com`.
+   */
+  readonly fetchImpl?: typeof fetch | undefined;
 }
 
 export class D1CustomerDataPort implements CustomerDataPort {
@@ -220,6 +236,7 @@ export class D1CustomerDataPort implements CustomerDataPort {
   readonly #env: Env;
   readonly #request: { readonly headers: Headers; readonly url: string };
   readonly #now: Date;
+  readonly #fetchImpl: typeof fetch | undefined;
   #resolved: ResolvedSession | null | undefined = undefined;
 
   constructor(input: CustomerPortInput) {
@@ -227,6 +244,7 @@ export class D1CustomerDataPort implements CustomerDataPort {
     this.#env = input.env;
     this.#request = input.request;
     this.#now = input.now ?? new Date();
+    this.#fetchImpl = input.fetchImpl;
   }
 
   /**
@@ -344,6 +362,138 @@ export class D1CustomerDataPort implements CustomerDataPort {
     return refuse(
       `No authorisation was started and nothing about your ${PROVIDER_DETAIL[provider].displayName} account has changed. The ${PROVIDER_DETAIL[provider].displayName} app credentials are not configured in this environment, so there is nowhere to send you yet.`,
     );
+  }
+
+  /**
+   * Validate a pasted provider credential against the provider, then store it sealed.
+   *
+   * This is the method whose absence made the route take its fallback branch — "this
+   * workspace has no way to validate a credential against the provider yet" — which was
+   * true and therefore correct, and also meant no customer could connect anything and no
+   * `provider_readback` evidence could ever exist. The fallback stays exactly where it is,
+   * for any port that still cannot do this. This one can.
+   *
+   * The order is fixed, and every step can only refuse, never soften:
+   *
+   *   1. **Role.** Only a workspace admin may hand us a credential. A viewer is refused
+   *      before anything is sent anywhere, so a read-only member cannot spend a call
+   *      against the customer's rate limit either.
+   *   2. **A place to put it.** With no `CREDENTIAL_KEY_V1` there is nothing to seal with,
+   *      and a credential we cannot seal is one we must not accept. Refused before the
+   *      provider is contacted, because asking would be pointless and not free.
+   *   3. **Ask the provider.** `establishConnection` does the narrowest read that proves
+   *      the credential works and says whose account it is — HubSpot's
+   *      `access-token-info`, Resend's `GET /domains` — and returns sealed envelopes *only*
+   *      on success. An expired token, a missing scope and an unreachable provider come
+   *      back as three different sentences, because they are three different problems.
+   *   4. **Store, atomically.** Connection row and ciphertext in one batch, with
+   *      `last_check_at` set from the provider's answer, so the page reads the state back
+   *      out of the database rather than trusting the submission that produced it.
+   *
+   * Nothing here returns, logs or audits the credential. The audit row records that a
+   * credential was submitted, for which provider, by whom, and how it went.
+   */
+  async submitConnectionCredentials(input: ConnectionCredentialsInput): Promise<WriteResult> {
+    const scope = await this.#scope();
+    if (scope === null) return refuse('Sign in to connect a provider.');
+
+    const provider: ProviderId = input.provider === 'resend' ? 'resend' : 'hubspot';
+    const displayName = PROVIDER_DETAIL[provider].displayName;
+
+    if (scope.role !== 'workspace_admin') {
+      return refuse(
+        `Only a workspace admin can connect a provider. Nothing was sent to ${displayName} and nothing was stored.`,
+      );
+    }
+
+    const keyBase64 = this.#env.CREDENTIAL_KEY_V1;
+    if (keyBase64 === undefined || keyBase64.length === 0) {
+      return refuse(
+        `Nothing was sent to ${displayName} and nothing was stored. This deployment has no CREDENTIAL_KEY_V1 secret, so there is nothing to encrypt a credential with, and we will not hold one any other way. This is our configuration, not something on your side.`,
+      );
+    }
+
+    const established = await establishConnection({
+      provider,
+      workspaceId: scope.workspaceId,
+      accessToken: input.accessToken,
+      ...(input.webhookSecret === undefined ? {} : { webhookSecret: input.webhookSecret }),
+      wrappingKey: { keyBase64, keyVersion: CREDENTIAL_KEY_VERSION },
+      now: this.#now,
+      ...(this.#fetchImpl === undefined ? {} : { fetchImpl: this.#fetchImpl }),
+    });
+
+    const at = nowIso(this.#now);
+
+    // `credentials` is empty on every refusal path in `establishConnection` — there is no
+    // branch there that seals an unvalidated token. Both conditions are checked anyway:
+    // this is the last point at which an unusable credential could reach the database.
+    if (!established.ok || established.credentials.length === 0) {
+      await auditEvents.record(this.#db, {
+        id: newId(ID_PREFIX.auditEvent, this.#now.getTime()),
+        actor: scope.userId,
+        actorKind: 'user',
+        workspaceId: scope.workspaceId,
+        action: 'connection.credential_rejected',
+        target: provider,
+        occurredAt: at,
+        // The provider's classification, never the value that was rejected.
+        redactedMetadata: JSON.stringify({
+          provider,
+          error_code: established.connection.lastErrorCode,
+          calls_made: established.callsMade,
+        }),
+      });
+      return {
+        ok: false,
+        fieldErrors: { ...established.fieldErrors },
+        message: established.message,
+        redirectTo: null,
+      };
+    }
+
+    const connectionId = await connections.establish(this.#db, {
+      newConnectionId: newId(ID_PREFIX.connection, this.#now.getTime()),
+      workspaceId: scope.workspaceId,
+      provider,
+      status: established.connection.status,
+      externalAccountId: established.connection.externalAccountId,
+      scopes: established.connection.scopes,
+      lastCheckAt: established.connection.lastCheckAt,
+      credentials: established.credentials.map((sealed) => ({
+        id: newId(ID_PREFIX.credential, this.#now.getTime()),
+        purpose: sealed.purpose,
+        keyVersion: sealed.envelope.key_version,
+        ciphertext: sealed.envelope.ciphertext,
+        nonce: sealed.envelope.nonce,
+        aad: sealed.envelope.aad,
+      })),
+    });
+
+    await auditEvents.record(this.#db, {
+      id: newId(ID_PREFIX.auditEvent, this.#now.getTime()),
+      actor: scope.userId,
+      actorKind: 'user',
+      workspaceId: scope.workspaceId,
+      action: 'connection.credential_submitted',
+      target: connectionId,
+      occurredAt: at,
+      // Which provider, which account, what we now claim — and nothing that could be used
+      // as a credential. The purposes are stored as names, not as values.
+      redactedMetadata: JSON.stringify({
+        provider,
+        status: established.connection.status,
+        external_account_id: established.connection.externalAccountId,
+        purposes: established.credentials.map((sealed) => sealed.purpose),
+      }),
+    });
+
+    return {
+      ok: true,
+      fieldErrors: {},
+      message: established.message,
+      redirectTo: null,
+    };
   }
 
   async workflows(): Promise<readonly WorkflowSummary[]> {
@@ -467,7 +617,9 @@ export class D1CustomerDataPort implements CustomerDataPort {
     });
     const created = await workflows.get(this.#db, scope.workspaceId, id);
     if (created === null) {
-      throw new Error('workflowForConfiguration: created workflow vanished before it could be read');
+      throw new Error(
+        'workflowForConfiguration: created workflow vanished before it could be read',
+      );
     }
     return created;
   }
@@ -497,7 +649,10 @@ export class D1CustomerDataPort implements CustomerDataPort {
     scope: ResolvedSession,
     workflow: WorkflowRow,
     state: ConfiguredWorkflowState,
-  ): Promise<{ readonly ok: true } | { readonly ok: false; readonly path: readonly (string | number)[]; readonly message: string }> {
+  ): Promise<
+    | { readonly ok: true }
+    | { readonly ok: false; readonly path: readonly (string | number)[]; readonly message: string }
+  > {
     const composed = composeWorkflowRules(state);
     if (!composed.ok) {
       return { ok: false, path: composed.failure.path, message: composed.failure.message };
@@ -536,7 +691,9 @@ export class D1CustomerDataPort implements CustomerDataPort {
 
   /** `composeWorkflowRules`'s schema path, translated into this form's own field names. */
   #mappingFieldErrors(path: readonly (string | number)[]): Record<string, string> {
-    return path[0] === 'crm_correlation_property' ? { correlationProperty: 'Use letters, numbers and underscores only.' } : {};
+    return path[0] === 'crm_correlation_property'
+      ? { correlationProperty: 'Use letters, numbers and underscores only.' }
+      : {};
   }
 
   /** As above, for the expected-outcome form. */
@@ -759,7 +916,8 @@ export class D1CustomerDataPort implements CustomerDataPort {
     if (workflow === undefined) {
       return {
         canIssue: false,
-        cannotIssueReason: 'There is no workflow to issue a key for yet. Finish the setup steps first.',
+        cannotIssueReason:
+          'There is no workflow to issue a key for yet. Finish the setup steps first.',
       };
     }
     if (scope.role !== 'workspace_admin') {
@@ -792,7 +950,11 @@ export class D1CustomerDataPort implements CustomerDataPort {
   async issueSigningKey(): Promise<SigningKeyIssueResult> {
     const scope = await this.#scope();
     if (scope === null) {
-      return { outcome: 'refused', reason: 'not_signed_in', message: 'Sign in to issue a signing key.' };
+      return {
+        outcome: 'refused',
+        reason: 'not_signed_in',
+        message: 'Sign in to issue a signing key.',
+      };
     }
     if (scope.role !== 'workspace_admin') {
       return {

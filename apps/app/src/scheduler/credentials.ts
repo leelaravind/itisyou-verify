@@ -11,7 +11,7 @@
  * latency, and produces a gap we could have produced for free.
  */
 import { openCredentialFor } from '@verify/security';
-import type { ProviderId } from '@verify/connectors';
+import { CREDENTIAL_PURPOSE, type ProviderId } from '@verify/connectors';
 import { connections, credentials as credentialRows } from '../db/connections';
 import type { Db } from '../db/d1';
 import type { ConnectionResolution, CredentialResolver } from './ports';
@@ -19,11 +19,19 @@ import type { ConnectionResolution, CredentialResolver } from './ports';
 /**
  * The AAD purpose for a connector's API token.
  *
- * Whoever builds the connect flow must seal with exactly this purpose, or the envelope
- * will not open here — which is the point: the AAD is what stops a ciphertext being moved
- * between tenants or between uses.
+ * It must be **the same string the connect flow sealed with**, or the envelope does not
+ * open here — which is the point: the AAD is what stops a ciphertext being moved between
+ * tenants or between uses.
+ *
+ * It used to be a local literal, `'connector_access_token'`, written before anything
+ * sealed a connector credential at all. `packages/connectors` seals with
+ * `CREDENTIAL_PURPOSE.API_TOKEN` (`'api_token'`) and `openConnectionCredentials` opens with
+ * it, so this file was the only place holding the other spelling — a mismatch that could
+ * not be observed while nothing had ever been stored, and would have shown up on the first
+ * real connection as "the stored credential could not be opened". It is now re-exported
+ * from the one definition rather than restated, so the two cannot drift again.
  */
-export const CONNECTOR_CREDENTIAL_PURPOSE = 'connector_access_token';
+export const CONNECTOR_CREDENTIAL_PURPOSE = CREDENTIAL_PURPOSE.API_TOKEN;
 
 /** Connection statuses we are willing to spend a provider call on. */
 const USABLE_STATUSES: ReadonlySet<string> = new Set(['ready', 'degraded']);
@@ -64,7 +72,16 @@ export function createD1CredentialResolver(
         };
       }
 
-      const envelope = await credentialRows.activeForConnection(db, workspaceId, connection.id);
+      // By purpose, not merely by connection: a Resend connection holds an API token and a
+      // webhook signing secret, and `activeForConnection` would hand back whichever was
+      // written last. The purpose is matched against the AAD, which is what actually binds
+      // a ciphertext to what it is for.
+      const envelope = await credentialRows.activeForScope(
+        db,
+        workspaceId,
+        connection.id,
+        CONNECTOR_CREDENTIAL_PURPOSE,
+      );
       if (envelope === null) {
         return { ok: false, reason: 'no_credential', detail: `no active ${provider} credential` };
       }
