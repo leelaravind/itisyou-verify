@@ -158,10 +158,53 @@ jobs:
       - name: Full vitest suite with the JSON reporter
         run: node scripts/build-test-report.mjs
 
+      # The browser suite, which used to be skipped here.
+      #
+      # Thirty-one cases sat outside the number that gates a production deploy, recorded
+      # honestly as unmeasured and counting zero — but a gating number that excludes the
+      # entire browser layer is a weaker claim than its size suggests, and the reason it
+      # was excluded turned out to be smaller than the note implied: playwright.config.ts
+      # already starts `wrangler dev` itself through `webServer`. What was actually
+      # missing was a browser, a migrated local database and a seeded identity.
+      #
+      # `continue-on-error` is deliberate and is not a way of ignoring failures. The
+      # artefact reads the JSON report and records what it finds, so a failing browser
+      # case becomes a recorded failure rather than a missing file that reads as
+      # "unmeasured". Letting the step fail the job instead would hide the distinction
+      # between "the suite ran and something broke" and "the suite never ran", which is
+      # the exact confusion this change exists to remove.
+      - name: Install the browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Apply migrations to the local database
+        working-directory: apps/app
+        run: npx wrangler d1 migrations apply verify-itisyou-db-local --local
+
+      - name: Seed the scoped automation identity
+        id: seed
+        continue-on-error: true
+        run: |
+          SEED_WORKFLOW_ADMIN=1 node scripts/seed-automation-identity.mjs --env local --json > reports/e2e-session.json
+          node -e "
+            const s = require('./reports/e2e-session.json');
+            const out = [
+              ['E2E_SESSION_COOKIE_NAME', s.sessionCookieName],
+              ['E2E_SESSION_COOKIE_VALUE', s.sessionCookieValue],
+              ['E2E_CSRF_COOKIE_NAME', s.csrfCookieName],
+              ['E2E_CSRF_TOKEN', s.csrfToken],
+              ['E2E_WORKSPACE_ID', s.workspaceId],
+            ];
+            for (const [k, v] of out) if (v) console.log(k + '=' + v);
+          " >> $GITHUB_ENV
+
+      - name: Browser suite
+        id: browser
+        continue-on-error: true
+        run: npx playwright test --reporter=json > reports/pw.json
+
       # The ledger checker runs inside this script and its exit code is recorded in the
-      # artefact. Playwright is not run here: the browser suite needs `wrangler dev` and
-      # a seeded automation identity, so every playwright-only case is recorded as
-      # unmeasured and counts zero rather than being assumed to pass.
+      # artefact. It now reads reports/pw.json when the browser step produced one, so
+      # playwright cases are measured rather than counted as zero.
       - name: Build the release gate artefact
         run: node scripts/build-gate-artefact.mjs
 
@@ -187,5 +230,6 @@ jobs:
             reports/release-gate.json
             reports/test-results.json
             reports/test-report.md
+            reports/pw.json
           if-no-files-found: error
           retention-days: 90
