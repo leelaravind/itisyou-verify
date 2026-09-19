@@ -152,7 +152,7 @@ does not need a deadline to become one.
 ## Running the two provider-backed checks
 
 Every test in this repository stubs `fetch`. Two cases in the ledger do not, and **neither
-has ever run**: `CONN-050` (a real HubSpot read) and `CONN-051` (a real Resend read). They
+has ever run**: `CONN-900` (a real HubSpot read) and `CONN-901` (a real Resend read). They
 are written, they skip, and they say why they skipped.
 
 That is why every public claim about reading records back is currently marked **DESIGNED,
@@ -169,7 +169,7 @@ VERIFY_HUBSPOT_TEST_PORTAL_ID=<developer test portal id> \
 VERIFY_HUBSPOT_TEST_CONTACT_ID=<id of the one seeded contact> \
 VERIFY_RESEND_TEST_TOKEN=re_xxx \
 VERIFY_RESEND_TEST_MESSAGE_ID=<id of one already-sent test message> \
-npx vitest run tests/integration/connectors
+npx vitest run tests/integration/connectors/live-smoke.test.ts
 ```
 
 They are capped and guarded:
@@ -192,7 +192,7 @@ allowlist is empty. Running these for real also needs the lead to add `api.hubap
 `api.resend.com` to it for that run. That is a separate, visible act on purpose - it should
 not be possible to contact a provider from the test suite by accident.
 
-Until both have run and passed, `CONN-050` and `CONN-051` stay `planned` in
+Until both have run and passed, `CONN-900` and `CONN-901` stay `planned` in
 `docs/test-cases.json`, and no public claim may say otherwise.
 
 ---
@@ -513,5 +513,6 @@ with a completed connection, that call is not made.
 
 Every executing case stubs `fetch`. **No test in this repository has ever contacted HubSpot
 or Resend**, and `tests/setup.ts` fails the suite loudly if one tries. The two
-provider-backed cases (`CONN-050`, `CONN-051`) are written but skipped, for the reasons in
+provider-backed cases (`CONN-900`, `CONN-901`, in
+`tests/integration/connectors/live-smoke.test.ts`) are written but skipped, for the reasons in
 the section above.

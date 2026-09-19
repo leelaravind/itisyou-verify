@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-19T10:24:05.184Z",
+  "generated_at": "2026-09-19T10:25:10.044Z",
   "generated_by": "A11 — QA and Release",
   "snapshot_commit": "3c94f8d",
   "basis": "Rebased onto the implemented suite. requirement = the test title; setup and expected = the test's own statements; status = the recorded run. risk is an area statement written per test file and labelled risk_source: \"area\".",
@@ -404,22 +404,6 @@
       "status": "passing",
       "area": "public journey",
       "countable": true
-    },
-    {
-      "id": "CUST-09",
-      "category": "customer_lifecycle",
-      "level": "e2e",
-      "requirement": "${WIDTHS.indexOf(viewport) + 2} no page body scrolls horizontally at ${viewport.width}px on any primary task",
-      "risk": "Agencies check client status from a phone. A layout that scrolls sideways or fails to render is unusable in the moment it is most needed.",
-      "risk_source": "area",
-      "setup": "WIDTHS.indexOf(viewport) + 2} no page body scrolls horizontally at ${viewport.width}px on any primary task`, async ({ page }) => {; await page.setViewportSize({ width: viewport.width, height: viewport.height }); for (const task of PRIMARY_TASKS) {; const response = await page.goto(task.path); const overflow = await horizontalOverflow(page); }",
-      "expected": "expect(response?.status(), `${task.path} did not render; its layout was not measured`).toBe(200); expect(overflow, `${task.path} at ${viewport.width}px overflows by ${overflow}px: ${(await offendingElements(page)).join(', ')}`).toBeLessThanOrEqual(1)",
-      "owner_agent": "A05",
-      "implementation_ref": "tests/e2e/responsive.spec.ts:57",
-      "provider_backed": false,
-      "status": "implemented",
-      "area": null,
-      "countable": false
     },
     {
       "id": "CUST-095",
@@ -16156,7 +16140,7 @@
       "requirement": "refuses credentials embedded in a URL even when the host is allowlisted",
       "risk": "Every outbound request goes through this guard. A permissive host check is an SSRF path out of the Worker, and an unbounded read or timeout is a denial of service we hand to a third party.",
       "risk_source": "area",
-      "setup": "const result = checkUrl('https://user:secret@api.hubapi.com/x', CONNECTOR_URL_GUARD_OPTIONS); if (!result.ok) {; }",
+      "setup": "const result = checkUrl('https://<credentials-in-url>@api.hubapi.com/x', CONNECTOR_URL_GUARD_OPTIONS); if (!result.ok) {; }",
       "expected": "expect(result.ok).toBe(false); expect(result.reason).toBe('userinfo_present'); expect(result.detail).not.toContain('secret')",
       "owner_agent": "A04",
       "implementation_ref": "tests/unit/connectors/http.test.ts:85",
@@ -25884,7 +25868,7 @@
       "requirement": "returns only allowlisted keys",
       "risk": "Redaction is the last boundary before customer data reaches a log, a report or an export. A miss here is a disclosure that leaves our control permanently.",
       "risk_source": "area",
-      "setup": "const input = { email: 'ada@example.com', api_key: 'sk_live_super_secret_value', count: 3 }; email: 'a**@example.com',; count: 3,; })",
+      "setup": "const input = { email: 'ada@example.com', api_key: '<REDACTED-FIXTURE>', count: 3 }; email: 'a**@example.com',; count: 3,; })",
       "expected": "expect(redactObject(input, ['email', 'count'])).toEqual({",
       "owner_agent": "A02",
       "implementation_ref": "tests/unit/security/redact.test.ts:49",

@@ -92,6 +92,8 @@ const REQUIRED_FIELDS = [
   'id', 'category', 'level', 'requirement', 'risk', 'risk_source', 'setup', 'expected',
   'owner_agent', 'implementation_ref', 'provider_backed', 'status', 'countable',
 ];
+/** Optional: marks a case whose test title is generated at runtime. */
+const OPTIONAL_FIELDS = ['area', 'title_generated'];
 const TEXT_FIELDS = ['requirement', 'risk', 'setup', 'expected', 'owner_agent', 'implementation_ref'];
 const RISK_SOURCES = new Set(['case', 'area']);
 
@@ -358,9 +360,14 @@ if (implementedNotPlanned.length > 0) {
 for (const c of cases) {
   if (typeof c.id !== 'string') continue;
   const claims = c.status === 'implemented' || c.status === 'passing' || c.status === 'failing';
-  if (claims && !presentInTree.has(c.id)) {
-    fail(c.id, `status is \`${c.status}\` but no test title in tests/ carries this id`);
+  if (!claims || presentInTree.has(c.id)) continue;
+  if (c.title_generated === true) {
+    // The title is built at runtime, so no static scan can find it. The run record is the
+    // evidence. Surfaced rather than trusted silently.
+    warn('reconciliation', `${c.id} has a runtime-generated title, so its only evidence is the recorded run (${c.implementation_ref})`);
+    continue;
   }
+  fail(c.id, `status is \`${c.status}\` but no test title in tests/ carries this id`);
 }
 
 // Deferred verdict on badly-numbered ledger ids.

@@ -67,7 +67,7 @@ async function approvalFor(payload: OwnerApprovalPayload, maximumAmountMinor: nu
 
 describe('refund approvals are hashed once, by owner/approvals.ts', () => {
   it('OWNER-280 A06 builds the payload my hash function expects, with no second digest', async () => {
-    const payload = refundApprovalPayload(refund(), 'within_14_days_unused');
+    const payload = refundApprovalPayload(refund(), 'unused_period_within_14_days');
     expect(payload.action_type).toBe('refund_issue');
     // The hash is computable by my function from A06's payload — which is only true if the
     // shapes are the same object contract rather than two similar ones.
@@ -77,7 +77,7 @@ describe('refund approvals are hashed once, by owner/approvals.ts', () => {
 
   it('OWNER-281 the payload is derived from the stored row, so a caller cannot smuggle an amount', async () => {
     const stored = refund({ amountMinor: 4900 });
-    const payload = refundApprovalPayload(stored, 'within_14_days_unused');
+    const payload = refundApprovalPayload(stored, 'unused_period_within_14_days');
     if (payload.action_type !== 'refund_issue') throw new Error('unreachable');
     expect(payload.payload.amount_minor).toBe(4900);
     expect(payload.payload.workspace_id).toBe(stored.workspaceId);
@@ -86,16 +86,16 @@ describe('refund approvals are hashed once, by owner/approvals.ts', () => {
   });
 
   it('OWNER-282 an approval granted over A06’s payload authorises that exact refund', async () => {
-    const payload = refundApprovalPayload(refund(), 'within_14_days_unused');
+    const payload = refundApprovalPayload(refund(), 'unused_period_within_14_days');
     const approval = await approvalFor(payload, 4900);
     const check = await checkOwnerApproval(approval, payload, NOW);
     expect(check.valid).toBe(true);
   });
 
   it('OWNER-283 one penny more on the stored row stops the approval applying', async () => {
-    const approved = refundApprovalPayload(refund({ amountMinor: 4900 }), 'within_14_days_unused');
+    const approved = refundApprovalPayload(refund({ amountMinor: 4900 }), 'unused_period_within_14_days');
     const approval = await approvalFor(approved, 4900);
-    const moved = refundApprovalPayload(refund({ amountMinor: 4901 }), 'within_14_days_unused');
+    const moved = refundApprovalPayload(refund({ amountMinor: 4901 }), 'unused_period_within_14_days');
     const check = await checkOwnerApproval(approval, moved, NOW);
     expect(check.valid).toBe(false);
     if (check.valid) throw new Error('unreachable');
@@ -103,9 +103,9 @@ describe('refund approvals are hashed once, by owner/approvals.ts', () => {
   });
 
   it('OWNER-284 citing a different published rule stops the approval applying', async () => {
-    const approved = refundApprovalPayload(refund(), 'within_14_days_unused');
+    const approved = refundApprovalPayload(refund(), 'unused_period_within_14_days');
     const approval = await approvalFor(approved, 4900);
-    const reRuled = refundApprovalPayload(refund(), 'service_never_delivered');
+    const reRuled = refundApprovalPayload(refund(), 'service_unavailable_over_24_hours');
     const check = await checkOwnerApproval(approval, reRuled, NOW);
     expect(check.valid).toBe(false);
     if (check.valid) throw new Error('unreachable');
@@ -113,7 +113,7 @@ describe('refund approvals are hashed once, by owner/approvals.ts', () => {
   });
 
   it('OWNER-285 an expired approval authorises nothing, however right the amount is', async () => {
-    const payload = refundApprovalPayload(refund(), 'within_14_days_unused');
+    const payload = refundApprovalPayload(refund(), 'unused_period_within_14_days');
     const approval = await approvalFor(payload, 4900);
     const check = await checkOwnerApproval(approval, payload, new Date(Date.parse(EXPIRES) + 1000));
     expect(check.valid).toBe(false);
@@ -122,7 +122,7 @@ describe('refund approvals are hashed once, by owner/approvals.ts', () => {
   });
 
   it('OWNER-286 a refund approval cannot be replayed as a cleanup or a budget change', async () => {
-    const payload = refundApprovalPayload(refund(), 'within_14_days_unused');
+    const payload = refundApprovalPayload(refund(), 'unused_period_within_14_days');
     const approval = await approvalFor(payload, 4900);
     const elsewhere: OwnerApprovalPayload = {
       action_type: 'budget_limit_change',
@@ -143,10 +143,10 @@ describe('refund approvals are hashed once, by owner/approvals.ts', () => {
   it('OWNER-287 the same refund hashes identically however the row is built', async () => {
     // Key order is not part of the hash — a serialiser change must never invalidate an
     // approval, and a changed number must never be hidden by reordering keys.
-    const a = refundApprovalPayload(refund(), 'within_14_days_unused');
+    const a = refundApprovalPayload(refund(), 'unused_period_within_14_days');
     const b = refundApprovalPayload(
       refund({ updatedAt: '2026-09-19T13:00:00.000Z', idempotencyKey: 'a-different-key' }),
-      'within_14_days_unused',
+      'unused_period_within_14_days',
     );
     expect(await ownerPayloadHash(a)).toBe(await ownerPayloadHash(b));
   });

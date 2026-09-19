@@ -51,6 +51,14 @@ const SAFE_LINK_SCHEMES = new Set(['http:', 'https:', 'mailto:']);
 export function safeHref(value: string, baseOrigin = 'https://verify.itisyou.app'): string | null {
   const cleaned = value.replace(/[\u0000-\u0020\u007f]/g, '');
   if (cleaned === '') return null;
+  // A same-document fragment carries no scheme and cannot execute. Returned unchanged.
+  //
+  // ADOPTED FROM A05 (2026-09-19). This reference previously resolved `#main` against the
+  // base origin, yielding `https://verify.itisyou.app/#main` — which rewrites every
+  // in-page anchor and breaks them in local development, staging, and the demo. A05 hit
+  // that when wiring `packages/ui/src/url.ts` and was right: accepting a fragment widens
+  // the set of *relative forms preserved*, not the scheme allowlist, so it costs nothing.
+  if (cleaned.startsWith('#')) return escapeHtml(cleaned);
   if (cleaned.startsWith('/') && !cleaned.startsWith('//')) return escapeHtml(cleaned);
   let parsed: URL;
   try {

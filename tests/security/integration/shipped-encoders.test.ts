@@ -13,7 +13,14 @@ import { describe, it, expect } from 'vitest';
 import { csvCell as shippedCsvCell, csvRow as shippedCsvRow, csvDocument } from '@app/privacy/csv';
 import { csvCell as referenceCsvCell } from '../helpers/csv.js';
 import { escapeHtml, safeHref } from '../helpers/html.js';
-import { attrs, escapeAttribute, render } from '@verify/ui';
+import {
+  attrs,
+  escapeAttribute,
+  render,
+  safeHref as safeHrefShipped,
+  URL_BEARING_ATTRIBUTES,
+  Button,
+} from '@verify/ui';
 import { html } from 'hono/html';
 
 /** Every payload the reference suite uses, plus the ones exports specifically attract. */
@@ -135,26 +142,103 @@ describe('A05 UI escaping vs the reviewed reference', () => {
     }
   });
 
-  it('SEC-1214 FINDING: the UI has no scheme guard for an href it did not author', async () => {
-    // `button.ts` and `navigation.ts` interpolate `options.href` / `item.href` straight
-    // into `href="${...}"`. hono/html escapes the quotes, so there is no attribute
-    // breakout — but `javascript:alert(1)` survives intact as a working link target.
+  it('SEC-1214 a javascript: target cannot reach a rendered href, through any shipped path', async () => {
+    // REWRITTEN after A05 shipped the guard. The original body built markup with hono's
+    // own `html` tag and then called `render()`, so the only `@verify/ui` symbol under
+    // test was `render`, which receives already-finished markup. No change inside
+    // `packages/ui` could have made it pass, and the only way to force it green would
+    // have been to regex-scrub final HTML in `render()` — false confidence that guards
+    // nothing at the point where the URL is written, and which would rewrite legitimate
+    // markup. A05 was right to refuse. This exercises the three real entry points.
     //
-    // NOT EXPLOITABLE TODAY, for two independent reasons: every href in the shipped code
-    // is a literal from `layouts.ts`, and the deployed CSP (`script-src` with hashes, no
-    // `unsafe-inline`) blocks `javascript:` navigation. It becomes live the moment a link
-    // target comes from a CRM value, a report link, a campaign destination or a support
-    // message — and it stops being mitigated if the CSP is ever loosened.
-    //
-    // FIX (A05): route every non-literal href through a scheme allowlist. A10's
-    // `safeHref` in `tests/security/helpers/html.ts` is the reviewed reference; the
-    // useful shape is a `Url` branded type that only the guard can produce, so an
-    // unguarded string cannot reach an `href` at all.
-    const rendered = await render(html`<a href="${'javascript:alert(1)'}">click</a>`);
-    expect(
-      rendered,
-      'a javascript: URL reached an href attribute intact',
-    ).not.toContain('javascript:alert(1)');
+    // 1. The guard itself.
+    expect(safeHrefShipped('javascript:alert(1)')).toBeNull();
+    // 2. The backstop for a caller who builds attributes by hand.
+    expect(await render(html`<a ${attrs({ href: 'javascript:alert(1)' })}>click</a>`)).not.toContain(
+      'javascript:',
+    );
+    // 3. The component path.
+    expect(await render(Button({ label: 'click', href: 'javascript:alert(1)' }))).not.toContain(
+      'javascript:',
+    );
+  });
+
+  it('SEC-1216 every URL-bearing attribute is guarded, not just href', async () => {
+    // `src`, `action`, `formaction`, `poster`, `cite`, `data`, `ping`, `xlink:href` all
+    // navigate or fetch. Guarding only `href` would leave eight doors open.
+    for (const name of URL_BEARING_ATTRIBUTES) {
+      const rendered = await render(html`<x ${attrs({ [name]: 'javascript:alert(1)' })} />`);
+      expect(rendered, name).not.toContain('javascript:');
+    }
+    // `data-*` is not a navigation attribute and must NOT be swallowed by a prefix match.
+    expect(await render(html`<x ${attrs({ 'data-run': 'run_1' })} />`)).toContain('data-run="run_1"');
+  });
+
+  it('SEC-1217 a rejected target is dropped, never rendered inert-but-clickable', async () => {
+    const rendered = await render(Button({ label: 'click', href: 'vbscript:msgbox(1)' }));
+    expect(rendered).not.toContain('<a ');
+    expect(rendered).not.toContain('href=');
+    // and the defect is findable in the HTML rather than silently invisible
+    expect(rendered).toContain('data-href-rejected="true"');
+  });
+
+  it('SEC-1218 A05 and A10 agree on the accept/reject DECISION for every corpus value', () => {
+    // The property that matters: two implementations, one verdict. A10 wrote its corpus
+    // without reading A05's tests. A disagreement here means one of us is wrong about a
+    // scheme, and SEC-105/106/107 would stop describing shipped behaviour.
+    // Control characters spelled out, so nothing can be silently 'tidied' in this file.
+    const NUL = String.fromCharCode(0);
+    const TAB = String.fromCharCode(9);
+    const LF = String.fromCharCode(10);
+    const DEL = String.fromCharCode(127);
+    const corpus = [
+      'javascript:alert(1)',
+      'JaVaScRiPt:alert(1)',
+      'java' + NUL + 'script:alert(1)',
+      'java' + TAB + 'script:alert(1)',
+      LF + ' javascript:alert(1)',
+      ' ' + DEL + 'javascript:alert(1)',
+      'data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==',
+      'vbscript:msgbox(1)',
+      'file:///etc/passwd',
+      'blob:https://verify.itisyou.app/x',
+      '',
+      '   ',
+      'https://example.test/a',
+      'http://example.test/a',
+      'mailto:owner@example.test',
+      '/app/runs/run_1',
+      '//evil.example/x',
+      '?q=1',
+      '#main',
+      '#javascript:alert(1)',
+      'relative/path',
+      'https://example.test/?a=1&b=2',
+    ];
+    const disagreements: string[] = [];
+    for (const value of corpus) {
+      const mine = safeHref(value) === null;
+      const theirs = safeHrefShipped(value) === null;
+      if (mine !== theirs) {
+        disagreements.push(`${JSON.stringify(value)}: A10 rejects=${mine} A05 rejects=${theirs}`);
+      }
+    }
+    expect(disagreements).toEqual([]);
+  });
+
+  it('SEC-1219 the two implementations differ only by escaping, which A05 applies once', () => {
+    // DIVERGENCE 1, adjudicated: A05 returns the target UNESCAPED because `attrs()`
+    // escapes exactly once at the point that writes the attribute. Escaping in both would
+    // double-encode every query string (`?a=1&b=2` -> `&amp;` -> `&amp;amp;`). A05 is
+    // right: the guard decides and normalises, the writer escapes. A10's reference keeps
+    // escaping because it is a self-contained "produce an attribute value" helper with no
+    // writer behind it. Different position in the pipeline, same decision — and this
+    // asserts they are byte-identical once the difference is accounted for.
+    for (const value of ['https://example.test/?a=1&b=2', '/app/runs/run_1', 'mailto:a@b.test']) {
+      const theirs = safeHrefShipped(value);
+      expect(theirs, value).not.toBeNull();
+      expect(escapeHtml(theirs as string), value).toBe(safeHref(value));
+    }
   });
 
   it('SEC-1215 the reference guard rejects what the UI currently lets through', () => {
