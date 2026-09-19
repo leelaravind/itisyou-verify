@@ -16,6 +16,7 @@ import {
   controlSettingKey,
   defaultControls,
   isControlKey,
+  CONTROL_ENFORCEMENT,
   isPathSuspended,
   isProtectedPath,
   type Controls,
@@ -71,14 +72,41 @@ describe('owner controls', () => {
       ...defaultControls(),
       new_orders: { key: 'new_orders' as const, paused: true, since: AT, by: 'o', note: null },
     };
-    expect(isPathSuspended('/app/checkout', paused)).toBe(true);
+    // This case used to assert `/app/checkout`, which **no route serves** — the real
+    // checkout is `/app/onboarding/checkout`. So it was green while the control it tested
+    // could not have suspended anything, and it would have stayed green after the missing
+    // middleware was wired. The path is now read from the enforcement registry rather than
+    // retyped, so the test and the thing it tests cannot drift apart again; whether that
+    // registry names real routes is asserted against the running Worker by `OWNER-380`.
+    const enforcement = CONTROL_ENFORCEMENT['new_orders'];
+    expect(enforcement.kind).toBe('http_paths');
+    const paths = enforcement.kind === 'http_paths' ? enforcement.paths : [];
+    expect(paths.length).toBeGreaterThan(0);
+    for (const path of paths) expect(isPathSuspended(path, paused)).toBe(true);
     expect(isPathSuspended('/app/cancel', paused)).toBe(false);
   });
 
   it('OWNER-046 nothing is suspended when nothing is paused', () => {
     const controls = defaultControls();
-    expect(isPathSuspended('/app/checkout', controls)).toBe(false);
-    expect(isPathSuspended('/app/assistant', controls)).toBe(false);
+    for (const enforcement of Object.values(CONTROL_ENFORCEMENT)) {
+      if (enforcement.kind !== 'http_paths') continue;
+      for (const path of enforcement.paths) expect(isPathSuspended(path, controls)).toBe(false);
+    }
+  });
+
+  it('OWNER-048 a control that is not enforced says so rather than looking like the others', () => {
+    // `ads` stops an owner action and `expensive_verification` stops background work, so
+    // neither can be a path. An empty path list used to represent both "enforced, suspends
+    // no paths" and "not enforced at all" — states that mean opposite things to an owner
+    // deciding whether they have stopped something.
+    for (const key of CONTROL_KEYS) {
+      const enforcement = CONTROL_ENFORCEMENT[key];
+      expect(['http_paths', 'action', 'none']).toContain(enforcement.kind);
+      if (enforcement.kind === 'none') {
+        expect(enforcement.why.length).toBeGreaterThan(20);
+        expect(enforcement.owner.length).toBeGreaterThan(0);
+      }
+    }
   });
 
   it('OWNER-047 every control says what it stops AND what it does not stop', () => {

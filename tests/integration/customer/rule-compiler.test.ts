@@ -18,24 +18,10 @@
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import { workflowRulesSchema } from '@verify/contracts';
-import worker from '../../../apps/app/src/index.js';
-import type { TestDb } from '../db/harness.js';
-import { BASE, SESSION_VALUE, signedInWorkspace, visibleText, type SignedIn } from './harness.js';
+import { postSignedIn, signedInWorkspace, visibleText, type SignedIn } from './harness.js';
 
 const MAPPING_PATH = '/app/onboarding/mapping';
 const OUTCOME_PATH = '/app/onboarding/outcome';
-
-const ctx = { waitUntil: () => {}, passThroughOnException: () => {} } as never;
-
-function envFor(h: TestDb): never {
-  return {
-    ASSETS: { fetch: async () => new Response('', { status: 404 }) },
-    DB: h.db,
-    ENVIRONMENT: 'test',
-    PUBLIC_BASE_URL: BASE,
-    STRIPE_MODE: 'test',
-  } as never;
-}
 
 interface Served {
   readonly status: number;
@@ -43,30 +29,12 @@ interface Served {
   readonly text: string;
 }
 
-async function serve(response: Response): Promise<Served> {
-  const html = await response.text();
-  return { status: response.status, html, text: visibleText(html) };
-}
-
-async function post(
-  s: SignedIn,
-  path: string,
-  fields: Record<string, string>,
-  signedIn = true,
-): Promise<Served> {
-  const headers = new Headers({ 'content-type': 'application/x-www-form-urlencoded' });
-  if (signedIn) headers.set('cookie', `__Host-verify_session=${SESSION_VALUE}`);
-  return serve(
-    await worker.fetch(
-      new Request(`${BASE}${path}`, {
-        method: 'POST',
-        headers,
-        body: new URLSearchParams({ csrf_token: 'form-token', ...fields }).toString(),
-      }),
-      envFor(s.h),
-      ctx,
-    ),
-  );
+/** A real double-submit CSRF pair is fetched from `path` itself before every POST — both
+ * `/app/onboarding/mapping` and `/app/onboarding/outcome` are real GET pages that render
+ * one, exactly as `postSignedIn` needs. */
+async function post(s: SignedIn, path: string, fields: Record<string, string>): Promise<Served> {
+  const served = await postSignedIn(s, path, fields);
+  return { ...served, text: visibleText(served.html) };
 }
 
 /** The workflow's current version, read straight from the row — not the port, not the page. */

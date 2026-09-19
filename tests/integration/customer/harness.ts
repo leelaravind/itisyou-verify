@@ -249,6 +249,81 @@ export async function getSignedIn(session: SignedIn, path: string): Promise<Serv
   return { status: response.status, html: await response.text() };
 }
 
+/**
+ * A real double-submit CSRF pair, obtained the way a browser would: `GET path`, read the
+ * cookie the response set, and read the same value back out of the form's hidden field.
+ *
+ * Never invented — a test that fabricated a token here would prove nothing about whether
+ * the cookie and the rendered form actually agree, which is the entire property CSRF
+ * protection depends on.
+ */
+export async function csrfPairFor(
+  session: SignedIn,
+  path: string,
+  options: { readonly signedIn?: boolean } = {},
+): Promise<{ readonly cookie: string; readonly token: string }> {
+  const headers: Record<string, string> = {};
+  if (options.signedIn !== false) headers['cookie'] = `__Host-verify_session=${SESSION_VALUE}`;
+  const response = await worker.fetch(
+    new Request(`${BASE}${path}`, { headers }),
+    envFor(session.h),
+    ctx,
+  );
+  const html = await response.text();
+  const setCookie =
+    typeof (response.headers as { getSetCookie?: () => string[] }).getSetCookie === 'function'
+      ? (response.headers as unknown as { getSetCookie: () => string[] }).getSetCookie()
+      : [response.headers.get('set-cookie') ?? ''];
+  const csrfSet = setCookie.find((line) => line.includes('verify_csrf'));
+  const cookieMatch = csrfSet === undefined ? null : /verify_csrf=([^;]+)/.exec(csrfSet);
+  const tokenMatch = /name="csrf_token"\s+value="([^"]*)"/.exec(html);
+  if (cookieMatch?.[1] === undefined || tokenMatch?.[1] === undefined || tokenMatch[1] === '') {
+    throw new Error(`csrfPairFor(${path}): no real CSRF pair was rendered — got:\n${html.slice(0, 400)}`);
+  }
+  return { cookie: cookieMatch[1], token: tokenMatch[1] };
+}
+
+/**
+ * `POST path` carrying the seeded session cookie AND a real CSRF pair obtained from
+ * `csrfSourcePath` (default: the same path), unless the caller deliberately overrides one
+ * or both halves to prove the check refuses a bad pair.
+ */
+export async function postSignedIn(
+  session: SignedIn,
+  path: string,
+  fields: Record<string, string>,
+  options: {
+    readonly csrfSourcePath?: string;
+    readonly csrfCookieOverride?: string | null;
+    readonly csrfTokenOverride?: string | null;
+    readonly origin?: string | null;
+    readonly signedIn?: boolean;
+  } = {},
+): Promise<Served> {
+  const pair = await csrfPairFor(
+    session,
+    options.csrfSourcePath ?? path,
+    options.signedIn === undefined ? {} : { signedIn: options.signedIn },
+  );
+  const cookieToken =
+    options.csrfCookieOverride === undefined ? pair.cookie : options.csrfCookieOverride;
+  const bodyToken = options.csrfTokenOverride === undefined ? pair.token : options.csrfTokenOverride;
+  const headers = new Headers({ 'content-type': 'application/x-www-form-urlencoded' });
+  const cookies: string[] = [];
+  if (options.signedIn !== false) cookies.push(`__Host-verify_session=${SESSION_VALUE}`);
+  if (cookieToken !== null) cookies.push(`__Host-verify_csrf=${cookieToken}`);
+  if (cookies.length > 0) headers.set('cookie', cookies.join('; '));
+  if (options.origin !== null) headers.set('origin', options.origin ?? BASE);
+  const body = new URLSearchParams(fields);
+  if (bodyToken !== null) body.set('csrf_token', bodyToken);
+  const response = await worker.fetch(
+    new Request(`${BASE}${path}`, { method: 'POST', headers, body: body.toString() }),
+    envFor(session.h),
+    ctx,
+  );
+  return { status: response.status, html: await response.text() };
+}
+
 /** Visible text, entities resolved and whitespace collapsed — what a reader actually sees. */
 export function visibleText(markup: string): string {
   return markup

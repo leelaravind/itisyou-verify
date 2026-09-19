@@ -237,7 +237,10 @@ app.use('*', async (c, next) => {
   if (key === null) return next();
 
   const description = CONTROL_DESCRIPTION[key];
-  console.log('path_suspended', { path, control: key });
+  // `warn`, not `log`: the site is refusing live traffic on the owner's instruction, and
+  // whoever reads the logs while wondering why orders stopped should find this without
+  // filtering. It is also the only console level this project allows outside a directive.
+  console.warn('path_suspended', { path, control: key });
   return c.json(
     {
       error: {
@@ -491,8 +494,9 @@ app.all('/api/v1/events', async (c) => {
             ) as never),
       signingKeyStore: createWorkflowSigningKeyStore(c.env.DB as never),
       log: (entry) => {
-        // eslint-disable-next-line no-console -- one structured line per admitted event;
-        // this is the only record of intake in production and Workers logs are the sink.
+        // One structured line per admitted event; this is the only record of intake in
+        // production and Workers logs are the sink.
+        // eslint-disable-next-line no-console -- see above; the directive must be the line
         console.log('events', entry);
       },
     }) as unknown as Hono;
@@ -622,6 +626,7 @@ export default {
 
     // One structured line per tick. A tick that did nothing still says so, because a
     // silent scheduler and a stopped scheduler look identical in a log.
+    // eslint-disable-next-line no-console -- the cron has no other observer
     console.log('scheduler_tick', {
       runs_claimed: report.runs?.claimed ?? 0,
       runs_observed: report.runs?.observed ?? 0,
