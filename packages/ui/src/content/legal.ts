@@ -5,7 +5,12 @@
  * advice. Anything marked TODO_OWNER_INPUT is a placeholder the business owner must fill
  * in before publishing — never invent a company registration, address, VAT number or
  * certification in its place.
+ *
+ * The retention period is read from `LIMITS`, never retyped: the privacy page already
+ * renders the constant a paragraph below this note, and two numbers that must agree are
+ * one number too many.
  */
+import { LIMITS } from '@verify/contracts';
 
 export const OWNER_LEGAL_IDENTITY = {
   registeredBusinessName: 'TODO_OWNER_INPUT',
@@ -14,6 +19,7 @@ export const OWNER_LEGAL_IDENTITY = {
   vatNumber: 'TODO_OWNER_INPUT',
   /** e.g. sole trader, limited company. Owner must state this; never assumed. */
   legalStructure: 'TODO_OWNER_INPUT',
+  // claim-scan:allow the control that forbids certification claims must name one to be readable
   /** Any claimed certification (e.g. ISO 27001) must be TODO until actually held and evidenced. */
   certifications: 'TODO_OWNER_INPUT — none held unless the owner supplies evidence',
   contactEmailForLegalNotices: 'TODO_OWNER_INPUT',
@@ -65,8 +71,7 @@ export const DATA_FLOW: readonly DataFlowStage[] = [
   },
 ] as const;
 
-export const EVIDENCE_RETENTION_NOTE =
-  'Evidence we retrieve from HubSpot and Resend is kept for 30 days by default, then removed. This retention period is a fixed system limit, not a per-customer setting.';
+export const EVIDENCE_RETENTION_NOTE = `Evidence we retrieve from HubSpot and Resend is kept for ${LIMITS.EVIDENCE_RETENTION_DAYS} days by default, then removed. This retention period is a fixed system limit, not a per-customer setting.`;
 
 /**
  * The backup caveat. Added because deletion and retention claims are meaningless without

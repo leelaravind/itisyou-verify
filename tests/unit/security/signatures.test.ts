@@ -37,10 +37,12 @@ describe('our own request signature', () => {
       valid: false,
       reason: 'missing_header',
     });
-    expect(await verifyRequest({ secret: SECRET, header: '   ', rawBody: BODY, now: NOW })).toEqual({
-      valid: false,
-      reason: 'missing_header',
-    });
+    expect(await verifyRequest({ secret: SECRET, header: '   ', rawBody: BODY, now: NOW })).toEqual(
+      {
+        valid: false,
+        reason: 'missing_header',
+      },
+    );
   });
 
   it('API-042 rejects a malformed header', async () => {
@@ -87,7 +89,11 @@ describe('our own request signature', () => {
   });
 
   it('API-047 rejects a signature made with the wrong secret', async () => {
-    const header = await signRequest({ secret: 'other-secret', rawBody: BODY, timestamp: NOW_UNIX });
+    const header = await signRequest({
+      secret: 'other-secret',
+      rawBody: BODY,
+      timestamp: NOW_UNIX,
+    });
     expect(await verifyRequest({ secret: SECRET, header, rawBody: BODY, now: NOW })).toEqual({
       valid: false,
       reason: 'signature_mismatch',
@@ -119,7 +125,9 @@ describe('our own request signature', () => {
   it('API-050 signs over the timestamp, so a re-stamped header does not verify', async () => {
     const header = await signRequest({ secret: SECRET, rawBody: BODY, timestamp: NOW_UNIX - 400 });
     const restamped = header.replace(/^t=\d+/, `t=${NOW_UNIX}`);
-    expect(await verifyRequest({ secret: SECRET, header: restamped, rawBody: BODY, now: NOW })).toEqual({
+    expect(
+      await verifyRequest({ secret: SECRET, header: restamped, rawBody: BODY, now: NOW }),
+    ).toEqual({
       valid: false,
       reason: 'signature_mismatch',
     });
@@ -221,7 +229,12 @@ describe('Stripe webhook signature', () => {
       valid: true,
     });
     expect(
-      await verifyStripeSignature(JSON.stringify(JSON.parse(BODY), null, 2), header, STRIPE_SECRET, NOW),
+      await verifyStripeSignature(
+        JSON.stringify(JSON.parse(BODY), null, 2),
+        header,
+        STRIPE_SECRET,
+        NOW,
+      ),
     ).toEqual({ valid: false, reason: 'signature_mismatch' });
   });
 });
@@ -276,13 +289,28 @@ describe('Svix / Resend webhook signature', () => {
   it('API-074 rejects when any of the three headers is missing', async () => {
     const good = await signSvix(BODY, MSG_ID, NOW_UNIX, SVIX_SECRET);
     expect(
-      await verifySvixSignature(BODY, { id: null, timestamp: String(NOW_UNIX), signature: good }, SVIX_SECRET, NOW),
+      await verifySvixSignature(
+        BODY,
+        { id: null, timestamp: String(NOW_UNIX), signature: good },
+        SVIX_SECRET,
+        NOW,
+      ),
     ).toEqual({ valid: false, reason: 'missing_header' });
     expect(
-      await verifySvixSignature(BODY, { id: MSG_ID, timestamp: null, signature: good }, SVIX_SECRET, NOW),
+      await verifySvixSignature(
+        BODY,
+        { id: MSG_ID, timestamp: null, signature: good },
+        SVIX_SECRET,
+        NOW,
+      ),
     ).toEqual({ valid: false, reason: 'missing_header' });
     expect(
-      await verifySvixSignature(BODY, { id: MSG_ID, timestamp: String(NOW_UNIX), signature: null }, SVIX_SECRET, NOW),
+      await verifySvixSignature(
+        BODY,
+        { id: MSG_ID, timestamp: String(NOW_UNIX), signature: null },
+        SVIX_SECRET,
+        NOW,
+      ),
     ).toEqual({ valid: false, reason: 'missing_header' });
   });
 
@@ -310,7 +338,12 @@ describe('Svix / Resend webhook signature', () => {
   it('API-076 rejects a different message id, a modified body and a wrong secret', async () => {
     const good = await signSvix(BODY, MSG_ID, NOW_UNIX, SVIX_SECRET);
     expect(
-      await verifySvixSignature(BODY, headers(good, String(NOW_UNIX), 'msg_other'), SVIX_SECRET, NOW),
+      await verifySvixSignature(
+        BODY,
+        headers(good, String(NOW_UNIX), 'msg_other'),
+        SVIX_SECRET,
+        NOW,
+      ),
     ).toEqual({ valid: false, reason: 'signature_mismatch' });
     expect(await verifySvixSignature(`${BODY} `, headers(good), SVIX_SECRET, NOW)).toEqual({
       valid: false,
@@ -328,7 +361,9 @@ describe('Svix / Resend webhook signature', () => {
 
   it('API-077 rejects a malformed timestamp and a malformed secret', async () => {
     const good = await signSvix(BODY, MSG_ID, NOW_UNIX, SVIX_SECRET);
-    expect(await verifySvixSignature(BODY, headers(good, 'not-a-number'), SVIX_SECRET, NOW)).toEqual({
+    expect(
+      await verifySvixSignature(BODY, headers(good, 'not-a-number'), SVIX_SECRET, NOW),
+    ).toEqual({
       valid: false,
       reason: 'malformed_header',
     });

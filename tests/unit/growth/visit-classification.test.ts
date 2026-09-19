@@ -78,7 +78,9 @@ describe('visit classification', () => {
   });
 
   it('ADS-012 UTM parameters are bounded in length and sanitised before storage', async () => {
-    expect(parseUtm('?utm_source=<script>alert(1)</script>&utm_campaign=verify_first_test')).toEqual({
+    expect(
+      parseUtm('?utm_source=<script>alert(1)</script>&utm_campaign=verify_first_test'),
+    ).toEqual({
       source: null,
       medium: null,
       campaign: 'verify_first_test',
@@ -86,7 +88,11 @@ describe('visit classification', () => {
     const long = 'a'.repeat(200);
     // Truncated to 64 characters, and the truncated value is still checked before storage.
     expect(parseUtm(`utm_source=${long}`).source).toHaveLength(64);
-    const stored = await buildVisitSession({ ...VISIT, query: `?utm_campaign=${long}` }, SALT, DAY_ONE);
+    const stored = await buildVisitSession(
+      { ...VISIT, query: `?utm_campaign=${long}` },
+      SALT,
+      DAY_ONE,
+    );
     expect(stored.utm_campaign).toHaveLength(64);
     expect(parseUtm('utm_source=reddit').source).toBe('reddit');
   });
@@ -137,7 +143,9 @@ describe('visit classification', () => {
         for (const [index, byte] of bytes.entries()) {
           // Tab, line feed and carriage return are the only control bytes source may hold.
           if (byte < 0x20 && byte !== 0x09 && byte !== 0x0a && byte !== 0x0d) {
-            offenders.push(`${name}: byte 0x${byte.toString(16).padStart(2, '0')} at offset ${index}`);
+            offenders.push(
+              `${name}: byte 0x${byte.toString(16).padStart(2, '0')} at offset ${index}`,
+            );
             break;
           }
         }

@@ -83,7 +83,10 @@ export class FailingDb implements Db {
     if (this.plan.failMatching !== undefined && this.plan.failMatching.test(sql)) {
       return this.#withinRecovery();
     }
-    if (this.plan.failFromOperation !== undefined && this.#operations >= this.plan.failFromOperation) {
+    if (
+      this.plan.failFromOperation !== undefined &&
+      this.#operations >= this.plan.failFromOperation
+    ) {
       return this.#withinRecovery();
     }
     return false;
@@ -140,7 +143,9 @@ export class FailingDb implements Db {
  * exception, and a status derived from the result rather than assumed. The mirror is
  * asserted against the real route source in the outage suite, so it cannot drift silently.
  */
-export async function probeHealth(db: Db): Promise<{ database: 'reachable' | 'unreachable'; status: number }> {
+export async function probeHealth(
+  db: Db,
+): Promise<{ database: 'reachable' | 'unreachable'; status: number }> {
   let database: 'reachable' | 'unreachable' = 'unreachable';
   try {
     await db.prepare('SELECT 1').first();

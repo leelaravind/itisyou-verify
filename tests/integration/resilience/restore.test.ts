@@ -74,7 +74,10 @@ export function dumpToSql(db: DatabaseSync): string {
       (c) => c.name,
     );
     if (columns.length === 0) continue;
-    const rows = db.prepare(`SELECT ${columns.join(', ')} FROM ${table}`).all() as Record<string, unknown>[];
+    const rows = db.prepare(`SELECT ${columns.join(', ')} FROM ${table}`).all() as Record<
+      string,
+      unknown
+    >[];
     for (const row of rows) {
       const values = columns.map((name) => sqlLiteral(row[name])).join(', ');
       lines.push(`INSERT INTO ${table} (${columns.join(', ')}) VALUES (${values});`);
@@ -92,7 +95,9 @@ export function dumpToSql(db: DatabaseSync): string {
 export function restoreIntoNewDatabase(dumpSql: string): DatabaseSync {
   const target = new DatabaseSync(':memory:');
   target.exec('PRAGMA foreign_keys = ON');
-  for (const file of readdirSync(MIGRATIONS_DIR).filter((n) => n.endsWith('.sql')).sort()) {
+  for (const file of readdirSync(MIGRATIONS_DIR)
+    .filter((n) => n.endsWith('.sql'))
+    .sort()) {
     target.exec(readFileSync(join(MIGRATIONS_DIR, file), 'utf8'));
   }
   if (dumpSql.trim().length > 0) target.exec(dumpSql);
@@ -181,11 +186,11 @@ describe('RESIL: restoring into an isolated database', () => {
     // must be the same as its parent's. A restore that crossed those would be a tenancy
     // breach created by our own recovery procedure.
     const orphans = [
-      "SELECT COUNT(*) AS n FROM runs r JOIN source_events s ON s.id = r.source_event_id WHERE s.workspace_id <> r.workspace_id",
-      "SELECT COUNT(*) AS n FROM assertions a JOIN runs r ON r.id = a.run_id WHERE r.workspace_id <> a.workspace_id",
-      "SELECT COUNT(*) AS n FROM evidence e JOIN runs r ON r.id = e.run_id WHERE r.workspace_id <> e.workspace_id",
-      "SELECT COUNT(*) AS n FROM run_attempts t JOIN runs r ON r.id = t.run_id WHERE r.workspace_id <> t.workspace_id",
-      "SELECT COUNT(*) AS n FROM workflow_versions v JOIN workflows w ON w.id = v.workflow_id WHERE w.workspace_id <> v.workspace_id",
+      'SELECT COUNT(*) AS n FROM runs r JOIN source_events s ON s.id = r.source_event_id WHERE s.workspace_id <> r.workspace_id',
+      'SELECT COUNT(*) AS n FROM assertions a JOIN runs r ON r.id = a.run_id WHERE r.workspace_id <> a.workspace_id',
+      'SELECT COUNT(*) AS n FROM evidence e JOIN runs r ON r.id = e.run_id WHERE r.workspace_id <> e.workspace_id',
+      'SELECT COUNT(*) AS n FROM run_attempts t JOIN runs r ON r.id = t.run_id WHERE r.workspace_id <> t.workspace_id',
+      'SELECT COUNT(*) AS n FROM workflow_versions v JOIN workflows w ON w.id = v.workflow_id WHERE w.workspace_id <> v.workspace_id',
     ];
     for (const sql of orphans) {
       expect(Number((restored.prepare(sql).get() as { n: number }).n), sql).toBe(0);
@@ -208,7 +213,11 @@ describe('RESIL: restoring into an isolated database', () => {
 
   it('RESIL-164 a sample of evidence is byte-identical after the restore', async () => {
     await populate();
-    const sourceRows = await evidence.listForRun(harness.h.db, harness.ws.workspaceId, 'run_evt-restore-1');
+    const sourceRows = await evidence.listForRun(
+      harness.h.db,
+      harness.ws.workspaceId,
+      'run_evt-restore-1',
+    );
     expect(sourceRows.length).toBeGreaterThan(0);
 
     restored = restoreIntoNewDatabase(dumpToSql(harness.h.raw));
@@ -235,7 +244,9 @@ describe('RESIL: restoring into an isolated database', () => {
     restored = restoreIntoNewDatabase(dumpToSql(harness.h.raw));
 
     const after = restored
-      .prepare('SELECT status, revision, observation_count, deadline_at, created_at, completed_at FROM runs WHERE id = ?')
+      .prepare(
+        'SELECT status, revision, observation_count, deadline_at, created_at, completed_at FROM runs WHERE id = ?',
+      )
       .get('run_evt-restore-1') as Record<string, unknown>;
     // A verification result is an audit record. A restore that shifted a timestamp or a
     // status would rewrite what a customer was told.
@@ -250,9 +261,15 @@ describe('RESIL: restoring into an isolated database', () => {
     await populate();
     restored = restoreIntoNewDatabase(dumpToSql(harness.h.raw));
 
-    const before = await assertions.listForRun(harness.h.db, harness.ws.workspaceId, 'run_evt-restore-1');
+    const before = await assertions.listForRun(
+      harness.h.db,
+      harness.ws.workspaceId,
+      'run_evt-restore-1',
+    );
     const after = restored
-      .prepare('SELECT rule_id, status, reason_code FROM assertions WHERE run_id = ? ORDER BY rule_id')
+      .prepare(
+        'SELECT rule_id, status, reason_code FROM assertions WHERE run_id = ? ORDER BY rule_id',
+      )
       .all('run_evt-restore-1') as { rule_id: string; status: string; reason_code: string }[];
 
     expect(after).toHaveLength(before.length);
@@ -336,7 +353,9 @@ describe('RESIL: the restore target is never the source', () => {
     // The source is untouched, because the restore never held a handle to it.
     expect(count(harness.h.raw, 'runs')).toBe(sourceRunCount);
     expect(count(harness.h.raw, 'evidence')).toBe(sourceEvidence);
-    const statuses = harness.h.raw.prepare('SELECT DISTINCT status FROM runs').all() as { status: string }[];
+    const statuses = harness.h.raw.prepare('SELECT DISTINCT status FROM runs').all() as {
+      status: string;
+    }[];
     expect(statuses.map((s) => s.status)).not.toContain('FAILED');
   });
 
@@ -347,7 +366,9 @@ describe('RESIL: the restore target is never the source', () => {
     harness.h.raw.exec(
       "INSERT INTO workspaces (id, name, status, created_at) VALUES ('ws_after', 'After', 'active', '2026-09-19T11:00:00.000Z')",
     );
-    const inRestored = restored.prepare("SELECT COUNT(*) AS n FROM workspaces WHERE id = 'ws_after'").get() as {
+    const inRestored = restored
+      .prepare("SELECT COUNT(*) AS n FROM workspaces WHERE id = 'ws_after'")
+      .get() as {
       n: number;
     };
     expect(Number(inRestored.n)).toBe(0);

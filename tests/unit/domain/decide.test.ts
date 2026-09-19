@@ -51,7 +51,13 @@ describe('decideRunStatus — all mandatory supported', () => {
 
 describe('decideRunStatus — contradiction is definitive', () => {
   it('VERIFY-084 one contradicted mandatory check fails the run however many passed', () => {
-    const results = [supported('a'), supported('b'), supported('c'), supported('d'), contradicted('e')];
+    const results = [
+      supported('a'),
+      supported('b'),
+      supported('c'),
+      supported('d'),
+      contradicted('e'),
+    ];
     const d = decideRunStatus(results, BEFORE);
     expect(d.status).toBe('FAILED');
   });
@@ -77,7 +83,9 @@ describe('decideRunStatus — contradiction is definitive', () => {
   });
 
   it('VERIFY-089 a contradiction fails the run even while evidence access is broken', () => {
-    expect(decideRunStatus([contradicted('a'), unknownBlind('b')], BLIND_AFTER).status).toBe('FAILED');
+    expect(decideRunStatus([contradicted('a'), unknownBlind('b')], BLIND_AFTER).status).toBe(
+      'FAILED',
+    );
   });
 
   it('VERIFY-090 a wrong CRM field fails the run even though the email assertion passed', () => {
@@ -98,7 +106,9 @@ describe('decideRunStatus — unknown evidence', () => {
   });
 
   it('VERIFY-092 mandatory unknown with a healthy source is UNVERIFIED at the deadline when absence was not established', () => {
-    expect(decideRunStatus([unknownWaiting('a')], { ...AT, observationsRemaining: 0 }).status).toBe('UNVERIFIED');
+    expect(decideRunStatus([unknownWaiting('a')], { ...AT, observationsRemaining: 0 }).status).toBe(
+      'UNVERIFIED',
+    );
   });
 
   it('VERIFY-093 mandatory unknown becomes FAILED at the deadline only when the connector established absence', () => {
@@ -116,7 +126,9 @@ describe('decideRunStatus — unknown evidence', () => {
   });
 
   it('VERIFY-096 an established absence mixed with an ordinary unknown resolves as UNVERIFIED, not FAILED', () => {
-    expect(decideRunStatus([unknownAbsent('a'), unknownWaiting('b')], AFTER).status).toBe('UNVERIFIED');
+    expect(decideRunStatus([unknownAbsent('a'), unknownWaiting('b')], AFTER).status).toBe(
+      'UNVERIFIED',
+    );
   });
 
   it('VERIFY-097 an ambiguous correlation is UNVERIFIED at the deadline, never FAILED', () => {
@@ -146,7 +158,9 @@ describe('decideRunStatus — provider inaccessible', () => {
 
   it('VERIFY-101 missing permission produces the same UNVERIFIED outcome as an outage', () => {
     const results = [mandatoryResult('a', 'UNKNOWN', 'CONNECTION_UNAVAILABLE')];
-    expect(decideRunStatus(results, { ...AFTER, hasWorkingEvidenceAccess: false }).status).toBe('UNVERIFIED');
+    expect(decideRunStatus(results, { ...AFTER, hasWorkingEvidenceAccess: false }).status).toBe(
+      'UNVERIFIED',
+    );
   });
 });
 
@@ -160,7 +174,9 @@ describe('decideRunStatus — mixed results', () => {
   });
 
   it('VERIFY-104 some pass and others unknown is still FAILED when a mandatory failure exists', () => {
-    expect(decideRunStatus([supported('a'), unknownWaiting('b'), contradicted('c')], AFTER).status).toBe('FAILED');
+    expect(
+      decideRunStatus([supported('a'), unknownWaiting('b'), contradicted('c')], AFTER).status,
+    ).toBe('FAILED');
   });
 
   it('VERIFY-105 the moment of the deadline itself counts as at-deadline, not before it', () => {
@@ -187,9 +203,19 @@ describe('decideRunStatus — optional assertions never change the outcome', () 
   });
 
   it('VERIFY-109 optional assertions are excluded from the mandatory summary counts', () => {
-    const results = [supported('a'), contradicted('b'), optionalResult('opt', 'SUPPORTED', 'MATCHED')];
+    const results = [
+      supported('a'),
+      contradicted('b'),
+      optionalResult('opt', 'SUPPORTED', 'MATCHED'),
+    ];
     const summary = summariseMandatory(results);
-    expect(summary).toEqual({ total: 2, supported: 1, contradicted: 1, unresolved: 0, optional_total: 1 });
+    expect(summary).toEqual({
+      total: 2,
+      supported: 1,
+      contradicted: 1,
+      unresolved: 0,
+      optional_total: 1,
+    });
   });
 });
 
@@ -235,7 +261,10 @@ describe('decideRunStatus — configuration errors and fault injection', () => {
       for (const now of clocks) {
         for (const observationsRemaining of budgets) {
           for (const hasWorkingEvidenceAccess of access) {
-            const results = [mandatoryResult('a', 'UNKNOWN', reason), mandatoryResult('b', 'UNKNOWN', reason)];
+            const results = [
+              mandatoryResult('a', 'UNKNOWN', reason),
+              mandatoryResult('b', 'UNKNOWN', reason),
+            ];
             const d = decideRunStatus(results, {
               deadlineAt: T_DEADLINE,
               now,
@@ -275,7 +304,10 @@ describe('decideRunStatus — configuration errors and fault injection', () => {
     const allowed = new Set(['PENDING', 'VERIFIED', 'FAILED', 'UNVERIFIED']);
     for (const first of statuses) {
       for (const second of statuses) {
-        const results = [mandatoryResult('a', first, 'MATCHED'), mandatoryResult('b', second, 'MATCHED')];
+        const results = [
+          mandatoryResult('a', first, 'MATCHED'),
+          mandatoryResult('b', second, 'MATCHED'),
+        ];
         expect(allowed.has(decideRunStatus(results, BEFORE).status)).toBe(true);
         expect(allowed.has(decideRunStatus(results, AFTER).status)).toBe(true);
       }

@@ -9,7 +9,12 @@
  * identical; it simply does not look like a credential to a scanner or to push protection.
  */
 import { describe, expect, it } from 'vitest';
-import { bootstrapOwner, normaliseAuthSubject, OWNER_BOOTSTRAP_AUDIT_ACTION, type BootstrapDeps } from '@app/owner/bootstrap';
+import {
+  bootstrapOwner,
+  normaliseAuthSubject,
+  OWNER_BOOTSTRAP_AUDIT_ACTION,
+  type BootstrapDeps,
+} from '@app/owner/bootstrap';
 
 const NOW = new Date('2026-09-19T12:00:00.000Z');
 const TOKEN = ['owner', 'bootstrap', '00000000-0000-4000-8000-000000000001'].join('-');
@@ -22,7 +27,11 @@ interface Recorded {
   readonly occurredAt: string;
 }
 
-function deps(overrides: Partial<BootstrapDeps> = {}): { deps: BootstrapDeps; audit: Recorded[]; promoted: string[] } {
+function deps(overrides: Partial<BootstrapDeps> = {}): {
+  deps: BootstrapDeps;
+  audit: Recorded[];
+  promoted: string[];
+} {
   const audit: Recorded[] = [];
   const promoted: string[] = [];
   let ownerExists = false;
@@ -83,7 +92,10 @@ describe('owner bootstrap', () => {
         return false;
       },
     });
-    const result = await bootstrapOwner({ presentedToken: 'not-the-token', verifiedAuthSubject: EMAIL }, d);
+    const result = await bootstrapOwner(
+      { presentedToken: 'not-the-token', verifiedAuthSubject: EMAIL },
+      d,
+    );
     if (result.ok) throw new Error('unreachable');
     expect(result.refusal).toBe('token_mismatch');
     // A guessing loop must not be usable to discover whether an owner exists.
@@ -107,7 +119,10 @@ describe('owner bootstrap', () => {
 
   it('OWNER-136 the proved address must be the one the deployment authorises', async () => {
     const { deps: d, promoted } = deps();
-    const result = await bootstrapOwner({ presentedToken: TOKEN, verifiedAuthSubject: 'someone@example.invalid' }, d);
+    const result = await bootstrapOwner(
+      { presentedToken: TOKEN, verifiedAuthSubject: 'someone@example.invalid' },
+      d,
+    );
     if (result.ok) throw new Error('unreachable');
     expect(result.refusal).toBe('subject_mismatch');
     expect(promoted).toHaveLength(0);
@@ -115,7 +130,10 @@ describe('owner bootstrap', () => {
 
   it('OWNER-137 the address is matched after normalisation', async () => {
     const { deps: d } = deps();
-    const result = await bootstrapOwner({ presentedToken: TOKEN, verifiedAuthSubject: '  FOUNDER@Example.Invalid ' }, d);
+    const result = await bootstrapOwner(
+      { presentedToken: TOKEN, verifiedAuthSubject: '  FOUNDER@Example.Invalid ' },
+      d,
+    );
     expect(result.ok).toBe(true);
     expect(normaliseAuthSubject('  FOUNDER@Example.Invalid ')).toBe(EMAIL);
   });
@@ -125,7 +143,11 @@ describe('owner bootstrap', () => {
     await bootstrapOwner({ presentedToken: 'wrong', verifiedAuthSubject: EMAIL }, d);
     await bootstrapOwner({ presentedToken: TOKEN, verifiedAuthSubject: null }, d);
     await bootstrapOwner({ presentedToken: TOKEN, verifiedAuthSubject: EMAIL }, d);
-    expect(audit.map((a) => a.outcome)).toEqual(['token_mismatch', 'unverified_subject', 'granted']);
+    expect(audit.map((a) => a.outcome)).toEqual([
+      'token_mismatch',
+      'unverified_subject',
+      'granted',
+    ]);
     for (const entry of audit) {
       expect(entry.action).toBe(OWNER_BOOTSTRAP_AUDIT_ACTION);
       expect(entry.occurredAt).toBe(NOW.toISOString());

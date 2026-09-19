@@ -43,8 +43,7 @@ export type SignatureFailure =
   | 'signature_mismatch';
 
 export type SignatureResult =
-  | { readonly ok: true }
-  | { readonly ok: false; readonly reason: SignatureFailure };
+  { readonly ok: true } | { readonly ok: false; readonly reason: SignatureFailure };
 
 /** Stripe's documented library default. Never use 0 — that disables the recency check. */
 export const STRIPE_TOLERANCE_SECONDS = 300;
@@ -121,7 +120,8 @@ export interface StripeVerifyInput {
 }
 
 export async function verifyStripeSignature(input: StripeVerifyInput): Promise<SignatureResult> {
-  if (input.header === null || input.header.trim() === '') return { ok: false, reason: 'missing_header' };
+  if (input.header === null || input.header.trim() === '')
+    return { ok: false, reason: 'missing_header' };
   let timestamp: number | null = null;
   const v1Signatures: string[] = [];
   for (const element of input.header.split(',')) {
@@ -187,7 +187,9 @@ export async function verifySvixSignature(input: SvixVerifyInput): Promise<Signa
   if (Math.abs(input.nowSeconds - ts) > tolerance) {
     return { ok: false, reason: 'timestamp_out_of_tolerance' };
   }
-  const rawSecret = input.secret.startsWith('whsec_') ? input.secret.slice('whsec_'.length) : input.secret;
+  const rawSecret = input.secret.startsWith('whsec_')
+    ? input.secret.slice('whsec_'.length)
+    : input.secret;
   const keyBytes = base64ToBytes(rawSecret);
   if (keyBytes === null) return { ok: false, reason: 'malformed_header' };
 

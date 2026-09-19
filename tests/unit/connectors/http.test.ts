@@ -38,7 +38,8 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 function stubOnce(response: Response | (() => Promise<Response>)): typeof fetch {
-  return (async () => (typeof response === 'function' ? response() : response)) as unknown as typeof fetch;
+  return (async () =>
+    typeof response === 'function' ? response() : response) as unknown as typeof fetch;
 }
 
 describe('connector URL guard', () => {
@@ -50,7 +51,10 @@ describe('connector URL guard', () => {
   });
 
   it('CONN-002 refuses a host that is not on the allowlist', () => {
-    const result = checkUrl('https://evil.example/crm/v3/objects/contacts', CONNECTOR_URL_GUARD_OPTIONS);
+    const result = checkUrl(
+      'https://evil.example/crm/v3/objects/contacts',
+      CONNECTOR_URL_GUARD_OPTIONS,
+    );
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.reason).toBe('host_not_allowed');
   });
@@ -77,7 +81,10 @@ describe('connector URL guard', () => {
   });
 
   it('CONN-006 refuses the cloud metadata address 169.254.169.254', () => {
-    const result = checkUrl('https://169.254.169.254/latest/meta-data/', CONNECTOR_URL_GUARD_OPTIONS);
+    const result = checkUrl(
+      'https://169.254.169.254/latest/meta-data/',
+      CONNECTOR_URL_GUARD_OPTIONS,
+    );
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.reason).toBe('private_address');
   });
@@ -94,7 +101,11 @@ describe('connector URL guard', () => {
   });
 
   it('CONN-008 refuses a non-https scheme', () => {
-    for (const url of ['http://api.hubapi.com/x', 'file:///etc/passwd', 'gopher://api.hubapi.com/']) {
+    for (const url of [
+      'http://api.hubapi.com/x',
+      'file:///etc/passwd',
+      'gopher://api.hubapi.com/',
+    ]) {
       const result = checkUrl(url, CONNECTOR_URL_GUARD_OPTIONS);
       expect(result.ok, url).toBe(false);
     }
@@ -107,7 +118,13 @@ describe('connector URL guard', () => {
   });
 
   it('CONN-010 treats obfuscated loopback forms as private', () => {
-    for (const host of ['2130706433', '0x7f.0.0.1', '017700000001', '[::1]', '[::ffff:127.0.0.1]']) {
+    for (const host of [
+      '2130706433',
+      '0x7f.0.0.1',
+      '017700000001',
+      '[::1]',
+      '[::ffff:127.0.0.1]',
+    ]) {
       const parsed = parseIpLiteral(host.replace(/^\[|\]$/g, ''));
       expect(parsed, host).not.toBeNull();
       if (parsed !== null) expect(isPrivateAddress(parsed), host).toBe(true);
@@ -132,7 +149,11 @@ describe('guardedFetch', () => {
 
   it('CONN-012 refuses to start a request to a non-allowlisted host', async () => {
     await expect(
-      guardedFetch({ url: 'https://evil.example/x', method: 'GET', fetchImpl: stubOnce(jsonResponse({})) }),
+      guardedFetch({
+        url: 'https://evil.example/x',
+        method: 'GET',
+        fetchImpl: stubOnce(jsonResponse({})),
+      }),
     ).rejects.toMatchObject({ reason: 'blocked_url' });
   });
 
@@ -141,12 +162,19 @@ describe('guardedFetch', () => {
     const stub = (async (url: string) => {
       calls.push(url);
       if (calls.length === 1) {
-        return new Response(null, { status: 302, headers: { location: 'https://api.hubapi.com/moved' } });
+        return new Response(null, {
+          status: 302,
+          headers: { location: 'https://api.hubapi.com/moved' },
+        });
       }
       return jsonResponse({ id: '1' });
     }) as unknown as typeof fetch;
 
-    const result = await guardedFetch({ url: 'https://api.hubapi.com/start', method: 'GET', fetchImpl: stub });
+    const result = await guardedFetch({
+      url: 'https://api.hubapi.com/start',
+      method: 'GET',
+      fetchImpl: stub,
+    });
     expect(result.redirects).toBe(1);
     expect(result.finalUrl).toBe('https://api.hubapi.com/moved');
     expect(calls).toHaveLength(2);
@@ -166,7 +194,10 @@ describe('guardedFetch', () => {
 
   it('CONN-015 refuses a redirect to a host outside the allowlist', async () => {
     const stub = (async () =>
-      new Response(null, { status: 301, headers: { location: 'https://evil.example/' } })) as unknown as typeof fetch;
+      new Response(null, {
+        status: 301,
+        headers: { location: 'https://evil.example/' },
+      })) as unknown as typeof fetch;
 
     await expect(
       guardedFetch({ url: 'https://api.resend.com/domains', method: 'GET', fetchImpl: stub }),
@@ -200,7 +231,10 @@ describe('guardedFetch', () => {
 
   it('CONN-018 refuses an oversized response body declared by content-length', async () => {
     const stub = stubOnce(
-      new Response('{}', { status: 200, headers: { 'content-length': String(DEFAULT_MAX_RESPONSE_BYTES + 1) } }),
+      new Response('{}', {
+        status: 200,
+        headers: { 'content-length': String(DEFAULT_MAX_RESPONSE_BYTES + 1) },
+      }),
     );
     await expect(
       guardedFetch({ url: 'https://api.resend.com/domains', method: 'GET', fetchImpl: stub }),
@@ -221,12 +255,16 @@ describe('guardedFetch', () => {
 
   it('CONN-020 reports a timeout as a timeout, never as an answer', async () => {
     const stub = (async () => {
-      throw Object.assign(new Error('The operation was aborted due to timeout'), { name: 'TimeoutError' });
+      throw Object.assign(new Error('The operation was aborted due to timeout'), {
+        name: 'TimeoutError',
+      });
     }) as unknown as typeof fetch;
 
-    const error = await guardedFetch({ url: 'https://api.hubapi.com/x', method: 'GET', fetchImpl: stub }).catch(
-      (e: unknown) => e,
-    );
+    const error = await guardedFetch({
+      url: 'https://api.hubapi.com/x',
+      method: 'GET',
+      fetchImpl: stub,
+    }).catch((e: unknown) => e);
     expect((error as ConnectorTransportError).reason).toBe('timeout');
   });
 
@@ -251,7 +289,11 @@ describe('guardedFetch', () => {
   it('CONN-022 returns 4xx and 5xx as responses, because only the connector knows what they mean', async () => {
     for (const status of [401, 403, 404, 429, 500, 503]) {
       const stub = stubOnce(new Response('{"status":"error"}', { status }));
-      const result = await guardedFetch({ url: 'https://api.hubapi.com/x', method: 'GET', fetchImpl: stub });
+      const result = await guardedFetch({
+        url: 'https://api.hubapi.com/x',
+        method: 'GET',
+        fetchImpl: stub,
+      });
       expect(result.status).toBe(status);
     }
   });
@@ -269,9 +311,9 @@ describe('guardedFetch', () => {
 
   it('CONN-025 fails the whole suite if a connector ever reaches the real network', async () => {
     // Proves the global guard in tests/setup.ts is doing its job: no `fetchImpl`, no stub.
-    await expect(guardedFetch({ url: 'https://api.hubapi.com/x', method: 'GET' })).rejects.toBeInstanceOf(
-      ConnectorTransportError,
-    );
+    await expect(
+      guardedFetch({ url: 'https://api.hubapi.com/x', method: 'GET' }),
+    ).rejects.toBeInstanceOf(ConnectorTransportError);
   });
 
   it('CONN-026 honours a stubbed global fetch when no implementation is injected', async () => {

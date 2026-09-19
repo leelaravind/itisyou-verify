@@ -93,9 +93,15 @@ describe('refund approvals are hashed once, by owner/approvals.ts', () => {
   });
 
   it('OWNER-283 one penny more on the stored row stops the approval applying', async () => {
-    const approved = refundApprovalPayload(refund({ amountMinor: 4900 }), 'unused_period_within_14_days');
+    const approved = refundApprovalPayload(
+      refund({ amountMinor: 4900 }),
+      'unused_period_within_14_days',
+    );
     const approval = await approvalFor(approved, 4900);
-    const moved = refundApprovalPayload(refund({ amountMinor: 4901 }), 'unused_period_within_14_days');
+    const moved = refundApprovalPayload(
+      refund({ amountMinor: 4901 }),
+      'unused_period_within_14_days',
+    );
     const check = await checkOwnerApproval(approval, moved, NOW);
     expect(check.valid).toBe(false);
     if (check.valid) throw new Error('unreachable');

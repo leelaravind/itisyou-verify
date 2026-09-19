@@ -1,14 +1,9 @@
 {
-  "singleQuote": true,
-  "printWidth": 100,
-  "trailingComma": "all",
-  "semi": true,
-  "arrowParens": "always",
-  "embeddedLanguageFormatting": "off",
-  "overrides": [
-    {
-      "files": "*.jsonc",
-      "options": { "trailingComma": "none" }
-    }
-  ]
+  'singleQuote': true,
+  'printWidth': 100,
+  'trailingComma': 'all',
+  'semi': true,
+  'arrowParens': 'always',
+  'embeddedLanguageFormatting': 'off',
+  'overrides': [{ 'files': '*.jsonc', 'options': { 'trailingComma': 'none' } }],
 }

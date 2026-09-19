@@ -34,12 +34,12 @@ false confidence.
 
 ## The four statuses
 
-| Status | What it means |
-| --- | --- |
-| **Verified** | Every mandatory check has supporting evidence. |
-| **Failed** | Evidence contradicts a rule, or the deadline passed while evidence access was working. |
-| **Unverified** | Access, correlation or evidence is missing or ambiguous. Not a pass. Not a failure. |
-| **Pending** | Still inside the agreed completion window. |
+| Status         | What it means                                                                          |
+| -------------- | -------------------------------------------------------------------------------------- |
+| **Verified**   | Every mandatory check has supporting evidence.                                         |
+| **Failed**     | Evidence contradicts a rule, or the deadline passed while evidence access was working. |
+| **Unverified** | Access, correlation or evidence is missing or ambiguous. Not a pass. Not a failure.    |
+| **Pending**    | Still inside the agreed completion window.                                             |
 
 `Unverified` exists because the honest answer is often "we do not know", and collapsing
 that into either of the other two would be a lie in one direction or the other.
@@ -50,8 +50,8 @@ that into either of the other two would be a lie in one direction or the other.
 
 ### Why only one workflow shape
 
-Version one checks exactly one thing: *an enquiry should create the correct CRM record and
-trigger an acknowledgement email*, using HubSpot and Resend.
+Version one checks exactly one thing: _an enquiry should create the correct CRM record and
+trigger an acknowledgement email_, using HubSpot and Resend.
 
 A connector marketplace would have been more impressive and less useful. Each provider
 brings its own auth model, its own event semantics, its own idea of what "delivered"
@@ -102,7 +102,7 @@ Evidence carries an origin: we asked the provider ourselves, the provider called
 verified its signature, or the customer's own system told us.
 
 The third can never support a mandatory check. The result says so in plain language — and
-deliberately does not imply the customer is lying. It says what *we* do: we check
+deliberately does not imply the customer is lying. It says what _we_ do: we check
 everything against the connected systems ourselves, and a system reporting on its own work
 is not something we can count as proof either way.
 
@@ -151,7 +151,7 @@ Stored provider credentials are encrypted with the workspace, provider and purpo
 into the authenticated data, so ciphertext moved to another tenant will not decrypt.
 
 The independent security review found the flaw: the function that opens a credential
-accepted the expected binding as an *optional* argument. Any helper that looked a
+accepted the expected binding as an _optional_ argument. Any helper that looked a
 credential up by its id and forgot to pass it would decrypt any tenant's row — because the
 stored binding travels with the row and satisfies the check on its own.
 
@@ -186,7 +186,7 @@ Nothing in the code review would have found it. The template was correct, the te
 asserted the template was correct, and the policy was correct in isolation. It took
 deploying the page and looking at a screenshot.
 
-The first fix was a narrow exception: permit inline style *attributes*, keep blocking
+The first fix was a narrow exception: permit inline style _attributes_, keep blocking
 inline scripts and injected stylesheets, and write into the policy why the exception
 existed and what would have to change before it could be removed.
 
@@ -201,9 +201,9 @@ The deployed page was checked afterwards rather than assumed: `style-src-attr 'n
 the response header, zero inline style attributes in the markup, and the meter rendering
 as `meter__fill--30`.
 
-*(This paragraph previously described only the exception. It was caught during a later
+_(This paragraph previously described only the exception. It was caught during a later
 audit of the deployed site against the documentation — the story was underselling its own
-fix, which is a smaller sin than the reverse but the same class of drift.)*
+fix, which is a smaller sin than the reverse but the same class of drift.)_
 
 ### A pinned action that did not exist
 
@@ -261,6 +261,6 @@ approved and nothing has been spent.
 
 ---
 
-*This page is generated from the same record as the machine-readable story in
+_This page is generated from the same record as the machine-readable story in
 `docs/development-story-events.json`. If the two ever disagree, that is a defect in this
-page.*
+page._

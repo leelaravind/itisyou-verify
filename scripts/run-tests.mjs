@@ -20,6 +20,21 @@
  *      disagreement, not a pass.
  * Any disagreement exits 1 with a loud banner. A clean run exits 0 and says so.
  *
+ * CONFIRMED ROOT CAUSE (2026-09-19): this is not a concurrency/pool-size problem. It is
+ * SEC-632 (`tests/security/integration/secret-hygiene.test.ts`), which calls
+ * `execFileSync('node', ['scripts/scan-secrets.mjs', '--history', ...])` synchronously
+ * and blocks its worker's event loop for ~200s scanning full git history. birpc's
+ * hard-coded 60s `DEFAULT_TIMEOUT` for the pending `onTaskUpdate` RPC has long expired
+ * by the time the loop unblocks, so the timeout fires immediately afterwards, vitest
+ * logs it as an "unhandled error" and sets exit code 1 — while the printed pass/fail
+ * counts, computed before the loop ever blocked, stay green. This is why the "failing"
+ * file looked different between runs: it was whichever file happened to share a worker
+ * with SEC-632, not a real flake. Lowering `maxWorkers` does not fix this — it only
+ * changes which files get starved alongside it. The wrapper below therefore also
+ * fingerprints the specific outlier-duration test file so this is a one-run diagnosis,
+ * not a six-hour one, and surfaces the raw unhandled-error text instead of just naming
+ * the regex that matched it.
+ *
  * Usage: `pnpm test` (this), or `node scripts/run-tests.mjs [vitest args]`.
  * Positional filters (`tests/unit`) are passed through; the on-disk file count check is
  * skipped when a filter is present because the expected set is then vitest's to decide.
@@ -77,6 +92,43 @@ function normalise(p) {
   return relative(ROOT, resolve(p)).split(sep).join('/');
 }
 
+// eslint-disable-next-line no-control-regex
+const ANSI = /\x1b\[[0-9;]*m/g;
+const stripAnsi = (s) => s.replace(ANSI, '');
+
+/** Pull the "Unhandled Error(s)" section(s) out of vitest's text output, verbatim. */
+function extractUnhandledErrors(text) {
+  const plain = stripAnsi(text);
+  const blocks = [];
+  const re = /⎯+\s*Unhandled Errors?\s*⎯+([\s\S]*?)(?:\n\n\n|\n⎯{5,}\n\s*\n)/g;
+  let m;
+  while ((m = re.exec(plain))) {
+    blocks.push(m[1].trim());
+  }
+  return blocks;
+}
+
+/**
+ * birpc's pending-call timeout is a hard-coded 60s. A test file whose wall-clock
+ * duration approaches or exceeds that is a candidate for having blocked its worker's
+ * event loop long enough to trip it — report it by name instead of leaving the reader
+ * to guess which of N files did it.
+ */
+const BIRPC_TIMEOUT_MS = 60_000;
+function findBlockingCandidates(results) {
+  const rows = (results?.testResults ?? [])
+    .map((r) => ({
+      name: normalise(r.name ?? r.testFilePath ?? ''),
+      durationMs:
+        typeof r.endTime === 'number' && typeof r.startTime === 'number'
+          ? r.endTime - r.startTime
+          : null,
+    }))
+    .filter((r) => r.durationMs != null)
+    .sort((a, b) => b.durationMs - a.durationMs);
+  return rows.filter((r) => r.durationMs >= BIRPC_TIMEOUT_MS * 0.75);
+}
+
 function banner(lines) {
   const width = Math.max(...lines.map((l) => l.length)) + 4;
   const rule = '!'.repeat(width);
@@ -110,7 +162,14 @@ child.on('close', (code, signal) => {
 
   const poisoned = POISON.filter((re) => re.test(captured)).map((re) => re.source);
   if (poisoned.length) {
-    problems.push(`vitest reported an RPC timeout or unhandled error (${poisoned.join(', ')})`);
+    problems.push(
+      `GREEN-SUMMARY-BUT-EXIT-1: vitest reported an RPC timeout or unhandled error ` +
+        `(matched: ${poisoned.join(', ')}) — the printed pass/fail counts predate this ` +
+        `and cannot be trusted even where they look green`,
+    );
+    for (const block of extractUnhandledErrors(captured)) {
+      problems.push('--- unhandled error text (verbatim) ---', ...block.split('\n'), '---');
+    }
   }
 
   let results = null;
@@ -135,11 +194,28 @@ child.on('close', (code, signal) => {
 
     if (exitCode !== 0 && failedTests === 0 && failedSuites === 0) {
       problems.push(
-        `summary is green (0 failures) but vitest exited ${exitCode} — results are NOT trustworthy`,
+        `GREEN-SUMMARY-BUT-EXIT-1: summary is green (0 failures) but vitest exited ` +
+          `${exitCode} — results are NOT trustworthy`,
       );
     }
     if (exitCode === 0 && (failedTests > 0 || failedSuites > 0 || results.success === false)) {
       problems.push(`vitest exited 0 but the JSON reports failures — results are NOT trustworthy`);
+    }
+
+    // Checked unconditionally — independent of exitCode/failedTests. A file already at
+    // 45s+ is a latent birpc-timeout risk whether or not it has tripped the RPC yet in
+    // THIS run: the next run with slightly more contention, or a slightly slower CI
+    // box, is the one where it does. Catching it on a green run is the point.
+    const blockers = findBlockingCandidates(results);
+    if (blockers.length) {
+      problems.push(
+        `LATENT-BIRPC-RISK: ${blockers.length} test file(s) ran long enough to plausibly ` +
+          `block their worker's event loop past birpc's hard-coded ${BIRPC_TIMEOUT_MS / 1000}s ` +
+          `RPC timeout (the exact threshold this check is measuring against) — this fires ` +
+          `regardless of exit code, because a file that hasn't tripped the timeout yet in ` +
+          `this run is still a defect. Check these first:`,
+        ...blockers.map((b) => `    ${b.name} (${Math.round(b.durationMs)}ms)`),
+      );
     }
 
     if (!hasFilter) {

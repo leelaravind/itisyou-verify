@@ -135,15 +135,35 @@ describe('sessions and login tokens', () => {
 
   it('AUTH-221 sign-out-everywhere revokes every live session for that user only', async () => {
     const other = seedWorkspace(h, 'beta');
-    await sessions.create(h.db, { idHash: 's1', userId: ws.userId, createdAt: T0, expiresAt: LATER });
-    await sessions.create(h.db, { idHash: 's2', userId: ws.userId, createdAt: T0, expiresAt: LATER });
-    await sessions.create(h.db, { idHash: 's3', userId: other.userId, createdAt: T0, expiresAt: LATER });
+    await sessions.create(h.db, {
+      idHash: 's1',
+      userId: ws.userId,
+      createdAt: T0,
+      expiresAt: LATER,
+    });
+    await sessions.create(h.db, {
+      idHash: 's2',
+      userId: ws.userId,
+      createdAt: T0,
+      expiresAt: LATER,
+    });
+    await sessions.create(h.db, {
+      idHash: 's3',
+      userId: other.userId,
+      createdAt: T0,
+      expiresAt: LATER,
+    });
     expect(await sessions.revokeAllForUser(h.db, ws.userId, LATER)).toBe(2);
     expect(await sessions.findLive(h.db, 's3', T0)).not.toBeNull();
   });
 
   it('AUTH-222 mfa verification and last-seen are recorded without resurrecting a revoked session', async () => {
-    await sessions.create(h.db, { idHash: 's1', userId: ws.userId, createdAt: T0, expiresAt: LATER });
+    await sessions.create(h.db, {
+      idHash: 's1',
+      userId: ws.userId,
+      createdAt: T0,
+      expiresAt: LATER,
+    });
     expect(await sessions.markMfaVerified(h.db, 's1', T0)).toBe(true);
     await sessions.touch(h.db, 's1', LATER);
     expect((await sessions.findLive(h.db, 's1', T0))?.last_seen_at).toBe(LATER);
@@ -152,7 +172,12 @@ describe('sessions and login tokens', () => {
   });
 
   it('AUTH-226 a privilege transition issues a NEW session id (fixation)', async () => {
-    await sessions.create(h.db, { idHash: 'old', userId: ws.userId, createdAt: T0, expiresAt: LATER });
+    await sessions.create(h.db, {
+      idHash: 'old',
+      userId: ws.userId,
+      createdAt: T0,
+      expiresAt: LATER,
+    });
     const rotated = await sessions.rotate(h.db, {
       oldIdHash: 'old',
       newIdHash: 'new',
@@ -171,7 +196,12 @@ describe('sessions and login tokens', () => {
 
   it('AUTH-227 rotation cannot mint a session from a revoked, expired or foreign one', async () => {
     const other = seedWorkspace(h, 'beta');
-    await sessions.create(h.db, { idHash: 'revoked', userId: ws.userId, createdAt: T0, expiresAt: LATER });
+    await sessions.create(h.db, {
+      idHash: 'revoked',
+      userId: ws.userId,
+      createdAt: T0,
+      expiresAt: LATER,
+    });
     await sessions.revoke(h.db, 'revoked', T0);
     expect(
       await sessions.rotate(h.db, {
@@ -184,7 +214,12 @@ describe('sessions and login tokens', () => {
     ).toBe(false);
     expect(await sessions.findLive(h.db, 'n1', T0)).toBeNull();
 
-    await sessions.create(h.db, { idHash: 'expired', userId: ws.userId, createdAt: T0, expiresAt: T0 });
+    await sessions.create(h.db, {
+      idHash: 'expired',
+      userId: ws.userId,
+      createdAt: T0,
+      expiresAt: T0,
+    });
     expect(
       await sessions.rotate(h.db, {
         oldIdHash: 'expired',
@@ -197,7 +232,12 @@ describe('sessions and login tokens', () => {
     expect(await sessions.findLive(h.db, 'n2', LATER)).toBeNull();
 
     // Another user's live session cannot be rotated into one of mine.
-    await sessions.create(h.db, { idHash: 'theirs', userId: other.userId, createdAt: T0, expiresAt: LATER });
+    await sessions.create(h.db, {
+      idHash: 'theirs',
+      userId: other.userId,
+      createdAt: T0,
+      expiresAt: LATER,
+    });
     expect(
       await sessions.rotate(h.db, {
         oldIdHash: 'theirs',
@@ -212,9 +252,19 @@ describe('sessions and login tokens', () => {
   });
 
   it('AUTH-228 a failed rotation leaves the old session exactly as it was', async () => {
-    await sessions.create(h.db, { idHash: 'old', userId: ws.userId, createdAt: T0, expiresAt: LATER });
+    await sessions.create(h.db, {
+      idHash: 'old',
+      userId: ws.userId,
+      createdAt: T0,
+      expiresAt: LATER,
+    });
     // A duplicate new id makes the insert fail, so the batch must roll the revoke back.
-    await sessions.create(h.db, { idHash: 'taken', userId: ws.userId, createdAt: T0, expiresAt: LATER });
+    await sessions.create(h.db, {
+      idHash: 'taken',
+      userId: ws.userId,
+      createdAt: T0,
+      expiresAt: LATER,
+    });
     await expect(
       sessions.rotate(h.db, {
         oldIdHash: 'old',
@@ -228,7 +278,12 @@ describe('sessions and login tokens', () => {
   });
 
   it('AUTH-229 two concurrent rotations of one session mint only one successor', async () => {
-    await sessions.create(h.db, { idHash: 'old', userId: ws.userId, createdAt: T0, expiresAt: LATER });
+    await sessions.create(h.db, {
+      idHash: 'old',
+      userId: ws.userId,
+      createdAt: T0,
+      expiresAt: LATER,
+    });
     const results = await Promise.all(
       ['a', 'b'].map((suffix) =>
         sessions.rotate(h.db, {
@@ -405,7 +460,16 @@ describe('connections and credential rotation', () => {
     });
     const row = await credentials.activeForConnection(h.db, ws.workspaceId, 'conn_1');
     expect(Object.keys(row ?? {}).sort()).toEqual(
-      ['aad', 'ciphertext', 'connection_id', 'created_at', 'id', 'key_version', 'nonce', 'owner_scope'].sort(),
+      [
+        'aad',
+        'ciphertext',
+        'connection_id',
+        'created_at',
+        'id',
+        'key_version',
+        'nonce',
+        'owner_scope',
+      ].sort(),
     );
   });
 });
@@ -439,9 +503,9 @@ describe('workflow publishing', () => {
     expect(active?.version_id).toBe('wfv_2');
     expect(active?.deadline_seconds).toBe(900);
     // Version 1 is untouched, so an old report still shows the rules that applied.
-    expect((await workflowVersions.get(h.db, ws.workspaceId, ws.workflowVersionId))?.rules_hash).toBe(
-      'hash',
-    );
+    expect(
+      (await workflowVersions.get(h.db, ws.workspaceId, ws.workflowVersionId))?.rules_hash,
+    ).toBe('hash');
   });
 
   it('PERSIST-181 publishing into another workspace’s workflow writes nothing', async () => {
@@ -463,7 +527,9 @@ describe('workflow publishing', () => {
   });
 
   it('PERSIST-182 a paused or archived workflow cannot start a run', async () => {
-    expect(await workflows.getActiveWithVersion(h.db, ws.workspaceId, ws.workflowId)).not.toBeNull();
+    expect(
+      await workflows.getActiveWithVersion(h.db, ws.workspaceId, ws.workflowId),
+    ).not.toBeNull();
     await workflows.setStatus(h.db, ws.workspaceId, ws.workflowId, 'paused');
     expect(await workflows.getActiveWithVersion(h.db, ws.workspaceId, ws.workflowId)).toBeNull();
     await workflows.setStatus(h.db, ws.workspaceId, ws.workflowId, 'active');
@@ -625,7 +691,10 @@ describe('pagination, audit and settings', () => {
     seedRun(h, ws, 'run_a', { status: 'VERIFIED', nextCheckAt: null, createdAt: T0 });
     seedRun(h, ws, 'run_b', { status: 'FAILED', nextCheckAt: null, createdAt: T0 });
     seedRun(h, ws, 'run_c', { status: 'VERIFIED', nextCheckAt: null, createdAt: LATER });
-    const page = await runs.listByWorkspace(h.db, ws.workspaceId, { limit: 10, status: 'VERIFIED' });
+    const page = await runs.listByWorkspace(h.db, ws.workspaceId, {
+      limit: 10,
+      status: 'VERIFIED',
+    });
     expect(page.items.map((r) => r.id)).toEqual(['run_c', 'run_a']);
   });
 
@@ -683,7 +752,9 @@ describe('pagination, audit and settings', () => {
       updatedAt: LATER,
       updatedBy: ws.userId,
     });
-    expect(await settings.getJson(h.db, 'access_mode', 'RESTRICTED_ENTRY')).toBe('RESTRICTED_ENTRY');
+    expect(await settings.getJson(h.db, 'access_mode', 'RESTRICTED_ENTRY')).toBe(
+      'RESTRICTED_ENTRY',
+    );
     expect(await settings.getJson(h.db, 'never_set', 42)).toBe(42);
     expect(countRows(h, 'settings')).toBe(1);
     expect(await settings.list(h.db)).toHaveLength(1);

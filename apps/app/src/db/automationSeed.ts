@@ -55,10 +55,29 @@ import { ID_PREFIX, newId } from '../lib/ids';
 import { sessionCookieName } from '../lib/session';
 import { addSecondsIso, nowIso } from '../lib/time';
 import type { Db } from './d1';
-import { auditEvents, sessions, users } from './index';
+import { auditEvents, memberships, sessions, users, workspaces } from './index';
 
 /** The address the automation identity signs in as. Never a real person's. */
 export const AUTOMATION_AUTH_SUBJECT = 'automation@itisyou.test';
+
+/**
+ * The synthetic workspace the customer pages render for the browser suite.
+ *
+ * Stable, so a re-seed reuses it rather than accumulating workspaces. `is_synthetic = 1`,
+ * so every count, list and owner view that filters synthetic data keeps excluding it and
+ * nobody mistakes it for a customer.
+ */
+export const AUTOMATION_WORKSPACE_ID = 'ws_automation_test';
+
+/**
+ * Read-only, deliberately.
+ *
+ * A test identity that can change a customer's configuration is a standing credential that
+ * can change a customer's configuration, sitting in an environment variable. `viewer` gives
+ * the suite a surface to measure without that. A scoped write, if one is ever genuinely
+ * needed, gets its own narrowly-scoped identity and a stated reason.
+ */
+export const AUTOMATION_WORKSPACE_ROLE = 'workspace_viewer' as const;
 
 export interface AutomationSeedRequest {
   /** The deployment being seeded. `production` throws, before anything is minted. */
@@ -72,6 +91,8 @@ export interface AutomationSeedRequest {
 
 export interface AutomationSeed {
   readonly userId: string;
+  readonly workspaceId: string;
+  readonly workspaceRole: 'workspace_viewer';
   /** `verify_session` over http, `__Host-verify_session` over https. Read it; do not assume. */
   readonly sessionCookieName: string;
   readonly sessionCookieValue: string;
@@ -114,6 +135,8 @@ export function buildAutomationSeed(request: AutomationSeedRequest): AutomationS
 
   return {
     userId: newId(ID_PREFIX.user, now.getTime()),
+    workspaceId: AUTOMATION_WORKSPACE_ID,
+    workspaceRole: AUTOMATION_WORKSPACE_ROLE,
     sessionCookieName: sessionCookieName(secure),
     sessionCookieValue: toBase64Url(randomBytes(32)),
     sessionId: '',
@@ -145,6 +168,35 @@ export async function seedAutomationIdentity(
     id: draft.userId,
     authSubject,
     displayName: 'Automation test identity',
+    createdAt: draft.createdAt,
+  });
+
+  // The workspace is the part whose absence made `/app` answer 401 while `/owner`
+  // answered 200: `resolveSession` requires a membership, and there was none. One missing
+  // row presented as sixteen failing customer cases.
+  await workspaces
+    .createWithOwner(db, {
+      workspaceId: AUTOMATION_WORKSPACE_ID,
+      name: 'Automation test workspace',
+      userId: user.id,
+      createdAt: draft.createdAt,
+      isSynthetic: true,
+    })
+    .catch(async () => {
+      // Already seeded. Re-assert the row's shape rather than assuming a previous run left
+      // it correct — a database somebody had edited must not silently widen this identity.
+      await db
+        .prepare("UPDATE workspaces SET status = 'active', is_synthetic = 1 WHERE id = ?")
+        .bind(AUTOMATION_WORKSPACE_ID)
+        .run();
+    });
+
+  // Read-only, asserted on every seed. `createWithOwner` binds the creator as admin, which
+  // is right for a real signup and wrong for this identity.
+  await memberships.add(db, {
+    workspaceId: AUTOMATION_WORKSPACE_ID,
+    userId: user.id,
+    role: AUTOMATION_WORKSPACE_ROLE,
     createdAt: draft.createdAt,
   });
 

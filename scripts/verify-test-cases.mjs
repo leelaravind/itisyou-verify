@@ -21,9 +21,47 @@
  * Exit codes: 0 sound, 1 broken.
  */
 
+import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+/**
+ * What this run is a reading OF.
+ *
+ * Everything this script prints describes the working tree as it exists right now, at
+ * whatever commit HEAD happens to be, with whatever is uncommitted. That is not a
+ * property of a commit and must never be quoted as a gate result — on this repository
+ * the suite moved by four hundred cases in twenty minutes while it was being measured.
+ * The gate number comes from scripts/build-gate-artefact.mjs run by CI on a clean
+ * checkout. Saying so on every local run is cheaper than correcting the misquote later.
+ */
+function treeLabel() {
+  const git = (a) => {
+    try {
+      // stderr is discarded: outside a repository git is loud, and "no git here" is a
+      // fact this function reports, not an error the caller needs shouted at them.
+      return execFileSync('git', a, {
+        encoding: 'utf8',
+        shell: false,
+        stdio: ['ignore', 'pipe', 'ignore'],
+      }).trim();
+    } catch {
+      return null;
+    }
+  };
+  const sha = git(['rev-parse', 'HEAD']);
+  if (sha === null) return 'a working tree with no reachable git metadata';
+  const dirty = git(['status', '--porcelain']);
+  const changed = dirty === null ? null : dirty.split('\n').filter((l) => l.trim() !== '').length;
+  const state =
+    changed === null
+      ? 'unknown cleanliness'
+      : changed === 0
+        ? 'clean'
+        : `${changed} uncommitted change(s)`;
+  return `a working tree at ${sha.slice(0, 12)}, ${state}`;
+}
 
 const ROOT = resolve(fileURLToPath(new URL('.', import.meta.url)), '..');
 const LEDGER_PATH = join(ROOT, 'docs', 'test-cases.json');
@@ -65,8 +103,14 @@ function loadSecretRules(scannerPath = SCANNER_PATH) {
   for (let i = open; i < src.length; i += 1) {
     const ch = src[i];
     const escaped = src[i - 1] === '\\' && src[i - 2] !== '\\';
-    if (inLine) { if (ch === '\n') inLine = false; continue; }
-    if (inStr) { if (ch === inStr && !escaped) inStr = null; continue; }
+    if (inLine) {
+      if (ch === '\n') inLine = false;
+      continue;
+    }
+    if (inStr) {
+      if (ch === inStr && !escaped) inStr = null;
+      continue;
+    }
     if (inRe) {
       // An unescaped `/` inside a character class does NOT end a regex literal. An
       // earlier version missed this and truncated the block mid-rule, recovering 16 of
@@ -78,29 +122,47 @@ function loadSecretRules(scannerPath = SCANNER_PATH) {
       }
       continue;
     }
-    if (ch === '/' && src[i + 1] === '/') { inLine = true; continue; }
-    if (ch === "'" || ch === '"' || ch === '`') { inStr = ch; continue; }
+    if (ch === '/' && src[i + 1] === '/') {
+      inLine = true;
+      continue;
+    }
+    if (ch === "'" || ch === '"' || ch === '`') {
+      inStr = ch;
+      continue;
+    }
     // a regex literal always follows `re:` here, which is enough to disambiguate
-    if (ch === '/' && /re\s*:\s*$/.test(src.slice(Math.max(0, i - 8), i))) { inRe = true; inClass = false; continue; }
+    if (ch === '/' && /re\s*:\s*$/.test(src.slice(Math.max(0, i - 8), i))) {
+      inRe = true;
+      inClass = false;
+      continue;
+    }
     if (ch === '[') depth += 1;
-    else if (ch === ']') { depth -= 1; if (depth === 0) { end = i; break; } }
+    else if (ch === ']') {
+      depth -= 1;
+      if (depth === 0) {
+        end = i;
+        break;
+      }
+    }
   }
   if (end === -1) throw new Error(`the RULES block in ${scannerPath} is not terminated`);
 
   const block = src.slice(open, end + 1);
   const declared = (block.match(/\{\s*id:\s*'/g) ?? []).length;
-  const entry = /\{\s*id:\s*'([^']+)'\s*,\s*re:\s*\/((?:\\.|\[(?:\\.|[^\]])*\]|[^/\\])+)\/([gimsuy]*)\s*,?\s*\}/g;
+  const entry =
+    /\{\s*id:\s*'([^']+)'\s*,\s*re:\s*\/((?:\\.|\[(?:\\.|[^\]])*\]|[^/\\])+)\/([gimsuy]*)\s*,?\s*\}/g;
   const rules = [];
   let m;
   while ((m = entry.exec(block)) !== null) {
     const flags = m[3].includes('g') ? m[3] : `${m[3]}g`;
     rules.push({ id: m[1], re: new RegExp(m[2], flags) });
   }
-  if (rules.length === 0) throw new Error(`parsed zero rules from ${scannerPath}; the rule shape must have changed`);
+  if (rules.length === 0)
+    throw new Error(`parsed zero rules from ${scannerPath}; the rule shape must have changed`);
   if (rules.length !== declared) {
     throw new Error(
       `parsed ${rules.length} secret rules from ${scannerPath} but it declares ${declared}. ` +
-      'Refusing to check the ledger with an incomplete rule list.',
+        'Refusing to check the ledger with an incomplete rule list.',
     );
   }
   return rules;
@@ -114,7 +176,10 @@ function redactSecrets(text, rules) {
   if (typeof text !== 'string' || text === '') return text;
   let out = text;
   for (const rule of rules) {
-    const re = new RegExp(rule.re.source, rule.re.flags.includes('g') ? rule.re.flags : `${rule.re.flags}g`);
+    const re = new RegExp(
+      rule.re.source,
+      rule.re.flags.includes('g') ? rule.re.flags : `${rule.re.flags}g`,
+    );
     out = out.replace(re, (match) => {
       if (rule.id === 'basic-auth-url') {
         const scheme = /^([a-z][a-z0-9+.-]*):\/\//i.exec(match);
@@ -140,7 +205,20 @@ const GATE = ARGS.has('--gate');
 
 const TOTAL_MINIMUM = 500;
 
-/** id prefix -> category. The allowlist is the one in docs/agent-brief.md. */
+/**
+ * id prefix -> default category. The allowlist is the one in docs/agent-brief.md.
+ *
+ * A value of `null` means the prefix is on the allowlist but carries no category of its
+ * own: its cases span several categories, so each one must declare `category` explicitly.
+ *
+ * `SEC` is the only such prefix today. A blanket `SEC -> api_security_privacy` mapping
+ * would have been one line, and wrong for about a third of its 156 cases — credential
+ * AAD and tenant predicate are `auth_tenancy`, approval hashing is `owner_panel`, the
+ * assistant boundary is `budgets_models_maintenance`. A number that is wrong for a third
+ * of its inputs is a false number with a footnote, and footnotes get dropped when a total
+ * is quoted. Renaming 156 ids to encode the category was the other option and is worse:
+ * an id is identity, not metadata. So the category is carried per case instead.
+ */
 const PREFIX_CATEGORY = {
   VERIFY: 'verification_logic',
   CONN: 'connector_contracts',
@@ -154,7 +232,10 @@ const PREFIX_CATEGORY = {
   ADS: 'advertising_analytics',
   RESIL: 'accessibility_resilience',
   DOC: 'stories_release_hygiene',
+  SEC: null,
 };
+
+const hasOwn = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 
 const CATEGORY_MINIMUM = {
   verification_logic: 65,
@@ -184,16 +265,46 @@ const LEVELS = new Set(['unit', 'integration', 'e2e']);
  *   planned     — designed, not yet written
  *   skipped / quarantined — present but not executed; never counted
  */
-const STATUSES = new Set(['planned', 'implemented', 'passing', 'failing', 'skipped', 'quarantined', 'retired']);
+const STATUSES = new Set([
+  'planned',
+  'implemented',
+  'passing',
+  'failing',
+  'skipped',
+  'quarantined',
+  'retired',
+]);
 const COUNTS_TOWARDS_GATE = new Set(['passing']);
 
 const REQUIRED_FIELDS = [
-  'id', 'category', 'level', 'requirement', 'risk', 'risk_source', 'setup', 'expected',
-  'owner_agent', 'implementation_ref', 'provider_backed', 'status', 'countable',
+  'id',
+  'level',
+  'requirement',
+  'risk',
+  'risk_source',
+  'setup',
+  'expected',
+  'owner_agent',
+  'implementation_ref',
+  'provider_backed',
+  'status',
+  'countable',
 ];
-/** Optional: marks a case whose test title is generated at runtime. */
-const OPTIONAL_FIELDS = ['area', 'title_generated'];
-const TEXT_FIELDS = ['requirement', 'risk', 'setup', 'expected', 'owner_agent', 'implementation_ref'];
+/**
+ * Optional fields.
+ *   category        — when present it wins; when absent the prefix default applies.
+ *                     Mandatory for a prefix whose default is `null` (see PREFIX_CATEGORY).
+ *   title_generated — marks a case whose test title is built at runtime.
+ */
+const OPTIONAL_FIELDS = ['area', 'category', 'title_generated'];
+const TEXT_FIELDS = [
+  'requirement',
+  'risk',
+  'setup',
+  'expected',
+  'owner_agent',
+  'implementation_ref',
+];
 const RISK_SOURCES = new Set(['case', 'area']);
 
 /** Real-provider cases cost money and need authorisation. Keep the number tiny. */
@@ -206,8 +317,22 @@ const ID_IN_TITLE = /\b([A-Z]+)-(\d{1,6})\b/g;
 
 /** Tokens shaped like an id that are not one. */
 const NOT_A_CASE_PREFIX = new Set([
-  'SHA', 'AES', 'RSA', 'HMAC', 'UTF', 'ISO', 'RFC', 'WCAG', 'HTTP', 'TLS', 'CVE', 'ECDSA',
-  'PBKDF', 'GBP', 'USD', 'EUR',
+  'SHA',
+  'AES',
+  'RSA',
+  'HMAC',
+  'UTF',
+  'ISO',
+  'RFC',
+  'WCAG',
+  'HTTP',
+  'TLS',
+  'CVE',
+  'ECDSA',
+  'PBKDF',
+  'GBP',
+  'USD',
+  'EUR',
 ]);
 
 const WARN_SAMPLE = 30;
@@ -230,9 +355,13 @@ try {
   console.error(`FATAL  docs/test-cases.json could not be read or parsed: ${error.message}`);
   process.exit(1);
 }
-if (ledger.schema_version !== 1) fail('ledger', `schema_version must be 1, found ${JSON.stringify(ledger.schema_version)}`);
+if (ledger.schema_version !== 1)
+  fail('ledger', `schema_version must be 1, found ${JSON.stringify(ledger.schema_version)}`);
 if (typeof ledger.generated_at !== 'string' || Number.isNaN(Date.parse(ledger.generated_at))) {
-  fail('ledger', `generated_at must be an ISO-8601 timestamp, found ${JSON.stringify(ledger.generated_at)}`);
+  fail(
+    'ledger',
+    `generated_at must be an ISO-8601 timestamp, found ${JSON.stringify(ledger.generated_at)}`,
+  );
 }
 if (!Array.isArray(ledger.cases)) {
   console.error('FATAL  docs/test-cases.json has no `cases` array.');
@@ -254,7 +383,9 @@ try {
   secretRules = loadSecretRules();
 } catch (error) {
   console.error(`FATAL  ${error.message}`);
-  console.error('       The ledger cannot be checked for credential-shaped text, so it is not safe to pass.');
+  console.error(
+    '       The ledger cannot be checked for credential-shaped text, so it is not safe to pass.',
+  );
   process.exit(1);
 }
 for (const c of cases) {
@@ -285,24 +416,96 @@ const numbersByPrefix = new Map();
 const malformedLedgerIds = [];
 const norm = (s) => String(s).replace(/\s+/g, ' ').trim().toLowerCase();
 
+/**
+ * The category actually in force for each case: an explicit `category` wins, otherwise
+ * the prefix default. Keyed by the case object so the counting pass below cannot drift
+ * from the validation pass above.
+ */
+const resolvedCategory = new Map();
+/** Cases whose explicit category differs from their prefix default. Reported, not fatal. */
+const categoryOverrides = [];
+
 for (let index = 0; index < cases.length; index += 1) {
   const c = cases[index];
   const at = `cases[${index}]`;
-  if (c === null || typeof c !== 'object' || Array.isArray(c)) { fail(at, 'case is not an object'); continue; }
+  if (c === null || typeof c !== 'object' || Array.isArray(c)) {
+    fail(at, 'case is not an object');
+    continue;
+  }
   const label = typeof c.id === 'string' && c.id !== '' ? c.id : at;
 
   for (const field of REQUIRED_FIELDS) {
-    if (!Object.prototype.hasOwnProperty.call(c, field)) fail(label, `missing required field \`${field}\``);
+    if (!Object.prototype.hasOwnProperty.call(c, field))
+      fail(label, `missing required field \`${field}\``);
   }
   for (const field of TEXT_FIELDS) {
     const v = c[field];
-    if (v !== undefined && (typeof v !== 'string' || v.trim() === '')) fail(label, `\`${field}\` must be a non-empty string`);
+    if (v !== undefined && (typeof v !== 'string' || v.trim() === ''))
+      fail(label, `\`${field}\` must be a non-empty string`);
   }
   if (typeof c.provider_backed !== 'boolean') fail(label, '`provider_backed` must be a boolean');
   if (typeof c.countable !== 'boolean') fail(label, '`countable` must be a boolean');
   if (c.risk_source !== undefined && !RISK_SOURCES.has(c.risk_source)) {
     fail(label, `risk_source \`${c.risk_source}\` is outside {${[...RISK_SOURCES].join(', ')}}`);
   }
+
+  // -------------------------------------------------------------------------
+  // Category. Resolved from the prefix unless the case names one itself.
+  //
+  // This runs off the LOOSE id form on purpose: a case with a badly-numbered id is
+  // still a case, still belongs to a category, and must still be counted in the
+  // right column of the table even while its id is a tree defect.
+  // -------------------------------------------------------------------------
+  const looseId = typeof c.id === 'string' ? ID_LOOSE.exec(c.id) : null;
+  const prefix = looseId === null ? null : looseId[1];
+  const onAllowlist = prefix !== null && hasOwn(PREFIX_CATEGORY, prefix);
+  const prefixDefault = onAllowlist ? PREFIX_CATEGORY[prefix] : null;
+  const declaredCategory =
+    typeof c.category === 'string' && c.category.trim() !== '' ? c.category : null;
+
+  if (hasOwn(c, 'category') && declaredCategory === null) {
+    fail(label, '`category`, when present, must be a non-empty string');
+  }
+  if (
+    declaredCategory !== null &&
+    declaredCategory !== UNASSIGNED &&
+    !hasOwn(CATEGORY_MINIMUM, declaredCategory)
+  ) {
+    fail(
+      label,
+      `category \`${declaredCategory}\` is outside the twelve-category allowlist {${CATEGORY_ORDER.join(', ')}}`,
+    );
+  }
+  if (prefix !== null) {
+    if (!onAllowlist) {
+      if (declaredCategory !== UNASSIGNED) {
+        fail(
+          label,
+          `prefix \`${prefix}\` is outside the allowlist, so category must be \`${UNASSIGNED}\`, found \`${declaredCategory ?? '(absent)'}\``,
+        );
+      }
+      if (c.countable === true)
+        fail(
+          label,
+          `prefix \`${prefix}\` is outside the allowlist, so this case cannot be countable`,
+        );
+    } else if (declaredCategory === null) {
+      if (prefixDefault === null) {
+        fail(
+          label,
+          `prefix \`${prefix}\` spans several categories and has no default, so this case must declare \`category\` explicitly — one of {${CATEGORY_ORDER.join(', ')}}`,
+        );
+      }
+    } else if (declaredCategory === UNASSIGNED) {
+      fail(
+        label,
+        `prefix \`${prefix}\` is on the allowlist, so \`${UNASSIGNED}\` is not a category it may claim`,
+      );
+    } else if (prefixDefault !== null && declaredCategory !== prefixDefault) {
+      categoryOverrides.push({ id: label, from: prefixDefault, to: declaredCategory });
+    }
+  }
+  resolvedCategory.set(c, declaredCategory ?? prefixDefault ?? UNASSIGNED);
 
   if (typeof c.id !== 'string') {
     fail(at, '`id` must be a string');
@@ -311,22 +514,13 @@ for (let index = 0; index < cases.length; index += 1) {
     if (match === null) {
       // A badly-numbered id in the ledger may be a faithful record of a badly-numbered
       // test title. Which it is depends on the tree, so the verdict is deferred.
-      const loose = ID_LOOSE.exec(c.id);
-      if (loose === null) fail(c.id, 'malformed id: expected PREFIX-NNN with a three-digit zero-padded number');
+      if (looseId === null)
+        fail(c.id, 'malformed id: expected PREFIX-NNN with a three-digit zero-padded number');
       else malformedLedgerIds.push({ id: c.id, countable: c.countable === true });
     } else {
-      const [, prefix, digits] = match;
-      const allowlisted = Object.prototype.hasOwnProperty.call(PREFIX_CATEGORY, prefix);
-      if (!allowlisted) {
-        if (c.category !== UNASSIGNED) {
-          fail(c.id, `prefix \`${prefix}\` is outside the allowlist, so category must be \`${UNASSIGNED}\`, found \`${c.category}\``);
-        }
-        if (c.countable === true) fail(c.id, `prefix \`${prefix}\` is outside the allowlist, so this case cannot be countable`);
-      } else if (c.category !== PREFIX_CATEGORY[prefix]) {
-        fail(c.id, `prefix \`${prefix}\` belongs to \`${PREFIX_CATEGORY[prefix]}\` but the case declares \`${c.category}\``);
-      }
+      const digits = match[2];
       if (digits === '000') fail(c.id, 'case numbering starts at 001');
-      if (allowlisted) {
+      if (onAllowlist) {
         if (!numbersByPrefix.has(prefix)) numbersByPrefix.set(prefix, new Set());
         numbersByPrefix.get(prefix).add(Number(digits));
       }
@@ -334,17 +528,19 @@ for (let index = 0; index < cases.length; index += 1) {
     if (seenIds.has(c.id)) fail(c.id, `duplicate id, first seen at cases[${seenIds.get(c.id)}]`);
     else seenIds.set(c.id, index);
   }
-
-  if (c.category !== undefined && c.category !== UNASSIGNED && !Object.prototype.hasOwnProperty.call(CATEGORY_MINIMUM, c.category)) {
-    fail(label, `category \`${c.category}\` is outside the allowed set`);
-  }
-  if (c.level !== undefined && !LEVELS.has(c.level)) fail(label, `level \`${c.level}\` is outside {${[...LEVELS].join(', ')}}`);
-  if (c.status !== undefined && !STATUSES.has(c.status)) fail(label, `status \`${c.status}\` is outside {${[...STATUSES].join(', ')}}`);
+  if (c.level !== undefined && !LEVELS.has(c.level))
+    fail(label, `level \`${c.level}\` is outside {${[...LEVELS].join(', ')}}`);
+  if (c.status !== undefined && !STATUSES.has(c.status))
+    fail(label, `status \`${c.status}\` is outside {${[...STATUSES].join(', ')}}`);
 
   // The padding detector. Two cases differing only cosmetically are one case.
   if (typeof c.requirement === 'string' && typeof c.setup === 'string') {
     const fp = `${norm(c.requirement)} ||| ${norm(c.setup)}`;
-    if (seenPairs.has(fp)) fail(label, `identical requirement + setup as ${seenPairs.get(fp)} — these are one case, not two`);
+    if (seenPairs.has(fp))
+      fail(
+        label,
+        `identical requirement + setup as ${seenPairs.get(fp)} — these are one case, not two`,
+      );
     else seenPairs.set(fp, label);
   }
 }
@@ -353,26 +549,44 @@ for (let index = 0; index < cases.length; index += 1) {
 // Counts. Only `passing` counts towards the gate.
 // ---------------------------------------------------------------------------
 
-const zero = () => ({ total: 0, passing: 0, failing: 0, planned: 0, implemented: 0, other: 0, counted: 0 });
+const zero = () => ({
+  total: 0,
+  passing: 0,
+  failing: 0,
+  planned: 0,
+  implemented: 0,
+  other: 0,
+  counted: 0,
+});
 const byCategory = new Map(CATEGORY_ORDER.map((k) => [k, zero()]));
 byCategory.set(UNASSIGNED, zero());
 const byLevel = new Map([...LEVELS].map((k) => [k, 0]));
-const levelByCategory = new Map([...CATEGORY_ORDER, UNASSIGNED].map((k) => [k, { unit: 0, integration: 0, e2e: 0 }]));
+const levelByCategory = new Map(
+  [...CATEGORY_ORDER, UNASSIGNED].map((k) => [k, { unit: 0, integration: 0, e2e: 0 }]),
+);
 const statusCounts = new Map();
 let providerBacked = 0;
 let countedTotal = 0;
 
+/** The category in force. Explicit wins; otherwise the prefix default; otherwise unassigned. */
+const categoryOf = (c) => resolvedCategory.get(c) ?? UNASSIGNED;
+
 for (const c of cases) {
-  const bucket = byCategory.get(c.category) ?? byCategory.get(UNASSIGNED);
+  const category = categoryOf(c);
+  const bucket = byCategory.get(category) ?? byCategory.get(UNASSIGNED);
   bucket.total += 1;
   if (c.status === 'passing') bucket.passing += 1;
   else if (c.status === 'failing') bucket.failing += 1;
   else if (c.status === 'planned') bucket.planned += 1;
   else if (c.status === 'implemented') bucket.implemented += 1;
   else bucket.other += 1;
-  if (c.countable === true && COUNTS_TOWARDS_GATE.has(c.status)) { bucket.counted += 1; countedTotal += 1; }
+  if (c.countable === true && COUNTS_TOWARDS_GATE.has(c.status)) {
+    bucket.counted += 1;
+    countedTotal += 1;
+  }
   if (byLevel.has(c.level)) byLevel.set(c.level, byLevel.get(c.level) + 1);
-  if (levelByCategory.has(c.category) && LEVELS.has(c.level)) levelByCategory.get(c.category)[c.level] += 1;
+  if (levelByCategory.has(category) && LEVELS.has(c.level))
+    levelByCategory.get(category)[c.level] += 1;
   statusCounts.set(c.status, (statusCounts.get(c.status) ?? 0) + 1);
   if (c.provider_backed === true) providerBacked += 1;
 }
@@ -384,15 +598,24 @@ for (const category of CATEGORY_ORDER) {
   if (counted < minimum) shortfalls.push({ category, counted, minimum, short: minimum - counted });
 }
 if (countedTotal < TOTAL_MINIMUM) {
-  fail('gate', `${countedTotal} passing countable cases, below the launch minimum of ${TOTAL_MINIMUM} (short by ${TOTAL_MINIMUM - countedTotal})`);
+  fail(
+    'gate',
+    `${countedTotal} passing countable cases, below the launch minimum of ${TOTAL_MINIMUM} (short by ${TOTAL_MINIMUM - countedTotal})`,
+  );
 }
 if (providerBacked > PROVIDER_BACKED_CAP) {
-  fail('gate', `${providerBacked} cases are provider_backed, above the cap of ${PROVIDER_BACKED_CAP}`);
+  fail(
+    'gate',
+    `${providerBacked} cases are provider_backed, above the cap of ${PROVIDER_BACKED_CAP}`,
+  );
 }
 // A provider-backed case may never claim to be passing evidence unless it really ran.
 for (const c of cases) {
   if (c.provider_backed === true && c.status === 'passing' && !ARGS.has('--provider-run')) {
-    warn('gate', `${c.id} is provider_backed and marked passing; confirm it ran against a live account, not a mock`);
+    warn(
+      'gate',
+      `${c.id} is provider_backed and marked passing; confirm it ran against a live account, not a mock`,
+    );
   }
 }
 
@@ -402,12 +625,20 @@ for (const c of cases) {
 
 function walk(dir, out = []) {
   let entries;
-  try { entries = readdirSync(dir); } catch { return out; }
+  try {
+    entries = readdirSync(dir);
+  } catch {
+    return out;
+  }
   for (const entry of entries) {
     if (entry === 'node_modules' || entry === '.git') continue;
     const full = join(dir, entry);
     let st;
-    try { st = statSync(full); } catch { continue; }
+    try {
+      st = statSync(full);
+    } catch {
+      continue;
+    }
     if (st.isDirectory()) walk(full, out);
     else if (/\.(test|spec)\.ts$/.test(entry)) out.push(full);
   }
@@ -419,47 +650,82 @@ const testFiles = walk(TESTS_DIR);
 const implemented = new Map();
 const foreignPrefixes = new Map();
 const malformedInTests = new Map();
-/** Every id-shaped token found anywhere in a test title, however badly formed. */
+/** Every id a test title DECLARES (as opposed to merely mentions). */
 const presentInTree = new Set();
+/**
+ * A title declares exactly one case id, and it is the leading token — the convention in
+ * docs/agent-brief.md: `it('VERIFY-012 returns FAILED when …')`. An id appearing later in
+ * a title is a CROSS-REFERENCE to another agent's case, e.g.
+ *
+ *     it('API-016 refuses to open without an expected AAD (A10 AUTH-114)')
+ *
+ * Counting that as an implementation of AUTH-114 invented four duplicate-id defects out
+ * of nothing — AUTH-114, AUTH-115, AUTH-137 and SEC-431 — and would have had three agents
+ * renaming ids to resolve collisions that do not exist. Measured across the whole tree at
+ * this commit: 2,311 ids lead a title and 2,311 ids appear in one, so no real case is lost
+ * by reading only the leading token.
+ */
+const LEADING_ID = /^\s*([A-Z]+)-(\d{1,6})\b/;
+const crossReferences = [];
 
 for (const file of testFiles) {
   let source;
-  try { source = readFileSync(file, 'utf8'); } catch { continue; }
+  try {
+    source = readFileSync(file, 'utf8');
+  } catch {
+    continue;
+  }
   const rel = relative(ROOT, file).split(sep).join('/');
   let tm;
   TITLE_CALL.lastIndex = 0;
   while ((tm = TITLE_CALL.exec(source)) !== null) {
     const title = tm[2];
+    const lead = LEADING_ID.exec(title);
+    const declaredId =
+      lead !== null && !NOT_A_CASE_PREFIX.has(lead[1]) ? `${lead[1]}-${lead[2]}` : null;
+
+    // Everything after the leading token is a reference, recorded so the distinction is
+    // visible rather than silent.
     let im;
     ID_IN_TITLE.lastIndex = 0;
     while ((im = ID_IN_TITLE.exec(title)) !== null) {
-      const prefix = im[1];
-      const digits = im[2];
-      const id = `${prefix}-${digits}`;
-      if (NOT_A_CASE_PREFIX.has(prefix)) continue;
-      presentInTree.add(id);
-      if (!Object.prototype.hasOwnProperty.call(PREFIX_CATEGORY, prefix)) {
-        if (!foreignPrefixes.has(prefix)) foreignPrefixes.set(prefix, { ids: new Set(), files: new Set() });
-        foreignPrefixes.get(prefix).ids.add(id);
-        foreignPrefixes.get(prefix).files.add(rel);
-        continue;
-      }
-      if (digits.length !== 3 || digits === '000') {
-        if (!malformedInTests.has(id)) malformedInTests.set(id, new Set());
-        malformedInTests.get(id).add(rel);
-        continue;
-      }
-      if (!implemented.has(id)) implemented.set(id, new Set());
-      implemented.get(id).add(rel);
+      if (NOT_A_CASE_PREFIX.has(im[1])) continue;
+      const seen = `${im[1]}-${im[2]}`;
+      if (seen !== declaredId) crossReferences.push({ id: seen, in: declaredId, file: rel });
     }
+
+    if (declaredId === null) continue;
+    const prefix = lead[1];
+    const digits = lead[2];
+    presentInTree.add(declaredId);
+    if (!hasOwn(PREFIX_CATEGORY, prefix)) {
+      if (!foreignPrefixes.has(prefix))
+        foreignPrefixes.set(prefix, { ids: new Set(), files: new Set() });
+      foreignPrefixes.get(prefix).ids.add(declaredId);
+      foreignPrefixes.get(prefix).files.add(rel);
+      continue;
+    }
+    if (digits.length !== 3 || digits === '000') {
+      if (!malformedInTests.has(declaredId)) malformedInTests.set(declaredId, new Set());
+      malformedInTests.get(declaredId).add(rel);
+      continue;
+    }
+    if (!implemented.has(declaredId)) implemented.set(declaredId, new Set());
+    implemented.get(declaredId).add(rel);
   }
 }
 
 for (const [prefix, entry] of [...foreignPrefixes].sort()) {
-  defect('test-tree', `case-id prefix \`${prefix}\` is outside the allowlist: ${entry.ids.size} distinct id(s) across ${entry.files.size} file(s). These cases cannot be counted towards any category until they are renamed. Files: ${[...entry.files].sort().join(', ')}`);
+  defect(
+    'test-tree',
+    `case-id prefix \`${prefix}\` is outside the allowlist: ${entry.ids.size} distinct id(s) across ${entry.files.size} file(s). These cases cannot be counted towards any category until they are renamed. Files: ${[...entry.files].sort().join(', ')}`,
+  );
 }
 for (const [id, files] of [...malformedInTests].sort()) {
-  defect('test-tree', `\`${id}\` is not a well-formed case id (ids are zero-padded to three digits, from 001): ${[...files].sort().join(', ')}`);
+  defect(
+    'test-tree',
+    `\`${id}\` is not a well-formed case id (ids are zero-padded to three digits, from 001): ${[...files].sort().join(', ')}`,
+  );
 }
 
 // One case id must mean one case. The same id in two files is two cases wearing one name.
@@ -467,7 +733,10 @@ const duplicatedInTests = [...implemented.entries()]
   .filter(([, files]) => files.size > 1)
   .map(([id, files]) => ({ id, files: [...files].sort() }));
 for (const { id, files } of duplicatedInTests) {
-  defect('test-tree', `\`${id}\` is used by ${files.length} different test files (${files.join(', ')}) — one id, two cases; only one of them can be counted`);
+  defect(
+    'test-tree',
+    `\`${id}\` is used by ${files.length} different test files (${files.join(', ')}) — one id, two cases; only one of them can be counted`,
+  );
 }
 
 const plannedIds = new Set(seenIds.keys());
@@ -485,7 +754,10 @@ if (implementedNotPlanned.length > 0) {
     }
   }
   for (const [f, ids] of [...byFile].sort()) {
-    defect('test-tree', `${f} carries ${ids.length} case id(s) absent from the ledger (${ids.slice(0, 4).join(', ')}${ids.length > 4 ? ', …' : ''}) — the ledger must describe the suite that exists`);
+    defect(
+      'test-tree',
+      `${f} carries ${ids.length} case id(s) absent from the ledger (${ids.slice(0, 4).join(', ')}${ids.length > 4 ? ', …' : ''}) — the ledger must describe the suite that exists`,
+    );
   }
 }
 
@@ -498,7 +770,10 @@ for (const c of cases) {
   if (c.title_generated === true) {
     // The title is built at runtime, so no static scan can find it. The run record is the
     // evidence. Surfaced rather than trusted silently.
-    warn('reconciliation', `${c.id} has a runtime-generated title, so its only evidence is the recorded run (${c.implementation_ref})`);
+    warn(
+      'reconciliation',
+      `${c.id} has a runtime-generated title, so its only evidence is the recorded run (${c.implementation_ref})`,
+    );
     continue;
   }
   fail(c.id, `status is \`${c.status}\` but no test title in tests/ carries this id`);
@@ -510,7 +785,10 @@ for (const m of malformedLedgerIds) {
     if (m.countable) fail(m.id, 'id is not well formed, so this case cannot be marked countable');
     // otherwise already reported once as a test-tree defect by the scan above
   } else {
-    fail(m.id, 'malformed id and no test title carries it: expected PREFIX-NNN, zero-padded to three digits');
+    fail(
+      m.id,
+      'malformed id and no test title carries it: expected PREFIX-NNN, zero-padded to three digits',
+    );
   }
 }
 
@@ -593,39 +871,63 @@ for (const c of cases) {
 
 // Internal consistency. If these ever disagree the whole report is worthless.
 if (accounting.discovered + accounting.planned !== cases.length) {
-  fail('accounting', `discovered (${accounting.discovered}) + planned (${accounting.planned}) != ledger entries (${cases.length})`);
+  fail(
+    'accounting',
+    `discovered (${accounting.discovered}) + planned (${accounting.planned}) != ledger entries (${cases.length})`,
+  );
 }
 if (accounting.executed + accounting.not_executed + accounting.planned !== cases.length) {
-  fail('accounting', `executed (${accounting.executed}) + not executed (${accounting.not_executed}) + planned (${accounting.planned}) != ledger entries (${cases.length})`);
+  fail(
+    'accounting',
+    `executed (${accounting.executed}) + not executed (${accounting.not_executed}) + planned (${accounting.planned}) != ledger entries (${cases.length})`,
+  );
 }
-if (accounting.passing + accounting.failing + accounting.skipped + accounting.quarantined !== accounting.executed) {
+if (
+  accounting.passing + accounting.failing + accounting.skipped + accounting.quarantined !==
+  accounting.executed
+) {
   fail('accounting', 'passing + failing + skipped + quarantined != executed');
 }
 if (accounting.countable + accounting.passing_not_countable !== accounting.passing) {
   fail('accounting', 'countable + passing-not-countable != passing');
 }
 if (accounting.countable !== countedTotal) {
-  fail('accounting', `countable (${accounting.countable}) disagrees with the category roll-up (${countedTotal})`);
+  fail(
+    'accounting',
+    `countable (${accounting.countable}) disagrees with the category roll-up (${countedTotal})`,
+  );
 }
 for (const [reason, ids] of exclusionReasons) {
   if (reason.startsWith('UNEXPLAINED')) {
-    fail('accounting', `${ids.length} passing case(s) are not countable for no identifiable reason: ${ids.slice(0, 10).join(', ')}`);
+    fail(
+      'accounting',
+      `${ids.length} passing case(s) are not countable for no identifiable reason: ${ids.slice(0, 10).join(', ')}`,
+    );
   }
 }
 
 const summary = {
   snapshot_commit: ledger.snapshot_commit ?? null,
   accounting,
-  exclusions: Object.fromEntries([...exclusionReasons].map(([reason, ids]) => [reason, { count: ids.length, ids }])),
+  exclusions: Object.fromEntries(
+    [...exclusionReasons].map(([reason, ids]) => [reason, { count: ids.length, ids }]),
+  ),
   ledger_entries: cases.length,
   counted_passing: countedTotal,
   total_minimum: TOTAL_MINIMUM,
   floor_met_overall: countedTotal >= TOTAL_MINIMUM,
+  /** The twelve floors, exported so a consumer never has to restate them. */
+  category_minimums: CATEGORY_MINIMUM,
+  prefix_categories: PREFIX_CATEGORY,
   categories_below_floor: shortfalls,
-  by_category: Object.fromEntries([...CATEGORY_ORDER, UNASSIGNED].map((k) => [k, byCategory.get(k)])),
+  by_category: Object.fromEntries(
+    [...CATEGORY_ORDER, UNASSIGNED].map((k) => [k, byCategory.get(k)]),
+  ),
   by_level: Object.fromEntries([...byLevel]),
   by_status: Object.fromEntries([...statusCounts].sort()),
   provider_backed: providerBacked,
+  category_overrides: categoryOverrides,
+  cross_references_in_titles: crossReferences.length,
   test_files_scanned: testFiles.length,
   reconciliation: {
     in_ledger: plannedIds.size,
@@ -646,55 +948,117 @@ if (AS_JSON) {
   const lp = (s, n) => String(s).padStart(n);
   console.log('');
   console.log('ITISYOU Verify — release test ledger');
-  console.log(`  ledger      docs/test-cases.json (generated ${ledger.generated_at}${ledger.snapshot_commit ? `, snapshot ${ledger.snapshot_commit}` : ''})`);
+  console.log(
+    `  ledger      docs/test-cases.json (generated ${ledger.generated_at}${ledger.snapshot_commit ? `, snapshot ${ledger.snapshot_commit}` : ''})`,
+  );
   console.log(`  test tree   tests/ — ${testFiles.length} file(s) scanned`);
+  console.log(`  reading of  ${treeLabel()}`);
+  console.log('  NOT a gate result. The gate number is produced by CI on a clean checkout and');
+  console.log('  lives in the release-gate-<sha> artefact; scripts/release.mjs enforces that.');
   console.log('');
-  console.log(`  ${pad('category', 30)}${lp('total', 7)}${lp('pass', 7)}${lp('fail', 6)}${lp('plan', 6)}${lp('unmeas', 8)}${lp('min', 6)}${lp('COUNTED', 9)}  verdict`);
+  console.log(
+    `  ${pad('category', 30)}${lp('total', 7)}${lp('pass', 7)}${lp('fail', 6)}${lp('plan', 6)}${lp('unmeas', 8)}${lp('min', 6)}${lp('COUNTED', 9)}  verdict`,
+  );
   console.log(`  ${'-'.repeat(30)}${'-'.repeat(49)}  -------`);
   for (const category of CATEGORY_ORDER) {
     const b = byCategory.get(category);
     const min = CATEGORY_MINIMUM[category];
     const v = b.counted >= min ? 'ok' : `SHORT by ${min - b.counted}`;
-    console.log(`  ${pad(category, 30)}${lp(b.total, 7)}${lp(b.passing, 7)}${lp(b.failing, 6)}${lp(b.planned, 6)}${lp(b.implemented, 8)}${lp(min, 6)}${lp(b.counted, 9)}  ${v}`);
+    console.log(
+      `  ${pad(category, 30)}${lp(b.total, 7)}${lp(b.passing, 7)}${lp(b.failing, 6)}${lp(b.planned, 6)}${lp(b.implemented, 8)}${lp(min, 6)}${lp(b.counted, 9)}  ${v}`,
+    );
   }
   const u = byCategory.get(UNASSIGNED);
   if (u.total > 0) {
-    console.log(`  ${pad(UNASSIGNED + ' (off-allowlist)', 30)}${lp(u.total, 7)}${lp(u.passing, 7)}${lp(u.failing, 6)}${lp(u.planned, 6)}${lp(u.implemented, 8)}${lp('-', 6)}${lp(0, 9)}  NOT COUNTABLE`);
+    console.log(
+      `  ${pad(UNASSIGNED + ' (off-allowlist)', 30)}${lp(u.total, 7)}${lp(u.passing, 7)}${lp(u.failing, 6)}${lp(u.planned, 6)}${lp(u.implemented, 8)}${lp('-', 6)}${lp(0, 9)}  NOT COUNTABLE`,
+    );
   }
   console.log(`  ${'-'.repeat(88)}`);
-  console.log(`  ${pad('TOTAL', 30)}${lp(cases.length, 7)}${lp(statusCounts.get('passing') ?? 0, 7)}${lp(statusCounts.get('failing') ?? 0, 6)}${lp(statusCounts.get('planned') ?? 0, 6)}${lp(statusCounts.get('implemented') ?? 0, 8)}${lp(TOTAL_MINIMUM, 6)}${lp(countedTotal, 9)}  ${countedTotal >= TOTAL_MINIMUM ? 'floor met' : 'FLOOR NOT MET'}`);
+  console.log(
+    `  ${pad('TOTAL', 30)}${lp(cases.length, 7)}${lp(statusCounts.get('passing') ?? 0, 7)}${lp(statusCounts.get('failing') ?? 0, 6)}${lp(statusCounts.get('planned') ?? 0, 6)}${lp(statusCounts.get('implemented') ?? 0, 8)}${lp(TOTAL_MINIMUM, 6)}${lp(countedTotal, 9)}  ${countedTotal >= TOTAL_MINIMUM ? 'floor met' : 'FLOOR NOT MET'}`,
+  );
   console.log('');
-  console.log(`  levels      ${[...byLevel].sort().map(([k, v]) => `${k}=${v}`).join('  ')}`);
-  console.log(`  provider    ${providerBacked} provider-backed case(s), cap ${PROVIDER_BACKED_CAP}`);
+  console.log(
+    `  levels      ${[...byLevel]
+      .sort()
+      .map(([k, v]) => `${k}=${v}`)
+      .join('  ')}`,
+  );
+  console.log(
+    `  provider    ${providerBacked} provider-backed case(s), cap ${PROVIDER_BACKED_CAP}`,
+  );
+  const explicit = cases.filter(
+    (c) => typeof c?.category === 'string' && c.category.trim() !== '',
+  ).length;
+  const noDefault = Object.entries(PREFIX_CATEGORY)
+    .filter(([, v]) => v === null)
+    .map(([k]) => k);
+  console.log(
+    `  category    ${explicit} case(s) declare a category explicitly; the rest take their prefix default`,
+  );
+  if (noDefault.length > 0) {
+    console.log(
+      `              prefix ${noDefault.map((p) => `\`${p}\``).join(', ')} has no default — every such case must declare one`,
+    );
+  }
+  if (categoryOverrides.length > 0) {
+    console.log(
+      `              ${categoryOverrides.length} case(s) override a prefix default: ${categoryOverrides
+        .slice(0, 6)
+        .map((o) => `${o.id} ${o.from}→${o.to}`)
+        .join(', ')}${categoryOverrides.length > 6 ? ', …' : ''}`,
+    );
+  }
+  if (crossReferences.length > 0) {
+    console.log(
+      `  references  ${crossReferences.length} title(s) mention another case id after their own; a mention is not an implementation`,
+    );
+    for (const r of crossReferences.slice(0, 6))
+      console.log(`              ${r.id} referenced by ${r.in ?? '(untitled)'} in ${r.file}`);
+  }
   console.log('');
   console.log('  Counted = countable AND status passing. A skip, a quarantine, an unmeasured');
   console.log('  case and an off-allowlist prefix are all worth zero.');
   console.log('');
   if (shortfalls.length > 0) {
     console.log(`  ${shortfalls.length} category/categories below floor:`);
-    for (const s of shortfalls) console.log(`    ${s.category}: ${s.counted} counted against a floor of ${s.minimum} (short by ${s.short})`);
+    for (const s of shortfalls)
+      console.log(
+        `    ${s.category}: ${s.counted} counted against a floor of ${s.minimum} (short by ${s.short})`,
+      );
     console.log('');
   }
   const n = (v) => String(v).padStart(6);
   console.log('  Case accounting — one release commit, one terminal bucket per case');
   console.log('');
-  console.log(`    discovered   (a test carrying the id exists)        ${n(accounting.discovered)}`);
+  console.log(
+    `    discovered   (a test carrying the id exists)        ${n(accounting.discovered)}`,
+  );
   console.log(`  + planned      (designed, no test written yet)        ${n(accounting.planned)}`);
   console.log(`  = ledger entries                                      ${n(cases.length)}`);
   console.log('');
-  console.log(`    discovered                                          ${n(accounting.discovered)}`);
+  console.log(
+    `    discovered                                          ${n(accounting.discovered)}`,
+  );
   console.log(`      executed     (ran in the recorded run)            ${n(accounting.executed)}`);
-  console.log(`      not executed (exists, absent from that run)       ${n(accounting.not_executed)}`);
+  console.log(
+    `      not executed (exists, absent from that run)       ${n(accounting.not_executed)}`,
+  );
   console.log('');
   console.log(`    executed                                            ${n(accounting.executed)}`);
   console.log(`      passing                                           ${n(accounting.passing)}`);
   console.log(`      failing                                           ${n(accounting.failing)}`);
   console.log(`      skipped      (declared skip)                      ${n(accounting.skipped)}`);
-  console.log(`      quarantined  (known flaky, excluded)              ${n(accounting.quarantined)}`);
+  console.log(
+    `      quarantined  (known flaky, excluded)              ${n(accounting.quarantined)}`,
+  );
   console.log('');
   console.log(`    passing                                             ${n(accounting.passing)}`);
   console.log(`      countable    (counts toward the 500 floor)        ${n(accounting.countable)}`);
-  console.log(`      excluded                                          ${n(accounting.passing_not_countable)}`);
+  console.log(
+    `      excluded                                          ${n(accounting.passing_not_countable)}`,
+  );
   if (exclusionReasons.size === 0) {
     console.log('        (none — every passing case counts)');
   } else {
@@ -705,13 +1069,24 @@ if (AS_JSON) {
         byPrefix.set(p, (byPrefix.get(p) ?? 0) + 1);
       }
       console.log(`        ${String(ids.length).padStart(4)}  ${reason}`);
-      console.log(`              ${[...byPrefix].sort().map(([p, c]) => `${p}=${c}`).join(', ')}  e.g. ${ids.slice(0, 4).join(', ')}`);
+      console.log(
+        `              ${[...byPrefix]
+          .sort()
+          .map(([p, c]) => `${p}=${c}`)
+          .join(', ')}  e.g. ${ids.slice(0, 4).join(', ')}`,
+      );
     }
   }
   console.log('');
-  console.log(`    by runner    vitest=${accounting.by_runner.vitest}  playwright=${accounting.by_runner.playwright}  not-run=${accounting.by_runner.none}`);
-  console.log(`    passing      vitest=${accounting.passing_by_runner.vitest}  playwright=${accounting.passing_by_runner.playwright}`);
-  console.log(`    The vitest-only passing figure (${accounting.passing_by_runner.vitest}) is what`);
+  console.log(
+    `    by runner    vitest=${accounting.by_runner.vitest}  playwright=${accounting.by_runner.playwright}  not-run=${accounting.by_runner.none}`,
+  );
+  console.log(
+    `    passing      vitest=${accounting.passing_by_runner.vitest}  playwright=${accounting.passing_by_runner.playwright}`,
+  );
+  console.log(
+    `    The vitest-only passing figure (${accounting.passing_by_runner.vitest}) is what`,
+  );
   console.log('    scripts/build-test-report.mjs reports: it does not read the Playwright run.');
   console.log('');
   console.log('  Reconciliation (ledger vs case ids in test titles)');
@@ -724,14 +1099,18 @@ if (AS_JSON) {
 }
 
 if (defects.length > 0 && !AS_JSON) {
-  console.log(`  ${defects.length} reconciliation defect(s)${STRICT ? ' (fatal under --strict)' : ' (not fatal without --strict)'}:`);
-  for (const d of defects.slice(0, WARN_SAMPLE)) console.log(`    DEFECT  [${d.where}] ${d.message}`);
+  console.log(
+    `  ${defects.length} reconciliation defect(s)${STRICT ? ' (fatal under --strict)' : ' (not fatal without --strict)'}:`,
+  );
+  for (const d of defects.slice(0, WARN_SAMPLE))
+    console.log(`    DEFECT  [${d.where}] ${d.message}`);
   if (defects.length > WARN_SAMPLE) console.log(`    …and ${defects.length - WARN_SAMPLE} more`);
   console.log('');
 }
 if (warnings.length > 0 && !AS_JSON && !QUIET) {
   console.log(`  ${warnings.length} warning(s):`);
-  for (const w of warnings.slice(0, WARN_SAMPLE)) console.log(`    WARN  [${w.where}] ${w.message}`);
+  for (const w of warnings.slice(0, WARN_SAMPLE))
+    console.log(`    WARN  [${w.where}] ${w.message}`);
   if (warnings.length > WARN_SAMPLE) console.log(`    …and ${warnings.length - WARN_SAMPLE} more`);
   console.log('');
 }
@@ -749,7 +1128,9 @@ if (STRICT && defects.length > 0) {
   process.exit(1);
 }
 if (GATE && shortfalls.length > 0) {
-  console.error(`  --gate: ${shortfalls.length} category/categories are below their floor on cases that actually passed.`);
+  console.error(
+    `  --gate: ${shortfalls.length} category/categories are below their floor on cases that actually passed.`,
+  );
   process.exit(1);
 }
 
@@ -757,8 +1138,13 @@ if (!AS_JSON) {
   const caveats = [];
   if (defects.length > 0) caveats.push(`${defects.length} reconciliation defect(s)`);
   if (shortfalls.length > 0) caveats.push(`${shortfalls.length} category/categories below floor`);
-  console.log(`  Ledger integrity: PASS${caveats.length > 0 ? `  (outstanding: ${caveats.join('; ')} — run --strict --gate at the release gate)` : ''}`);
-  console.log('  A sound ledger proves the count is honest. It does not make a failing suite green.');
+  console.log(
+    `  Ledger integrity: PASS${caveats.length > 0 ? `  (outstanding: ${caveats.join('; ')} — run --strict --gate at the release gate)` : ''}`,
+  );
+  console.log(
+    '  A sound ledger proves the count is honest. It does not make a failing suite green.',
+  );
+  console.log(`  These totals are a reading of ${treeLabel()} — not a gate result.`);
   console.log('');
 }
 process.exit(0);

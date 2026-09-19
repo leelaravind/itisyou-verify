@@ -45,13 +45,27 @@ function item(overrides: Partial<InventoryItem> = {}): InventoryItem {
 const OWNED = [
   item({ resourceId: 'sess_expired_1' }),
   item({ resourceId: 'sess_expired_2' }),
-  item({ resourceId: 'ws_synth_1', kind: 'workspace', category: 'synthetic_workspaces', estimatedBytes: 4096, quarantineAvailable: true }),
+  item({
+    resourceId: 'ws_synth_1',
+    kind: 'workspace',
+    category: 'synthetic_workspaces',
+    estimatedBytes: 4096,
+    quarantineAvailable: true,
+  }),
 ];
 
 const FORBIDDEN = [
   item({ resourceId: 'ws_real_customer', category: 'synthetic_workspaces', isCustomerData: true }),
-  item({ resourceId: 'evd_retained', category: 'synthetic_workspaces', retentionConstraint: 'evidence is kept for 30 days' }),
-  item({ resourceId: 'other-project-bucket', category: 'synthetic_workspaces', ownershipTag: 'unrelated-project' }),
+  item({
+    resourceId: 'evd_retained',
+    category: 'synthetic_workspaces',
+    retentionConstraint: 'evidence is kept for 30 days',
+  }),
+  item({
+    resourceId: 'other-project-bucket',
+    category: 'synthetic_workspaces',
+    ownershipTag: 'unrelated-project',
+  }),
 ];
 
 function scanner(items: readonly InventoryItem[]) {
@@ -59,7 +73,10 @@ function scanner(items: readonly InventoryItem[]) {
 }
 
 async function preview(items: readonly InventoryItem[], categories: readonly string[]) {
-  const result = await previewCleanup({ categories, environment: ENV }, { scan: scanner(items), now: NOW });
+  const result = await previewCleanup(
+    { categories, environment: ENV },
+    { scan: scanner(items), now: NOW },
+  );
   if (!result.ok) throw new Error(`preview failed: ${result.detail}`);
   return result.inventory;
 }
@@ -67,7 +84,11 @@ async function preview(items: readonly InventoryItem[], categories: readonly str
 describe('safe cleanup', () => {
   it('OWNER-080 the preview lists exact resource ids, never a pattern', async () => {
     const inventory = await preview(OWNED, ['expired_sessions', 'synthetic_workspaces']);
-    expect(inventory.items.map((i) => i.resourceId).sort()).toEqual(['sess_expired_1', 'sess_expired_2', 'ws_synth_1']);
+    expect(inventory.items.map((i) => i.resourceId).sort()).toEqual([
+      'sess_expired_1',
+      'sess_expired_2',
+      'ws_synth_1',
+    ]);
     for (const entry of inventory.items) {
       expect(entry.resourceId).not.toContain('*');
       expect(entry.resourceId).not.toContain('%');
@@ -87,7 +108,10 @@ describe('safe cleanup', () => {
   });
 
   it('OWNER-082 real customer data is excluded from the inventory and the exclusion is shown', async () => {
-    const inventory = await preview([...OWNED, ...FORBIDDEN], ['expired_sessions', 'synthetic_workspaces']);
+    const inventory = await preview(
+      [...OWNED, ...FORBIDDEN],
+      ['expired_sessions', 'synthetic_workspaces'],
+    );
     expect(inventory.items.map((i) => i.resourceId)).not.toContain('ws_real_customer');
     expect(inventory.excluded.map((e) => e.resourceId)).toContain('ws_real_customer');
   });
@@ -102,18 +126,25 @@ describe('safe cleanup', () => {
   it('OWNER-084 another project’s resource is excluded and named as not ours', async () => {
     const inventory = await preview([...OWNED, ...FORBIDDEN], ['synthetic_workspaces']);
     expect(inventory.items.map((i) => i.resourceId)).not.toContain('other-project-bucket');
-    const reason = inventory.excluded.find((e) => e.resourceId === 'other-project-bucket')?.why ?? '';
+    const reason =
+      inventory.excluded.find((e) => e.resourceId === 'other-project-bucket')?.why ?? '';
     expect(reason).toMatch(/does not belong to this project/i);
   });
 
   it('OWNER-085 a resource from another environment is excluded', async () => {
-    const inventory = await preview([item({ resourceId: 'prod_session', environment: 'production' })], ['expired_sessions']);
+    const inventory = await preview(
+      [item({ resourceId: 'prod_session', environment: 'production' })],
+      ['expired_sessions'],
+    );
     expect(inventory.items).toHaveLength(0);
     expect(inventory.excluded[0]?.why).toMatch(/production/);
   });
 
   it('OWNER-086 a category outside the allowlist is refused, and there is no wildcard', async () => {
-    const result = await previewCleanup({ categories: ['*'], environment: ENV }, { scan: scanner(OWNED), now: NOW });
+    const result = await previewCleanup(
+      { categories: ['*'], environment: ENV },
+      { scan: scanner(OWNED), now: NOW },
+    );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('unreachable');
     expect(result.reason).toBe('unknown_category');
@@ -122,16 +153,25 @@ describe('safe cleanup', () => {
   });
 
   it('OWNER-087 a preview with no categories does nothing', async () => {
-    const result = await previewCleanup({ categories: [], environment: ENV }, { scan: scanner(OWNED), now: NOW });
+    const result = await previewCleanup(
+      { categories: [], environment: ENV },
+      { scan: scanner(OWNED), now: NOW },
+    );
     if (result.ok) throw new Error('unreachable');
     expect(result.reason).toBe('no_categories');
   });
 
   it('OWNER-088 the inventory hash ignores ordering but not membership', async () => {
     const a = await inventoryHash(OWNED, { categories: ['expired_sessions'], environment: ENV });
-    const b = await inventoryHash([...OWNED].reverse(), { categories: ['expired_sessions'], environment: ENV });
+    const b = await inventoryHash([...OWNED].reverse(), {
+      categories: ['expired_sessions'],
+      environment: ENV,
+    });
     expect(a).toBe(b);
-    const c = await inventoryHash(OWNED.slice(0, 2), { categories: ['expired_sessions'], environment: ENV });
+    const c = await inventoryHash(OWNED.slice(0, 2), {
+      categories: ['expired_sessions'],
+      environment: ENV,
+    });
     expect(a).not.toBe(c);
   });
 
@@ -139,7 +179,11 @@ describe('safe cleanup', () => {
     const inventory = await preview(OWNED, ['expired_sessions']);
     const removed: string[] = [];
     const result = await executeCleanup(
-      { runId: 'clr_1', approvedInventoryHash: 'a-hash-from-before', quarantineInsteadOfDelete: false },
+      {
+        runId: 'clr_1',
+        approvedInventoryHash: 'a-hash-from-before',
+        quarantineInsteadOfDelete: false,
+      },
       {
         rescan: async () => inventory,
         verify: async () => true,
@@ -158,7 +202,10 @@ describe('safe cleanup', () => {
 
   it('OWNER-090 an inventory that grew between preview and execution rejects the run', async () => {
     const approved = await preview(OWNED, ['expired_sessions']);
-    const grown = await preview([...OWNED, item({ resourceId: 'sess_expired_3' })], ['expired_sessions']);
+    const grown = await preview(
+      [...OWNED, item({ resourceId: 'sess_expired_3' })],
+      ['expired_sessions'],
+    );
     const result = await executeCleanup(
       { runId: 'clr_2', approvedInventoryHash: approved.hash, quarantineInsteadOfDelete: false },
       {
@@ -213,7 +260,11 @@ describe('safe cleanup', () => {
       },
     );
     if (!result.ok) throw new Error('unreachable');
-    expect(order).toEqual(['verify:sess_expired_1', 'remove:sess_expired_1', 'verify:sess_expired_2']);
+    expect(order).toEqual([
+      'verify:sess_expired_1',
+      'remove:sess_expired_1',
+      'verify:sess_expired_2',
+    ]);
     expect(result.report.deleted).toBe(1);
     expect(result.report.skipped).toBe(1);
     const skipped = result.report.resources.find((r) => r.resourceId === 'sess_expired_2');
@@ -225,7 +276,9 @@ describe('safe cleanup', () => {
     // Something turned this row into customer data after the preview was taken.
     const poisoned: CleanupInventory = {
       ...inventory,
-      items: inventory.items.map((i) => (i.resourceId === 'sess_expired_1' ? { ...i, isCustomerData: true } : i)),
+      items: inventory.items.map((i) =>
+        i.resourceId === 'sess_expired_1' ? { ...i, isCustomerData: true } : i,
+      ),
     };
     const removed: string[] = [];
     const result = await executeCleanup(
@@ -242,7 +295,9 @@ describe('safe cleanup', () => {
     );
     if (!result.ok) throw new Error('unreachable');
     expect(removed).not.toContain('sess_expired_1');
-    expect(result.report.resources.find((r) => r.resourceId === 'sess_expired_1')?.outcome).toBe('skipped_out_of_scope');
+    expect(result.report.resources.find((r) => r.resourceId === 'sess_expired_1')?.outcome).toBe(
+      'skipped_out_of_scope',
+    );
   });
 
   it('OWNER-094 an interrupted run reports partial and never claims completion', async () => {
@@ -295,7 +350,11 @@ describe('safe cleanup', () => {
         runId: 'clr_8',
         approvedInventoryHash: inventory.hash,
         quarantineInsteadOfDelete: false,
-        resumeFrom: { handled: ['sess_expired_1'], remaining: ['sess_expired_2', 'ws_synth_1'], inventoryHash: inventory.hash },
+        resumeFrom: {
+          handled: ['sess_expired_1'],
+          remaining: ['sess_expired_2', 'ws_synth_1'],
+          inventoryHash: inventory.hash,
+        },
       },
       {
         rescan: async () => inventory,

@@ -17,7 +17,7 @@
  * being rendered because it stops being *true* — not because it stops being convenient.
  */
 import { attrs, html, type Html } from '../html.js';
-import { SERVICE_ACTIVATION_NOTICE } from '../content/site.js';
+import { PROVIDER_PROOF_NOTICE, SERVICE_ACTIVATION_NOTICE } from '../content/site.js';
 import { Callout } from './card.js';
 
 /**
@@ -33,6 +33,25 @@ export function ActivationNotice(): Html {
     tone: 'warn',
     title: SERVICE_ACTIVATION_NOTICE.headline,
     body: html`<p data-activation-notice>${SERVICE_ACTIVATION_NOTICE.body}</p>`,
+  });
+}
+
+/**
+ * A01's provider-proof notice, at full size.
+ *
+ * `limit`, not `warn`: this is a stated boundary of what has been proven, not an outage.
+ * It belongs on every page that tells a reader we read their records back from HubSpot and
+ * Resend — the home page, how it works, and security — because that sentence is the
+ * product, and "we have never actually done this against a real account" is the single most
+ * material thing a buyer could want to know about it.
+ *
+ * Never inside a `<details>`, never abbreviated to "in beta".
+ */
+export function ProviderProofNotice(): Html {
+  return Callout({
+    tone: 'limit',
+    title: PROVIDER_PROOF_NOTICE.headline,
+    body: html`<p data-provider-proof-notice>${PROVIDER_PROOF_NOTICE.body}</p>`,
   });
 }
 

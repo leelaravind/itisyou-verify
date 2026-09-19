@@ -47,7 +47,11 @@ export function formatInstant(iso: string | null | undefined): string {
   if (iso === null || iso === undefined || iso === '') return 'not recorded';
   const ms = Date.parse(iso);
   if (Number.isNaN(ms)) return 'not recorded';
-  return `${new Date(ms).toISOString().replace('T', ' ').replace('.000Z', '')} UTC`;
+  // Strip *any* fractional second, not the literal `.000Z`. An instant taken from
+  // `new Date()` almost never has a zero millisecond, so the old spelling rendered
+  // `2026-09-19 12:10:15.869Z UTC` — a string carrying both a `Z` and a `UTC`, which is not
+  // a format. Found on a screenshot of /app/usage, not by reading this line.
+  return `${new Date(ms).toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, '')} UTC`;
 }
 
 /** A duration a person can read, from seconds. */

@@ -42,6 +42,7 @@ import {
   SyntheticCustomerDataPort,
   maskedAccountLabel,
 } from './syntheticPort.js';
+import { SELECTABLE_COVERAGE_MODES } from '@verify/domain';
 import type { CoverageMode } from '@verify/contracts';
 import type { CustomerDataPort, ProofRunView, SupportResult, WriteResult } from './port.js';
 import { html, type Html } from '@verify/ui';
@@ -367,9 +368,17 @@ export function createAppRoutes(resolve: PortResolver = syntheticResolver): Hono
         requireCorrelationMatch: checked(body, 'requireCorrelationMatch'),
         requireEmailDelivered: checked(body, 'requireEmailDelivered'),
         requireRecipientMatch: checked(body, 'requireRecipientMatch'),
-        coverageMode: (body['coverageMode'] === 'independently_sourced'
-          ? 'independently_sourced'
-          : 'customer_triggered') as CoverageMode,
+        // Resolved against what the domain says is selectable, not against a literal.
+        // A hand-posted form (the control is gone from the page, the HTTP request is not)
+        // asking for `independently_sourced` gets the coverage we can actually deliver
+        // rather than a stored promise nothing implements. Never trust a browser-supplied
+        // entitlement — brief rule 5 — and a coverage mode is an entitlement to a
+        // capability.
+        coverageMode: (SELECTABLE_COVERAGE_MODES as readonly string[]).includes(
+          body['coverageMode'] ?? '',
+        )
+          ? (body['coverageMode'] as CoverageMode)
+          : ('customer_triggered' as CoverageMode),
       });
       if (result.ok) return c.redirect(result.redirectTo ?? '/app/onboarding/proof', 303);
       const workflow = await port.workflow();

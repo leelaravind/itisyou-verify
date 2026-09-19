@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_standard" name="shell-type"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@500;600&amp;family=Plus+Jakarta+Sans:wght@600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { "colors": { "surface-variant": "#31353f", "on-secondary": "#003640", "on-primary": "#003824", "surface-tint": "#4edea3", "surface-container-low": "#181b25", "surface-container-highest": "#31353f", "on-error-container": "#ffdad6", "tertiary": "#ffb95f", "surface-container-high": "#262a34", "secondary": "#4cd7f6", "primary-fixed-dim": "#4edea3", "surface-dim": "#0f131c", "inverse-surface": "#dfe2ef", "on-tertiary-fixed-variant": "#653e00", "on-tertiary-fixed": "#2a1700", "tertiary-container": "#e29100", "error": "#ffb4ab", "on-primary-fixed-variant": "#005236", "surface-container-lowest": "#0a0e17", "secondary-fixed-dim": "#4cd7f6", "primary-fixed": "#6ffbbe", "primary-container": "#10b981", "tertiary-fixed": "#ffddb8", "outline": "#86948a", "on-primary-fixed": "#002113", "inverse-primary": "#006c49", "on-secondary-container": "#00424e", "on-primary-container": "#00422b", "surface": "#0f131c", "surface-container": "#1c1f29", "secondary-container": "#03b5d3", "outline-variant": "#3c4a42", "error-container": "#93000a", "on-secondary-fixed-variant": "#004e5c", "on-tertiary-container": "#523200", "surface-bright": "#353943", "on-surface-variant": "#bbcabf", "on-secondary-fixed": "#001f26", "background": "#0f131c", "on-surface": "#dfe2ef", "secondary-fixed": "#acedff", "on-background": "#dfe2ef", "primary": "#4edea3", "inverse-on-surface": "#2c303a", "on-tertiary": "#472a00", "on-error": "#690005", "tertiary-fixed-dim": "#ffb95f" }, "borderRadius": { "DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem" }, "spacing": { "space-xs": "0.25rem", "space-lg": "1.5rem", "gutter": "1.5rem", "margin-lg": "4rem", "margin-sm": "1rem", "margin": "2rem", "gutter-sm": "1rem", "space-xl": "2.5rem", "space-md": "1rem", "gutter-lg": "2rem", "space-sm": "0.5rem" }, "fontFamily": { "headline-lg": [ "Plus Jakarta Sans" ], "body-sm": [ "Inter" ], "label-code-lg": [ "JetBrains Mono" ], "label-code-md": [ "JetBrains Mono" ], "display-lg-mobile": [ "Plus Jakarta Sans" ], "display-md-mobile": [ "Plus Jakarta Sans" ], "headline-sm": [ "Plus Jakarta Sans" ], "display-md": [ "Plus Jakarta Sans" ], "headline-xl": [ "Plus Jakarta Sans" ], "display-lg": [ "Plus Jakarta Sans" ], "label-code-sm": [ "JetBrains Mono" ], "body-lg": [ "Inter" ], "body-md": [ "Inter" ] }, "fontSize": { "headline-lg": [ "24px", { "lineHeight": "32px", "letterSpacing": "-0.015em", "fontWeight": "600" } ], "body-sm": [ "13px", { "lineHeight": "18px", "letterSpacing": "0.005em", "fontWeight": "400" } ], "label-code-lg": [ "14px", { "lineHeight": "20px", "letterSpacing": "-0.01em", "fontWeight": "500" } ], "label-code-md": [ "12px", { "lineHeight": "16px", "letterSpacing": "0em", "fontWeight": "500" } ], "display-lg-mobile": [ "36px", { "lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "700" } ], "display-md-mobile": [ "28px", { "lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "600" } ], "headline-sm": [ "18px", { "lineHeight": "26px", "letterSpacing": "-0.01em", "fontWeight": "600" } ], "display-md": [ "40px", { "lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "600" } ], "headline-xl": [ "30px", { "lineHeight": "38px", "letterSpacing": "-0.02em", "fontWeight": "600" } ], "display-lg": [ "56px", { "lineHeight": "64px", "letterSpacing": "-0.03em", "fontWeight": "700" } ], "label-code-sm": [ "11px", { "lineHeight": "14px", "letterSpacing": "0.04em", "fontWeight": "600" } ], "body-lg": [ "16px", { "lineHeight": "24px", "letterSpacing": "-0.005em", "fontWeight": "400" } ], "body-md": [ "14px", { "lineHeight": "20px", "letterSpacing": "0em", "fontWeight": "400" } ] } } } };</script></head><body class="bg-surface font-body-md text-body-md text-on-surface antialiased selection:bg-primary selection:text-on-primary"><header class="fixed top-0 left-0 right-0 w-full z-50 bg-surface-container-lowest/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.3)]"><div class="h-16 w-full px-gutter-lg flex items-center justify-between gap-space-lg"><div class="flex items-center gap-space-md"><img alt="Brand logo. - Primary color: #10b981
+- Font: plusJakartaSans
+- Mode: dark
+- Roundness: rounded-sm
+" class="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1U7B5ZTJffMnV9nd87k-oSX0MbVJFr9ADq2wg5kjNspqTjmWXgOeiOc49rAfQRfCujiC8j3UYH3A71mB2XGBaz8XsX12Uxt7nz1vLFzAJlF-_OeIf-D_KWsMWHWFLXJpx-e9JYP2Qn5ERMbTvz7VAITuJgNPE1WhyiI9CveuRmTRi1QkXufv5P5qamvcrRkPN4g6Xpo2hesOtice_aZ2fLPQpSsn47P4apvhvs5Do71KgycyToCwwbYLkJ3"/><div class="flex flex-col"><span class="font-headline-sm text-headline-sm text-on-surface tracking-tight leading-none">ITISYOU Verify</span><span class="font-label-code-sm text-label-code-sm text-primary tracking-wider uppercase mt-space-xs">Operator Console // Internal Admin</span></div></div><nav class="hidden xl:flex items-center gap-space-xs bg-surface-container-low/60 p-1 rounded-xl" data-active-classes="bg-surface-container-high text-primary rounded-lg font-semibold"><a class="px-space-md py-space-xs rounded-lg font-body-sm text-body-sm text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="overview" href="#">Overview</a><a aria-current="page" class="px-space-md py-space-xs transition-colors bg-surface-container-high text-primary rounded-lg font-semibold" data-path="customers-and-incidents" href="#">Customers &amp; Incidents</a><a class="px-space-md py-space-xs rounded-lg font-body-sm text-body-sm text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="engine-health" href="#">Engine Health</a><a class="px-space-md py-space-xs rounded-lg font-body-sm text-body-sm text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="audit-log" href="#">Audit Log</a></nav><div class="flex items-center gap-space-md"><div class="hidden md:flex flex-col text-right"><span class="font-label-code-md text-label-code-md text-on-surface">operator@itisyou-verify.internal</span><span class="font-label-code-sm text-label-code-sm text-on-surface-variant">Role: Senior Operator</span></div><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div></header><main class="w-full pt-16 bg-surface min-h-screen"><div class="flex flex-col w-full">
+<!-- Context Sub-Header & Operator Data Governance Strip -->
+<section class="w-full bg-surface-container-lowest px-gutter-lg py-space-md border-b-0">
+<div class="max-w-[1680px] mx-auto flex flex-col gap-space-md">
+<!-- Top Line: Breadcrumb & Cluster Metas -->
+<div class="flex flex-wrap items-center justify-between gap-space-sm">
+<div class="flex items-center gap-space-xs font-label-code-sm text-label-code-sm">
+<span class="text-on-surface-variant">Operator Console</span>
+<span class="text-outline">/</span>
+<span class="text-on-surface">Customers &amp; Incidents</span>
+<span class="ml-space-sm px-2 py-0.5 rounded bg-surface-container-high text-primary font-label-code-sm">
+            RUN: UK-South // London (eu-west-2a)
+          </span>
+</div>
+<div class="flex items-center gap-space-md font-label-code-sm text-label-code-sm text-on-surface-variant">
+<div class="flex items-center gap-space-xs">
+<span class="w-2 h-2 rounded-full bg-primary"></span>
+<span>Cluster Ingress: ONLINE</span>
+</div>
+<span class="text-outline">|</span>
+<span>Clock: 23 Feb 2025 10:56:14 UTC</span>
+<span class="text-outline">|</span>
+<span class="text-on-surface font-semibold">Operator ID: #op_419</span>
+</div>
+</div>
+<!-- Explicit Privacy Enclave Banner (Data Privacy Mandate) -->
+<div class="w-full bg-surface-container-low rounded-lg p-space-md flex items-start gap-space-md shadow-sm">
+<div class="mt-0.5 p-1 rounded bg-surface-container text-secondary flex items-center justify-center">
+<span class="material-symbols-outlined text-[18px]">verified_user</span>
+</div>
+<div class="flex-1 flex flex-col gap-0.5">
+<div class="flex items-center gap-space-sm">
+<span class="font-headline-sm text-body-sm text-on-surface font-semibold uppercase tracking-wider">
+              Operator Access Policy: Metadata Read-Only Tier
+            </span>
+<span class="px-2 py-0.5 rounded bg-surface-container-high text-outline text-label-code-sm">
+              ENVELOPE ENCRYPTED
+            </span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
+            You are viewing operational telemetry, account statuses, and execution metadata only. Raw evidence payload bodies, decrypted query payloads, and client customer data records are strictly inaccessible to operators via envelope encryption.
+          </p>
+</div>
+</div>
+<!-- Quick Filter Workspace Tabs -->
+<div class="flex flex-wrap items-center justify-between gap-space-md pt-space-xs">
+<div class="flex items-center gap-1.5 p-1 rounded-lg bg-surface-container-low" id="filter-container">
+<button class="px-space-md py-1 rounded font-body-sm text-body-sm bg-surface-container-high text-primary font-medium shadow-sm transition-all" data-tab="all" type="button">
+            All Workspaces <span class="ml-1 text-label-code-sm opacity-80">(142)</span>
+</button>
+<button class="px-space-md py-1 rounded font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-all" data-tab="active" type="button">
+            Active <span class="ml-1 text-label-code-sm opacity-80">(129)</span>
+</button>
+<button class="px-space-md py-1 rounded font-body-sm text-body-sm text-tertiary hover:bg-surface-container transition-all" data-tab="recovery" type="button">
+            Paused / Recovery <span class="ml-1 text-label-code-sm opacity-80">(9)</span>
+</button>
+<button class="px-space-md py-1 rounded font-body-sm text-body-sm text-error hover:bg-surface-container transition-all" data-tab="unpaid" type="button">
+            Unpaid <span class="ml-1 text-label-code-sm opacity-80">(4)</span>
+</button>
+</div>
+<div class="flex items-center gap-space-sm">
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-3 text-outline text-[16px]">search</span>
+<input class="w-72 pl-9 pr-3 py-1.5 rounded-lg bg-surface-container-lowest text-on-surface font-label-code-sm text-label-code-sm placeholder:text-outline focus:outline-none focus:bg-surface-container-low transition-colors" placeholder="Filter by workspace name, ID (ws_...)" type="text"/>
+</div>
+<button class="px-3 py-1.5 rounded-lg bg-surface-container-low text-on-surface font-label-code-sm text-label-code-sm hover:bg-surface-container transition-colors flex items-center gap-1" type="button">
+<span class="material-symbols-outlined text-[16px]">refresh</span>
+<span>Refresh</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+<!-- Core Two-Column Layout (Desktop 1440px target, responsive fluid 1680px max) -->
+<main class="w-full max-w-[1680px] mx-auto px-gutter-lg py-space-lg flex flex-col gap-space-xl">
+<div class="grid grid-cols-1 xl:grid-cols-12 gap-gutter-lg items-start">
+<!-- Left Column: Customer Telemetry List (approx 60% / 7 cols) -->
+<section class="xl:col-span-7 flex flex-col gap-space-sm bg-surface-container-low rounded-xl p-space-md shadow-md">
+<div class="flex items-center justify-between pb-space-sm">
+<div>
+<h2 class="font-headline-sm text-headline-sm text-on-surface font-semibold">Tenant Operational Registry</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Live observation counters and billing state across active clusters</p>
+</div>
+<span class="font-label-code-sm text-label-code-sm text-outline">Showing 5 of 142</span>
+</div>
+<!-- Table Container -->
+<div class="w-full overflow-x-auto">
+<table class="w-full text-left font-body-sm text-body-sm">
+<thead>
+<tr class="text-outline font-label-code-sm text-label-code-sm uppercase tracking-wider bg-surface-container-lowest/60">
+<th class="py-2.5 px-3 rounded-l">Workspace</th>
+<th class="py-2.5 px-3">Plan</th>
+<th class="py-2.5 px-3">Status</th>
+<th class="py-2.5 px-3">Run Allowance</th>
+<th class="py-2.5 px-3 rounded-r text-right">Last Run</th>
+</tr>
+</thead>
+<tbody class="divide-y-0" id="customer-table-body">
+<!-- Row 1: Selected Customer (North Star Digital) -->
+<tr class="cursor-pointer bg-surface-container-high text-on-surface transition-colors">
+<td class="py-3.5 px-3 rounded-l">
+<div class="flex flex-col">
+<div class="flex items-center gap-1.5">
+<span class="font-semibold text-on-surface">North Star Digital</span>
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+</div>
+<span class="font-label-code-sm text-label-code-sm text-secondary">ws_84920_nsd</span>
+</div>
+</td>
+<td class="py-3.5 px-3">
+<div class="flex flex-col">
+<span class="text-on-surface">Standard Agency</span>
+<span class="font-label-code-sm text-label-code-sm text-outline">£180 / mo</span>
+</div>
+</td>
+<td class="py-3.5 px-3">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-tertiary/10 text-tertiary font-label-code-sm text-label-code-sm uppercase">
+<span class="material-symbols-outlined text-[14px]">warning</span>
+                    PAUSED (Day 4/7)
+                  </span>
+</td>
+<td class="py-3.5 px-3">
+<div class="flex flex-col gap-1 w-32">
+<div class="flex justify-between font-label-code-sm text-label-code-sm">
+<span class="text-on-surface">8,420</span>
+<span class="text-outline">84%</span>
+</div>
+<div class="w-full h-1.5 bg-surface-container-lowest rounded-full overflow-hidden">
+<div class="h-full bg-tertiary rounded-full" style="width: 84%;"></div>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-3 rounded-r text-right font-label-code-sm text-label-code-sm text-on-surface-variant">
+                  12m ago
+                </td>
+</tr>
+<!-- Row 2: Apex Workflow Studio -->
+<tr class="cursor-pointer hover:bg-surface-container transition-colors">
+<td class="py-3.5 px-3 rounded-l">
+<div class="flex flex-col">
+<span class="font-semibold text-on-surface">Apex Workflow Studio</span>
+<span class="font-label-code-sm text-label-code-sm text-on-surface-variant">ws_39102_apx</span>
+</div>
+</td>
+<td class="py-3.5 px-3">
+<div class="flex flex-col">
+<span class="text-on-surface">Standard Agency</span>
+<span class="font-label-code-sm text-label-code-sm text-outline">£180 / mo</span>
+</div>
+</td>
+<td class="py-3.5 px-3">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-primary/10 text-primary font-label-code-sm text-label-code-sm uppercase">
+<span class="material-symbols-outlined text-[14px]">check_circle</span>
+                    ACTIVE
+                  </span>
+</td>
+<td class="py-3.5 px-3">
+<div class="flex flex-col gap-1 w-32">
+<div class="flex justify-between font-label-code-sm text-label-code-sm">
+<span class="text-on-surface">3,110</span>
+<span class="text-outline">31%</span>
+</div>
+<div class="w-full h-1.5 bg-surface-container-lowest rounded-full overflow-hidden">
+<div class="h-full bg-primary rounded-full" style="width: 31%;"></div>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-3 rounded-r text-right font-label-code-sm text-label-code-sm text-on-surface-variant">
+                  2m ago
+                </td>
+</tr>
+<!-- Row 3: Vanguard Integrations -->
+<tr class="cursor-pointer hover:bg-surface-container transition-colors">
+<td class="py-3.5 px-3 rounded-l">
+<div class="flex flex-col">
+<span class="font-semibold text-on-surface">Vanguard Integrations</span>
+<span class="font-label-code-sm text-label-code-sm text-on-surface-variant">ws_77182_vng</span>
+</div>
+</td>
+<td class="py-3.5 px-3">
+<div class="flex flex-col">
+<span class="text-on-surface">Standard Agency</span>
+<span class="font-label-code-sm text-label-code-sm text-outline">£180 / mo</span>
+</div>
+</td>
+<td class="py-3.5 px-3">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-error/10 text-error font-label-code-sm text-label-code-sm uppercase">
+<span class="material-symbols-outlined text-[14px]">cancel</span>
+                    UNPAID (Day 11)
+                  </span>
+</td>
+<td class="py-3.5 px-3">
+<div class="flex flex-col gap-1 w-32">
+<div class="flex justify-between font-label-code-sm text-label-code-sm">
+<span class="text-on-surface">9,800</span>
+<span class="text-outline">98%</span>
+</div>
+<div class="w-full h-1.5 bg-surface-container-lowest rounded-full overflow-hidden">
+<div class="h-full bg-error rounded-full" style="width: 98%;"></div>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-3 rounded-r text-right font-label-code-sm text-label-code-sm text-outline">
+                  4d ago
+                </td>
+</tr>
+<!-- Row 4: Calibre Systems Ltd -->
+<tr class="cursor-pointer hover:bg-surface-container transition-colors">
+<td class="py-3.5 px-3 rounded-l">
+<div class="flex flex-col">
+<span class="font-semibold text-on-surface">Calibre Systems Ltd</span>
+<span class="font-label-code-sm text-label-code-sm text-on-surface-variant">ws_11094_clb</span>
+</div>
+</td>
+<td class="py-3.5 px-3">
+<div class="flex flex-col">
+<span class="text-on-surface">Standard Agency</span>
+<span class="font-label-code-sm text-label-code-sm text-outline">£180 / mo</span>
+</div>
+</td>
+<td class="py-3.5 px-3">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-primary/10 text-primary font-label-code-sm text-label-code-sm uppercase">
+<span class="material-symbols-outlined text-[14px]">check_circle</span>
+                    ACTIVE
+                  </span>
+</td>
+<td class="py-3.5 px-3">
+<div class="flex flex-col gap-1 w-32">
+<div class="flex justify-between font-label-code-sm text-label-code-sm">
+<span class="text-on-surface">6,240</span>
+<span class="text-outline">62%</span>
+</div>
+<div class="w-full h-1.5 bg-surface-container-lowest rounded-full overflow-hidden">
+<div class="h-full bg-primary rounded-full" style="width: 62%;"></div>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-3 rounded-r text-right font-label-code-sm text-label-code-sm text-on-surface-variant">
+                  18m ago
+                </td>
+</tr>
+<!-- Row 5: Meridian Automations -->
+<tr class="cursor-pointer hover:bg-surface-container transition-colors">
+<td class="py-3.5 px-3 rounded-l">
+<div class="flex flex-col">
+<span class="font-semibold text-on-surface">Meridian Automations</span>
+<span class="font-label-code-sm text-label-code-sm text-on-surface-variant">ws_55021_mrd</span>
+</div>
+</td>
+<td class="py-3.5 px-3">
+<div class="flex flex-col">
+<span class="text-on-surface">Standard Agency</span>
+<span class="font-label-code-sm text-label-code-sm text-outline">£180 / mo</span>
+</div>
+</td>
+<td class="py-3.5 px-3">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-tertiary/10 text-tertiary font-label-code-sm text-label-code-sm uppercase">
+<span class="material-symbols-outlined text-[14px]">warning</span>
+                    PAUSED (Day 2/7)
+                  </span>
+</td>
+<td class="py-3.5 px-3">
+<div class="flex flex-col gap-1 w-32">
+<div class="flex justify-between font-label-code-sm text-label-code-sm">
+<span class="text-on-surface">1,200</span>
+<span class="text-outline">12%</span>
+</div>
+<div class="w-full h-1.5 bg-surface-container-lowest rounded-full overflow-hidden">
+<div class="h-full bg-primary rounded-full" style="width: 12%;"></div>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-3 rounded-r text-right font-label-code-sm text-label-code-sm text-on-surface-variant">
+                  1h ago
+                </td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Metric Summary Footnote -->
+<div class="flex items-center justify-between pt-space-xs text-outline font-label-code-sm text-label-code-sm">
+<span>Run allowance resets monthly on tenant billing anniversary.</span>
+<span>Percentages rounded down to nearest integer.</span>
+</div>
+</section>
+<!-- Right Column: Customer Detail Inspector (approx 40% / 5 cols) -->
+<section class="xl:col-span-5 flex flex-col gap-space-md">
+<!-- Workspace Identification Header -->
+<div class="bg-surface-container-low rounded-xl p-space-md flex flex-col gap-space-sm shadow-md">
+<div class="flex items-start justify-between">
+<div>
+<span class="font-label-code-sm text-label-code-sm text-secondary uppercase tracking-wider">Tenant Inspection Panel</span>
+<h3 class="font-headline-lg text-headline-lg text-on-surface font-semibold mt-0.5">North Star Digital</h3>
+</div>
+<span class="px-2 py-1 rounded bg-tertiary/15 text-tertiary font-label-code-sm text-label-code-sm font-semibold">
+              PAUSED
+            </span>
+</div>
+<div class="grid grid-cols-2 gap-space-sm pt-space-xs font-label-code-sm text-label-code-sm">
+<div class="bg-surface-container-lowest p-space-sm rounded">
+<span class="text-outline block text-[10px] uppercase">Workspace Identifier</span>
+<span class="text-on-surface select-all">ws_84920_nsd</span>
+</div>
+<div class="bg-surface-container-lowest p-space-sm rounded">
+<span class="text-outline block text-[10px] uppercase">Contact Operator</span>
+<span class="text-on-surface truncate block" title="ops@northstardigital.co.uk">ops@northstardigital.co.uk</span>
+</div>
+<div class="bg-surface-container-lowest p-space-sm rounded">
+<span class="text-outline block text-[10px] uppercase">Account Created</span>
+<span class="text-on-surface">14 Nov 2024</span>
+</div>
+<div class="bg-surface-container-lowest p-space-sm rounded">
+<span class="text-outline block text-[10px] uppercase">Subscription Tier</span>
+<span class="text-on-surface">Standard (£180 / mo)</span>
+</div>
+</div>
+</div>
+<!-- Subscription & Recovery Lifecycle Status Card -->
+<div class="bg-surface-container-low rounded-xl p-space-md flex flex-col gap-space-sm shadow-md">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-tertiary text-[20px]">hourglass_top</span>
+<span class="font-headline-sm text-body-lg text-on-surface font-semibold">Recovery Status &amp; Policy</span>
+</div>
+<span class="font-label-code-sm text-label-code-sm text-tertiary font-medium">Day 4 of 7</span>
+</div>
+<!-- Recovery Window Progress Indicator -->
+<div class="bg-surface-container-lowest p-space-sm rounded-lg flex flex-col gap-1.5">
+<div class="flex justify-between text-label-code-sm">
+<span class="text-on-surface">3 days remaining in 7-day recovery window</span>
+<span class="text-tertiary font-semibold">Grace ends: 06 Mar 2025 14:20 UTC</span>
+</div>
+<div class="w-full h-2 bg-surface-container-high rounded-full overflow-hidden">
+<div class="h-full bg-tertiary rounded-full" style="width: 57%;"></div>
+</div>
+</div>
+<!-- Concrete Explanation Copy (Strict Policy Adherence) -->
+<div class="bg-surface-container-lowest/60 p-space-sm rounded-lg text-body-sm text-on-surface-variant leading-relaxed">
+            Verification polling is currently paused. Existing historical reports, logs, and account configuration remain accessible. If payment is renewed before day 7, polling resumes automatically. If unresolved by day 8, subscription changes to Unpaid; no historical records or data will be deleted.
+          </div>
+<!-- Operator Actions -->
+<div class="flex items-center gap-space-sm pt-space-xs">
+<button class="flex-1 py-2 px-space-sm rounded-lg bg-surface-container-high text-secondary hover:bg-surface-container-highest font-label-code-sm text-label-code-sm font-semibold transition-colors flex items-center justify-center gap-1" type="button">
+<span class="material-symbols-outlined text-[16px]">forward_to_inbox</span>
+<span>Send Manual Recovery Link</span>
+</button>
+<button class="py-2 px-space-sm rounded-lg bg-surface-container-lowest text-on-surface-variant hover:text-on-surface font-label-code-sm text-label-code-sm transition-colors flex items-center gap-1" type="button">
+<span class="material-symbols-outlined text-[16px]">receipt_long</span>
+<span>Stripe #inv_88291</span>
+</button>
+</div>
+</div>
+<!-- Operational Allowance Meter -->
+<div class="bg-surface-container-low rounded-xl p-space-md flex flex-col gap-space-sm shadow-md">
+<div class="flex items-center justify-between">
+<span class="font-headline-sm text-body-lg text-on-surface font-semibold">Operational Allowance (Monthly)</span>
+<span class="font-label-code-sm text-label-code-sm text-on-surface">8,420 / 10,000 runs</span>
+</div>
+<div class="w-full h-3 bg-surface-container-lowest rounded-full overflow-hidden p-0.5 flex">
+<div class="h-full bg-tertiary rounded-full" style="width: 84%;"></div>
+</div>
+<div class="flex items-center justify-between font-label-code-sm text-label-code-sm text-on-surface-variant">
+<span>84% consumed (1,580 runs remaining)</span>
+<span class="text-outline">Auto-throttle at 100%</span>
+</div>
+</div>
+<!-- Operational Telemetry (No Customer Payload Bodies) -->
+<div class="bg-surface-container-low rounded-xl p-space-md flex flex-col gap-space-sm shadow-md">
+<div class="flex items-center justify-between">
+<span class="font-headline-sm text-body-lg text-on-surface font-semibold">Registered Observation Endpoints</span>
+<span class="px-2 py-0.5 rounded bg-surface-container-highest text-secondary font-label-code-sm text-label-code-sm">3 Destinations</span>
+</div>
+<div class="flex flex-col gap-1.5 font-label-code-sm text-label-code-sm">
+<div class="flex items-center justify-between p-2 rounded bg-surface-container-lowest">
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+<span class="text-on-surface">HubSpot CRM Integration</span>
+</div>
+<span class="text-outline text-label-code-sm">https://api.hubapi.com/crm/v3/...</span>
+</div>
+<div class="flex items-center justify-between p-2 rounded bg-surface-container-lowest">
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+<span class="text-on-surface">ActiveCampaign Webhook</span>
+</div>
+<span class="text-outline text-label-code-sm">https://northstar.api-us1.com/...</span>
+</div>
+<div class="flex items-center justify-between p-2 rounded bg-surface-container-lowest">
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+<span class="text-on-surface">Custom Customer Ingress</span>
+</div>
+<span class="text-outline text-label-code-sm">https://api.northstardigital.co.uk/...</span>
+</div>
+</div>
+<div class="pt-space-xs flex flex-col gap-1.5 font-label-code-sm text-label-code-sm">
+<div class="flex items-center justify-between text-outline">
+<span>Ingress Endpoint Hash:</span>
+<span class="text-on-surface select-all">https://in.itisyou-verify.internal/hook/v1/wh_84920</span>
+</div>
+<div class="flex items-center justify-between text-outline">
+<span>Last Readback Anomaly:</span>
+<span class="text-error font-medium">HTTP 504 (Postmark timeout on run_99014)</span>
+</div>
+</div>
+<!-- Payload Privacy Enforcement Callout -->
+<div class="mt-1 p-2 rounded bg-surface-container-lowest border-0 flex items-center justify-between text-label-code-sm">
+<div class="flex items-center gap-1.5 text-outline">
+<span class="material-symbols-outlined text-[15px]">lock</span>
+<span>Customer Payload Body:</span>
+</div>
+<span class="px-2 py-0.5 rounded bg-surface-container text-outline font-label-code-sm text-label-code-sm uppercase">
+              REDACTED (Envelope Encrypted)
+            </span>
+</div>
+</div>
+</section>
+</div>
+<!-- Bottom Section: Active Platform & Provider Incidents -->
+<section class="w-full flex flex-col gap-space-md">
+<div class="flex flex-wrap items-center justify-between gap-space-sm">
+<div>
+<div class="flex items-center gap-2">
+<h2 class="font-headline-lg text-headline-lg text-on-surface font-semibold">Active Platform &amp; Provider Incidents</h2>
+<span class="px-2 py-0.5 rounded bg-tertiary/10 text-tertiary font-label-code-sm text-label-code-sm font-semibold">1 Active Incident</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Live downstream throttling, third-party degradation, and cluster transport health</p>
+</div>
+<!-- View Simulation State Toggles for Operator Confidence Testing -->
+<div class="flex items-center gap-1 bg-surface-container-low p-1 rounded-lg">
+<button class="px-space-md py-1 rounded bg-surface-container-high text-primary font-label-code-sm text-label-code-sm font-medium transition-colors" id="btn-show-all-incidents" type="button">
+            All Incident Cards
+          </button>
+<button class="px-space-md py-1 rounded text-on-surface-variant hover:text-on-surface font-label-code-sm text-label-code-sm transition-colors" id="btn-toggle-empty-state" type="button">
+            Toggle Empty Queue State
+          </button>
+</div>
+</div>
+<!-- Incident Showcase Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-gutter-lg" id="incidents-container">
+<!-- Card 1: Active Downstream Incident (HubSpot EU Throttling) -->
+<div class="bg-surface-container-low rounded-xl p-space-md flex flex-col justify-between gap-space-md shadow-md">
+<div class="flex flex-col gap-space-sm">
+<div class="flex items-center justify-between">
+<span class="px-2 py-0.5 rounded bg-tertiary/20 text-tertiary font-label-code-sm text-label-code-sm font-semibold uppercase flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary animate-pulse"></span>
+                SEV-2 High // Provider Throttled
+              </span>
+<span class="font-label-code-sm text-label-code-sm text-outline">1h 42m ago</span>
+</div>
+<div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface font-semibold">
+                HubSpot EU-Central API Gateway Rate Limiting (HTTP 429)
+              </h3>
+<span class="font-label-code-sm text-label-code-sm text-secondary block mt-0.5">
+                Target: api.hubapi.com/crm/v3/objects/contacts
+              </span>
+</div>
+<div class="p-space-sm rounded bg-surface-container-lowest flex flex-col gap-1 text-body-sm">
+<div class="flex justify-between font-label-code-sm text-label-code-sm">
+<span class="text-outline">Affected Workspaces:</span>
+<span class="text-on-surface font-semibold">14 tenant accounts</span>
+</div>
+<div class="flex justify-between font-label-code-sm text-label-code-sm">
+<span class="text-outline">First Detected:</span>
+<span class="text-on-surface">23 Feb 2025 09:14 UTC</span>
+</div>
+<div class="flex justify-between font-label-code-sm text-label-code-sm">
+<span class="text-outline">Current Engine Status:</span>
+<span class="text-tertiary font-semibold">Marked UNVERIFIED (Observation Interrupted)</span>
+</div>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
+              Downstream requests are encountering sporadic 429 rate limit responses from HubSpot EU-Central. In line with verification integrity policy, checks are held in an UNVERIFIED state rather than recorded as false customer workflow failures.
+            </p>
+</div>
+<!-- Skeptical Policy Operator Note -->
+<div class="p-2.5 rounded bg-surface-container-lowest/80 text-label-code-sm text-primary flex items-start gap-2">
+<span class="material-symbols-outlined text-[16px] mt-0.5">info</span>
+<span>Policy: Our platform outage or third-party provider throttling is never attributed as a customer failure.</span>
+</div>
+</div>
+<!-- Card 2: Empty Queue Visual State (Clean, Calming, Functional) -->
+<div class="bg-surface-container-low rounded-xl p-space-md flex flex-col justify-between gap-space-md shadow-md" id="card-empty-state">
+<div class="flex flex-col gap-space-sm">
+<div class="flex items-center justify-between">
+<span class="px-2 py-0.5 rounded bg-primary/10 text-primary font-label-code-sm text-label-code-sm font-semibold uppercase flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                Nominal Operation
+              </span>
+<span class="font-label-code-sm text-label-code-sm text-outline">Polling 15s</span>
+</div>
+<div class="pt-space-sm">
+<div class="w-10 h-10 rounded-lg bg-surface-container flex items-center justify-center text-primary mb-space-sm">
+<span class="material-symbols-outlined text-[24px]">task_alt</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface font-semibold">
+                No Open Platform Incidents
+              </h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-space-xs leading-relaxed">
+                All telemetry inspection queues, ingress points, and provider readback proxies are operating within standard latency bounds (&lt;140ms round-trip).
+              </p>
+</div>
+<div class="p-space-sm rounded bg-surface-container-lowest font-label-code-sm text-label-code-sm flex flex-col gap-1 text-on-surface-variant">
+<div class="flex justify-between">
+<span>Webhook Ingress Workers:</span>
+<span class="text-primary">100% HEALTHY (12/12 Nodes)</span>
+</div>
+<div class="flex justify-between">
+<span>Cryptographic Digest Hasher:</span>
+<span class="text-primary">0ms BACKLOG</span>
+</div>
+</div>
+</div>
+<div class="text-label-code-sm text-outline flex items-center justify-between">
+<span>Automated heartbeat ping active</span>
+<span class="text-on-surface">Queue updates in 08s</span>
+</div>
+</div>
+<!-- Card 3: Downstream Data-Load Failure State (Honest Transparency) -->
+<div class="bg-surface-container-low rounded-xl p-space-md flex flex-col justify-between gap-space-md shadow-md">
+<div class="flex flex-col gap-space-sm">
+<div class="flex items-center justify-between">
+<span class="px-2 py-0.5 rounded bg-error/15 text-error font-label-code-sm text-label-code-sm font-semibold uppercase flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">sync_problem</span>
+                Read Timeout
+              </span>
+<span class="font-label-code-sm text-label-code-sm text-outline">Worker Cluster 04</span>
+</div>
+<div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface font-semibold">
+                Worker Cluster 04 Telemetry Unreachable
+              </h3>
+<span class="font-label-code-sm text-label-code-sm text-error block mt-0.5">
+                Read timeout after 8,000ms via internal RPC
+              </span>
+</div>
+<!-- Explicit Anti-Falsehood Container -->
+<div class="p-space-sm rounded bg-error-container/20 text-on-error-container text-body-sm flex flex-col gap-1">
+<div class="flex items-start gap-1.5">
+<span class="material-symbols-outlined text-[18px] text-error">error</span>
+<span class="font-medium text-error">Data could not be loaded</span>
+</div>
+<p class="text-label-code-sm text-error/90 leading-normal">
+                Unable to retrieve real-time webhook latency metrics from Worker Cluster 04. System displays last cached snapshot from 14:10 UTC rather than falsely rendering "0 ms" or "0 incidents".
+              </p>
+</div>
+<div class="p-space-sm rounded bg-surface-container-lowest font-label-code-sm text-label-code-sm flex flex-col gap-1 text-on-surface-variant">
+<div class="flex justify-between">
+<span>Last Cached Value:</span>
+<span class="text-on-surface">14:10:02 UTC (46m stale)</span>
+</div>
+<div class="flex justify-between">
+<span>RPC Target:</span>
+<span class="text-outline">rpc://telemetry-worker-04.internal:9080</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-space-sm">
+<button class="w-full py-2 px-space-sm rounded bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-label-code-sm text-label-code-sm font-semibold flex items-center justify-center gap-1.5 transition-colors" type="button">
+<span class="material-symbols-outlined text-[16px]">refresh</span>
+<span>Retry Cluster Connection</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Interactive Script for Filtering and Inspector Row Switching -->
+<script>
+    (function() {
+      // Filter Tabs Micro-interaction
+      const filterButtons = document.querySelectorAll('#filter-container button');
+      filterButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          filterButtons.forEach(b => {
+            b.classList.remove('bg-surface-container-high', 'text-primary', 'font-medium', 'shadow-sm');
+            b.classList.add('text-on-surface-variant');
+          });
+          btn.classList.remove('text-on-surface-variant');
+          btn.classList.add('bg-surface-container-high', 'text-primary', 'font-medium', 'shadow-sm');
+        });
+      });
+
+      // Table Row Select Micro-interaction
+      const rows = document.querySelectorAll('#customer-table-body tr');
+      rows.forEach(row => {
+        row.addEventListener('click', () => {
+          rows.forEach(r => r.classList.remove('bg-surface-container-high'));
+          row.classList.add('bg-surface-container-high');
+        });
+      });
+
+      // Empty State Toggle Demo
+      const btnToggleEmpty = document.getElementById('btn-toggle-empty-state');
+      const btnShowAll = document.getElementById('btn-show-all-incidents');
+      const cardEmpty = document.getElementById('card-empty-state');
+      
+      if (btnToggleEmpty && cardEmpty && btnShowAll) {
+        btnToggleEmpty.addEventListener('click', () => {
+          cardEmpty.classList.toggle('ring-2');
+          cardEmpty.classList.toggle('ring-primary');
+        });
+
+        btnShowAll.addEventListener('click', () => {
+          cardEmpty.classList.remove('ring-2', 'ring-primary');
+        });
+      }
+    })();
+  </script>
+</div></main><footer class="w-full bg-surface-container-lowest py-space-md shadow-[0_-1px_8px_rgba(0,0,0,0.2)]"><div class="w-full px-gutter-lg flex flex-col md:flex-row items-center justify-between gap-space-sm"><div class="flex items-center gap-space-sm"><span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span><span class="font-label-code-sm text-label-code-sm text-on-surface-variant">SECURE ZERO-TRUST RUNTIME // FORENSIC LEVEL 4</span></div><div class="font-label-code-sm text-label-code-sm text-outline">ITISYOU VERIFY INTERNAL OPS // RADICAL CLARITY PROTOCOL</div></div></footer></body></html>

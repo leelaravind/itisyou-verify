@@ -103,8 +103,14 @@ interface Harness {
   post(path: string, fields?: Record<string, string>): Promise<Response>;
 }
 
-function harness(options: { port?: MemoryOwnerDataPort; artifacts?: UnboundQualityArtifactStore | StaticQualityArtifactStore | D1QualityArtifactStore } = {}): Harness {
-  const port = options.port ?? new MemoryOwnerDataPort({ principal: ownerPrincipal(), now: () => NOW });
+function harness(
+  options: {
+    port?: MemoryOwnerDataPort;
+    artifacts?: UnboundQualityArtifactStore | StaticQualityArtifactStore | D1QualityArtifactStore;
+  } = {},
+): Harness {
+  const port =
+    options.port ?? new MemoryOwnerDataPort({ principal: ownerPrincipal(), now: () => NOW });
   const app = new Hono<RouteBindings>();
   app.route(
     '/',
@@ -199,7 +205,9 @@ describe('the runner turns queued-forever into genuinely queued', () => {
     const response = await h.post('/owner/operations/jobs/run_health_checks');
     expect(response.status).toBe(303);
     expect(runner.enqueued.map((e) => e.kind)).toContain('run_health_checks');
-    expect((await port.auditTrail(10)).map((row) => row.action)).toContain('owner.maintenance.enqueue');
+    expect((await port.auditTrail(10)).map((row) => row.action)).toContain(
+      'owner.maintenance.enqueue',
+    );
   });
 
   it('OWNER-235 with no runner the job is still written down and says what it waits for', async () => {
@@ -235,7 +243,10 @@ describe('the runner turns queued-forever into genuinely queued', () => {
 describe('restoring a deployment names what is actually missing', () => {
   it('OWNER-240 a restore with no approval is refused for that reason, not a vague dependency', async () => {
     const h = harness();
-    const response = await h.post('/owner/operations/restore', { deployment_id: 'dep_0001', confirm: 'restore' });
+    const response = await h.post('/owner/operations/restore', {
+      deployment_id: 'dep_0001',
+      confirm: 'restore',
+    });
     expect(response.status).toBe(422);
     const body = await response.text();
     expect(body).toMatch(/needs an approval bound to the exact deployment/i);
@@ -248,7 +259,12 @@ describe('restoring a deployment names what is actually missing', () => {
       action_type: 'cleanup_execute',
       summary: 'Restore the previous deployment',
       maximum_amount: '',
-      payload_json: JSON.stringify({ categories: [], inventory_hash: 'dep_0001', resource_count: 0, environment: 'development' }),
+      payload_json: JSON.stringify({
+        categories: [],
+        inventory_hash: 'dep_0001',
+        resource_count: 0,
+        environment: 'development',
+      }),
     });
     const id = (await h.port.approvals())[0]?.id ?? '';
     await h.post(`/owner/approvals/${id}/revoke`);
@@ -268,7 +284,12 @@ describe('restoring a deployment names what is actually missing', () => {
       action_type: 'cleanup_execute',
       summary: 'Restore the previous deployment',
       maximum_amount: '',
-      payload_json: JSON.stringify({ categories: [], inventory_hash: 'dep_0001', resource_count: 0, environment: 'development' }),
+      payload_json: JSON.stringify({
+        categories: [],
+        inventory_hash: 'dep_0001',
+        resource_count: 0,
+        environment: 'development',
+      }),
     });
     const id = (await h.port.approvals())[0]?.id ?? '';
     const response = await h.post('/owner/operations/restore', {
@@ -292,10 +313,20 @@ describe('restoring a deployment names what is actually missing', () => {
 
 describe('the evidence pack has a real home', () => {
   const PACK = [
-    { id: 'test-report.md' as const, body: '# report\n1498 passed\n', generatedAt: NOW.toISOString(), commitSha: 'abc123def456' },
+    {
+      id: 'test-report.md' as const,
+      body: '# report\n1498 passed\n',
+      generatedAt: NOW.toISOString(),
+      commitSha: 'abc123def456',
+    },
   ];
 
-  function d1(rows: Record<string, { body: string; commit_sha: string | null; generated_at: string | null }[]> | null): ArtifactQueryable {
+  function d1(
+    rows: Record<
+      string,
+      { body: string; commit_sha: string | null; generated_at: string | null }[]
+    > | null,
+  ): ArtifactQueryable {
     return {
       prepare(sql: string) {
         return {
@@ -448,8 +479,13 @@ describe('at-most-once sending makes the owner the retry', () => {
         return STUCK;
       },
     });
-    const health = await port.health({ now: NOW, stuckAfterSeconds: NOTIFICATION_STUCK_AFTER_SECONDS });
-    expect(asked[0]?.createdBefore).toBe(new Date(NOW.getTime() - NOTIFICATION_STUCK_AFTER_SECONDS * 1000).toISOString());
+    const health = await port.health({
+      now: NOW,
+      stuckAfterSeconds: NOTIFICATION_STUCK_AFTER_SECONDS,
+    });
+    expect(asked[0]?.createdBefore).toBe(
+      new Date(NOW.getTime() - NOTIFICATION_STUCK_AFTER_SECONDS * 1000).toISOString(),
+    );
     expect(health.stuck[0]?.id).toBe('ntf_1');
     expect(health.stuck[0]?.ageSeconds).toBeGreaterThan(health.stuck[1]?.ageSeconds ?? 0);
   });
@@ -460,7 +496,10 @@ describe('at-most-once sending makes the owner the retry', () => {
         throw new Error('database unavailable');
       },
     });
-    const health = await port.health({ now: NOW, stuckAfterSeconds: NOTIFICATION_STUCK_AFTER_SECONDS });
+    const health = await port.health({
+      now: NOW,
+      stuckAfterSeconds: NOTIFICATION_STUCK_AFTER_SECONDS,
+    });
     expect(health.unavailableReason).toMatch(/treat it as unknown/i);
     expect(health.stuck).toHaveLength(0);
   });
@@ -594,7 +633,12 @@ describe('an approval is spent before money can move', () => {
       action_type: 'cleanup_execute',
       summary: 'Launch the first Reddit test campaign at fifteen pounds',
       maximum_amount: '',
-      payload_json: JSON.stringify({ categories: [], inventory_hash: 'cmp_first_test', resource_count: 0, environment: 'development' }),
+      payload_json: JSON.stringify({
+        categories: [],
+        inventory_hash: 'cmp_first_test',
+        resource_count: 0,
+        environment: 'development',
+      }),
     });
     const approvalId = (await h.port.approvals())[0]?.id ?? '';
 

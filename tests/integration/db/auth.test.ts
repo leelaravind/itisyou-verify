@@ -86,7 +86,9 @@ describe('magic-link sign-in', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.session.authSubject).toBe(OWNER_EMAIL);
-    expect(await sessions.findLive(h.db, result.session.sessionId, NOW.toISOString())).not.toBeNull();
+    expect(
+      await sessions.findLive(h.db, result.session.sessionId, NOW.toISOString()),
+    ).not.toBeNull();
     // The cookie value is not the row id.
     expect(result.session.sessionValue).not.toBe(result.session.sessionId);
   });
@@ -141,7 +143,9 @@ describe('magic-link sign-in', () => {
     expect(again.session.sessionId).not.toBe(planted);
     // …and the planted one is dead, not merely superseded.
     expect(await sessions.findLive(h.db, planted, at(60).toISOString())).toBeNull();
-    expect(await sessions.findLive(h.db, again.session.sessionId, at(60).toISOString())).not.toBeNull();
+    expect(
+      await sessions.findLive(h.db, again.session.sessionId, at(60).toISOString()),
+    ).not.toBeNull();
   });
 
   it('AUTH-306 a stale cookie does not stop a valid link, and is not carried forward', async () => {
@@ -268,7 +272,9 @@ describe('TOTP enrolment and verification', () => {
     const enrolled = await enrolTotp(h.db, env(), { userId, accountName: OWNER_EMAIL, now: NOW });
     const current = generateTotpCode(enrolled.secretBase32, at(60));
     const previous = generateTotpCode(enrolled.secretBase32, at(30));
-    expect((await verifyTotpForUser(h.db, env(), { userId, code: current, now: at(60) })).ok).toBe(true);
+    expect((await verifyTotpForUser(h.db, env(), { userId, code: current, now: at(60) })).ok).toBe(
+      true,
+    );
     // `previous` still verifies arithmetically at at(60) under the ±1 window.
     expect(
       await verifyTotpForUser(h.db, env(), { userId, code: previous, now: at(60) }),
@@ -389,7 +395,9 @@ describe('recovery codes', () => {
     const enrolled = await enrolTotp(h.db, env(), { userId, accountName: OWNER_EMAIL, now: NOW });
     await consumeRecoveryCode(h.db, userId, enrolled.recoveryCodes[0] as string, NOW, null);
     const row = h.raw
-      .prepare("SELECT action, actor, redacted_metadata FROM audit_events WHERE action = 'auth.recovery.consumed'")
+      .prepare(
+        "SELECT action, actor, redacted_metadata FROM audit_events WHERE action = 'auth.recovery.consumed'",
+      )
       .get() as { action: string; actor: string; redacted_metadata: string };
     expect(row.actor).toBe(userId);
     expect(JSON.parse(row.redacted_metadata)).toEqual({ remaining: 9 });
@@ -413,9 +421,9 @@ describe('recovery codes', () => {
     );
     expect(outcome).toMatchObject({ ok: false, refusal: 'mismatch' });
     // And it is still usable by its actual owner.
-    expect((await consumeRecoveryCode(h.db, userId, mine.recoveryCodes[0] as string, NOW, null)).ok).toBe(
-      true,
-    );
+    expect(
+      (await consumeRecoveryCode(h.db, userId, mine.recoveryCodes[0] as string, NOW, null)).ok,
+    ).toBe(true);
   });
 
   it('AUTH-345 re-enrolling retires the old printout and the old authenticator together', async () => {
@@ -429,7 +437,8 @@ describe('recovery codes', () => {
     ).toMatchObject({ ok: false, refusal: 'mismatch' });
     // A code from the new one works.
     expect(
-      (await consumeRecoveryCode(h.db, userId, second.recoveryCodes[0] as string, at(600), null)).ok,
+      (await consumeRecoveryCode(h.db, userId, second.recoveryCodes[0] as string, at(600), null))
+        .ok,
     ).toBe(true);
   });
 

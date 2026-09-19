@@ -10,15 +10,27 @@ import { AppLayout, CSS, PublicLayout, THEME_SCRIPT, meterFillClass, render } fr
 import { HomePage } from '../../../apps/app/src/routes/public/home.js';
 import { DemoPage } from '../../../apps/app/src/routes/public/demo.js';
 import { DEMO_HEALTH, DEMO_RUNS } from '../../../apps/app/src/routes/public/demoData.js';
-import { PrivacyPage, RefundsPage, StatusPage, TermsPage } from '../../../apps/app/src/routes/public/legal.js';
+import {
+  PrivacyPage,
+  RefundsPage,
+  StatusPage,
+  TermsPage,
+} from '../../../apps/app/src/routes/public/legal.js';
 import { SupportPage } from '../../../apps/app/src/routes/public/marketing.js';
 import {
   DevelopmentStoryPage,
   renderMarkdownSubset,
 } from '../../../apps/app/src/routes/public/developmentStory.js';
 import { WorkspacePage } from '../../../apps/app/src/routes/app/workspacePage.js';
-import { RunDetailPage, RunListPage, maskValues } from '../../../apps/app/src/routes/app/runPages.js';
-import { SyntheticCustomerDataPort, resetSyntheticState } from '../../../apps/app/src/routes/app/syntheticPort.js';
+import {
+  RunDetailPage,
+  RunListPage,
+  maskValues,
+} from '../../../apps/app/src/routes/app/runPages.js';
+import {
+  SyntheticCustomerDataPort,
+  resetSyntheticState,
+} from '../../../apps/app/src/routes/app/syntheticPort.js';
 
 const NOW = new Date('2026-03-01T23:00:00.000Z');
 
@@ -29,7 +41,9 @@ describe('public pages', () => {
     expect(publicMarkup).toContain('name="viewport" content="width=device-width, initial-scale=1"');
     expect(publicMarkup).not.toContain('name="robots"');
 
-    const appMarkup = await render(AppLayout({ title: 'Workspace', path: '/app', body: HomePage() }));
+    const appMarkup = await render(
+      AppLayout({ title: 'Workspace', path: '/app', body: HomePage() }),
+    );
     expect(appMarkup).toContain('name="robots" content="noindex, nofollow"');
   });
 
@@ -43,7 +57,12 @@ describe('public pages', () => {
     const markup = await render(HomePage());
     expect(markup).toContain('What this does not do');
     expect(markup).toContain('It does not fix anything');
-    expect(markup).toContain('It does not detect a run that never started, by default');
+    // "by default" came off this heading on 2026-09-19. It implied a non-default setting
+    // that would detect a run that never started; `packages/domain/src/coverage.ts` marks
+    // that mode unsupported and unselectable, and no connector or scheduler pass can deliver
+    // it. The assertion is tightened, not weakened: the heading must now be the unqualified
+    // one, so restoring the old copy fails here as well as in CUST-330.
+    expect(markup).toContain('It does not detect a run that never started<');
     expect(markup).toContain('It is not instant');
   });
 
@@ -56,7 +75,12 @@ describe('public pages', () => {
   });
 
   it('CUST-045 the demo’s four runs are produced by the real engine, one of each status', async () => {
-    expect(DEMO_RUNS.map((run) => run.status)).toEqual(['VERIFIED', 'FAILED', 'PENDING', 'UNVERIFIED']);
+    expect(DEMO_RUNS.map((run) => run.status)).toEqual([
+      'VERIFIED',
+      'FAILED',
+      'PENDING',
+      'UNVERIFIED',
+    ]);
     // The demo deliberately does not flatter itself: one failure and one unverified.
     expect(DEMO_HEALTH.verified_percentage).toBe(33);
     expect(DEMO_HEALTH.state).toBe('degraded');
@@ -65,7 +89,9 @@ describe('public pages', () => {
   it('CUST-046 the demo is unmistakably marked synthetic and accepts no input', async () => {
     const markup = await render(DemoPage());
     expect(markup).toContain('Synthetic workspace');
-    expect(markup).toContain('Every record, address, account and message on this page is invented.');
+    expect(markup).toContain(
+      'Every record, address, account and message on this page is invented.',
+    );
     expect(markup).not.toContain('<form');
     expect(markup).not.toContain('<input');
     expect(markup).not.toContain('<textarea');
@@ -109,11 +135,15 @@ describe('public pages', () => {
   it('CUST-051 the refunds page surfaces the refund policy placeholder rather than implying a policy exists', async () => {
     const markup = await render(RefundsPage());
     expect(markup).toContain('Refund policy');
-    expect(markup).toContain('TODO_OWNER_INPUT: state here if the owner wants to offer any discretionary');
+    expect(markup).toContain(
+      'TODO_OWNER_INPUT: state here if the owner wants to offer any discretionary',
+    );
   });
 
   it('CUST-052 the status page publishes no uptime figure and no green tick', async () => {
-    const markup = await render(StatusPage({ environment: 'development', checkedAt: '2026-03-01 12:00 UTC' }));
+    const markup = await render(
+      StatusPage({ environment: 'development', checkedAt: '2026-03-01 12:00 UTC' }),
+    );
     expect(markup).toContain('We publish no uptime figure and no incident history');
     expect(markup).not.toMatch(/all systems operational/i);
     expect(markup).not.toMatch(/\b99\.9\d*%/);
@@ -139,7 +169,9 @@ describe('public pages', () => {
     expect(rendered).toContain('&lt;script&gt;');
     expect(rendered).not.toContain('href="javascript:');
     // Links now carry rel, because the target goes through the shared scheme guard (SEC-1214).
-    expect(rendered).toContain('<a href="https://example.test/a" rel="nofollow noopener noreferrer">ok</a>');
+    expect(rendered).toContain(
+      '<a href="https://example.test/a" rel="nofollow noopener noreferrer">ok</a>',
+    );
   });
 });
 
@@ -342,10 +374,25 @@ describe('no inline style attributes anywhere', () => {
   const pages: readonly (readonly [string, () => Promise<string>])[] = [
     ['/', async () => render(PublicLayout({ title: 'Home', path: '/', body: HomePage() }))],
     ['/demo', async () => render(PublicLayout({ title: 'Demo', path: '/demo', body: DemoPage() }))],
-    ['/terms', async () => render(PublicLayout({ title: 'Terms', path: '/terms', body: TermsPage() }))],
-    ['/privacy', async () => render(PublicLayout({ title: 'Privacy', path: '/privacy', body: PrivacyPage() }))],
-    ['/status', async () =>
-      render(PublicLayout({ title: 'Status', path: '/status', body: StatusPage({ environment: 'test', checkedAt: 'now' }) }))],
+    [
+      '/terms',
+      async () => render(PublicLayout({ title: 'Terms', path: '/terms', body: TermsPage() })),
+    ],
+    [
+      '/privacy',
+      async () => render(PublicLayout({ title: 'Privacy', path: '/privacy', body: PrivacyPage() })),
+    ],
+    [
+      '/status',
+      async () =>
+        render(
+          PublicLayout({
+            title: 'Status',
+            path: '/status',
+            body: StatusPage({ environment: 'test', checkedAt: 'now' }),
+          }),
+        ),
+    ],
   ];
 
   it('CUST-096 no rendered page emits a style attribute', async () => {

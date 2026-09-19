@@ -1,0 +1,382 @@
+/* =============================================================================
+   ITISYOU Verify — authoritative design tokens
+   A19, 2026-09-19. Derived from the Stitch export in
+   design/stitch/screens/batch-01/stitch_itisyou_verify_landing_page/, audited
+   against WCAG 2.1, and reconciled with the shipped system in
+   packages/ui/src/tokens.ts.
+
+   STATUS OF THIS FILE
+   -------------------
+   New. It replaces nothing yet. No application code imports it and none should
+   until a human has diffed it against packages/ui/src/styles.ts and the owning
+   agent (A05) has accepted it. See design/MAPPING.md for the token-by-token
+   comparison and the risk classification of each change.
+
+   Generated HTML from Stitch is reference material. It is never a source, and
+   nothing in this file was copied from it without being measured first.
+
+   -----------------------------------------------------------------------------
+   DECISION 1 — WHICH STITCH PALETTE IS AUTHORITATIVE
+   -----------------------------------------------------------------------------
+   The export contradicts itself. Its YAML frontmatter declares
+   primary #4edea3 / background #0f131c / surface-container #1c1f29. Its prose
+   declares Primary #10B981 / Neutral Core #090D16 / Surface Tier 2 #0F172A.
+   Two palettes, one document.
+
+   Authoritative: THE YAML FRONTMATTER. The prose palette is rejected.
+
+   Measured, not preferred (full table in design/MAPPING.md):
+     - YAML palette: 25 specified pairs audited, 23 pass. Its two misses are
+       `outline-variant` #3c4a42 at 1.99:1 (a decorative hairline, and it is
+       never the only cue for anything) and `error-container` #93000a used as
+       text at 1.99:1 (a misuse — a Material container colour is a background,
+       and the YAML supplies `on-error-container` for the text on it).
+     - Prose palette: 30 specified pairs audited, 18 pass, 12 FAIL. The failures
+       are structural, not incidental: the entire third text rank
+       (#475569 at 2.56 / 2.36 / 1.93:1 on the three surface tiers it is
+       specified against), and every single structural border the system
+       defines — Border Subdued 1.13:1, Border Active 1.69:1, Border Verified
+       1.92:1, Border Anomaly 2.30:1, card rim 1.17:1, input border 1.21:1,
+       unchecked-checkbox border 1.70:1, verified-chip border 2.15:1 — all
+       against the 3:1 that WCAG 1.4.11 requires of a UI component boundary.
+
+   The YAML palette is a generated Material 3 tonal system: every `on-X` is
+   derived from its `X` and the pairs hold up. The prose palette is a set of
+   Tailwind slate/emerald/amber values chosen by eye, and it shows — its own
+   accent values pass fine as text, but every low-alpha border it specifies is
+   invisible to the standard. A palette whose borders cannot be seen is not a
+   palette this product can use, because a border is one of our three status
+   signals and the one that survives forced-colours mode.
+
+   -----------------------------------------------------------------------------
+   DECISION 2 — NEITHER STITCH PALETTE SHIPS
+   -----------------------------------------------------------------------------
+   The YAML palette wins the argument inside the export and still does not ship,
+   for two reasons that no contrast number can fix:
+
+     1. It is dark-only. The product has a light theme, a dark theme and a
+        system-default. A single-theme palette is not a candidate.
+     2. It encodes two statuses (primary/emerald and tertiary/amber). This
+        product has exactly four and will never have five.
+
+   So the spine of this file is the shipped house palette from
+   packages/ui/src/tokens.ts, which I re-derived independently from the raw hex
+   values. Every ratio that file claims in its comments reproduced exactly
+   (ink 16.48, muted 6.94, verified 5.97, failed 6.62, unverified 6.42,
+   pending 7.40, fieldBorder 3.88/4.28, focus 5.29 in light; ink 16.12,
+   muted 8.81, faint 6.54, verified 9.52, failed 8.57, unverified 9.47,
+   pending 9.06, focus 8.78, fieldBorder 4.38 in dark). The documentation there
+   is honest. One claim is not, and it is corrected below.
+
+   From the Stitch export this file adopts exactly three things, each re-measured:
+     - a raised surface tier for overlays (Stitch "Surface Tier 3"), because the
+       house ladder stops at three and popovers currently have nowhere to sit;
+     - an overlay corner radius of 12px (Stitch `rounded-xl`), for the same reason;
+     - confirmation that the 4px control / 8px container radius pair the house
+       already uses matches what Stitch independently arrived at.
+   Nothing else. No hue, no shadow, no glow, no backdrop-filter, no font.
+
+   -----------------------------------------------------------------------------
+   DECISION 3 — CORRECTION TO THE SHIPPED PALETTE
+   -----------------------------------------------------------------------------
+   packages/ui/src/tokens.ts states that light `faint` #5E6C78 is "4.49:1 on
+   `sunken`, still AA". It is 4.49:1, and 4.49 is below 4.50. It fails AA body
+   text on the sunken surface. The minimum adjustment that clears it while
+   preserving the muted > faint hierarchy is #5D6B77 (one step darker):
+   4.55:1 on sunken, 4.96:1 on paper, 5.48:1 on surface, and still 1.98 ratio-
+   points lighter than `muted` on paper, so the three-rank hierarchy is intact.
+   That is the value below. It is the only colour in this file that differs from
+   what the app ships today.
+
+   -----------------------------------------------------------------------------
+   FONTS AND CSP
+   -----------------------------------------------------------------------------
+   The Stitch system specifies Plus Jakarta Sans, Inter and JetBrains Mono, and
+   the generated HTML loads them from fonts.googleapis.com. This file adds NO
+   web font, and the recommendation is that none is added.
+
+   The cost, stated exactly, because the brief requires it. apps/app/src/index.ts
+   serves `default-src 'none'` with `font-src 'self'`, `style-src` restricted to
+   two SHA-256 hashes of the inlined stylesheet, and `style-src-attr 'none'`.
+   Adopting a Google-hosted font would require:
+     - `style-src`/`style-src-elem` to gain https://fonts.googleapis.com, which
+       means the hash-only style policy becomes a host-allowlist policy and the
+       guarantee that only our exact bytes can style the page is gone;
+     - `font-src` to gain https://fonts.gstatic.com;
+     - a new subprocessor disclosure on the privacy page, since every page view
+       would send the visitor's IP and User-Agent to Google.
+   Self-hosting the same faces is cheaper on policy — `font-src 'self'` already
+   allows it and no CSP change is needed at all — but costs 4 render-blocking
+   font requests and roughly 120-200KB on a Worker whose whole stylesheet is
+   3.4KB brotli. Neither is worth it. The system stack in --f-sans/--f-mono
+   below renders on every target platform, costs zero requests and zero policy.
+
+   ============================================================================= */
+
+:root {
+  color-scheme: light;
+
+  /* ---- surfaces: the elevation ladder ------------------------------------
+     In light mode elevation is carried by shadow and rule, not by tone, so
+     `raised` deliberately equals `surface`. Making it a fourth off-white would
+     produce a tier nobody can see and a token everybody would misuse. */
+  --c-sunken: #e5ebef;
+  --c-paper: #f1f4f6;
+  --c-surface: #ffffff;
+  --c-raised: #ffffff;
+
+  /* ---- text ranks --------------------------------------------------------
+     ink 16.48:1, muted 6.94:1, faint 4.96:1 on paper. All AA body. */
+  --c-ink: #10161c;
+  --c-muted: #48555f;
+  --c-faint: #5d6b77;
+  --c-on-ink: #f1f4f6;
+
+  /* ---- lines -------------------------------------------------------------
+     `rule` and `rule-strong` are decorative hairlines below 3:1 by intent;
+     no information depends on seeing them. `field-border` is a UI component
+     boundary and must clear 3:1 — it does, at 3.88:1 on paper. */
+  --c-rule: #cbd4dc;
+  --c-rule-strong: #a5b2be;
+  --c-field-border: #6e7c88;
+
+  /* ---- focus: a function, not a brand colour. 5.29:1 on paper. ---------- */
+  --c-focus: #1a5fd0;
+
+  /* ---- the four statuses, and only four ---------------------------------
+     On paper: verified 5.97, failed 6.62, unverified 6.42, pending 7.40.
+     On their own tints: 5.72, 6.20, 6.15, 6.94. All AA body.
+
+     These four are NOT separable by luminance. Measured against each other in
+     light mode the pairs run 1.03:1 to 1.24:1 — in greyscale, or to a reader
+     with a colour vision deficiency, all four are the same mark. That is the
+     measurement behind the rule below, not an abstract principle. */
+  --c-verified: #0e6a4c;
+  --c-failed: #a81f14;
+  --c-unverified: #7d4e00;
+  --c-pending: #3f5163;
+  --c-verified-tint: #e4f2ec;
+  --c-failed-tint: #fbe8e6;
+  --c-unverified-tint: #f7eedc;
+  --c-pending-tint: #e8edf2;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+
+    /* Dark-mode ratios against paper #0D1217: ink 16.12, muted 8.81,
+       faint 6.54, verified 9.52, failed 8.57, unverified 9.47, pending 9.06,
+       field-border 4.38, focus 8.78. On `raised` #1F2832: ink 12.78,
+       muted 6.98, faint 5.19, verified 7.55, failed 6.79, unverified 7.51,
+       pending 7.18, field-border 3.47. Every one clears its threshold. */
+    --c-sunken: #090d11;
+    --c-paper: #0d1217;
+    --c-surface: #161d25;
+    --c-raised: #1f2832;
+
+    --c-ink: #e9eef3;
+    --c-muted: #a6b3c0;
+    --c-faint: #8c9aa8;
+    --c-on-ink: #0d1217;
+
+    --c-rule: #27313b;
+    --c-rule-strong: #3c4954;
+    --c-field-border: #6b7c8c;
+
+    --c-focus: #7fb3ff;
+
+    /* Greyscale separation in dark is worse still: 1.01:1 to 1.11:1 between
+       the four. Colour carries no information here on its own. */
+    --c-verified: #5ccca4;
+    --c-failed: #ff9082;
+    --c-unverified: #e8ae45;
+    --c-pending: #a4b6c9;
+    --c-verified-tint: #10261f;
+    --c-failed-tint: #2a1613;
+    --c-unverified-tint: #291f0e;
+    --c-pending-tint: #151d26;
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --c-sunken: #090d11;
+  --c-paper: #0d1217;
+  --c-surface: #161d25;
+  --c-raised: #1f2832;
+  --c-ink: #e9eef3;
+  --c-muted: #a6b3c0;
+  --c-faint: #8c9aa8;
+  --c-on-ink: #0d1217;
+  --c-rule: #27313b;
+  --c-rule-strong: #3c4954;
+  --c-field-border: #6b7c8c;
+  --c-focus: #7fb3ff;
+  --c-verified: #5ccca4;
+  --c-failed: #ff9082;
+  --c-unverified: #e8ae45;
+  --c-pending: #a4b6c9;
+  --c-verified-tint: #10261f;
+  --c-failed-tint: #2a1613;
+  --c-unverified-tint: #291f0e;
+  --c-pending-tint: #151d26;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  --c-sunken: #e5ebef;
+  --c-paper: #f1f4f6;
+  --c-surface: #ffffff;
+  --c-raised: #ffffff;
+  --c-ink: #10161c;
+  --c-muted: #48555f;
+  --c-faint: #5d6b77;
+  --c-on-ink: #f1f4f6;
+  --c-rule: #cbd4dc;
+  --c-rule-strong: #a5b2be;
+  --c-field-border: #6e7c88;
+  --c-focus: #1a5fd0;
+  --c-verified: #0e6a4c;
+  --c-failed: #a81f14;
+  --c-unverified: #7d4e00;
+  --c-pending: #3f5163;
+  --c-verified-tint: #e4f2ec;
+  --c-failed-tint: #fbe8e6;
+  --c-unverified-tint: #f7eedc;
+  --c-pending-tint: #e8edf2;
+}
+
+/* =============================================================================
+   STATUS TREATMENT — the non-colour half
+   -----------------------------------------------------------------------------
+   The Stitch system defines two chips, both signalled by hue and hue alone:
+   a green "VERIFIED REALITY" pill and an amber "PHANTOM 200 DETECTED" pill.
+   Two of our four statuses are simply absent from it, and the two it has fail
+   WCAG 1.4.1 as specified. Replaced entirely.
+
+   Every status carries FOUR independent signals. Any one of them alone is
+   sufficient to tell the four apart:
+
+     1. a glyph with a distinct SILHOUETTE (not a coloured dot),
+     2. a text label, always rendered, never abbreviated to an icon,
+     3. a border in the status colour — this is the signal that survives
+        forced-colours mode, where backgrounds are overridden but borders are not,
+     4. a border STYLE: solid for the three settled answers, dashed for
+        UNVERIFIED. The container's outline is broken because the check is.
+
+   The glyph set, as drawn in packages/ui/src/components/icons.ts:
+
+     VERIFIED    closed ring + tick          the ring closed, the check completed
+     FAILED      closed ring + cross         the ring closed, the check completed,
+                                             and the evidence contradicted the rule
+     UNVERIFIED  DASHED ring + horizontal bar  we looked and there was no reading;
+                                             the ring never closes and the bar is
+                                             neither a tick nor a cross
+     PENDING     closed ring + clock hands   time-shaped, because the only thing
+                                             wrong is that it is early
+
+   On UNVERIFIED specifically. It is a first-class answer meaning "we do not
+   know", and the whole product is the claim that we say that rather than
+   rounding it up. So it is deliberately NOT quieter than the other three:
+   it takes the same badge size, the same border weight and the same type as
+   VERIFIED and FAILED. It takes a dashed border they do not have, which reads
+   as unresolved rather than as weak. And in a run's headline verdict it is the
+   only status that also requires a follow-up line naming what could not be
+   checked and why — "Could not reach HubSpot (auth expired 14:22 UTC)".
+   A verdict with a hole in it must show the shape of the hole.
+
+   It is NOT a soft pass: it never takes the verified hue, the tick glyph or a
+   closed ring. It is NOT a soft fail: it never takes the failed hue or the
+   cross. Amber with a broken ring is a third thing.
+
+   These four values are the vocabulary; the shapes live in SVG, not CSS.
+   ============================================================================= */
+:root {
+  --status-border-width: 1px;
+  --status-border-style-verified: solid;
+  --status-border-style-failed: solid;
+  --status-border-style-unverified: dashed;
+  --status-border-style-pending: solid;
+}
+
+/* =============================================================================
+   TYPE
+   -----------------------------------------------------------------------------
+   No web font. See the CSP note at the top of this file for the exact policy
+   change any web font would require and why it is not worth it.
+
+   The rule the whole interface is built on: if a HUMAN wrote it, it is set in
+   sans. If a MACHINE produced it, it is set in mono. Retrieved values, expected
+   values, identifiers, timestamps, field names and status labels are all mono.
+   Stitch arrived at the same split (Inter for prose, JetBrains Mono for
+   "ground truth") from a different direction, which is mild corroboration.
+   ============================================================================= */
+:root {
+  --f-sans:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI Variable Text', 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+  --f-mono:
+    ui-monospace, 'Cascadia Mono', 'Cascadia Code', 'SF Mono', 'JetBrains Mono', 'Roboto Mono',
+    Menlo, Consolas, 'Liberation Mono', monospace;
+
+  /* Display sizes are fluid. Body sizes are fixed so line length stays honest. */
+  --t-display: clamp(2rem, 1.35rem + 2.7vw, 3rem);
+  --t-h1: clamp(1.625rem, 1.35rem + 1.15vw, 2.125rem);
+  --t-h2: 1.3125rem;
+  --t-h3: 1.0625rem;
+  --t-body: 1rem;
+  --t-small: 0.875rem;
+  --t-micro: 0.75rem;
+
+  /* New: the lede size, currently the literal 1.0625rem in two places in
+     packages/ui/src/styles.ts. Same value, now named. */
+  --t-lede: 1.0625rem;
+}
+
+/* =============================================================================
+   SPACE, RADIUS, LAYOUT
+   -----------------------------------------------------------------------------
+   4px base. Named by step so no component invents an in-between value.
+   Stitch's own scale (0.25 / 0.5 / 1 / 1.5 / 2.5rem) is a subset of this one,
+   so nothing needed to change.
+   ============================================================================= */
+:root {
+  --s1: 0.25rem;
+  --s2: 0.5rem;
+  --s3: 0.75rem;
+  --s4: 1rem;
+  --s6: 1.5rem;
+  --s8: 2rem;
+  --s12: 3rem;
+  --s16: 4rem;
+  --s24: 6rem;
+
+  /* New: the control-height and control-padding literals (2.75rem / 0.6rem)
+     that currently repeat across .btn, .field and .select in styles.ts.
+     2.75rem = 44px, the minimum touch target. Same values, now named once. */
+  --control-height: 2.75rem;
+  --control-pad-y: 0.6rem;
+  /* New: the 1px hairline, written 33 times as a literal today. */
+  --hairline: 1px;
+
+  --r-control: 4px; /* inputs, buttons, badges */
+  --r-container: 8px; /* cards, callouts, tables */
+  --r-overlay: 12px; /* NEW, from Stitch: dialogs, drawers, popovers */
+
+  --w-measure: 38rem; /* reading measure, ~68 characters at body size */
+  --w-wide: 72rem;
+  --w-margin: 7.5rem; /* the evidence margin */
+  --w-step: 3.5rem;
+
+  /* Breakpoints are recorded here as documentation ONLY. A custom property
+     cannot be used in a media query condition — `@media (min-width: var(--bp-md))`
+     does not work in any browser — so the media queries in styles.ts keep their
+     literals and this block exists so the set is at least written down once and
+     can be grepped. Do not "fix" the literals by referencing these.
+       --bp-stack : 40rem  the evidence margin stacks below this
+       --bp-sm    : 34rem  key/value pairs go two-column above this
+       --bp-md    : 46rem  two- and three-column grids, card padding step
+       --bp-lg    : 52rem  wrapper gutter step
+       --bp-xl    : 60rem  three-column grid */
+}

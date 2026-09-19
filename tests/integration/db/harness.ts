@@ -243,9 +243,7 @@ export function seedWorkspace(
     .prepare('INSERT INTO users (id, auth_subject, created_at) VALUES (?, ?, ?)')
     .run(userId, `${suffix}@example.com`, createdAt);
   h.raw
-    .prepare(
-      "INSERT INTO workspaces (id, name, status, created_at) VALUES (?, ?, 'active', ?)",
-    )
+    .prepare("INSERT INTO workspaces (id, name, status, created_at) VALUES (?, ?, 'active', ?)")
     .run(workspaceId, `Workspace ${suffix}`, createdAt);
   h.raw
     .prepare(
@@ -355,8 +353,8 @@ export function seedBudgetAccount(
 
 /** Count rows, for "nothing was written" assertions. */
 export function countRows(h: TestDb, table: string, where = '1=1', ...bindings: unknown[]): number {
-  const row = h.raw.prepare(`SELECT COUNT(*) AS n FROM ${table} WHERE ${where}`).get(
-    ...(bindable(bindings) as never[]),
-  ) as { n: number | bigint };
+  const row = h.raw
+    .prepare(`SELECT COUNT(*) AS n FROM ${table} WHERE ${where}`)
+    .get(...(bindable(bindings) as never[])) as { n: number | bigint };
   return Number(row.n);
 }

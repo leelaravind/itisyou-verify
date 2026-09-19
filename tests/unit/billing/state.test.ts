@@ -19,9 +19,7 @@ import {
 } from '@app/billing/state';
 import type { SubscriptionRecord } from '@app/billing/port';
 
-function storedSubscription(
-  overrides: Partial<SubscriptionRecord> = {},
-): SubscriptionRecord {
+function storedSubscription(overrides: Partial<SubscriptionRecord> = {}): SubscriptionRecord {
   return {
     id: 'sub_row_1',
     workspaceId: 'ws_1',

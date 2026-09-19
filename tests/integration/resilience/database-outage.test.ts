@@ -282,7 +282,9 @@ describe('RESIL: /health tells the truth', () => {
   it('RESIL-115 a database that fails only on writes still reports reachable, which is honest', async () => {
     // `/health` claims exactly one thing: that we can reach D1. Overstating it — probing a
     // write and calling the service healthy — would be the same class of lie in reverse.
-    const result = await probeHealth(new FailingDb(db.db, { failMatching: /INSERT|UPDATE|DELETE/ }));
+    const result = await probeHealth(
+      new FailingDb(db.db, { failMatching: /INSERT|UPDATE|DELETE/ }),
+    );
     expect(result.database).toBe('reachable');
   });
 
@@ -350,7 +352,9 @@ describe('RESIL: the failure injector is itself sound', () => {
     const db = createTestDb();
     try {
       const failing = new FailingDb(db.db, { failEverything: true });
-      await expect(failing.prepare('SELECT 1').first()).rejects.toBeInstanceOf(DatabaseUnreachableError);
+      await expect(failing.prepare('SELECT 1').first()).rejects.toBeInstanceOf(
+        DatabaseUnreachableError,
+      );
       // And with no plan, the same statement really executes.
       const healthy = new FailingDb(db.db, {});
       await expect(healthy.prepare('SELECT 1 AS n').first()).resolves.toEqual({ n: 1 });
@@ -365,7 +369,9 @@ describe('RESIL: the failure injector is itself sound', () => {
       const ws = seedWorkspace(db, 'injector');
       const failing = new FailingDb(db.db, { failMatching: /UPDATE entitlements/ });
       // A read works; the targeted write does not.
-      await expect(entitlements.get(failing, ws.workspaceId, ws.billingPeriod)).resolves.not.toBeNull();
+      await expect(
+        entitlements.get(failing, ws.workspaceId, ws.billingPeriod),
+      ).resolves.not.toBeNull();
       await expect(
         entitlements.reserve(failing, ws.workspaceId, ws.billingPeriod, '2026-09-19T10:00:00.000Z'),
       ).rejects.toBeInstanceOf(DatabaseUnreachableError);

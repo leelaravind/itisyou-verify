@@ -22,7 +22,14 @@ import {
 import { calendarMonthNotAnAllowanceKey } from '@app/db/customerPort';
 import { issueSignInToken, redeemSignInToken } from '@app/lib/auth';
 import type { Env } from '@app/lib/context';
-import { countRows, createTestDb, seedWorkspace, T0, type SeededWorkspace, type TestDb } from './harness';
+import {
+  countRows,
+  createTestDb,
+  seedWorkspace,
+  T0,
+  type SeededWorkspace,
+  type TestDb,
+} from './harness';
 
 const NOW = new Date('2026-09-19T10:00:00.000Z');
 /** A customer who subscribed on the 19th, so a calendar month is eleven days wrong. */
@@ -46,7 +53,9 @@ async function customerPort(h: TestDb, ws: SeededWorkspace): Promise<D1CustomerD
   const redeemed = await redeemSignInToken(h.db, { token: issued.token, now: NOW });
   if (!redeemed.ok) throw new Error('fixture sign-in failed');
   // The seeded member owns the workspace; sign in as them.
-  h.raw.prepare('UPDATE sessions SET user_id = ? WHERE id = ?').run(ws.userId, redeemed.session.sessionId);
+  h.raw
+    .prepare('UPDATE sessions SET user_id = ? WHERE id = ?')
+    .run(ws.userId, redeemed.session.sessionId);
   return new D1CustomerDataPort({
     db: h.db,
     env: env(),
@@ -80,10 +89,12 @@ describe('the customer usage page reads the row billing actually wrote', () => {
     h.close();
   });
 
-  it('BILL-260 usage() resolves the key from the subscription, not from the calendar', async () => {
+  it('BILL-600 usage() resolves the key from the subscription, not from the calendar', async () => {
     // Billing wrote this row. Before the fix, usage() looked up '2026-09' and found nothing.
     h.raw
-      .prepare('UPDATE entitlements SET consumed = 120, reserved = 5 WHERE workspace_id = ? AND billing_period = ?')
+      .prepare(
+        'UPDATE entitlements SET consumed = 120, reserved = 5 WHERE workspace_id = ? AND billing_period = ?',
+      )
       .run(ws.workspaceId, PERIOD_KEY);
 
     const port = await customerPort(h, ws);
@@ -96,9 +107,11 @@ describe('the customer usage page reads the row billing actually wrote', () => {
     expect(view.periodEnd).toBe(PERIOD_END);
   });
 
-  it('BILL-261 a customer at their limit is reported blocked, which is the bug that mattered', async () => {
+  it('BILL-601 a customer at their limit is reported blocked, which is the bug that mattered', async () => {
     h.raw
-      .prepare('UPDATE entitlements SET consumed = 500 WHERE workspace_id = ? AND billing_period = ?')
+      .prepare(
+        'UPDATE entitlements SET consumed = 500 WHERE workspace_id = ? AND billing_period = ?',
+      )
       .run(ws.workspaceId, PERIOD_KEY);
     const view = await (await customerPort(h, ws)).usage();
     // The old behaviour: 0 used, 500 remaining, unblocked — while admission refused them.
@@ -106,7 +119,7 @@ describe('the customer usage page reads the row billing actually wrote', () => {
     expect(view.admissionBlocked).toBe(true);
   });
 
-  it('BILL-262 with no subscription there is no paid period, and none is invented', async () => {
+  it('BILL-602 with no subscription there is no paid period, and none is invented', async () => {
     h.raw.prepare('DELETE FROM subscriptions').run();
     const view = await (await customerPort(h, ws)).usage();
     expect(view.runsUsed).toBe(0);
@@ -114,7 +127,7 @@ describe('the customer usage page reads the row billing actually wrote', () => {
     expect(view.subscriptionStatus).toBeNull();
   });
 
-  it('BILL-263 the old calendar-month function is renamed and is not an allowance key', () => {
+  it('BILL-603 the old calendar-month function is renamed and is not an allowance key', () => {
     const wrong = calendarMonthNotAnAllowanceKey(NOW);
     expect(wrong).toBe('2026-09');
     // The whole finding in one line: this shape never matches a row billing wrote.
@@ -138,14 +151,18 @@ describe('the D1 billing port refuses a wrong period key loudly', () => {
     h.close();
   });
 
-  it('BILL-264 every allowance method throws on a YYYY-MM key rather than missing silently', async () => {
+  it('BILL-604 every allowance method throws on a YYYY-MM key rather than missing silently', async () => {
     const wrong = '2026-09';
     // A silent miss is how A13-010 survived review. A crash in a test beats a
     // quietly-unbilled customer in production.
     await expect(port.findAllowance(ws.workspaceId, wrong)).rejects.toBeInstanceOf(AppError);
     await expect(port.reserveRun(ws.workspaceId, wrong, T0)).rejects.toBeInstanceOf(AppError);
-    await expect(port.settleReservedRun(ws.workspaceId, wrong, T0)).rejects.toBeInstanceOf(AppError);
-    await expect(port.releaseReservedRun(ws.workspaceId, wrong, T0)).rejects.toBeInstanceOf(AppError);
+    await expect(port.settleReservedRun(ws.workspaceId, wrong, T0)).rejects.toBeInstanceOf(
+      AppError,
+    );
+    await expect(port.releaseReservedRun(ws.workspaceId, wrong, T0)).rejects.toBeInstanceOf(
+      AppError,
+    );
     await expect(
       port.openAllowancePeriod({
         id: 'ent_x',
@@ -163,7 +180,7 @@ describe('the D1 billing port refuses a wrong period key loudly', () => {
     expect(countRows(h, 'entitlements')).toBe(1);
   });
 
-  it('BILL-265 a correct key still works end to end through the port', async () => {
+  it('BILL-605 a correct key still works end to end through the port', async () => {
     expect(await port.reserveRun(ws.workspaceId, PERIOD_KEY, T0)).toBe(true);
     expect((await port.findAllowance(ws.workspaceId, PERIOD_KEY))?.reserved).toBe(1);
     expect(await port.settleReservedRun(ws.workspaceId, PERIOD_KEY, T0)).toBe(true);
@@ -213,14 +230,19 @@ describe('decideRefund reaches the D1 approval store', () => {
       .run(id, ws.workspaceId, `refund:${id}`, T0, T0);
   }
 
-  it('BILL-270 the consumer spends the approval and records which refund spent it', async () => {
+  it('BILL-610 the consumer spends the approval and records which refund spent it', async () => {
     seedRefund('ref_1');
-    const consume = createRefundApprovalConsumer(h.db, { workspaceId: ws.workspaceId, now: () => NOW });
+    const consume = createRefundApprovalConsumer(h.db, {
+      workspaceId: ws.workspaceId,
+      now: () => NOW,
+    });
     const approval = { id: 'apr_1' } as Parameters<typeof consume>[0]['approval'];
 
     expect(await consume({ approval, refundId: 'ref_1' })).toBe(true);
 
-    const row = h.raw.prepare('SELECT status, consumed_at FROM approvals WHERE id = ?').get('apr_1') as {
+    const row = h.raw
+      .prepare('SELECT status, consumed_at FROM approvals WHERE id = ?')
+      .get('apr_1') as {
       status: string;
       consumed_at: string;
     };
@@ -232,9 +254,12 @@ describe('decideRefund reaches the D1 approval store', () => {
     expect(refund.approval_id).toBe('apr_1');
   });
 
-  it('BILL-271 the documented retry for the SAME refund succeeds', async () => {
+  it('BILL-611 the documented retry for the SAME refund succeeds', async () => {
     seedRefund('ref_1');
-    const consume = createRefundApprovalConsumer(h.db, { workspaceId: ws.workspaceId, now: () => NOW });
+    const consume = createRefundApprovalConsumer(h.db, {
+      workspaceId: ws.workspaceId,
+      now: () => NOW,
+    });
     const approval = { id: 'apr_1' } as Parameters<typeof consume>[0]['approval'];
 
     expect(await consume({ approval, refundId: 'ref_1' })).toBe(true);
@@ -244,10 +269,13 @@ describe('decideRefund reaches the D1 approval store', () => {
     expect(await consume({ approval, refundId: 'ref_1' })).toBe(true);
   });
 
-  it('BILL-272 a DIFFERENT refund reaching for the spent approval is refused', async () => {
+  it('BILL-612 a DIFFERENT refund reaching for the spent approval is refused', async () => {
     seedRefund('ref_1');
     seedRefund('ref_2');
-    const consume = createRefundApprovalConsumer(h.db, { workspaceId: ws.workspaceId, now: () => NOW });
+    const consume = createRefundApprovalConsumer(h.db, {
+      workspaceId: ws.workspaceId,
+      now: () => NOW,
+    });
     const approval = { id: 'apr_1' } as Parameters<typeof consume>[0]['approval'];
 
     expect(await consume({ approval, refundId: 'ref_1' })).toBe(true);
@@ -259,10 +287,13 @@ describe('decideRefund reaches the D1 approval store', () => {
     expect(refund.approval_id).toBeNull();
   });
 
-  it('BILL-273 two concurrent refunds racing one approval: exactly one wins', async () => {
+  it('BILL-613 two concurrent refunds racing one approval: exactly one wins', async () => {
     seedRefund('ref_1');
     seedRefund('ref_2');
-    const consume = createRefundApprovalConsumer(h.db, { workspaceId: ws.workspaceId, now: () => NOW });
+    const consume = createRefundApprovalConsumer(h.db, {
+      workspaceId: ws.workspaceId,
+      now: () => NOW,
+    });
     const approval = { id: 'apr_1' } as Parameters<typeof consume>[0]['approval'];
     const results = await Promise.all([
       consume({ approval, refundId: 'ref_1' }),
@@ -271,7 +302,7 @@ describe('decideRefund reaches the D1 approval store', () => {
     expect(results.filter(Boolean)).toHaveLength(1);
   });
 
-  it('BILL-274 decideRefund itself reaches this store, before the provider call', async () => {
+  it('BILL-614 decideRefund itself reaches this store, before the provider call', async () => {
     seedRefund('ref_1');
     const order: string[] = [];
     const data = new D1BillingDataPort(h.db);

@@ -86,10 +86,12 @@ describe('same-origin check', () => {
   });
 
   it('API-106 rejects a different Origin, even a look-alike host', () => {
-    expect(isSameOriginRequest(request({ origin: 'https://verify.itisyou.app.evil.com' }), ORIGIN)).toBe(
+    expect(
+      isSameOriginRequest(request({ origin: 'https://verify.itisyou.app.evil.com' }), ORIGIN),
+    ).toBe(false);
+    expect(isSameOriginRequest(request({ origin: 'http://verify.itisyou.app' }), ORIGIN)).toBe(
       false,
     );
-    expect(isSameOriginRequest(request({ origin: 'http://verify.itisyou.app' }), ORIGIN)).toBe(false);
   });
 
   it('API-107 falls back to Referer only when Origin is absent', () => {

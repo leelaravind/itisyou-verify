@@ -77,12 +77,17 @@ describe('an approval is spent, not merely checked', () => {
     expect(CLAIM_APPROVAL_SQL).toMatch(/status\s*=\s*'consumed'/);
     expect(CLAIM_APPROVAL_SQL).toMatch(/consumed_at\s*=/);
     // The guard is what makes the row count a permission.
-    expect(CLAIM_APPROVAL_SQL).toMatch(/WHERE\s+id\s*=\s*\?\s+AND\s+status\s*=\s*'granted'\s+AND\s+expires_at\s*>\s*\?/i);
+    expect(CLAIM_APPROVAL_SQL).toMatch(
+      /WHERE\s+id\s*=\s*\?\s+AND\s+status\s*=\s*'granted'\s+AND\s+expires_at\s*>\s*\?/i,
+    );
   });
 
   it('OWNER-291 a valid approval is consumed by the act of authorising', async () => {
     const rows = [await granted()];
-    const claim = await claimApproval(rows[0] as OwnerApproval, PAYLOAD, { store: store(rows), now: NOW });
+    const claim = await claimApproval(rows[0] as OwnerApproval, PAYLOAD, {
+      store: store(rows),
+      now: NOW,
+    });
     expect(claim.ok).toBe(true);
     if (!claim.ok) throw new Error('unreachable');
     expect(claim.consumedAt).toBe(NOW.toISOString());

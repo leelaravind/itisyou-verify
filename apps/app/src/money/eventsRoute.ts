@@ -260,7 +260,10 @@ export function createEventsRoute(deps: EventsRouteDeps): Hono {
     const at = now();
     const skewSeconds = (Date.parse(parsed.occurred_at) - at.getTime()) / 1000;
     if (Number.isNaN(skewSeconds) || skewSeconds < -EVENT_FRESHNESS_WINDOW_SECONDS) {
-      reject({ reason: 'occurred_at_stale' satisfies EventRejection, workspace_id: key.workspaceId });
+      reject({
+        reason: 'occurred_at_stale' satisfies EventRejection,
+        workspace_id: key.workspaceId,
+      });
       return c.json(
         {
           error: {

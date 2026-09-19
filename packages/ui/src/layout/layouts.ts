@@ -7,7 +7,7 @@
 import { attrs, html, type Html } from '../html.js';
 import { safeHref } from '../url.js';
 import { CsrfField } from '../components/field.js';
-import { PRODUCT_NAME } from '../content/site.js';
+import { FOOTER_SERVICE_DESCRIPTION, PRODUCT_NAME } from '../content/site.js';
 import { Shell, type NavItem } from './shell.js';
 
 /** Primary public navigation. Labels are navigation, not product claims. */
@@ -67,8 +67,11 @@ function publicFooter(): Html {
     </div>
     <div class="stack-sm">
       <p class="eyebrow">${PRODUCT_NAME}</p>
-      <p class="small">
-        A service that reads HubSpot and Resend back itself and reports what the evidence shows.
+      <!-- One line, and it is a status line rather than a tagline. The previous version
+           asserted in the present tense that the service reads HubSpot and Resend back —
+           on every page, including /terms, where it was the last sentence a reader saw. -->
+      <p class="small" data-footer-service>
+        ${FOOTER_SERVICE_DESCRIPTION}
         We make no accuracy, security or uptime certification.
       </p>
       <p class="small">

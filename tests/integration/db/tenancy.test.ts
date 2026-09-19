@@ -129,11 +129,19 @@ describe('tenant isolation', () => {
       expiresAt: '2026-10-19T10:00:00.000Z',
     };
     expect(
-      await evidence.recordMany(h.db, { workspaceId: b.workspaceId, runId: 'run_alpha_1', rows: [input] }),
+      await evidence.recordMany(h.db, {
+        workspaceId: b.workspaceId,
+        runId: 'run_alpha_1',
+        rows: [input],
+      }),
     ).toBe(0);
     expect(countRows(h, 'evidence')).toBe(0);
 
-    await evidence.recordMany(h.db, { workspaceId: a.workspaceId, runId: 'run_alpha_1', rows: [input] });
+    await evidence.recordMany(h.db, {
+      workspaceId: a.workspaceId,
+      runId: 'run_alpha_1',
+      rows: [input],
+    });
     expect(await evidence.listForRun(h.db, a.workspaceId, 'run_alpha_1')).toHaveLength(1);
     expect(await evidence.listForRun(h.db, b.workspaceId, 'run_alpha_1')).toHaveLength(0);
     expect(await evidence.getById(h.db, b.workspaceId, 'evd_1')).toBeNull();
@@ -150,9 +158,9 @@ describe('tenant isolation', () => {
     expect(await connections.getById(h.db, b.workspaceId, 'conn_a')).toBeNull();
     expect(await connections.getByProvider(h.db, b.workspaceId, 'hubspot')).toBeNull();
     expect(await connections.list(h.db, b.workspaceId)).toHaveLength(0);
-    expect(
-      await connections.setStatus(h.db, b.workspaceId, 'conn_a', { status: 'revoked' }),
-    ).toBe(false);
+    expect(await connections.setStatus(h.db, b.workspaceId, 'conn_a', { status: 'revoked' })).toBe(
+      false,
+    );
     expect((await connections.getById(h.db, a.workspaceId, 'conn_a'))?.status).toBe('ready');
     expect(await connections.revoke(h.db, b.workspaceId, 'conn_a', T0)).toBe(false);
     expect((await connections.getById(h.db, a.workspaceId, 'conn_a'))?.revoked_at).toBeNull();
@@ -216,7 +224,12 @@ describe('tenant isolation', () => {
       await workflowVersions.getForWorkflow(h.db, a.workspaceId, a.workflowId, 'wfv_alpha_other'),
     ).toBeNull();
     expect(
-      await workflowVersions.getForWorkflow(h.db, a.workspaceId, 'wf_alpha_other', 'wfv_alpha_other'),
+      await workflowVersions.getForWorkflow(
+        h.db,
+        a.workspaceId,
+        'wf_alpha_other',
+        'wfv_alpha_other',
+      ),
     ).not.toBeNull();
   });
 
@@ -231,7 +244,9 @@ describe('tenant isolation', () => {
 
   it('AUTH-211 a source event is only reachable through its own workspace', async () => {
     seedRun(h, a, 'run_alpha_1');
-    expect(await sourceEvents.getByExternalId(h.db, a.workspaceId, 'ext_run_alpha_1')).not.toBeNull();
+    expect(
+      await sourceEvents.getByExternalId(h.db, a.workspaceId, 'ext_run_alpha_1'),
+    ).not.toBeNull();
     expect(await sourceEvents.getByExternalId(h.db, b.workspaceId, 'ext_run_alpha_1')).toBeNull();
     expect(await sourceEvents.getForRun(h.db, b.workspaceId, 'run_alpha_1')).toBeNull();
     expect(await sourceEvents.getById(h.db, b.workspaceId, 'sev_run_alpha_1')).toBeNull();

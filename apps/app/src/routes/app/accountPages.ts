@@ -15,7 +15,7 @@ import {
   html,
   type Html,
 } from '@verify/ui';
-import { PLAN_CANCELLATION_WORDING, meterFillClass } from '@verify/ui';
+import { PLAN_CANCELLATION_WORDING, meterFillClass, percentFloor } from '@verify/ui';
 import { LIMITS } from '@verify/contracts';
 import { connectionPresentation, formMessage, pageHead } from './chrome.js';
 import { formatInstant } from '../public/shared.js';
@@ -38,6 +38,26 @@ export function ConnectionsPage(options: {
     ${formMessage(options.submitted?.message ?? null)}
 
     <div class="stack">
+      ${
+        /*
+         * A screen whose whole job is to state the position of each provider must never
+         * render an empty box. If the list is empty we do not know the position of
+         * anything, and saying so is the only honest rendering — silence here would read
+         * as "all clear", which is the inference this product exists to refuse.
+         */
+        options.connections.length === 0
+          ? EmptyState({
+              title: 'We cannot show your connections right now',
+              body:
+                'No connection could be read for this workspace, so we cannot tell you whether evidence ' +
+                'can be retrieved. This is not a statement that your connections are healthy. Nothing has ' +
+                'been changed, and no run has been decided on the strength of this page.',
+              actions: [
+                Button({ label: 'Contact support', href: '/app/support', variant: 'quiet' }),
+              ],
+            })
+          : null
+      }
       ${options.connections.map(
         (connection) => html`<div class="card stack-sm">
           <div class="card__head">
@@ -84,7 +104,11 @@ export function ConnectionsPage(options: {
 /* ------------------------------------------------------------------------ usage */
 
 export function UsagePage(usage: UsageView): Html {
-  const percent = Math.round((usage.runsUsed / usage.runsIncluded) * 100);
+  // `percentFloor`, not `Math.round`. At 499 of 500 the rounded figure is 100, which both
+  // prints "100%" and selects `meter__fill--100` — a bar drawn completely full, and an
+  // accessible name saying "100 per cent", for an allowance with a run still in it. Same
+  // defect as the 33%-drawn-as-full-green bar, one layer up from the CSP that caused it.
+  const percent = percentFloor(usage.runsUsed, usage.runsIncluded);
   const remaining = Math.max(0, usage.runsIncluded - usage.runsUsed);
   return html`<div class="wrap section stack-lg">
     ${Breadcrumb([{ label: 'Workspace', href: '/app' }, { label: 'Usage' }])}
@@ -106,9 +130,18 @@ export function UsagePage(usage: UsageView): Html {
         >
           <div class="${meterFillClass(percent)}"></div>
         </div>
-        <p class="small muted">${String(remaining)} runs remaining until ${formatInstant(usage.periodEnd)}.</p>
+        <p class="small muted">
+          ${String(remaining)} run${remaining === 1 ? '' : 's'} remaining until ${formatInstant(usage.periodEnd)}.
+        </p>
         <dl class="kv">
-          <dt>Period start</dt>
+          <!--
+            Not "Period start". The usage method on the customer port says plainly that it
+            cannot resolve one: A06 has not exported a period-start resolver, and a second spelling
+            of the allowance key here is the A13-010 defect. So this field carries the instant
+            the figures were read, and the label now says that. An honest value under a
+            dishonest label is the disease this product treats.
+          -->
+          <dt>Figures read at</dt>
           <dd>${formatInstant(usage.periodStart)}</dd>
           <dt>Period end</dt>
           <dd>${formatInstant(usage.periodEnd)}</dd>

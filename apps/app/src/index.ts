@@ -23,7 +23,10 @@ import { newId } from './lib/ids.js';
 import { handleScheduled } from './scheduler/index.js';
 import { createRetentionSweeper } from './scheduler/retention.js';
 import { D1SupportDataPort } from './db/supportPort.js';
+import { createNotificationDelivery } from './notifications/delivery.js';
 import { D1QualityArtifactStore } from './owner/quality.js';
+import { createMoneyRoutes } from './money/index.js';
+import { createWorkflowSigningKeyStore } from './db/workflowSigningKeys.js';
 
 export interface Env {
   readonly ASSETS: Fetcher;
@@ -38,6 +41,13 @@ export interface Env {
   readonly STRIPE_SECRET_KEY?: string;
   readonly STRIPE_WEBHOOK_SECRET?: string;
   readonly RESEND_API_KEY?: string;
+  /**
+   * The verified `From:` address transactional email is sent as. Documented in
+   * `.dev.vars.example` since the first commit and never read by anything until the
+   * notification transport existed. Without it nothing is sent and every notification is
+   * recorded as `no_email_transport_configured`.
+   */
+  readonly RESEND_FROM_ADDRESS?: string;
   readonly RESEND_WEBHOOK_SECRET?: string;
   readonly OPENROUTER_API_KEY?: string;
   readonly STRIPE_PRICE_ID?: string;
@@ -46,6 +56,15 @@ export interface Env {
   readonly INTERNAL_TEST_TOKEN?: string;
   readonly TELEGRAM_BOT_TOKEN?: string;
   readonly TELEGRAM_OWNER_CHAT_ID?: string;
+  /**
+   * Root key from which every workflow's event-signing secret is derived, rather than
+   * stored. Migration 0002 constrains `credential_versions.owner_scope` to
+   * `connection:*` or `user:*`, so a workflow key cannot live there without widening a
+   * CHECK constraint; deriving it keeps no ciphertext at rest and makes rotation a new
+   * `signing_key_ref`. Absent, `POST /api/v1/events` answers 503 rather than 401 — the
+   * fault is ours, and the status says so.
+   */
+  readonly EVENT_SIGNING_ROOT_KEY?: string;
 }
 
 type Bindings = { Bindings: Env };
@@ -230,8 +249,8 @@ let stripeWebhookUnavailable: string | null = null;
 app.all('/api/v1/webhooks/stripe/*', async (c) => {
   if (stripeWebhookApp === null && stripeWebhookUnavailable === null) {
     try {
-      stripeWebhookApp = createStripeWebhookRoute(
-        createStripeWebhookDeps(
+      stripeWebhookApp = createStripeWebhookRoute({
+        ...createStripeWebhookDeps(
           c.env as never,
           {
             data: new D1BillingDataPort(c.env.DB),
@@ -240,7 +259,17 @@ app.all('/api/v1/webhooks/stripe/*', async (c) => {
             newId: (prefix: string) => newId(prefix),
           } as never,
         ),
-      );
+        // The wire that was missing. Without it `handleStripeEvent` still builds the
+        // `payment_problem` notification for a failed renewal and the route still drops
+        // it, which is how twelve correct, tested templates reached no customer.
+        //
+        // `createNotificationDelivery` returns a working collaborator whether or not
+        // `RESEND_API_KEY` and `RESEND_FROM_ADDRESS` are set: unset, every notification is
+        // still claimed and recorded as `no_email_transport_configured`, which is visible
+        // in the owner's queue. "Recorded as not sent" and "never happened" are different
+        // states and only the first can be fixed.
+        notifications: createNotificationDelivery(c.env, new D1SupportDataPort(c.env.DB)),
+      });
     } catch (error) {
       stripeWebhookUnavailable = String(error);
       console.error('stripe_webhook_unconfigured', { message: stripeWebhookUnavailable });
@@ -330,6 +359,62 @@ app.route(
 // with an Ed25519 device signature rather than a session, which is the whole point: the
 // runner polls outbound from the owner's own machine and holds no browser session.
 app.route('/api/v1/runner', createRunnerRoutes({ db: (c) => (c.env as Env).DB }));
+
+/**
+ * `POST /api/v1/events` — the intake this product is named for.
+ *
+ * It did not exist until 19 September 2026, and the reason is worth keeping: the schema
+ * had carried `workflows.signing_key_hash` and `signing_key_ref` since migration 0001 and
+ * `setSigningKey` had existed to write them, but nothing ever called it. No customer could
+ * hold a key, so no signed request could be verified, so there was no route to build. The
+ * intake was missing one layer below where anyone was looking.
+ *
+ * Built lazily per isolate and cached, exactly as the Stripe webhook block above is, so a
+ * cold start pays for it once. The gateway is constructed from whatever key is present —
+ * including none — because admission is a pure read of our own tables and never calls the
+ * provider; an unconfigured deployment still admits and refuses events correctly.
+ */
+let moneyApp: Hono | null = null;
+
+app.all('/api/v1/events', async (c) => {
+  if (moneyApp === null) {
+    const secretKey = (c.env as Env).STRIPE_SECRET_KEY ?? '';
+    moneyApp = createMoneyRoutes(c.env as never, {
+      // Admission is a pure read of our own tables and never calls the provider, so the
+      // events path needs a gateway only to satisfy the billing runtime's type. The
+      // module documented an empty key as safe here; it is not — `createStripeClient`
+      // throws on a missing key, and mounting it unconditionally turned every request to
+      // the intake into a 500 on any deployment without Stripe configured. That was not
+      // caught by its tests because they construct the runtime directly and never take
+      // this branch. So the client is built only when a key exists, and its absence is
+      // represented by an object that fails loudly if the assumption ever stops holding.
+      gateway:
+        secretKey.length > 0
+          ? createStripeClient({ secretKey })
+          : (new Proxy(
+              {},
+              {
+                get(_target, property) {
+                  return () => {
+                    throw new Error(
+                      `billing gateway called (${String(property)}) with no STRIPE_SECRET_KEY: ` +
+                        'the events path is supposed to read our own tables only. If this ' +
+                        'throws, admission has grown a provider call and needs a real client.',
+                    );
+                  };
+                },
+              },
+            ) as never),
+      signingKeyStore: createWorkflowSigningKeyStore(c.env.DB as never),
+      log: (entry) => {
+        // eslint-disable-next-line no-console -- one structured line per admitted event;
+        // this is the only record of intake in production and Workers logs are the sink.
+        console.log('events', entry);
+      },
+    }) as unknown as Hono;
+  }
+  return moneyApp.fetch(c.req.raw, c.env, c.executionCtx);
+});
 
 let ownerApp: ReturnType<typeof createOwnerRoutes> | null = null;
 
@@ -438,6 +523,16 @@ export default {
       coverage_warnings: report.runs?.coverageWarnings ?? 0,
       outbox_dispatched: report.outbox?.dispatched ?? 0,
       retention_removed: report.retention?.removed ?? 0,
+      // The billing-maintenance and notification pass. `billing_skipped` naming a reason
+      // is the difference between a deployment that chose not to run it and one where it
+      // is quietly broken — the two look identical without this line.
+      billing_skipped: report.billing?.skipped ?? null,
+      billing_suspended: report.billing?.maintenance?.recoverySweep?.suspended.length ?? 0,
+      notifications_sent: report.billing?.delivery?.sent ?? 0,
+      notifications_duplicate: report.billing?.delivery?.duplicates ?? 0,
+      notifications_suppressed: report.billing?.delivery?.suppressed ?? 0,
+      notifications_failed: report.billing?.delivery?.failed ?? 0,
+      billing_failures: report.billing?.failures.length ?? 0,
       error: report.error ?? null,
     });
   },

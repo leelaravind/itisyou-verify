@@ -35,7 +35,12 @@ import {
   render,
   STANDING_LIMITATIONS_PARAGRAPH,
 } from '@verify/ui';
-import { describeCoverage, detectInactivity, explainRunStatus, summariseWorkflowHealth } from '@verify/domain';
+import {
+  describeCoverage,
+  detectInactivity,
+  explainRunStatus,
+  summariseWorkflowHealth,
+} from '@verify/domain';
 
 const HOSTILE_NAME = '<script>alert("xss")</script>';
 const HOSTILE_VALUE = '"><img src=x onerror=alert(1)>';
@@ -102,7 +107,9 @@ describe('components', () => {
     expect(table).not.toContain('<img');
     expect(table).toContain('&lt;img');
 
-    const field = await render(Field({ name: 'correlationProperty', label: 'Property', value: HOSTILE_VALUE }));
+    const field = await render(
+      Field({ name: 'correlationProperty', label: 'Property', value: HOSTILE_VALUE }),
+    );
     expect(field).not.toContain('<img');
     expect(field).toContain('&lt;img');
     expect(field).not.toMatch(/value="[^"]*"[^>]*onerror/);
@@ -110,7 +117,11 @@ describe('components', () => {
 
   it('CUST-015 a hostile value used as a table caption cannot break out of the aria-label attribute', async () => {
     const markup = await render(
-      Table({ caption: HOSTILE_VALUE, columns: [{ key: 'a', header: 'A', cell: () => 'x' }], rows: [{}] }),
+      Table({
+        caption: HOSTILE_VALUE,
+        columns: [{ key: 'a', header: 'A', cell: () => 'x' }],
+        rows: [{}],
+      }),
     );
     expect(markup).toContain('aria-label="&quot;&gt;&lt;img');
     expect(markup).not.toContain('aria-label=""><img');
@@ -125,13 +136,17 @@ describe('components', () => {
   });
 
   it('CUST-017 a verified run verdict renders no next step, because the engine offers none', async () => {
-    const markup = await render(RunVerdict({ status: 'VERIFIED', explanation: explainRunStatus('VERIFIED') }));
+    const markup = await render(
+      RunVerdict({ status: 'VERIFIED', explanation: explainRunStatus('VERIFIED') }),
+    );
     expect(markup).not.toContain('Next step');
     expect(markup).toContain('Verified');
   });
 
   it('CUST-018 an unverified run verdict does render its next step', async () => {
-    const markup = await render(RunVerdict({ status: 'UNVERIFIED', explanation: explainRunStatus('UNVERIFIED') }));
+    const markup = await render(
+      RunVerdict({ status: 'UNVERIFIED', explanation: explainRunStatus('UNVERIFIED') }),
+    );
     expect(markup).toContain('Next step');
     expect(markup).toContain('connection status');
   });
@@ -210,7 +225,12 @@ describe('forms and interaction', () => {
 
   it('CUST-026 a field with a hint and an error describes itself with both, in that order', async () => {
     const markup = await render(
-      Field({ name: 'prop', label: 'Property', hint: 'Letters and numbers.', error: 'Choose a property.' }),
+      Field({
+        name: 'prop',
+        label: 'Property',
+        hint: 'Letters and numbers.',
+        error: 'Choose a property.',
+      }),
     );
     expect(markup).toContain('aria-describedby="f-prop-hint f-prop-error"');
   });
@@ -245,13 +265,18 @@ describe('forms and interaction', () => {
   });
 
   it('CUST-031 an external link carries rel="noopener noreferrer"', async () => {
-    const markup = await render(Button({ label: 'Billing portal', href: 'https://example.test/p', external: true }));
+    const markup = await render(
+      Button({ label: 'Billing portal', href: 'https://example.test/p', external: true }),
+    );
     expect(markup).toContain('rel="noopener noreferrer"');
   });
 
   it('CUST-032 a fieldset has a legend, and a checkbox is bound to its own label', async () => {
     const markup = await render(
-      Fieldset({ legend: 'Required checks', body: Checkbox({ name: 'requireRecordExists', label: 'A CRM record was created' }) }),
+      Fieldset({
+        legend: 'Required checks',
+        body: Checkbox({ name: 'requireRecordExists', label: 'A CRM record was created' }),
+      }),
     );
     expect(markup).toContain('<legend>Required checks</legend>');
     expect(markup).toContain('for="f-requireRecordExists"');
@@ -278,41 +303,59 @@ describe('forms and interaction', () => {
   });
 
   it('CUST-035 pagination offers newer and older rather than a page number a cursor API cannot honour', async () => {
-    const both = await render(Pagination({ newerHref: '/a?cursor=0', olderHref: '/a?cursor=50', shown: 25, noun: 'runs' }));
+    const both = await render(
+      Pagination({ newerHref: '/a?cursor=0', olderHref: '/a?cursor=50', shown: 25, noun: 'runs' }),
+    );
     expect(both).toContain('rel="prev"');
     expect(both).toContain('rel="next"');
     expect(both).not.toMatch(/page \d+ of \d+/i);
 
-    const single = await render(Pagination({ newerHref: null, olderHref: null, shown: 3, noun: 'runs' }));
+    const single = await render(
+      Pagination({ newerHref: null, olderHref: null, shown: 3, noun: 'runs' }),
+    );
     expect(single).toContain('3 runs — this is all of them');
     expect(single).not.toContain('<a');
   });
 
   it('CUST-036 a breadcrumb marks only the last item as the current page', async () => {
     const markup = await render(
-      Breadcrumb([{ label: 'Workspace', href: '/app' }, { label: 'Runs', href: '/app/runs' }, { label: 'run_1' }]),
+      Breadcrumb([
+        { label: 'Workspace', href: '/app' },
+        { label: 'Runs', href: '/app/runs' },
+        { label: 'run_1' },
+      ]),
     );
     expect(markup).toContain('aria-label="Breadcrumb"');
     expect((markup.match(/aria-current="page"/g) ?? []).length).toBe(1);
   });
 
   it('CUST-037 the three states say what to do, and render no action block when there is no action', async () => {
-    const empty = await render(EmptyState({ title: 'No runs received yet', body: 'Nothing has reached us.' }));
+    const empty = await render(
+      EmptyState({ title: 'No runs received yet', body: 'Nothing has reached us.' }),
+    );
     expect(empty).not.toContain('state__actions');
 
     const error = await render(
-      ErrorState({ title: 'We could not save that', body: 'Nothing was changed.', requestId: 'req_1' }),
+      ErrorState({
+        title: 'We could not save that',
+        body: 'Nothing was changed.',
+        requestId: 'req_1',
+      }),
     );
     expect(error).toContain('role="alert"');
     expect(error).toContain('req_1');
 
-    const loading = await render(LoadingState({ title: 'Still checking', body: 'The window is open.' }));
+    const loading = await render(
+      LoadingState({ title: 'Still checking', body: 'The window is open.' }),
+    );
     expect(loading).toContain('aria-live="polite"');
     expect(loading).toContain('aria-busy="true"');
   });
 
   it('CUST-038 a callout can be given the limit tone, which is what the coverage limitation uses', async () => {
-    const markup = await render(Callout({ tone: 'limit', title: 'What this cannot see', body: html`<p>x</p>` }));
+    const markup = await render(
+      Callout({ tone: 'limit', title: 'What this cannot see', body: html`<p>x</p>` }),
+    );
     expect(markup).toContain('callout--limit');
     expect(markup).toContain('data-tone="limit"');
   });
@@ -350,4 +393,3 @@ describe('forms and interaction', () => {
     expect(markup).toContain('optional');
   });
 });
-

@@ -30,7 +30,10 @@ import { IMPLEMENTED_SCHEDULER_PASSES } from '@app/scheduler';
 function declaredCapabilities(): ReadonlySet<string> {
   const declared = new Set<string>();
   for (const provider of SUPPORTED_PROVIDERS) {
-    const capabilities = getConnector(provider).capabilities() as unknown as Record<string, unknown>;
+    const capabilities = getConnector(provider).capabilities() as unknown as Record<
+      string,
+      unknown
+    >;
     for (const [key, value] of Object.entries(capabilities)) {
       if (value === true) declared.add(key);
     }
@@ -41,9 +44,12 @@ function declaredCapabilities(): ReadonlySet<string> {
 /** Can anything in this codebase actually deliver this mode, computed from scratch? */
 function deliverable(mode: CoverageMode): boolean {
   const requirement = COVERAGE_MODE_REQUIREMENTS[mode];
-  const passExists = (IMPLEMENTED_SCHEDULER_PASSES as readonly string[]).includes(requirement.scheduler_pass);
+  const passExists = (IMPLEMENTED_SCHEDULER_PASSES as readonly string[]).includes(
+    requirement.scheduler_pass,
+  );
   const capabilityExists =
-    requirement.connector_capability === null || declaredCapabilities().has(requirement.connector_capability);
+    requirement.connector_capability === null ||
+    declaredCapabilities().has(requirement.connector_capability);
   return passExists && capabilityExists;
 }
 

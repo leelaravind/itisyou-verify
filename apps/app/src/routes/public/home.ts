@@ -12,6 +12,7 @@ import {
   Callout,
   Card,
   ActivationNotice,
+  ProviderProofNotice,
   ClaimRule,
   StatusBadge,
   html,
@@ -41,9 +42,6 @@ function hero(): Html {
     <div class="wrap stack">
       <!-- Before the first call to action, deliberately. A visitor must not read the
            headline, form an intention, and only then learn we cannot serve them. -->
-      ${ActivationNotice()}
-      <!-- Before the first call to action, deliberately. A visitor must not read the
-           headline, form an intention and only then learn we cannot serve them. -->
       ${ActivationNotice()}
       <div class="grid grid-2 grid-center grid-wide-gap">
         <div class="stack">
@@ -118,6 +116,12 @@ function howItWorks(): Html {
           </li>`,
         )}
       </ol>
+      <!-- Directly under step 3, which is the sentence it qualifies: "We read the record
+           and the email status back ourselves". That code is written and tested and has
+           never been pointed at a real HubSpot or Resend account. A reader who takes step 3
+           at face value has been misled by omission, so the correction sits against the
+           claim rather than in a footer. -->
+      ${ProviderProofNotice()}
       ${ButtonRow([Button({ label: 'Read the full setup requirements', href: '/how-it-works' })])}
     </div>
   </section>`;

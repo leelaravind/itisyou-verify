@@ -45,7 +45,7 @@ import type {
 } from '../routes/app/port';
 import type { Env } from '../lib/context';
 import { resolveSession, type ResolvedSession } from '../lib/session';
-import { toIso } from '../lib/time';
+import { nowIso, toIso } from '../lib/time';
 import { connections } from './connections';
 import type { Db } from './d1';
 import { entitlements } from './entitlements';
@@ -806,7 +806,8 @@ export class D1CustomerDataPort implements CustomerDataPort {
     const body = input.body.trim();
     if (subject.length < 3) fieldErrors['subject'] = 'Tell us in a few words what this is about.';
     if (body.length < 10) fieldErrors['body'] = 'A little more detail will let us help faster.';
-    if (subject.length > 200) fieldErrors['subject'] = 'Please keep the subject under 200 characters.';
+    if (subject.length > 200)
+      fieldErrors['subject'] = 'Please keep the subject under 200 characters.';
     if (body.length > 5000) fieldErrors['body'] = 'Please keep the message under 5000 characters.';
     if (Object.keys(fieldErrors).length > 0) {
       return { ok: false, fieldErrors, message: null, redirectTo: null, reference: null };

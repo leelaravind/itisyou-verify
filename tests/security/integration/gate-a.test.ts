@@ -117,10 +117,16 @@ describe('A-21 session rotation on a privilege transition', () => {
     // is the fixation this exists to prevent — so the shape is asserted, not just the
     // single-threaded outcome a test can observe.
     const source = read('apps', 'app', 'src', 'db', 'sessions.ts');
-    const rotate = source.slice(source.indexOf('async rotate('), source.indexOf('async rotate(') + 2600);
+    const rotate = source.slice(
+      source.indexOf('async rotate('),
+      source.indexOf('async rotate(') + 2600,
+    );
     expect(rotate).toMatch(/db\.batch\(\[/);
     const guards = [...rotate.matchAll(/revoked_at IS NULL AND expires_at > \?/g)];
-    expect(guards.length, 'both statements must carry the same liveness guard').toBeGreaterThanOrEqual(2);
+    expect(
+      guards.length,
+      'both statements must carry the same liveness guard',
+    ).toBeGreaterThanOrEqual(2);
     expect(rotate).toMatch(/INSERT INTO sessions[\s\S]*UPDATE sessions SET revoked_at/);
     expect(rotate).toMatch(/meta\.changes === 1 && .*meta\.changes === 1/);
   });
@@ -214,7 +220,9 @@ describe('A-20 an approval is consumed exactly once before money moves', () => {
       } catch {
         continue;
       }
-      if (/UPDATE\s+approvals\s+SET[^;`']*(status\s*=\s*'consumed'|consumed_at\s*=)/is.test(source)) {
+      if (
+        /UPDATE\s+approvals\s+SET[^;`']*(status\s*=\s*'consumed'|consumed_at\s*=)/is.test(source)
+      ) {
         found.push(relative.join('/'));
       }
     }
@@ -228,7 +236,9 @@ describe('A-20 an approval is consumed exactly once before money moves', () => {
     // The half that IS built, and is good: there is no default, no "auto" value and no
     // id-only variant, so an unrecorded approval cannot authorise a refund.
     const refunds = read('apps', 'app', 'src', 'billing', 'refunds.ts');
-    expect(refunds).toMatch(/There is no code path in\s+\* this file that submits a refund without an `approvalId`/);
+    expect(refunds).toMatch(
+      /There is no code path in\s+\* this file that submits a refund without an `approvalId`/,
+    );
     expect(refunds).toMatch(/readonly approval\?: OwnerApproval;/);
     expect(refunds).not.toMatch(/approvalId:\s*['"]auto['"]/);
   });

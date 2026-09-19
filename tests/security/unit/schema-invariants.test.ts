@@ -69,7 +69,9 @@ describe('tenant-scope invariants in the schema', () => {
   it('AUTH-003 source events are unique per workspace, not globally', () => {
     // UNIQUE (workspace_id, external_event_id) — a global UNIQUE on external_event_id
     // would leak the existence of another tenant's event id through a 409.
-    expect(tableBody('source_events')).toMatch(/UNIQUE\s*\(\s*workspace_id\s*,\s*external_event_id\s*\)/i);
+    expect(tableBody('source_events')).toMatch(
+      /UNIQUE\s*\(\s*workspace_id\s*,\s*external_event_id\s*\)/i,
+    );
   });
 
   it('AUTH-004 sessions store a hash of the cookie, never the cookie value', () => {
@@ -126,7 +128,8 @@ describe('tenant-scope invariants in the schema', () => {
   });
 
   it('AUTH-011 no money column is stored as a floating-point type', () => {
-    const moneyColumns = schema.match(/^\s*\w*(?:amount|minor|price|spend|budget)\w*\s+(\w+)/gim) ?? [];
+    const moneyColumns =
+      schema.match(/^\s*\w*(?:amount|minor|price|spend|budget)\w*\s+(\w+)/gim) ?? [];
     for (const line of moneyColumns) {
       expect(line.toUpperCase(), line).not.toMatch(/\b(REAL|FLOAT|DOUBLE|DECIMAL|NUMERIC)\b/);
     }
@@ -136,12 +139,16 @@ describe('tenant-scope invariants in the schema', () => {
     // Stripe explicitly does not guarantee event ordering, so a stale
     // `customer.subscription.updated` must never downgrade a newer state.
     expect(tableBody('subscriptions')).toMatch(/provider_event_created\s+INTEGER\s+NOT NULL/i);
-    expect(tableBody('subscriptions')).toMatch(/UNIQUE\s*\(\s*provider_subscription_id\s*,\s*environment\s*\)/i);
+    expect(tableBody('subscriptions')).toMatch(
+      /UNIQUE\s*\(\s*provider_subscription_id\s*,\s*environment\s*\)/i,
+    );
   });
 
   it('AUTH-013 test and live billing objects cannot collide', () => {
     expect(tableBody('billing_customers')).toMatch(/environment\s+TEXT\s+NOT NULL\s+CHECK/i);
-    expect(tableBody('billing_customers')).toMatch(/UNIQUE\s*\(\s*stripe_customer_id\s*,\s*environment\s*\)/i);
+    expect(tableBody('billing_customers')).toMatch(
+      /UNIQUE\s*\(\s*stripe_customer_id\s*,\s*environment\s*\)/i,
+    );
   });
 
   it('AUTH-014 analytics store no raw IP address and expire', () => {

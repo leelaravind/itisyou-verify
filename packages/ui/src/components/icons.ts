@@ -38,6 +38,19 @@ export const iconClock = (): Html =>
 export const iconAlert = (): Html =>
   glyph('<path d="M8 2.6 14.4 13H1.6Z"/><path d="M8 6.4v3.1"/><path d="M8 11.4h.01"/>');
 
+/**
+ * A boundary mark — a ring with a bar across it — for a `limit` callout.
+ *
+ * Deliberately not the warning triangle. A limitation is not a fault: "we cannot see a run
+ * that never started" is a permanent edge of the product, and drawing it with the same
+ * silhouette as "your payment failed" tells the reader to act on something that has no
+ * action. And deliberately not one of the four status glyphs either — in this system a
+ * status glyph carries a verdict about evidence, and the edge of what we check is not one.
+ * The diagonal distinguishes it from `iconDash`'s horizontal bar in greyscale.
+ */
+export const iconLimit = (): Html =>
+  glyph('<circle cx="8" cy="8" r="6.4"/><path d="m4.2 11.8 7.6-7.6"/>');
+
 /** An outward arrow, marking a link that leaves the site. */
 export const iconExternal = (): Html =>
   glyph('<path d="M6.2 3.4h6.4v6.4"/><path d="M12.6 3.4 7 9"/><path d="M11 10.6v2H3.4V5h2"/>');

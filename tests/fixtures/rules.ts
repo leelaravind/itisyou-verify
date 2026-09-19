@@ -78,7 +78,12 @@ export function rulesFor(...assertions: AssertionSpec[]): WorkflowRules {
 export function makeStandardWorkflow(): WorkflowRules {
   return makeWorkflowRules({
     assertions: [
-      makeAssertion({ rule_id: 'crm_record_exists', field: 'record.id', operator: 'exists', expected: '' }),
+      makeAssertion({
+        rule_id: 'crm_record_exists',
+        field: 'record.id',
+        operator: 'exists',
+        expected: '',
+      }),
       makeAssertion({
         rule_id: 'crm_correlation_matches',
         field: 'record.correlation_id',

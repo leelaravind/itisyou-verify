@@ -63,22 +63,23 @@ const AUTOMATION = principal({
 });
 
 describe('who is allowed in the owner panel at all', () => {
-  it('AUTH-301 an anonymous visitor holds no capability whatsoever', () => {
+  it('AUTH-314 an anonymous visitor holds no capability whatsoever', () => {
     expect([...capabilitiesFor(ANONYMOUS_PRINCIPAL)]).toEqual([]);
   });
 
-  it('AUTH-302 a signed-in customer holds no owner capability', () => {
+  it('AUTH-315 a signed-in customer holds no owner capability', () => {
     // A paying customer is a legitimate principal on /app and a stranger on /owner.
     expect([...capabilitiesFor(CUSTOMER)]).toEqual([]);
   });
 
-  it('AUTH-303 the platform owner holds every capability and no more than the closed set', () => {
+  it('AUTH-316 the platform owner holds every capability and no more than the closed set', () => {
     const held = capabilitiesFor(principal({}));
     expect(held.size).toBe(OWNER_CAPABILITIES.length);
-    for (const capability of OWNER_CAPABILITIES) expect(held.has(capability), capability).toBe(true);
+    for (const capability of OWNER_CAPABILITIES)
+      expect(held.has(capability), capability).toBe(true);
   });
 
-  it('AUTH-304 a stale or absent session is not live, whatever the flags say', () => {
+  it('AUTH-317 a stale or absent session is not live, whatever the flags say', () => {
     expect(isSessionLive(principal({ sessionExpiresAt: iso(-1) }), NOW)).toBe(false);
     expect(isSessionLive(principal({ sessionExpiresAt: null }), NOW)).toBe(false);
     expect(isSessionLive(principal({ sessionExpiresAt: 'not-a-date' }), NOW)).toBe(false);
@@ -134,9 +135,10 @@ describe('the scoped automation test identity', () => {
     const both = principal({ isAutomation: true, isPlatformOwner: true });
     const held = capabilitiesFor(both);
     for (const denied of AUTOMATION_DENIED) {
-      expect(held.has(denied), `isPlatformOwner must not widen an automation identity: ${denied}`).toBe(
-        false,
-      );
+      expect(
+        held.has(denied),
+        `isPlatformOwner must not widen an automation identity: ${denied}`,
+      ).toBe(false);
     }
     expect(held.size).toBe(AUTOMATION_CAPABILITIES.size);
   });
@@ -148,7 +150,7 @@ describe('the scoped automation test identity', () => {
 });
 
 describe('recent strong authentication', () => {
-  it('AUTH-320 viewing is not consequential; everything else is', () => {
+  it('AUTH-332 viewing is not consequential; everything else is', () => {
     expect(isConsequential('owner.view')).toBe(false);
     for (const capability of OWNER_CAPABILITIES) {
       if (capability === 'owner.view') continue;
@@ -156,19 +158,23 @@ describe('recent strong authentication', () => {
     }
   });
 
-  it('AUTH-321 a session that never proved possession is never recently authenticated', () => {
+  it('AUTH-333 a session that never proved possession is never recently authenticated', () => {
     expect(hasRecentMfa(principal({ mfaVerifiedAt: null }), NOW)).toBe(false);
     expect(hasRecentMfa(principal({ mfaVerifiedAt: '' }), NOW)).toBe(false);
     expect(hasRecentMfa(principal({ mfaVerifiedAt: 'not-a-date' }), NOW)).toBe(false);
   });
 
-  it('AUTH-322 strong auth lapses at the window boundary, not "some time later"', () => {
-    expect(hasRecentMfa(principal({ mfaVerifiedAt: iso(-(MFA_WINDOW_SECONDS - 1)) }), NOW)).toBe(true);
-    expect(hasRecentMfa(principal({ mfaVerifiedAt: iso(-(MFA_WINDOW_SECONDS + 1)) }), NOW)).toBe(false);
+  it('AUTH-334 strong auth lapses at the window boundary, not "some time later"', () => {
+    expect(hasRecentMfa(principal({ mfaVerifiedAt: iso(-(MFA_WINDOW_SECONDS - 1)) }), NOW)).toBe(
+      true,
+    );
+    expect(hasRecentMfa(principal({ mfaVerifiedAt: iso(-(MFA_WINDOW_SECONDS + 1)) }), NOW)).toBe(
+      false,
+    );
     expect(MFA_WINDOW_SECONDS).toBeLessThanOrEqual(15 * 60);
   });
 
-  it('AUTH-323 a future-dated MFA timestamp is treated as forgery, not freshness', () => {
+  it('AUTH-335 a future-dated MFA timestamp is treated as forgery, not freshness', () => {
     // The naive `now - verified <= window` accepts any timestamp in the future, so a row
     // written with a clock skew — or by an attacker — would be permanently "recent".
     expect(hasRecentMfa(principal({ mfaVerifiedAt: iso(+60) }), NOW)).toBe(false);

@@ -53,7 +53,17 @@ export const ASSERTION_TO_STATUS: Readonly<Record<AssertionKey, StatusKey>> = {
  * Measured against `paper` (#F1F4F6) unless noted:
  *   ink        16.48:1  AAA body
  *   muted       6.94:1  AA  body
- *   faint       4.88:1  AA  body (4.49:1 on `sunken`, still AA)
+ *   faint       4.96:1  AA  body (4.55:1 on `sunken`, 5.48:1 on `surface` — AA on all three)
+ *
+ *               `faint` was #5E6C78 until 2026-09-19. That value measured 4.49:1 on
+ *               `sunken` and this comment called it "still AA". It is not: AA body text
+ *               is 4.5:1 and 4.49 is below it. The claim, not the colour, was the real
+ *               defect — a false accessibility assertion in a comment a future reader
+ *               would have trusted. #5D6B77 is the minimum darkening that clears the
+ *               threshold on the worst backdrop while keeping three distinct text ranks
+ *               (muted 6.94:1, faint 4.96:1 on paper). Every ratio in this file is now
+ *               asserted mechanically by tests/unit/ui/contrast.test.ts, which recomputes
+ *               them from these exact values; a comment can no longer drift from a colour.
  *   verified    5.97:1  AA  (5.72:1 on its own tint)
  *   failed      6.62:1  AA  (6.20:1 on its own tint)
  *   unverified  6.42:1  AA  (6.15:1 on its own tint)
@@ -70,7 +80,7 @@ export const LIGHT = {
   sunken: '#E5EBEF',
   ink: '#10161C',
   muted: '#48555F',
-  faint: '#5E6C78',
+  faint: '#5D6B77',
   rule: '#CBD4DC',
   ruleStrong: '#A5B2BE',
   fieldBorder: '#6E7C88',

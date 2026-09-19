@@ -12,6 +12,13 @@
  */
 import { Hono } from 'hono';
 import { PublicLayout, html } from '@verify/ui';
+import { LIMITS } from '@verify/contracts';
+/*
+ * The allowance and the recovery window are read from the constants that govern them, not
+ * retyped into a meta description. A description is the one sentence a search result quotes,
+ * so a stale figure there is a wrong price shown to someone who never opens the page.
+ */
+import { PAYMENT_RECOVERY_DAYS } from '../../billing/policy.js';
 import { DemoPage, syntheticStripe } from './demo.js';
 import { DevelopmentStoryPage, loadDevelopmentStory } from './developmentStory.js';
 import { HomePage } from './home.js';
@@ -26,8 +33,16 @@ publicRoutes.get('/', (c) =>
     c,
     PublicLayout({
       title: 'Know whether your automation actually did the job',
+      /*
+       * A meta description is quoted where none of the page's qualifying copy follows it —
+       * a search result, a chat link preview, a shared card. The previous sentence
+       * ("ITISYOU Verify reads your HubSpot record and Resend email status back itself and
+       * tells you what the evidence shows") read as a running service, and the activation
+       * notice on the page cannot qualify a sentence that has been lifted off the page.
+       * So the state of the service travels with the description. CUST-336.
+       */
       description:
-        'ITISYOU Verify reads your HubSpot record and Resend email status back itself and tells you what the evidence shows. One workflow, four results, no guessing.',
+        'ITISYOU Verify is built to read your HubSpot record and Resend email status back itself and tell you what the evidence shows. One workflow, four results, no guessing — and not yet accepting live traffic, so nothing is on sale today.',
       path: '/',
       body: HomePage(),
     }),
@@ -54,8 +69,14 @@ publicRoutes.get('/pricing', (c) =>
     c,
     PublicLayout({
       title: 'Pricing',
-      description:
-        'One plan, one workflow, 500 runs a month, no overage charges. Cancel from the billing portal at any time.',
+      /*
+       * "Cancel from the billing portal at any time" is an instruction to someone who has
+       * subscribed. Nobody can subscribe: checkout is closed, and the page says so. An
+       * instruction quoted in a search result away from that notice reads as an open shop.
+       * The seven-day recovery window is named here because it is the term a buyer is most
+       * likely to be surprised by, and it is now on the page itself too. CUST-337.
+       */
+      description: `One plan, one workflow, ${LIMITS.PLAN_RUNS_PER_PERIOD} runs a month, no overage charges, and ${PAYMENT_RECOVERY_DAYS} days to fix a failed payment. We are not yet taking payment, so the full terms are here to read rather than to buy.`,
       path: '/pricing',
       body: PricingPage(),
     }),

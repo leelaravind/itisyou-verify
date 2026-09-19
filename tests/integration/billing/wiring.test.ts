@@ -152,7 +152,11 @@ describe('PR-2 the admission gate a route actually calls', () => {
     const harness = createHarness();
     await subscribe(harness);
     const verdict = await checkAdmission(harness, { workspaceId: WS });
-    expect(verdict).toMatchObject({ admit: false, refusal: 'no_allowance_period', httpStatus: 409 });
+    expect(verdict).toMatchObject({
+      admit: false,
+      refusal: 'no_allowance_period',
+      httpStatus: 409,
+    });
     // Never blamed on the customer's usage.
     expect(verdict.customerMessage.toLowerCase()).not.toContain('used');
     expect(verdict.customerMessage.toLowerCase()).toContain('contact support');

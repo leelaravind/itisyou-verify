@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_standard" name="shell-type"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;family=Plus+Jakarta+Sans:wght@600;700&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{colors:{"surface-container":"#1c1f29","surface-container-highest":"#31353f","outline-variant":"#3c4a42","on-secondary-container":"#00424e","primary-fixed-dim":"#4edea3","on-tertiary-fixed":"#2a1700","on-secondary-fixed-variant":"#004e5c","on-error":"#690005","surface":"#0f131c","secondary-fixed":"#acedff","on-error-container":"#ffdad6","error":"#ffb4ab","background":"#0f131c","on-primary-fixed":"#002113","surface-bright":"#353943","surface-variant":"#31353f","inverse-on-surface":"#2c303a","inverse-surface":"#dfe2ef","surface-container-high":"#262a34","tertiary-container":"#e29100","inverse-primary":"#006c49","on-tertiary":"#472a00","error-container":"#93000a","primary-container":"#10b981","on-surface-variant":"#bbcabf","tertiary-fixed":"#ffddb8","on-primary-fixed-variant":"#005236","on-background":"#dfe2ef","on-secondary":"#003640","surface-tint":"#4edea3","on-secondary-fixed":"#001f26","tertiary-fixed-dim":"#ffb95f","on-primary-container":"#00422b","secondary-container":"#03b5d3","tertiary":"#ffb95f","secondary":"#4cd7f6","primary-fixed":"#6ffbbe","surface-dim":"#0f131c","surface-container-lowest":"#0a0e17","primary":"#4edea3","on-tertiary-fixed-variant":"#653e00","on-primary":"#003824","surface-container-low":"#181b25","on-surface":"#dfe2ef","outline":"#86948a","on-tertiary-container":"#523200","secondary-fixed-dim":"#4cd7f6"},borderRadius:{DEFAULT:"0.125rem",lg:"0.25rem",xl:"0.5rem",full:"0.75rem"},spacing:{"gutter-lg":"2rem","space-md":"1rem","space-lg":"1.5rem","space-sm":"0.5rem","space-xs":"0.25rem","margin-sm":"1rem","gutter-sm":"1rem","space-xl":"2.5rem",margin:"2rem","margin-lg":"4rem",gutter:"1.5rem"},fontFamily:{"label-code-sm":["JetBrains Mono"],"display-lg-mobile":["Plus Jakarta Sans"],"body-md":["Inter"],"headline-lg":["Plus Jakarta Sans"],"headline-xl":["Plus Jakarta Sans"],"body-lg":["Inter"],"headline-sm":["Plus Jakarta Sans"],"body-sm":["Inter"],"display-md-mobile":["Plus Jakarta Sans"],"label-code-md":["JetBrains Mono"],"display-lg":["Plus Jakarta Sans"],"display-md":["Plus Jakarta Sans"],"label-code-lg":["JetBrains Mono"]},fontSize:{"label-code-sm":["11px",{lineHeight:"14px",letterSpacing:"0.04em",fontWeight:"600"}],"display-lg-mobile":["36px",{lineHeight:"44px",letterSpacing:"-0.02em",fontWeight:"700"}],"body-md":["14px",{lineHeight:"20px",letterSpacing:"0em",fontWeight:"400"}],"headline-lg":["24px",{lineHeight:"32px",letterSpacing:"-0.015em",fontWeight:"600"}],"headline-xl":["30px",{lineHeight:"38px",letterSpacing:"-0.02em",fontWeight:"600"}],"body-lg":["16px",{lineHeight:"24px",letterSpacing:"-0.005em",fontWeight:"400"}],"headline-sm":["18px",{lineHeight:"26px",letterSpacing:"-0.01em",fontWeight:"600"}],"body-sm":["13px",{lineHeight:"18px",letterSpacing:"0.005em",fontWeight:"400"}],"display-md-mobile":["28px",{lineHeight:"36px",letterSpacing:"-0.02em",fontWeight:"600"}],"label-code-md":["12px",{lineHeight:"16px",letterSpacing:"0em",fontWeight:"500"}],"display-lg":["56px",{lineHeight:"64px",letterSpacing:"-0.03em",fontWeight:"700"}],"display-md":["40px",{lineHeight:"48px",letterSpacing:"-0.02em",fontWeight:"600"}],"label-code-lg":["14px",{lineHeight:"20px",letterSpacing:"-0.01em",fontWeight:"500"}]}}}}</script></head><body class="bg-surface font-body-md text-body-md text-on-surface antialiased selection:bg-primary selection:text-on-primary"><header class="fixed top-0 left-0 right-0 z-50 bg-surface/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="h-16 max-w-[1440px] mx-auto px-margin-lg flex items-center justify-between"><div class="flex items-center gap-space-lg"><a class="flex items-center gap-space-sm" data-path="overview" href="#"><img alt="Brand logo. - Primary color: #10b981
+- Font: plusJakartaSans
+- Mode: dark
+- Roundness: rounded-sm
+" class="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1U7B5ZTJffMnV9nd87k-oSX0MbVJFr9ADq2wg5kjNspqTjmWXgOeiOc49rAfQRfCujiC8j3UYH3A71mB2XGBaz8XsX12Uxt7nz1vLFzAJlF-_OeIf-D_KWsMWHWFLXJpx-e9JYP2Qn5ERMbTvz7VAITuJgNPE1WhyiI9CveuRmTRi1QkXufv5P5qamvcrRkPN4g6Xpo2hesOtice_aZ2fLPQpSsn47P4apvhvs5Do71KgycyToCwwbYLkJ3"/><span class="font-headline-sm text-headline-sm text-on-surface tracking-tight uppercase">ITISYOU VERIFY</span></a><nav class="hidden lg:flex items-center gap-space-xs" data-active-classes="bg-surface-container-high text-on-surface rounded-lg"><a class="px-space-md py-space-xs font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors" data-path="overview" href="#">Overview</a><a class="px-space-md py-space-xs font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors" data-path="how-it-works" href="#">How It Works</a><a aria-current="page" class="px-space-md py-space-xs font-body-sm transition-colors bg-surface-container-high text-on-surface rounded-lg" data-path="development-story" href="#">Development Story</a><a class="px-space-md py-space-xs font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors" data-path="pricing" href="#">Pricing</a><a class="px-space-md py-space-xs font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors" data-path="docs" href="#">Docs</a></nav></div><div class="flex items-center gap-space-md"><div class="hidden sm:flex items-center gap-space-xs px-space-sm py-space-xs rounded bg-surface-container-lowest"><div class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div><span class="font-label-code-sm text-label-code-sm text-primary uppercase">Core Active</span></div><a class="px-space-md py-space-xs rounded-lg font-label-code-md text-label-code-md text-on-surface-variant hover:text-on-surface transition-colors hidden sm:block" data-path="access-console" href="#">Sign In</a><a class="px-space-md py-space-xs rounded-lg bg-primary-container text-on-primary-container font-headline-sm text-body-sm hover:bg-primary transition-all shadow-[0_0_16px_rgba(16,185,129,0.25)]" data-path="access-console" href="#">Access Console</a><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div></header><main class="w-full pt-16 bg-surface min-h-screen"><div class="flex flex-col w-full text-on-surface">
+<!-- FORENSIC HEADER & HERO SUMMARY -->
+<section class="relative w-full overflow-hidden bg-surface pt-space-xl pb-space-xl">
+<div class="absolute inset-0 pointer-events-none opacity-40">
+<div class="absolute -top-32 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl"></div>
+<div class="absolute top-1/2 right-10 w-80 h-80 bg-secondary/5 rounded-full blur-3xl"></div>
+</div>
+<div class="max-w-[1440px] mx-auto px-margin-lg relative z-10">
+<!-- Navigational Breadcrumb & Eyebrow -->
+<div class="flex items-center gap-space-xs text-on-surface-variant font-label-code-sm text-label-code-sm mb-space-md">
+<span class="text-primary font-bold">SYSTEM AUDIT</span>
+<span class="text-outline">/</span>
+<span>DEVELOPMENT CHRONICLE</span>
+<span class="text-outline">/</span>
+<span class="text-on-surface">GIT REV LOG 2024-2025</span>
+</div>
+<!-- Main Title -->
+<div class="max-w-4xl">
+<h1 class="font-display-lg text-display-lg text-on-surface tracking-tight mb-space-sm">
+          How This Service Was Built
+        </h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant leading-relaxed max-w-3xl">
+          A transparent account of architectural decisions, unvarnished mistakes, and current operational reality — written for anyone who cares about whether software actually works.
+        </p>
+</div>
+<!-- Top Summary Instrumentation Ribbon -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-space-md mt-space-xl">
+<!-- Metric 01 -->
+<div class="bg-surface-container p-space-md rounded-lg flex flex-col justify-between shadow-md">
+<div class="flex items-center justify-between mb-space-xs">
+<span class="font-label-code-sm text-label-code-sm text-on-surface-variant uppercase tracking-wider">Lifecycle Tracking</span>
+<span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+</div>
+<div class="flex items-baseline gap-space-xs">
+<span class="font-headline-xl text-headline-xl text-on-surface font-bold">6</span>
+<span class="font-label-code-md text-label-code-md text-on-surface-variant">Formal Milestones</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-space-xs">
+            No stage skipped. 1 deliberate pivot recorded on public record.
+          </p>
+</div>
+<!-- Metric 02 -->
+<div class="bg-surface-container p-space-md rounded-lg flex flex-col justify-between shadow-md">
+<div class="flex items-center justify-between mb-space-xs">
+<span class="font-label-code-sm text-label-code-sm text-on-surface-variant uppercase tracking-wider">Verification Model</span>
+<span class="material-symbols-outlined text-secondary text-[18px]">travel_explore</span>
+</div>
+<div class="font-headline-lg text-headline-lg text-secondary tracking-tight">
+            Direct API Readback
+          </div>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-space-xs">
+            Rejects platform self-reporting. Probes destination endpoints independently.
+          </p>
+</div>
+<!-- Metric 03 -->
+<div class="bg-surface-container p-space-md rounded-lg flex flex-col justify-between shadow-md">
+<div class="flex items-center justify-between mb-space-xs">
+<span class="font-label-code-sm text-label-code-sm text-tertiary uppercase tracking-wider">Core Invariant</span>
+<span class="material-symbols-outlined text-tertiary text-[18px]">lock</span>
+</div>
+<div class="font-label-code-lg text-label-code-lg text-on-surface font-semibold">
+            “Proposed ≠ Shipped”
+          </div>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-space-xs">
+            A proposed decision can never be displayed as a shipped one across any view.
+          </p>
+</div>
+</div>
+</div>
+</section>
+<!-- SECTION 2: MILESTONE TIMELINE WITH EXPLICIT LIFECYCLE STATES -->
+<section class="w-full bg-surface-container-lowest py-space-xl">
+<div class="max-w-[1440px] mx-auto px-margin-lg">
+<div class="flex flex-col md:flex-row md:items-end justify-between mb-space-xl">
+<div>
+<span class="font-label-code-sm text-label-code-sm text-primary uppercase tracking-widest">Chronology of Delivery</span>
+<h2 class="font-headline-xl text-headline-xl text-on-surface mt-space-xs">
+            Lifecycle Milestones &amp; Forensic States
+          </h2>
+</div>
+<div class="mt-space-md md:mt-0 flex flex-wrap items-center gap-space-xs text-on-surface-variant font-label-code-sm text-label-code-sm bg-surface-container p-space-xs rounded">
+<span class="text-on-surface font-semibold px-space-xs">States Legend:</span>
+<span class="px-space-xs py-0.5 rounded bg-surface-container-highest text-on-surface-variant">PLANNED</span>
+<span class="px-space-xs py-0.5 rounded bg-error-container text-error">ATTEMPTED</span>
+<span class="px-space-xs py-0.5 rounded bg-tertiary-container/30 text-tertiary">IMPLEMENTED</span>
+<span class="px-space-xs py-0.5 rounded bg-secondary-container/20 text-secondary">TESTED</span>
+<span class="px-space-xs py-0.5 rounded bg-primary-container/20 text-primary">DEPLOYED</span>
+<span class="px-space-xs py-0.5 rounded bg-primary text-on-primary font-bold">CONFIRMED</span>
+</div>
+</div>
+<div class="space-y-space-md">
+<!-- Milestone 01 -->
+<div class="bg-surface-container-low p-space-lg rounded-xl shadow-sm transition-all hover:bg-surface-container">
+<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-space-sm mb-space-sm">
+<div class="flex items-center gap-space-md">
+<span class="font-label-code-lg text-label-code-lg text-primary font-bold">M-01</span>
+<h3 class="font-headline-lg text-headline-lg text-on-surface">Direct Destination API Readback Engine</h3>
+</div>
+<div class="flex items-center gap-space-sm">
+<span class="font-label-code-sm text-label-code-sm text-on-surface-variant">Q3 2024 / git: c84a91</span>
+<span class="px-space-sm py-0.5 rounded font-label-code-sm text-label-code-sm bg-primary text-on-primary font-bold">
+                EXTERNALLY CONFIRMED
+              </span>
+</div>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-4xl mb-space-md">
+            Instead of trusting automation platform webhooks that report 200 OK, the engine reaches directly into destination CRMs and mailboxes over separate HTTP connections to verify record creation and payload fidelity.
+          </p>
+<div class="bg-surface-container-lowest p-space-sm rounded font-label-code-sm text-label-code-sm text-primary flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-[16px]">verified</span>
+<span>Verification Evidence: Validated across 42 agency workspaces against live HubSpot, Stripe, and Postmark APIs.</span>
+</div>
+</div>
+<!-- Milestone 02 -->
+<div class="bg-surface-container-low p-space-lg rounded-xl shadow-sm transition-all hover:bg-surface-container">
+<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-space-sm mb-space-sm">
+<div class="flex items-center gap-space-md">
+<span class="font-label-code-lg text-label-code-lg text-primary font-bold">M-02</span>
+<h3 class="font-headline-lg text-headline-lg text-on-surface">Constrained Predicate Rule Engine</h3>
+</div>
+<div class="flex items-center gap-space-sm">
+<span class="font-label-code-sm text-label-code-sm text-on-surface-variant">Q4 2024 / git: 5f190e</span>
+<span class="px-space-sm py-0.5 rounded font-label-code-sm text-label-code-sm bg-primary-container/20 text-primary font-semibold">
+                DEPLOYED
+              </span>
+</div>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-4xl mb-space-md">
+            Custom AST parser with 5 strict operators (<code class="text-on-surface bg-surface-container-highest px-1 rounded">EQUALS</code>, <code class="text-on-surface bg-surface-container-highest px-1 rounded">CONTAINS</code>, <code class="text-on-surface bg-surface-container-highest px-1 rounded">GREATER_THAN</code>, <code class="text-on-surface bg-surface-container-highest px-1 rounded">EXISTS</code>, <code class="text-on-surface bg-surface-container-highest px-1 rounded">MATCHES_REGEX</code>) executed in sandboxed memory. Deliberately rejects <code class="text-error">eval()</code> and full Turing-complete capabilities to guarantee sub-millisecond deterministic evaluation.
+          </p>
+<div class="flex items-center gap-space-sm text-on-surface-variant font-label-code-sm text-label-code-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+<span>Zero recursion potential. Memory footprint fixed at 128KB per verification worker instance.</span>
+</div>
+</div>
+<!-- Milestone 03 -->
+<div class="bg-surface-container-low p-space-lg rounded-xl shadow-sm transition-all hover:bg-surface-container">
+<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-space-sm mb-space-sm">
+<div class="flex items-center gap-space-md">
+<span class="font-label-code-lg text-label-code-lg text-secondary font-bold">M-03</span>
+<h3 class="font-headline-lg text-headline-lg text-on-surface">Asynchronous Readback Queues &amp; Stratum-1 Clock Sync</h3>
+</div>
+<div class="flex items-center gap-space-sm">
+<span class="font-label-code-sm text-label-code-sm text-on-surface-variant">Q1 2025 / git: 99e21b</span>
+<span class="px-space-sm py-0.5 rounded font-label-code-sm text-label-code-sm bg-secondary-container/20 text-secondary font-semibold">
+                TESTED
+              </span>
+</div>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-4xl mb-space-md">
+            Queue buffers handling webhook burst spikes up to 400 events/sec, checking destination API readbacks within a defined 15-second grace window to absorb eventual consistency delays across remote distributed datastores.
+          </p>
+<div class="bg-surface-container p-space-sm rounded font-label-code-sm text-label-code-sm text-secondary flex items-center justify-between">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-[16px]">science</span>
+<span>Tested up to 250 concurrent worker threads in staging environment.</span>
+</div>
+<span class="text-on-surface-variant">Awaiting production soak test window.</span>
+</div>
+</div>
+<!-- Milestone 04 -->
+<div class="bg-surface-container-low p-space-lg rounded-xl shadow-sm transition-all hover:bg-surface-container">
+<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-space-sm mb-space-sm">
+<div class="flex items-center gap-space-md">
+<span class="font-label-code-lg text-label-code-lg text-tertiary font-bold">M-04</span>
+<h3 class="font-headline-lg text-headline-lg text-on-surface">Multi-Region Readback Proxies (UK &amp; US-East)</h3>
+</div>
+<div class="flex items-center gap-space-sm">
+<span class="font-label-code-sm text-label-code-sm text-on-surface-variant">Q1 2025 / git: 114c02</span>
+<span class="px-space-sm py-0.5 rounded font-label-code-sm text-label-code-sm bg-tertiary-container/30 text-tertiary font-semibold">
+                IMPLEMENTED
+              </span>
+</div>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-4xl mb-space-md">
+            Redundant egress nodes in London and Virginia to detect when an external target API behaves differently or throttles based on client geographic IP or edge cache anomalies.
+          </p>
+<div class="bg-surface-container p-space-sm rounded font-label-code-sm text-label-code-sm text-tertiary flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-[16px]">pause_circle</span>
+<span>Current Status: Implemented in staging enclave; awaiting external confirmation under simulated packet loss.</span>
+</div>
+</div>
+<!-- Milestone 05 (ATTEMPTED / PIVOTED) -->
+<div class="bg-surface-container-low p-space-lg rounded-xl shadow-sm transition-all hover:bg-surface-container">
+<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-space-sm mb-space-sm">
+<div class="flex items-center gap-space-md">
+<span class="font-label-code-lg text-label-code-lg text-error font-bold">M-05</span>
+<h3 class="font-headline-lg text-headline-lg text-on-surface">Cryptographic Diff Notarization on Public Ledgers</h3>
+</div>
+<div class="flex items-center gap-space-sm">
+<span class="font-label-code-sm text-label-code-sm text-on-surface-variant">Q4 2024 / git: 74d081</span>
+<span class="px-space-sm py-0.5 rounded font-label-code-sm text-label-code-sm bg-error-container text-error font-semibold">
+                ATTEMPTED (PIVOTED)
+              </span>
+</div>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-4xl mb-space-md">
+            Prototyped writing payload SHA-256 hashes to a public decentralized ledger for immutable customer audit trails.
+          </p>
+<div class="bg-surface-container-lowest p-space-md rounded font-body-sm text-body-sm text-on-surface-variant">
+<span class="font-label-code-sm text-label-code-sm text-error font-bold block mb-space-xs">HONEST RETROSPECTIVE:</span>
+            Proved needlessly complex, slow (4.2s confirmation latency), and commercially untenable (£0.18 per verification transaction). We completely discarded the prototype and replaced it with internal append-only SHA-256 hash chains signed with system GPG keys at 0.4ms latency with zero gas fees.
+          </div>
+</div>
+<!-- Milestone 06 (PLANNED) -->
+<div class="bg-surface-container-low p-space-lg rounded-xl shadow-sm transition-all hover:bg-surface-container">
+<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-space-sm mb-space-sm">
+<div class="flex items-center gap-space-md">
+<span class="font-label-code-lg text-label-code-lg text-on-surface-variant font-bold">M-06</span>
+<h3 class="font-headline-lg text-headline-lg text-on-surface">Self-Healing Automated Retry Mutations</h3>
+</div>
+<div class="flex items-center gap-space-sm">
+<span class="font-label-code-sm text-label-code-sm text-on-surface-variant">Roadmap 2025</span>
+<span class="px-space-sm py-0.5 rounded font-label-code-sm text-label-code-sm bg-surface-container-highest text-on-surface-variant font-semibold">
+                PLANNED
+              </span>
+</div>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-4xl mb-space-md">
+            Concept for automatically synthesizing repair payloads when an upstream workflow drops required attributes or omits email metadata.
+          </p>
+<div class="bg-surface-container p-space-sm rounded font-label-code-sm text-label-code-sm text-on-surface-variant flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-[16px]">info</span>
+<span>Deliberately postponed. Today, ITISYOU Verify is strictly an observational engine. Rewriting payloads without explicit human sign-off contradicts ground-truth verification principles.</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- SECTION 3: ARCHITECTURAL DECISIONS & TRADE-OFFS -->
+<section class="w-full bg-surface py-space-xl">
+<div class="max-w-[1440px] mx-auto px-margin-lg">
+<div class="mb-space-xl">
+<span class="font-label-code-sm text-label-code-sm text-secondary uppercase tracking-widest">Engineering Discipline</span>
+<h2 class="font-headline-xl text-headline-xl text-on-surface mt-space-xs">
+          Decisions &amp; Architectural Trade-offs
+        </h2>
+<p class="font-body-lg text-body-lg text-on-surface-variant mt-space-xs max-w-3xl">
+          Every tool says yes to too many features. Here is what we rejected and why we enforced tight conceptual boundaries.
+        </p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-space-lg">
+<!-- Trade-off 1 -->
+<div class="bg-surface-container p-space-lg rounded-xl flex flex-col justify-between shadow-sm">
+<div>
+<div class="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center text-primary mb-space-md">
+<span class="material-symbols-outlined">rule</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface mb-space-sm">
+              Why the Rule Language Is Deliberately Small
+            </h3>
+<p class="font-body-md text-body-md text-on-surface-variant mb-space-md">
+              We chose a 5-operator predicate syntax instead of Python scripts, JavaScript <code class="text-on-surface bg-surface-container-highest px-1 rounded">eval()</code>, or embedded Lua engines.
+            </p>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+              A general-purpose programming language introduces infinite loops, thread-blocking, subtle state leaks, and nondeterministic execution. When an agency client asks <em class="text-on-surface">“Why did this run fail?”</em>, the verification reason must fit in a single sentence without running an interpreter.
+            </p>
+</div>
+<div class="mt-space-lg pt-space-sm bg-surface-container-lowest p-space-sm rounded font-label-code-sm text-label-code-sm text-primary">
+            Guarantee: Evaluation always finishes in under 2ms.
+          </div>
+</div>
+<!-- Trade-off 2 -->
+<div class="bg-surface-container p-space-lg rounded-xl flex flex-col justify-between shadow-sm">
+<div>
+<div class="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center text-secondary mb-space-md">
+<span class="material-symbols-outlined">code_blocks</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface mb-space-sm">
+              Why We Rejected CEL &amp; jq
+            </h3>
+<p class="font-body-md text-body-md text-on-surface-variant mb-space-md">
+              General expression languages like CEL or nested <code class="text-on-surface bg-surface-container-highest px-1 rounded">jq</code> pipelines tempt engineers to write data transformation pipelines inside their verification assertions.
+            </p>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+              The moment verification rules start normalizing timestamps or transforming string casings, you stop testing ground truth and start masking bugs. The destination API must match what was intended without intermediate translation layers.
+            </p>
+</div>
+<div class="mt-space-lg pt-space-sm bg-surface-container-lowest p-space-sm rounded font-label-code-sm text-label-code-sm text-secondary">
+            Invariant: Verification observes reality, it does not reshape it.
+          </div>
+</div>
+<!-- Trade-off 3 -->
+<div class="bg-surface-container p-space-lg rounded-xl flex flex-col justify-between shadow-sm">
+<div>
+<div class="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center text-tertiary mb-space-md">
+<span class="material-symbols-outlined">calculate</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface mb-space-sm">
+              Strict Round-Down Arithmetic
+            </h3>
+<p class="font-body-md text-body-md text-on-surface-variant mb-space-md">
+              Every meter across our platform (allowances, quota spend, success completion) rounds <strong>strictly down</strong> to the nearest whole integer using floor arithmetic.
+            </p>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+              99.9% is shown as 99%, never 100%. If an automated sync ran 100 times and 1 lead was dropped, displaying a rounded 100% is a statistical falsehood. In zero-trust verification, 99.9% is not perfection.
+            </p>
+</div>
+<div class="mt-space-lg pt-space-sm bg-surface-container-lowest p-space-sm rounded font-label-code-sm text-label-code-sm text-tertiary">
+            Math.floor(x): 99.9% becomes 99%. Never 100%.
+          </div>
+</div>
+</div>
+</div>
+</section>
+<!-- SECTION 4: POST-MORTEMS OF REAL FAILURES (WHAT BROKE) -->
+<section class="w-full bg-surface-container-lowest py-space-xl">
+<div class="max-w-[1440px] mx-auto px-margin-lg">
+<div class="mb-space-xl">
+<span class="font-label-code-sm text-label-code-sm text-error uppercase tracking-widest">Unvarnished Post-Mortems</span>
+<h2 class="font-headline-xl text-headline-xl text-on-surface mt-space-xs">
+          What Broke &amp; What It Taught Us
+        </h2>
+<p class="font-body-lg text-body-lg text-on-surface-variant mt-space-xs max-w-3xl">
+          Engineering credibility is measured by how cleanly a team exposes its own failure modes. Below are three verified production incidents.
+        </p>
+</div>
+<!-- HIGHLIGHTED INCIDENT 01: CSP BAR OVERFLOW BUG -->
+<div class="bg-surface-container-low p-space-xl rounded-xl mb-space-lg shadow-md">
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-space-sm pb-space-md mb-space-md">
+<div>
+<div class="flex items-center gap-space-xs">
+<span class="px-space-xs py-0.5 rounded font-label-code-sm text-label-code-sm bg-error text-on-error font-bold">INCIDENT-01</span>
+<span class="font-label-code-sm text-label-code-sm text-on-surface-variant">CRITICAL UI DISCREPANCY</span>
+</div>
+<h3 class="font-headline-lg text-headline-lg text-on-surface mt-space-xs">
+              The Content Security Policy Bar Overflow Bug
+            </h3>
+</div>
+<span class="font-label-code-sm text-label-code-sm text-on-surface-variant">Root Cause: Strict CSP <code class="text-error font-bold">style-src 'self'</code></span>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-space-xl mb-space-lg">
+<div>
+<h4 class="font-headline-sm text-headline-sm text-on-surface mb-space-xs">What Happened &amp; Why It Hurt</h4>
+<p class="font-body-md text-body-md text-on-surface-variant mb-space-sm">
+              On Screen 2 (How It Works), a telemetry bar intended to display an uncompleted 33% progress unexpectedly rendered across production as a 100% solid filled bar.
+            </p>
+<p class="font-body-md text-body-md text-on-surface-variant mb-space-sm">
+              A newly tightened Content Security Policy (CSP) header blocked the inline CSS declaration <code class="text-error bg-surface-container-highest px-1 rounded">style="width: 33%"</code>. The browser silently discarded the inline style, falling back to the parent container width and turning an incomplete progress bar into a visually complete one.
+            </p>
+<div class="p-space-sm bg-error-container/20 rounded font-body-sm text-body-sm text-error">
+<strong>The Irony:</strong> The bug occurred on the exact page written to argue that a partial result must never be masqueraded as complete.
+            </div>
+</div>
+<div>
+<h4 class="font-headline-sm text-headline-sm text-on-surface mb-space-xs">The Permanent Architectural Fix</h4>
+<p class="font-body-md text-body-md text-on-surface-variant mb-space-sm">
+              We banned all inline style calculations for progress indicators. Meter components now calculate strictly rounded integer percentages and map them directly to pre-compiled, deterministic atomic CSS classes compiled ahead of time.
+            </p>
+<p class="font-body-md text-body-md text-on-surface-variant">
+              If an external CSS rule fails or is blocked by runtime security enclaves, the container now fails closed to <code class="text-primary font-bold">0%</code>, never expanding to 100%.
+            </p>
+</div>
+</div>
+<!-- VISUAL COMPARISON: WHAT BROKE VS WHAT WE BUILT -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-space-md pt-space-md">
+<!-- What Broke -->
+<div class="bg-surface-container p-space-md rounded-lg">
+<div class="flex items-center justify-between mb-space-xs">
+<span class="font-label-code-sm text-label-code-sm text-error font-bold flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-[16px]">dangerous</span>
+                WHAT BROKE (Inline Style Stripped)
+              </span>
+<span class="font-label-code-sm text-label-code-sm text-error font-mono">Rendered: 100%</span>
+</div>
+<!-- Failed Bar Visual -->
+<div class="w-full bg-surface-container-highest h-4 rounded-full overflow-hidden relative">
+<div class="w-full h-full bg-error flex items-center justify-end pr-2">
+<span class="font-label-code-sm text-label-code-sm text-on-error font-bold text-[9px]">OVERFLOW</span>
+</div>
+</div>
+<div class="mt-space-xs font-label-code-sm text-label-code-sm text-on-surface-variant">
+              Actual logic: 33% | Visual display: 100% (Misleading False Completion)
+            </div>
+</div>
+<!-- What We Built -->
+<div class="bg-surface-container p-space-md rounded-lg">
+<div class="flex items-center justify-between mb-space-xs">
+<span class="font-label-code-sm text-label-code-sm text-primary font-bold flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-[16px]">check_circle</span>
+                WHAT WE BUILT (Static Atomic Mapping)
+              </span>
+<span class="font-label-code-sm text-label-code-sm text-primary font-mono">Rendered: 33%</span>
+</div>
+<!-- Fixed Bar Visual -->
+<div class="w-full bg-surface-container-highest h-4 rounded-full overflow-hidden relative">
+<div class="w-1/3 h-full bg-primary flex items-center justify-end pr-2">
+<span class="font-label-code-sm text-label-code-sm text-on-primary font-bold text-[9px]">33%</span>
+</div>
+</div>
+<div class="mt-space-xs font-label-code-sm text-label-code-sm text-on-surface-variant">
+              Actual logic: 33% | Visual display: 33% (Deterministic Reality Match)
+            </div>
+</div>
+</div>
+</div>
+<!-- INCIDENTS 2 & 3 GRID -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-space-lg">
+<!-- Incident 02 -->
+<div class="bg-surface-container-low p-space-lg rounded-xl shadow-sm">
+<div class="flex items-center justify-between mb-space-xs">
+<span class="font-label-code-sm text-label-code-sm text-tertiary font-bold">INCIDENT-02</span>
+<span class="font-label-code-sm text-label-code-sm text-on-surface-variant">REPLICATION RACE</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface mb-space-xs">
+            Eventual Consistency Race in HubSpot Readback
+          </h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant mb-space-sm">
+            Webhooks reported successful customer creation, but an instantaneous readback probe returned 404 Not Found for 1.4 seconds while the destination API replicated data across internal regions.
+          </p>
+<div class="bg-surface-container p-space-sm rounded font-body-sm text-body-sm text-on-surface-variant">
+<strong class="text-on-surface">The Forensic Fix:</strong> Automated readbacks now respect downstream eventual consistency lag windows without claiming false positives or masking actual loss. Introduced calibrated 15-second grace intervals with explicit <code class="text-secondary bg-surface-container-highest px-1 rounded">[PENDING_REPLICATION]</code> states.
+          </div>
+</div>
+<!-- Incident 03 -->
+<div class="bg-surface-container-low p-space-lg rounded-xl shadow-sm">
+<div class="flex items-center justify-between mb-space-xs">
+<span class="font-label-code-sm text-label-code-sm text-tertiary font-bold">INCIDENT-03</span>
+<span class="font-label-code-sm text-label-code-sm text-on-surface-variant">RATE EXHAUSTION</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface mb-space-xs">
+            Postmark 429 Surge Throttling Incident
+          </h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant mb-space-sm">
+            Verification workers fired 50 parallel outbound readback probes in 200ms during an email marketing batch, triggering HTTP 429 rate limiting on customer Postmark server credentials.
+          </p>
+<div class="bg-surface-container p-space-sm rounded font-body-sm text-body-sm text-on-surface-variant">
+<strong class="text-on-surface">The Forensic Fix:</strong> The engine accurately flagged <code class="text-error">UNVERIFIED</code>, but flooded operations channels. We implemented local token-bucket egress rate limiters per target domain, queuing readback probes gracefully without exceeding upstream quotas.
+          </div>
+</div>
+</div>
+</div>
+</section>
+<!-- SECTION 5: LIVE INTERACTIVE FILL METER COMPONENT -->
+<section class="w-full bg-surface py-space-xl">
+<div class="max-w-[1440px] mx-auto px-margin-lg">
+<div class="bg-surface-container p-space-xl rounded-xl shadow-md">
+<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-space-md mb-space-lg">
+<div>
+<span class="font-label-code-sm text-label-code-sm text-primary uppercase tracking-widest">Ground-Truth Demonstration</span>
+<h2 class="font-headline-lg text-headline-lg text-on-surface mt-space-xs">
+              Strict Round-Down Arithmetic in Action
+            </h2>
+<p class="font-body-md text-body-md text-on-surface-variant mt-space-xs max-w-2xl">
+              Inspect how ITISYOU Verify calculates and renders partial states. We refuse to round fractional percentages up to avoid deceptive 100% completion representations.
+            </p>
+</div>
+<div class="flex items-center gap-space-sm">
+<button class="px-space-sm py-space-xs rounded bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-label-code-sm text-label-code-sm transition-colors" id="btn-sample-1">
+              Set 67.8%
+            </button>
+<button class="px-space-sm py-space-xs rounded bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-label-code-sm text-label-code-sm transition-colors" id="btn-sample-2">
+              Set 99.9%
+            </button>
+<button class="px-space-sm py-space-xs rounded bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-label-code-sm text-label-code-sm transition-colors" id="btn-sample-3">
+              Set 33.2%
+            </button>
+</div>
+</div>
+<!-- Telemetry Display Card -->
+<div class="bg-surface-container-lowest p-space-lg rounded-lg">
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-space-sm mb-space-sm">
+<div class="flex items-center gap-space-sm">
+<span class="font-label-code-sm text-label-code-sm text-on-surface-variant uppercase">Raw Telemetry Value:</span>
+<span class="font-label-code-lg text-label-code-lg text-secondary font-mono" id="raw-val-display">67.8419%</span>
+</div>
+<div class="flex items-center gap-space-sm">
+<span class="font-label-code-sm text-label-code-sm text-on-surface-variant uppercase">Display Value:</span>
+<span class="font-headline-sm text-headline-sm text-primary font-bold" id="rendered-val-display">67%</span>
+</div>
+</div>
+<!-- Dynamic Bar Container -->
+<div class="w-full bg-surface-container-high h-6 rounded overflow-hidden relative p-0.5">
+<div class="h-full bg-primary rounded-sm transition-all duration-300 flex items-center justify-end pr-2" id="interactive-bar" style="width: 67%;">
+<span class="font-label-code-sm text-label-code-sm text-on-primary font-bold" id="bar-inner-text">67%</span>
+</div>
+</div>
+<div class="mt-space-md flex items-start gap-space-xs text-on-surface-variant font-label-code-sm text-label-code-sm">
+<span class="material-symbols-outlined text-primary text-[16px]">info</span>
+<span>
+              Meter calculation rule: <code class="text-primary font-bold">Math.floor(value)</code>. A calculated 99.9% is displayed as 99%. We never round 99.9% to 100%. If one record out of a thousand fails, it is not a complete run.
+            </span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- SECTION 6: WHERE IT STANDS TODAY (3 TRANSPARENT COLUMNS) -->
+<section class="w-full bg-surface-container-lowest py-space-xl">
+<div class="max-w-[1440px] mx-auto px-margin-lg">
+<div class="mb-space-xl">
+<span class="font-label-code-sm text-label-code-sm text-primary uppercase tracking-widest">Forensic Reality Status</span>
+<h2 class="font-headline-xl text-headline-xl text-on-surface mt-space-xs">
+          Where It Stands Today
+        </h2>
+<p class="font-body-lg text-body-lg text-on-surface-variant mt-space-xs max-w-3xl">
+          An honest assessment of our current operational capabilities. No embellishment, no missing asterisks.
+        </p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-space-lg">
+<!-- COLUMN 1: What Is Built & Tested -->
+<div class="bg-surface-container-low p-space-lg rounded-xl shadow-sm flex flex-col justify-between">
+<div>
+<div class="flex items-center gap-space-xs mb-space-md text-primary font-label-code-sm text-label-code-sm font-bold">
+<span class="material-symbols-outlined text-[20px]">inventory_2</span>
+<span>1. WHAT IS BUILT &amp; TESTED</span>
+</div>
+<ul class="space-y-space-sm font-body-sm text-body-sm text-on-surface-variant">
+<li class="flex items-start gap-space-xs">
+<span class="material-symbols-outlined text-primary text-[16px] shrink-0 mt-0.5">check</span>
+<span>Direct readback for 4 destination types: REST CRM, Webhook endpoint, SMTP/Email mailbox, and SQL replica.</span>
+</li>
+<li class="flex items-start gap-space-xs">
+<span class="material-symbols-outlined text-primary text-[16px] shrink-0 mt-0.5">check</span>
+<span>Append-only SHA-256 hash chain audit ledger cryptographically signed at run completion.</span>
+</li>
+<li class="flex items-start gap-space-xs">
+<span class="material-symbols-outlined text-primary text-[16px] shrink-0 mt-0.5">check</span>
+<span>Deterministic 5-operator predicate builder with strict AST sandboxing and 128KB memory limits.</span>
+</li>
+<li class="flex items-start gap-space-xs">
+<span class="material-symbols-outlined text-primary text-[16px] shrink-0 mt-0.5">check</span>
+<span>14,000+ daily runs handled with p95 verification latency at 410ms.</span>
+</li>
+</ul>
+</div>
+<div class="mt-space-lg pt-space-sm bg-surface-container p-space-sm rounded font-label-code-sm text-label-code-sm text-primary">
+            Verification status: VERIFIED GROUND TRUTH
+          </div>
+</div>
+<!-- COLUMN 2: What Is Live in Production -->
+<div class="bg-surface-container-low p-space-lg rounded-xl shadow-sm flex flex-col justify-between">
+<div>
+<div class="flex items-center gap-space-xs mb-space-md text-secondary font-label-code-sm text-label-code-sm font-bold">
+<span class="material-symbols-outlined text-[20px]">rocket_launch</span>
+<span>2. WHAT IS LIVE IN PRODUCTION</span>
+</div>
+<ul class="space-y-space-sm font-body-sm text-body-sm text-on-surface-variant">
+<li class="flex items-start gap-space-xs">
+<span class="material-symbols-outlined text-secondary text-[16px] shrink-0 mt-0.5">check</span>
+<span>Single transparent commercial plan at £120/mo + VAT (covers 10,000 verified runs/month).</span>
+</li>
+<li class="flex items-start gap-space-xs">
+<span class="material-symbols-outlined text-secondary text-[16px] shrink-0 mt-0.5">check</span>
+<span>Zero-retention-trap cancellation &amp; guaranteed 90-day read-only data retention window.</span>
+</li>
+<li class="flex items-start gap-space-xs">
+<span class="material-symbols-outlined text-secondary text-[16px] shrink-0 mt-0.5">check</span>
+<span>Owner governance enclave with ring-fenced contingency reserve (£1,200).</span>
+</li>
+<li class="flex items-start gap-space-xs">
+<span class="material-symbols-outlined text-secondary text-[16px] shrink-0 mt-0.5">check</span>
+<span>Real-time client telemetry dashboard and cryptographically notarized PDF export bundles.</span>
+</li>
+</ul>
+</div>
+<div class="mt-space-lg pt-space-sm bg-surface-container p-space-sm rounded font-label-code-sm text-label-code-sm text-secondary">
+            Billing status: COMMERCIALLY ACTIVE
+          </div>
+</div>
+<!-- COLUMN 3: What Is Not Yet True (Stated Plainly) -->
+<div class="bg-surface-container-low p-space-lg rounded-xl shadow-sm flex flex-col justify-between">
+<div>
+<div class="flex items-center gap-space-xs mb-space-md text-tertiary font-label-code-sm text-label-code-sm font-bold">
+<span class="material-symbols-outlined text-[20px]">do_not_disturb_on</span>
+<span>3. WHAT IS NOT YET TRUE</span>
+</div>
+<ul class="space-y-space-sm font-body-sm text-body-sm text-on-surface-variant">
+<li class="flex items-start gap-space-xs">
+<span class="material-symbols-outlined text-tertiary text-[16px] shrink-0 mt-0.5">close</span>
+<span>Automated self-healing or payload mutation does NOT exist and is not running in production.</span>
+</li>
+<li class="flex items-start gap-space-xs">
+<span class="material-symbols-outlined text-tertiary text-[16px] shrink-0 mt-0.5">close</span>
+<span>Multi-region UK/US active-active failover is not live; currently operating single-region London with replica.</span>
+</li>
+<li class="flex items-start gap-space-xs">
+<span class="material-symbols-outlined text-tertiary text-[16px] shrink-0 mt-0.5">close</span>
+<span>We do not support arbitrary SAP or bespoke SOAP legacy interfaces without custom webhook shims.</span>
+</li>
+<li class="flex items-start gap-space-xs">
+<span class="material-symbols-outlined text-tertiary text-[16px] shrink-0 mt-0.5">close</span>
+<span>We do not offer 24/7 phone support or guaranteed 15-minute response times.</span>
+</li>
+</ul>
+</div>
+<div class="mt-space-lg pt-space-sm bg-surface-container p-space-sm rounded font-label-code-sm text-label-code-sm text-tertiary">
+            Operational boundary: EXPLICITLY OMITTED
+          </div>
+</div>
+</div>
+<!-- Footer Sign-off Note -->
+<div class="mt-space-xl p-space-md bg-surface-container rounded-lg flex flex-col sm:flex-row items-center justify-between gap-space-md">
+<div class="flex items-center gap-space-sm">
+<div class="w-8 h-8 rounded bg-primary/20 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[20px]">fingerprint</span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface">
+            Last forensic story audit confirmed on git rev <code class="text-primary font-mono font-semibold">99e21b8</code>. No marketing edits permitted without codebase commit verification.
+          </span>
+</div>
+<a class="px-space-md py-space-xs bg-surface-container-highest hover:bg-surface-bright text-on-surface rounded font-label-code-sm text-label-code-sm transition-colors whitespace-nowrap" data-path="how-it-works" href="#">
+          View Technical Architecture →
+        </a>
+</div>
+</div>
+</section>
+<!-- MICRO-INTERACTIONS JAVASCRIPT -->
+<script>
+    (function initStoryInteractions() {
+      const rawDisplay = document.getElementById('raw-val-display');
+      const renderedDisplay = document.getElementById('rendered-val-display');
+      const interactiveBar = document.getElementById('interactive-bar');
+      const innerText = document.getElementById('bar-inner-text');
+
+      function updateMeter(rawVal) {
+        const floorVal = Math.floor(rawVal);
+        if (rawDisplay) rawDisplay.textContent = rawVal.toFixed(4) + '%';
+        if (renderedDisplay) renderedDisplay.textContent = floorVal + '%';
+        if (interactiveBar) {
+          interactiveBar.style.width = floorVal + '%';
+        }
+        if (innerText) innerText.textContent = floorVal + '%';
+      }
+
+      const btn1 = document.getElementById('btn-sample-1');
+      const btn2 = document.getElementById('btn-sample-2');
+      const btn3 = document.getElementById('btn-sample-3');
+
+      if (btn1) btn1.addEventListener('click', () => updateMeter(67.8419));
+      if (btn2) btn2.addEventListener('click', () => updateMeter(99.9821));
+      if (btn3) btn3.addEventListener('click', () => updateMeter(33.2104));
+    })();
+  </script>
+</div></main><footer class="w-full bg-surface-container-lowest"><div class="max-w-[1440px] mx-auto px-margin-lg py-space-xl flex flex-col md:flex-row items-center justify-between gap-space-lg"><div class="flex flex-col sm:flex-row items-center gap-space-md text-center sm:text-left"><div class="flex items-center gap-space-xs"><div class="w-2 h-2 rounded-full bg-primary"></div><span class="font-label-code-sm text-label-code-sm text-primary uppercase tracking-wider">VERIFIED REALITY MATRIX</span></div><span class="font-body-sm text-body-sm text-on-surface-variant">© 2024 ITISYOU VERIFY INC. Deterministic Zero-Trust Proof Engine.</span></div><div class="flex items-center gap-space-lg font-label-code-md text-label-code-md"><a class="text-on-surface-variant hover:text-primary transition-colors flex items-center gap-space-xs" data-path="status" href="#"><span class="w-1.5 h-1.5 rounded-full bg-primary"></span>Status</a><a class="text-on-surface-variant hover:text-on-surface transition-colors" data-path="policy" href="#">Policy</a><a class="text-on-surface-variant hover:text-on-surface transition-colors" data-path="support" href="#">Support</a></div></div></footer></body></html>

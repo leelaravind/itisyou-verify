@@ -27,7 +27,13 @@ export interface TableOptions<Row> {
   readonly captionHidden?: boolean;
   readonly columns: readonly TableColumn<Row>[];
   readonly rows: readonly Row[];
-  /** Shown in place of the table body when there are no rows. */
+  /**
+   * Shown in place of the table when there are no rows.
+   *
+   * Optional, but leaving it out is not free: see the floor below. Supply real copy
+   * wherever a reader could reasonably meet the empty case, because "Nothing here yet" is
+   * a floor, not an answer — a good empty state says what to do next.
+   */
   readonly empty?: Html;
 }
 
@@ -35,6 +41,25 @@ export function Table<Row>(options: TableOptions<Row>): Html {
   if (options.rows.length === 0 && options.empty !== undefined) {
     return options.empty;
   }
+
+  /*
+   * The floor.
+   *
+   * `empty` is optional, and every table that forgot it drew its column headers over an
+   * empty `<tbody>` — which reads as a table that failed to load, not as a collection with
+   * nothing in it. The first user of any screen is the one who meets that, and the one
+   * least able to tell the two apart. So a table with no rows and no `empty` branch says
+   * so in a row of its own rather than silently rendering a header and a gap.
+   *
+   * This is deliberately a weak default. It exists so an omission degrades to something
+   * truthful instead of something broken, not so callers can skip writing the real thing.
+   */
+  const emptyRow =
+    options.rows.length === 0
+      ? html`<tr>
+          <td ${attrs({ colspan: String(options.columns.length) })} class="muted">Nothing here yet.</td>
+        </tr>`
+      : null;
 
   return html`<div class="tablewrap" role="region" tabindex="0" aria-label="${options.caption}">
     <table class="table">
@@ -66,6 +91,7 @@ export function Table<Row>(options: TableOptions<Row>): Html {
               )}
             </tr>`,
         )}
+        ${emptyRow}
       </tbody>
     </table>
   </div>`;

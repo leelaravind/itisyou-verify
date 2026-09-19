@@ -87,9 +87,10 @@ describe('the secret scanner', () => {
           source.split('\n').forEach((line, i) => {
             if (line.includes('secret-scan:allow')) return;
             // The shapes the scanner's high-confidence rules match.
-            const m = /\b(whsec_[A-Za-z0-9]{24,}|sk_(?:live|test)_[A-Za-z0-9]{20,}|re_[A-Za-z0-9]{8}_[A-Za-z0-9]{20,})/.exec(
-              line,
-            );
+            const m =
+              /\b(whsec_[A-Za-z0-9]{24,}|sk_(?:live|test)_[A-Za-z0-9]{20,}|re_[A-Za-z0-9]{8}_[A-Za-z0-9]{20,})/.exec(
+                line,
+              );
             if (m !== null) offenders.push(`${relative(ROOT, p)}:${i + 1}  ${m[1]?.slice(0, 12)}…`);
           });
         }

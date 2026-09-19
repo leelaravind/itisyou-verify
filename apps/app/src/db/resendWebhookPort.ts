@@ -90,9 +90,9 @@ export async function assignWebhookPathId(
  * that holds no usable secret returns an empty string rather than throwing: the route then
  * fails verification, which is the same answer a wrong secret gives.
  *
- * tenant-scope:exempt resolves the workspace FROM an opaque id the provider posted to,
- * which is the whole purpose of the lookup; the row carries its workspace_id and every
- * call the route makes afterwards passes it back in.
+ * The lookup is by opaque id alone: resolving the workspace is its whole purpose, so a
+ * workspace predicate here is impossible and would be theatre. The row carries its
+ * workspace_id and every call the route makes afterwards passes it back in.
  */
 export function createResendEndpointResolver(
   db: Db,
@@ -101,6 +101,7 @@ export function createResendEndpointResolver(
   return async (opaqueId: string) => {
     if (typeof opaqueId !== 'string' || opaqueId.length < 16) return null;
 
+    // tenant-scope:exempt resolves the workspace FROM a provider-posted opaque id.
     const row = await db
       .prepare(
         `SELECT id, workspace_id, status, external_account_id, last_check_at, webhook_path_id

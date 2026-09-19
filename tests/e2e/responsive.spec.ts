@@ -8,7 +8,13 @@
  */
 import { mkdir } from 'node:fs/promises';
 import { expect, test, type Page } from '@playwright/test';
-import { SEED_MISSING, automationCookieIsPresent, signInAsAutomation } from './helpers/session';
+import {
+  CUSTOMER_WORKSPACE_MISSING,
+  SEED_MISSING,
+  automationCookieIsPresent,
+  customerSurfaceReady,
+  signInAsAutomation,
+} from './helpers/session';
 
 const WIDTHS = [
   { name: 'mobile-390', width: 390, height: 844 },
@@ -61,23 +67,35 @@ async function offendingElements(page: Page): Promise<string[]> {
  * with a stated reason when there is no identity to sign in as.
  */
 for (const viewport of WIDTHS) {
-  test(`CUST-09${WIDTHS.indexOf(viewport) + 2} no page body scrolls horizontally at ${viewport.width}px on any primary task`, async ({ page, context }) => {
-    const seeded = (await signInAsAutomation(context)) && (await automationCookieIsPresent(context));
+  test(`CUST-09${WIDTHS.indexOf(viewport) + 2} no page body scrolls horizontally at ${viewport.width}px on any primary task`, async ({
+    page,
+    context,
+  }) => {
+    const seeded =
+      (await signInAsAutomation(context)) && (await automationCookieIsPresent(context));
     test.skip(!seeded, SEED_MISSING);
+    test.skip(!(await customerSurfaceReady(page)), CUSTOMER_WORKSPACE_MISSING);
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     for (const task of PRIMARY_TASKS) {
       const response = await page.goto(task.path);
       // The status check is not incidental. An error page has almost no content and so never
       // overflows, which means a broken route would make this case pass without measuring
       // anything. Assert the page actually rendered before believing its layout.
-      expect(response?.status(), `${task.path} did not render; its layout was not measured`).toBe(200);
+      expect(response?.status(), `${task.path} did not render; its layout was not measured`).toBe(
+        200,
+      );
       const overflow = await horizontalOverflow(page);
-      expect(overflow, `${task.path} at ${viewport.width}px overflows by ${overflow}px: ${(await offendingElements(page)).join(', ')}`).toBeLessThanOrEqual(1);
+      expect(
+        overflow,
+        `${task.path} at ${viewport.width}px overflows by ${overflow}px: ${(await offendingElements(page)).join(', ')}`,
+      ).toBeLessThanOrEqual(1);
     }
   });
 }
 
-test('CUST-095 a wide table scrolls inside its own container rather than pushing the page sideways', async ({ page }) => {
+test('CUST-095 a wide table scrolls inside its own container rather than pushing the page sideways', async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 390, height: 844 });
   // The demo's run table, not the workspace's: identical component and identical property,
   // on a page that needs no session and no database, so this case measures the layout rather

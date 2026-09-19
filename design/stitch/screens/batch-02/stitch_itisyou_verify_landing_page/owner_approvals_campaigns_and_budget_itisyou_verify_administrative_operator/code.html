@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_standard" name="shell-type"/><title>ITISYOU Verify Operator Portal</title><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;family=Plus+Jakarta+Sans:wght@600;700&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{colors:{"on-tertiary-fixed":"#2a1700","on-error":"#690005","surface-dim":"#0f131c","secondary-fixed-dim":"#4cd7f6","surface-container-high":"#262a34","error-container":"#93000a","secondary-container":"#03b5d3","tertiary":"#ffb95f","surface-container":"#1c1f29","error":"#ffb4ab","on-surface":"#dfe2ef","on-secondary":"#003640","on-primary-container":"#00422b","inverse-surface":"#dfe2ef","surface-container-highest":"#31353f","on-secondary-container":"#00424e","on-primary-fixed":"#002113","on-tertiary-container":"#523200","surface-variant":"#31353f","surface-container-lowest":"#0a0e17","inverse-on-surface":"#2c303a","outline":"#86948a","tertiary-container":"#e29100","outline-variant":"#3c4a42","inverse-primary":"#006c49","on-secondary-fixed-variant":"#004e5c","primary":"#4edea3","surface-tint":"#4edea3","secondary-fixed":"#acedff","on-secondary-fixed":"#001f26","on-background":"#dfe2ef","on-primary":"#003824","on-tertiary":"#472a00","primary-fixed":"#6ffbbe","tertiary-fixed-dim":"#ffb95f","tertiary-fixed":"#ffddb8","primary-container":"#10b981","secondary":"#4cd7f6","surface-bright":"#353943","on-primary-fixed-variant":"#005236","background":"#0f131c","on-surface-variant":"#bbcabf","surface":"#0f131c","on-error-container":"#ffdad6","primary-fixed-dim":"#4edea3","surface-container-low":"#181b25","on-tertiary-fixed-variant":"#653e00"},borderRadius:{"DEFAULT":"0.125rem","lg":"0.25rem","xl":"0.5rem","full":"0.75rem"},spacing:{"margin-sm":"1rem","margin":"2rem","margin-lg":"4rem","space-md":"1rem","space-xs":"0.25rem","space-xl":"2.5rem","gutter-sm":"1rem","space-sm":"0.5rem","gutter":"1.5rem","space-lg":"1.5rem","gutter-lg":"2rem"},fontFamily:{"body-md":["Inter"],"display-md-mobile":["Plus Jakarta Sans"],"headline-sm":["Plus Jakarta Sans"],"display-lg-mobile":["Plus Jakarta Sans"],"label-code-lg":["JetBrains Mono"],"headline-xl":["Plus Jakarta Sans"],"headline-lg":["Plus Jakarta Sans"],"body-sm":["Inter"],"display-md":["Plus Jakarta Sans"],"body-lg":["Inter"],"label-code-md":["JetBrains Mono"],"display-lg":["Plus Jakarta Sans"],"label-code-sm":["JetBrains Mono"]},fontSize:{"body-md":["14px",{"lineHeight":"20px","letterSpacing":"0em","fontWeight":"400"}],"display-md-mobile":["28px",{"lineHeight":"36px","letterSpacing":"-0.02em","fontWeight":"600"}],"headline-sm":["18px",{"lineHeight":"26px","letterSpacing":"-0.01em","fontWeight":"600"}],"display-lg-mobile":["36px",{"lineHeight":"44px","letterSpacing":"-0.02em","fontWeight":"700"}],"label-code-lg":["14px",{"lineHeight":"20px","letterSpacing":"-0.01em","fontWeight":"500"}],"headline-xl":["30px",{"lineHeight":"38px","letterSpacing":"-0.02em","fontWeight":"600"}],"headline-lg":["24px",{"lineHeight":"32px","letterSpacing":"-0.015em","fontWeight":"600"}],"body-sm":["13px",{"lineHeight":"18px","letterSpacing":"0.005em","fontWeight":"400"}],"display-md":["40px",{"lineHeight":"48px","letterSpacing":"-0.02em","fontWeight":"600"}],"body-lg":["16px",{"lineHeight":"24px","letterSpacing":"-0.005em","fontWeight":"400"}],"label-code-md":["12px",{"lineHeight":"16px","letterSpacing":"0em","fontWeight":"500"}],"display-lg":["56px",{"lineHeight":"64px","letterSpacing":"-0.03em","fontWeight":"700"}],"label-code-sm":["11px",{"lineHeight":"14px","letterSpacing":"0.04em","fontWeight":"600"}]}}}}</script></head><body class="bg-surface font-body-md text-on-surface antialiased selection:bg-primary selection:text-on-primary min-h-screen flex flex-col justify-between"><header class="fixed top-0 left-0 w-full z-50 bg-surface-container-lowest/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="w-full px-margin"><div class="h-16 flex items-center justify-between gap-space-md"><div class="flex items-center gap-space-lg"><div class="flex items-center gap-space-sm"><img alt="Brand logo. - Primary color: #10b981
+- Font: plusJakartaSans
+- Mode: dark
+- Roundness: rounded-sm
+" class="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1U7B5ZTJffMnV9nd87k-oSX0MbVJFr9ADq2wg5kjNspqTjmWXgOeiOc49rAfQRfCujiC8j3UYH3A71mB2XGBaz8XsX12Uxt7nz1vLFzAJlF-_OeIf-D_KWsMWHWFLXJpx-e9JYP2Qn5ERMbTvz7VAITuJgNPE1WhyiI9CveuRmTRi1QkXufv5P5qamvcrRkPN4g6Xpo2hesOtice_aZ2fLPQpSsn47P4apvhvs5Do71KgycyToCwwbYLkJ3"/><div class="flex flex-col"><span class="font-headline-sm text-headline-sm font-bold tracking-tight text-on-surface leading-none">ITISYOU</span><span class="font-label-code-sm text-label-code-sm text-primary tracking-widest uppercase">INTERNAL OPERATOR</span></div></div><div class="h-6 w-px bg-surface-container-highest"></div><div class="flex items-center gap-space-xs px-space-sm py-space-xs rounded bg-surface-container-low"><span class="material-symbols-outlined text-secondary text-[16px]">security</span><span class="font-label-code-sm text-label-code-sm text-on-surface-variant font-medium tracking-wide">OP-SEC // PRIMARY OPERATOR (UK)</span></div><div class="hidden xl:flex items-center gap-space-xs px-space-sm py-space-xs rounded bg-surface-container"><span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span><span class="font-label-code-sm text-label-code-sm text-on-surface font-medium">VERIFIER PROBES: NOMINAL</span></div></div><nav class="hidden lg:flex items-center gap-space-xs" data-active-classes="bg-primary-container text-on-primary-container font-semibold rounded"><a class="px-space-md py-space-sm rounded font-label-code-md text-label-code-md text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="operator-overview" href="#">Operator Overview</a><a class="px-space-md py-space-sm rounded font-label-code-md text-label-code-md text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="customer-incidents" href="#">Customer &amp; Incidents</a><a class="px-space-md py-space-sm rounded font-label-code-md text-label-code-md text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="approvals-budget" href="#">Approvals &amp; Budget</a><a class="px-space-md py-space-sm rounded font-label-code-md text-label-code-md text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="infrastructure-nodes" href="#">Infrastructure &amp; Nodes</a><a class="px-space-md py-space-sm rounded font-label-code-md text-label-code-md text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="audit-ledger" href="#">Audit Ledger</a></nav><div class="flex items-center gap-space-md"><div class="hidden sm:flex items-center gap-space-xs px-space-sm py-space-xs rounded bg-surface-container-lowest"><span class="font-label-code-sm text-label-code-sm text-on-surface-variant">ZERO-TRUST CONSOLE</span><span class="font-label-code-sm text-label-code-sm text-primary font-semibold">ACT-9921</span></div><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div></div></header><main class="w-full pt-16 bg-surface"><div class="flex flex-col w-full">
+<!-- Top Telemetry & Global Budget Header Strip -->
+<section class="w-full px-margin pt-space-md pb-space-lg bg-surface-container-lowest">
+<div class="max-w-[1600px] mx-auto flex flex-col xl:flex-row xl:items-center justify-between gap-space-md">
+<div>
+<div class="flex items-center gap-space-sm mb-space-xs">
+<span class="px-space-xs py-0.5 rounded bg-surface-container-high text-primary font-label-code-sm uppercase tracking-wider">Audit Ref: 2025-Q1-CAPEX</span>
+<span class="text-outline text-label-code-sm font-label-code-sm">Ledger Sequence #81,902</span>
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+<span class="text-on-surface-variant text-label-code-sm font-label-code-sm">Zero-Trust Financial State: In Sync</span>
+</div>
+<h1 class="font-headline-lg text-headline-lg text-on-surface tracking-tight font-bold">Financial Approvals, Requisitions &amp; Outlay Controller</h1>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-0.5 max-w-3xl">
+          Deterministic fiscal authorization pipeline. Every expenditure requires an unexpired, cryptographically signed operator stamp. Approvals operate on an immutable single-use token consumption model.
+        </p>
+</div>
+<!-- Quick Action Micro Telemetry -->
+<div class="flex items-stretch gap-space-sm flex-wrap xl:flex-nowrap">
+<div class="bg-surface-container-low px-space-md py-space-sm rounded flex flex-col justify-center min-w-[170px]">
+<span class="font-label-code-sm text-label-code-sm text-on-surface-variant uppercase">Currency Standard</span>
+<div class="flex items-baseline gap-1 mt-0.5">
+<span class="font-headline-sm text-headline-sm font-bold text-on-surface">£ / GBP</span>
+<span class="font-label-code-sm text-label-code-sm text-outline">British Pound</span>
+</div>
+</div>
+<div class="bg-surface-container-low px-space-md py-space-sm rounded flex flex-col justify-center min-w-[190px]">
+<span class="font-label-code-sm text-label-code-sm text-on-surface-variant uppercase">Pending Signatures</span>
+<div class="flex items-baseline gap-space-xs mt-0.5">
+<span class="font-headline-sm text-headline-sm font-bold text-tertiary">2 Requests</span>
+<span class="font-label-code-sm text-label-code-sm text-on-surface-variant">£2,410.00 commit</span>
+</div>
+</div>
+<div class="bg-surface-container-low px-space-md py-space-sm rounded flex flex-col justify-center min-w-[210px]">
+<span class="font-label-code-sm text-label-code-sm text-on-surface-variant uppercase">Audit Ledger Integrity</span>
+<div class="flex items-center gap-space-xs mt-0.5">
+<span class="material-symbols-outlined text-primary text-[18px]">verified_user</span>
+<span class="font-label-code-sm text-label-code-sm text-on-surface font-semibold">100% Deterministic</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Main Grid Workspace -->
+<div class="w-full px-margin py-space-lg max-w-[1600px] mx-auto space-y-space-xl">
+<!-- Section 1: Primary Budget Overview Panel (Rigorous Mathematical Breakdown) -->
+<section class="bg-surface-container-low rounded-xl p-space-lg shadow-md relative overflow-hidden">
+<!-- Ambient subtle corner radiation -->
+<div class="absolute -right-20 -top-20 w-80 h-80 rounded-full bg-primary/5 blur-3xl pointer-events-none"></div>
+<div class="flex flex-col lg:flex-row lg:items-center justify-between pb-space-md gap-space-sm mb-space-md">
+<div>
+<div class="flex items-center gap-space-xs">
+<span class="font-label-code-sm text-label-code-sm text-primary uppercase font-bold tracking-wider">[SECTION 01 // FISCAL ENVELOPE]</span>
+<span class="text-outline text-label-code-sm font-label-code-sm">• Fiscal Year 2024–2025</span>
+</div>
+<h2 class="font-headline-md text-headline-md text-on-surface font-bold mt-0.5">Core Operational Allocation &amp; Contingency Partition</h2>
+</div>
+<div class="flex items-center gap-space-sm">
+<span class="font-label-code-sm text-label-code-sm px-space-sm py-space-xs rounded bg-surface-container text-on-surface font-medium">
+            Burn Rate Velocity: £892.10 / week
+          </span>
+<span class="font-label-code-sm text-label-code-sm px-space-sm py-space-xs rounded bg-surface-container text-outline font-medium">
+            Cycle Reset: 31 Mar 2025 (31 Days)
+          </span>
+</div>
+</div>
+<!-- Financial Metrics Quadrant -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-space-md mb-space-lg">
+<!-- Metric 1: Total Allocated -->
+<div class="bg-surface-container p-space-md rounded-lg flex flex-col justify-between">
+<div class="flex items-center justify-between text-on-surface-variant font-label-code-sm text-label-code-sm">
+<span>TOTAL ALLOCATED BUDGET</span>
+<span class="material-symbols-outlined text-outline text-[18px]">account_balance</span>
+</div>
+<div class="my-space-sm">
+<div class="font-headline-xl text-headline-xl font-bold text-on-surface tracking-tight">£45,000.00</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-1">Authorized macro fiscal envelope.</p>
+</div>
+<div class="pt-space-xs flex items-center justify-between text-label-code-sm font-label-code-sm text-outline">
+<span>Base Line: 100.0%</span>
+<span>Ref: PO-ENVELOPE-01</span>
+</div>
+</div>
+<!-- Metric 2: Amount Spent to Date -->
+<div class="bg-surface-container p-space-md rounded-lg flex flex-col justify-between">
+<div class="flex items-center justify-between text-on-surface-variant font-label-code-sm text-label-code-sm">
+<span>AMOUNT SPENT TO DATE</span>
+<span class="material-symbols-outlined text-secondary text-[18px]">payments</span>
+</div>
+<div class="my-space-sm">
+<div class="font-headline-xl text-headline-xl font-bold text-secondary tracking-tight">£28,340.00</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-1">Settled invoices and committed SaaS.</p>
+</div>
+<div class="pt-space-xs flex items-center justify-between text-label-code-sm font-label-code-sm text-on-surface-variant">
+<span>62.97% of Total Budget</span>
+<span class="text-secondary font-semibold">14 Invoices Settled</span>
+</div>
+</div>
+<!-- Metric 3: Discretionary Remaining -->
+<div class="bg-surface-container p-space-md rounded-lg flex flex-col justify-between">
+<div class="flex items-center justify-between text-on-surface-variant font-label-code-sm text-label-code-sm">
+<span>DISCRETIONARY REMAINING</span>
+<span class="material-symbols-outlined text-primary text-[18px]">account_tree</span>
+</div>
+<div class="my-space-sm">
+<div class="font-headline-xl text-headline-xl font-bold text-primary tracking-tight">£10,660.00</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-1">Available for marketing &amp; infrastructure.</p>
+</div>
+<div class="pt-space-xs flex items-center justify-between text-label-code-sm font-label-code-sm text-on-surface-variant">
+<span>23.68% Unallocated</span>
+<span class="text-primary font-semibold">Available for PO</span>
+</div>
+</div>
+<!-- Metric 4: Contingency (Ring Fenced) -->
+<div class="bg-surface-container-high p-space-md rounded-lg flex flex-col justify-between relative overflow-hidden">
+<div class="absolute right-0 top-0 w-16 h-16 bg-tertiary/10 rounded-bl-3xl flex items-start justify-end p-2 pointer-events-none">
+<span class="material-symbols-outlined text-tertiary text-[20px]">lock</span>
+</div>
+<div class="flex items-center justify-between text-on-surface-variant font-label-code-sm text-label-code-sm">
+<span class="text-tertiary font-bold">RING-FENCED CONTINGENCY</span>
+</div>
+<div class="my-space-sm">
+<div class="font-headline-xl text-headline-xl font-bold text-tertiary tracking-tight">£6,000.00</div>
+<div class="flex items-center gap-1 mt-1 text-label-code-sm font-label-code-sm text-tertiary">
+<span class="material-symbols-outlined text-[14px]">lock_clock</span>
+<span>13.33% Strictly Isolated</span>
+</div>
+</div>
+<div class="pt-space-xs flex items-center justify-between text-label-code-sm font-label-code-sm text-outline">
+<span>Tier-1 Signed Stamp Req.</span>
+<span class="font-bold text-error text-label-code-sm">RESTRICTED</span>
+</div>
+</div>
+</div>
+<!-- Discretionary Burn Meter & Mathematical Downward Floor -->
+<div class="bg-surface-container p-space-md rounded-lg space-y-space-sm mb-space-md">
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-space-xs text-label-code-sm font-label-code-sm">
+<div class="flex items-center gap-space-xs">
+<span class="text-on-surface font-semibold">DISCRETIONARY POOL CONSUMPTION GAUGE:</span>
+<span class="text-primary">72.66% Discretionary Burned</span>
+<span class="text-outline">(£28,340.00 of £39,000.00 non-contingency spend)</span>
+</div>
+<div class="text-on-surface-variant">
+<span>Exact Downward-Rounded Floor: </span>
+<span class="text-on-surface font-bold bg-surface-container-high px-space-xs py-0.5 rounded">72%</span>
+</div>
+</div>
+<!-- Progress Bar Visual Matrix -->
+<div class="w-full h-3 bg-surface-container-lowest rounded-full overflow-hidden flex p-0.5">
+<div class="h-full bg-secondary rounded-l-full transition-all duration-500" style="width: 72.66%;"></div>
+<div class="h-full bg-surface-container-high transition-all" style="width: 27.34%;"></div>
+</div>
+<div class="flex justify-between items-center text-label-code-sm font-label-code-sm text-outline pt-0.5">
+<span>£0.00</span>
+<span>Target Cap: £39,000.00 (Excludes £6,000.00 Ring-Fence)</span>
+<span>Max Limit: £39,000.00</span>
+</div>
+</div>
+<!-- Contingency Ring-Fence Isolation Protocol Note -->
+<div class="bg-surface-container-lowest p-space-md rounded-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-space-md">
+<div class="flex items-start gap-space-sm">
+<div class="p-space-xs rounded bg-surface-container-high text-tertiary mt-0.5 flex-shrink-0">
+<span class="material-symbols-outlined text-[20px]">encrypted</span>
+</div>
+<div>
+<div class="flex items-center gap-space-xs">
+<span class="font-headline-sm text-headline-sm font-bold text-on-surface">Isolated Reserve Governance Clause</span>
+<span class="font-label-code-sm text-label-code-sm px-space-xs py-0.5 rounded bg-surface-container-highest text-tertiary font-bold">MANDATORY RULE 4.1</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-1 max-w-4xl">
+              This £6,000.00 contingency reserve cannot be committed, drawn, or allocated to any marketing campaign or vendor invoice without an explicit, cryptographically signed Operator Tier-1 Approval Stamp (dual-key cryptographic pass-through). Automated burst allowances and marketing auto-scales are structurally hard-blocked at the database constraint level.
+            </p>
+</div>
+</div>
+<div class="flex-shrink-0 bg-surface-container px-space-md py-space-sm rounded text-right">
+<div class="font-label-code-sm text-label-code-sm text-outline">ISOLATION ENFORCEMENT</div>
+<div class="font-label-code-md text-label-code-md text-primary font-bold">STRICT_HARD_LOCK</div>
+</div>
+</div>
+</section>
+<!-- Section 2: Owner Approvals Queue with Single-Use Consumption Model & Expirations -->
+<section class="space-y-space-md">
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-space-sm">
+<div>
+<div class="flex items-center gap-space-xs">
+<span class="font-label-code-sm text-label-code-sm text-primary uppercase font-bold tracking-wider">[SECTION 02 // REQUISITION WORKFLOW]</span>
+<span class="text-outline text-label-code-sm font-label-code-sm">• Immutable Ledger Verification</span>
+</div>
+<h2 class="font-headline-lg text-headline-lg text-on-surface font-bold mt-0.5">Owner Authorization Queue</h2>
+</div>
+<!-- Filter Segmented Tabs -->
+<div class="flex items-center bg-surface-container-low p-1 rounded-lg gap-1">
+<button class="px-space-md py-space-xs rounded bg-surface-container-high text-on-surface font-label-code-sm text-label-code-sm font-semibold transition-all">
+            All Requisitions (4)
+          </button>
+<button class="px-space-md py-space-xs rounded text-on-surface-variant hover:text-on-surface font-label-code-sm text-label-code-sm transition-all">
+            Pending Action (2)
+          </button>
+<button class="px-space-md py-space-xs rounded text-on-surface-variant hover:text-on-surface font-label-code-sm text-label-code-sm transition-all">
+            Consumed / Executed (1)
+          </button>
+<button class="px-space-md py-space-xs rounded text-on-surface-variant hover:text-on-surface font-label-code-sm text-label-code-sm transition-all">
+            Refused / Expired (1)
+          </button>
+</div>
+</div>
+<!-- Queue Cards Container -->
+<div class="space-y-space-md">
+<!-- ITEM 1: Pending Action - Hetzner ARM Edge Verification Nodes -->
+<div class="bg-surface-container-low rounded-xl p-space-lg shadow-sm hover:shadow-md transition-shadow relative">
+<div class="flex flex-col lg:flex-row lg:items-start justify-between gap-space-md">
+<!-- Left Details -->
+<div class="space-y-space-sm flex-1">
+<div class="flex items-center gap-space-sm flex-wrap">
+<span class="font-label-code-sm text-label-code-sm px-space-xs py-0.5 rounded bg-surface-container-highest text-secondary font-semibold uppercase">REQ-9044-EU</span>
+<span class="font-label-code-sm text-label-code-sm px-space-xs py-0.5 rounded bg-surface-container text-outline">Category: Infra Hardware</span>
+<span class="flex items-center gap-1 font-label-code-sm text-label-code-sm text-tertiary bg-surface-container px-space-sm py-0.5 rounded">
+<span class="material-symbols-outlined text-[14px]">timer</span>
+<span>Expires in: 2h 14m 10s (14:30:00 UTC)</span>
+</span>
+<span class="font-label-code-sm text-label-code-sm px-space-xs py-0.5 rounded bg-surface-container text-on-surface-variant uppercase">Dual-Signature: 1/2 Granted</span>
+</div>
+<div>
+<h3 class="font-headline-sm text-headline-sm font-bold text-on-surface">
+                  Dedicated Hetzner ARM Edge Verification Node Cluster 04 (Falkenstein)
+                </h3>
+<p class="font-body-sm text-body-sm text-outline mt-0.5">
+                  Specification: Provision 3x Dedicated AX102-R Nodes for EU readback probes and independent cryptographic log verification.
+                </p>
+</div>
+<!-- Technical & Financial Outcome Box -->
+<div class="bg-surface-container p-space-md rounded-lg grid grid-cols-1 md:grid-cols-2 gap-space-md">
+<div>
+<div class="font-label-code-sm text-label-code-sm text-on-surface-variant font-bold uppercase mb-1">
+                    [1] Technical Outcome If Approved
+                  </div>
+<p class="font-body-sm text-body-sm text-on-surface leading-relaxed">
+                    Automated deployment script executes against Hetzner Robot API. Three bare-metal instances (AX102-R, Falkenstein DC) are mounted with root-of-trust Alpine images. Verification probe capacity for EMEA latency checks increases by 4,500 deterministic checks/min.
+                  </p>
+</div>
+<div>
+<div class="font-label-code-sm text-label-code-sm text-on-surface-variant font-bold uppercase mb-1">
+                    [2] Financial Outcome If Approved
+                  </div>
+<p class="font-body-sm text-body-sm text-on-surface leading-relaxed">
+                    Immediate debit of <span class="font-bold text-primary">£820.00 setup fee</span> against Discretionary Pool. Creates a recurring monthly contract commitment of <span class="font-bold text-primary">£340.00/month</span> starting 01 April 2025 until decommissioned.
+                  </p>
+</div>
+</div>
+</div>
+<!-- Right Financial Column & Decision Triggers -->
+<div class="lg:w-80 flex-shrink-0 bg-surface-container p-space-md rounded-lg flex flex-col justify-between space-y-space-md">
+<div>
+<div class="font-label-code-sm text-label-code-sm text-outline uppercase">Requisition Commitment</div>
+<div class="mt-1 flex flex-col">
+<div class="flex items-baseline justify-between">
+<span class="font-body-sm text-body-sm text-on-surface-variant">Setup (One-Off):</span>
+<span class="font-headline-sm text-headline-sm font-bold text-on-surface">£820.00</span>
+</div>
+<div class="flex items-baseline justify-between mt-1">
+<span class="font-body-sm text-body-sm text-on-surface-variant">Recurring (Mo):</span>
+<span class="font-headline-sm text-headline-sm font-bold text-secondary">£340.00/mo</span>
+</div>
+</div>
+<div class="mt-space-sm pt-space-xs text-label-code-sm font-label-code-sm text-outline flex items-center justify-between">
+<span>Commitment Type:</span>
+<span class="text-tertiary font-semibold uppercase">HYBRID (One-Off + Monthly)</span>
+</div>
+</div>
+<!-- Action Controls -->
+<div class="space-y-space-xs pt-space-xs">
+<button class="w-full bg-primary-container hover:bg-primary text-on-primary-container font-headline-sm text-body-md font-bold py-space-sm px-space-md rounded flex items-center justify-center gap-space-xs shadow-md transition-all active:scale-[0.99]">
+<span class="material-symbols-outlined text-[18px]">verified</span>
+<span>Grant Authorization</span>
+</button>
+<button class="w-full bg-surface-container-high hover:bg-surface-container-highest text-error font-label-code-sm text-label-code-sm font-semibold py-space-xs px-space-md rounded flex items-center justify-center gap-space-xs transition-all">
+<span class="material-symbols-outlined text-[16px]">cancel</span>
+<span>Reject / Revoke Stamp</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- ITEM 2: Pending Action - Q2 Outreach & Infrastructure -->
+<div class="bg-surface-container-low rounded-xl p-space-lg shadow-sm hover:shadow-md transition-shadow relative">
+<div class="flex flex-col lg:flex-row lg:items-start justify-between gap-space-md">
+<!-- Left Details -->
+<div class="space-y-space-sm flex-1">
+<div class="flex items-center gap-space-sm flex-wrap">
+<span class="font-label-code-sm text-label-code-sm px-space-xs py-0.5 rounded bg-surface-container-highest text-secondary font-semibold uppercase">REQ-9045-MKT</span>
+<span class="font-label-code-sm text-label-code-sm px-space-xs py-0.5 rounded bg-surface-container text-outline">Category: Growth Outlay</span>
+<span class="flex items-center gap-1 font-label-code-sm text-label-code-sm text-on-surface-variant bg-surface-container px-space-sm py-0.5 rounded">
+<span class="material-symbols-outlined text-[14px]">schedule</span>
+<span>Expires in: 18h 40m (28 Feb 23:59:59 UTC)</span>
+</span>
+<span class="font-label-code-sm text-label-code-sm px-space-xs py-0.5 rounded bg-surface-container text-on-surface-variant uppercase">Dual-Signature: 0/2 Granted</span>
+</div>
+<div>
+<h3 class="font-headline-sm text-headline-sm font-bold text-on-surface">
+                  Q2 Targeted Agency Cold-Email Outreach &amp; Infrastructure
+                </h3>
+<p class="font-body-sm text-body-sm text-outline mt-0.5">
+                  Specification: Specialist Tech Recruiter and UK Automation Agency curated verification directory licensing + warm outbound mailbox isolation fleet.
+                </p>
+</div>
+<!-- Technical & Financial Outcome Box -->
+<div class="bg-surface-container p-space-md rounded-lg grid grid-cols-1 md:grid-cols-2 gap-space-md">
+<div>
+<div class="font-label-code-sm text-label-code-sm text-on-surface-variant font-bold uppercase mb-1">
+                    [1] Technical Outcome If Approved
+                  </div>
+<p class="font-body-sm text-body-sm text-on-surface leading-relaxed">
+                    Generates 12 dedicated SMTP domain nodes with strictly separated SPF/DKIM/DMARC records. Ingests 2,150 pre-verified agency principal contacts into read-only CRM sequencing instance. Zero crossover with main product domains.
+                  </p>
+</div>
+<div>
+<div class="font-label-code-sm text-label-code-sm text-on-surface-variant font-bold uppercase mb-1">
+                    [2] Financial Outcome If Approved
+                  </div>
+<p class="font-body-sm text-body-sm text-on-surface leading-relaxed">
+                    Fixed single-use drawdown of <span class="font-bold text-primary">£1,250.00</span>. No recurring commitment attached. Balance drawn entirely from Q1 Discretionary Remaining pool, reducing balance from £10,660.00 to £9,410.00.
+                  </p>
+</div>
+</div>
+</div>
+<!-- Right Financial Column & Decision Triggers -->
+<div class="lg:w-80 flex-shrink-0 bg-surface-container p-space-md rounded-lg flex flex-col justify-between space-y-space-md">
+<div>
+<div class="font-label-code-sm text-label-code-sm text-outline uppercase">Requisition Commitment</div>
+<div class="mt-1 flex flex-col">
+<div class="flex items-baseline justify-between">
+<span class="font-body-sm text-body-sm text-on-surface-variant">Total Amount:</span>
+<span class="font-headline-sm text-headline-sm font-bold text-on-surface">£1,250.00</span>
+</div>
+<div class="flex items-baseline justify-between mt-1">
+<span class="font-body-sm text-body-sm text-on-surface-variant">Commitment Type:</span>
+<span class="font-label-code-sm text-label-code-sm font-bold text-secondary uppercase">ONE-OFF COMMITMENT</span>
+</div>
+</div>
+<div class="mt-space-sm pt-space-xs text-label-code-sm font-label-code-sm text-outline flex items-center justify-between">
+<span>Vendor PO:</span>
+<span class="text-on-surface font-mono">PO-UK-AGY-994</span>
+</div>
+</div>
+<!-- Action Controls -->
+<div class="space-y-space-xs pt-space-xs">
+<button class="w-full bg-primary-container hover:bg-primary text-on-primary-container font-headline-sm text-body-md font-bold py-space-sm px-space-md rounded flex items-center justify-center gap-space-xs shadow-md transition-all active:scale-[0.99]">
+<span class="material-symbols-outlined text-[18px]">verified</span>
+<span>Grant Authorization</span>
+</button>
+<button class="w-full bg-surface-container-high hover:bg-surface-container-highest text-error font-label-code-sm text-label-code-sm font-semibold py-space-xs px-space-md rounded flex items-center justify-center gap-space-xs transition-all">
+<span class="material-symbols-outlined text-[16px]">cancel</span>
+<span>Reject / Revoke Stamp</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- ITEM 3: Single-Use IMMUTABLE CONSUMPTION STATE (Approved & Consumed) -->
+<div class="bg-surface-container-lowest rounded-xl p-space-lg relative overflow-hidden opacity-85">
+<!-- Permanent Forensic Stamp Watermark Banner -->
+<div class="w-full bg-surface-container-high px-space-md py-space-xs rounded flex flex-col sm:flex-row items-start sm:items-center justify-between gap-space-xs mb-space-md">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-primary text-[18px]">lock</span>
+<span class="font-label-code-sm text-label-code-sm font-bold text-primary tracking-wide uppercase">
+                CONSUMED &amp; LOCKED [SINGLE-USE STAMP #APR-8921-X]
+              </span>
+</div>
+<div class="font-label-code-sm text-label-code-sm text-outline">
+              Consumed 28 Feb 2025 09:14:22 UTC by OP_AUTH_01. Authorization token destroyed. Cannot be re-executed or amended.
+            </div>
+</div>
+<div class="flex flex-col lg:flex-row lg:items-start justify-between gap-space-md">
+<div class="space-y-space-xs flex-1">
+<div class="flex items-center gap-space-sm">
+<span class="font-label-code-sm text-label-code-sm px-space-xs py-0.5 rounded bg-surface-container text-outline line-through uppercase">REQ-8921-LOG</span>
+<span class="font-label-code-sm text-label-code-sm px-space-xs py-0.5 rounded bg-surface-container text-outline line-through">Cold Storage Archival Sink</span>
+<span class="font-label-code-sm text-label-code-sm text-primary font-bold">[IMMUTABLE RECORD]</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm font-bold text-on-surface-variant line-through">
+                Wasabi S3-Compatible Long-Term Telemetry Sink Provisioning (Amsterdam Region)
+              </h3>
+<p class="font-body-sm text-body-sm text-outline line-through max-w-3xl">
+                Provisioning 50TB dedicated zero-egress cryptographic backup storage for verified log evidence vaults. One-off provisioning charge £380.00 settled via credit card sequence 4819.
+              </p>
+<div class="font-label-code-sm text-label-code-sm text-outline pt-space-xs">
+                Ledger TX Hash: <span class="font-mono text-on-surface-variant">0x7fa2b982189dfa89104b281f9a01c38e7829a10c</span>
+</div>
+</div>
+<div class="lg:w-80 flex-shrink-0 bg-surface-container-low p-space-md rounded-lg flex flex-col justify-between">
+<div class="flex justify-between items-center">
+<span class="font-label-code-sm text-label-code-sm text-outline">Consumed Amount:</span>
+<span class="font-headline-sm text-headline-sm font-bold text-on-surface-variant line-through">£380.00</span>
+</div>
+<div class="mt-space-sm text-label-code-sm font-label-code-sm text-primary bg-surface-container px-space-sm py-space-xs rounded text-center font-bold">
+                STATE: SETTLED &amp; CLOSED
+              </div>
+</div>
+</div>
+</div>
+<!-- ITEM 4: EXPIRED & REFUSED STATE (Crucial Mandated Component) -->
+<div class="bg-surface-container-lowest rounded-xl p-space-lg relative overflow-hidden bg-gradient-to-r from-error/5 to-transparent">
+<!-- Refusal Badge Header -->
+<div class="w-full bg-error-container/30 px-space-md py-space-xs rounded flex flex-col sm:flex-row items-start sm:items-center justify-between gap-space-xs mb-space-md">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-error text-[18px]">gpp_bad</span>
+<span class="font-label-code-sm text-label-code-sm font-bold text-error tracking-wider uppercase">
+                [REFUSED // AUTHORIZATION LAPSED]
+              </span>
+</div>
+<div class="font-label-code-sm text-label-code-sm text-error font-medium">
+              Window Timeout: 48h 00m 00s exceeded with no operator sign-off
+            </div>
+</div>
+<div class="flex flex-col lg:flex-row lg:items-start justify-between gap-space-md">
+<div class="space-y-space-sm flex-1">
+<div class="flex items-center gap-space-sm flex-wrap">
+<span class="font-label-code-sm text-label-code-sm px-space-xs py-0.5 rounded bg-surface-container-highest text-error font-semibold uppercase">REQ-8812-BURST</span>
+<span class="font-label-code-sm text-label-code-sm px-space-xs py-0.5 rounded bg-surface-container text-outline">Traffic Uplift</span>
+<span class="font-label-code-sm text-label-code-sm px-space-xs py-0.5 rounded bg-error/10 text-error font-bold">PURCHASE ORDER VOID</span>
+</div>
+<div>
+<h3 class="font-headline-sm text-headline-sm font-bold text-on-surface-variant line-through">
+                  Campaign Infrastructure Burst: Direct Ingress Proxy Capacity Uplift (US-East)
+                </h3>
+<div class="text-body-sm font-body-sm text-error mt-0.5 font-semibold">
+                  Original Requisition Value: £650.00 (One-off Commitment)
+                </div>
+</div>
+<!-- Refusal Reason Written Plainly -->
+<div class="bg-surface-container-low p-space-md rounded-lg space-y-space-xs">
+<div class="font-label-code-sm text-label-code-sm text-error font-bold uppercase flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">info</span>
+<span>Deterministic Refusal Reason (System Ledger Log)</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
+                  Action refused automatically at 27 Feb 2025 23:59:59 UTC: Pre-authorization validity window of 48 hours elapsed without dual-operator biometric sign-off. Associated vendor purchase order PO-8812 invalidated and destroyed. To re-attempt this expense, a fresh requisition with current pricing must be created from scratch.
+                </p>
+</div>
+</div>
+<!-- Inactive Status & Plain Block Note -->
+<div class="lg:w-80 flex-shrink-0 bg-surface-container p-space-md rounded-lg flex flex-col justify-between space-y-space-sm">
+<div>
+<span class="font-label-code-sm text-label-code-sm text-outline uppercase">Execution Pipeline</span>
+<div class="font-headline-sm text-headline-sm font-bold text-error mt-1">INVALIDATED</div>
+<p class="font-body-sm text-body-sm text-outline mt-1">
+                  Zero tokens deducted. Allocations rolled back to pool.
+                </p>
+</div>
+<div class="bg-surface-container-high p-space-sm rounded text-center">
+<span class="font-label-code-sm text-label-code-sm text-outline uppercase font-mono">ACTION_BLOCKED_PERMANENTLY</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Section 3: Campaigns & Outlay Panel (With Strict Locked State Enforcement) -->
+<section class="bg-surface-container-low rounded-xl p-space-lg shadow-md space-y-space-md">
+<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-space-sm">
+<div>
+<div class="flex items-center gap-space-xs">
+<span class="font-label-code-sm text-label-code-sm text-primary uppercase font-bold tracking-wider">[SECTION 03 // ACTIVE CAMPAIGNS &amp; OUTLAY]</span>
+<span class="text-outline text-label-code-sm font-label-code-sm">• Strict Approval Gating</span>
+</div>
+<h2 class="font-headline-md text-headline-md text-on-surface font-bold mt-0.5">Campaign Outlay &amp; Traffic Enablement Matrix</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-0.5">
+            Network routing and proxy pipelines will immediately refuse activation without an active, unconsumed approval stamp linked to the campaign record.
+          </p>
+</div>
+<div class="flex items-center gap-space-sm">
+<button class="bg-surface-container hover:bg-surface-container-high text-on-surface font-label-code-sm text-label-code-sm font-semibold px-space-md py-space-sm rounded flex items-center gap-space-xs transition-all">
+<span class="material-symbols-outlined text-[16px]">file_download</span>
+<span>Export CSV Audit</span>
+</button>
+<button class="bg-primary hover:bg-primary-container text-on-primary font-headline-sm text-body-sm font-bold px-space-md py-space-sm rounded flex items-center gap-space-xs transition-all">
+<span class="material-symbols-outlined text-[18px]">add</span>
+<span>Draft New Campaign Requisition</span>
+</button>
+</div>
+</div>
+<!-- Tabular Campaign Ledger -->
+<div class="overflow-x-auto rounded-lg bg-surface-container-lowest">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-high text-outline font-label-code-sm text-label-code-sm uppercase tracking-wider">
+<th class="py-space-sm px-space-md">Campaign Identity &amp; Objective</th>
+<th class="py-space-sm px-space-md">Assigned Cap</th>
+<th class="py-space-sm px-space-md">Spend to Date</th>
+<th class="py-space-sm px-space-md">Remaining</th>
+<th class="py-space-sm px-space-md">Ledger State</th>
+<th class="py-space-sm px-space-md text-right">Traffic Ingress Routing</th>
+</tr>
+</thead>
+<tbody class="divide-y-0 text-body-sm font-body-sm">
+<!-- Row 1: Active Campaign -->
+<tr class="hover:bg-surface-container/50 transition-colors">
+<td class="py-space-md px-space-md">
+<div class="font-headline-sm text-body-lg font-bold text-on-surface">UK Automation Agency Search Term Inbound</div>
+<div class="text-on-surface-variant text-label-code-sm font-label-code-sm mt-0.5">
+                  High-intent Google Ads query acquisition on 'Zapier Silent Failure' &amp; 'Make.com Audit Ledger'
+                </div>
+<div class="text-outline text-label-code-sm font-label-code-sm mt-1">
+                  Auth Stamp: <span class="font-mono text-primary">#APR-7719-STAMP (Valid)</span>
+</div>
+</td>
+<td class="py-space-md px-space-md font-label-code-md text-label-code-md text-on-surface font-semibold">
+                £4,500.00
+              </td>
+<td class="py-space-md px-space-md font-label-code-md text-label-code-md text-secondary font-semibold">
+                £3,120.40
+              </td>
+<td class="py-space-md px-space-md font-label-code-md text-label-code-md text-primary font-semibold">
+                £1,379.60
+              </td>
+<td class="py-space-md px-space-md">
+<span class="inline-flex items-center gap-1.5 px-space-sm py-0.5 rounded bg-surface-container text-primary font-label-code-sm text-label-code-sm font-semibold">
+<span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+<span>Active &amp; Ingressing</span>
+</span>
+</td>
+<td class="py-space-md px-space-md text-right">
+<button class="px-space-md py-space-xs bg-surface-container hover:bg-surface-container-high text-on-surface font-label-code-sm text-label-code-sm rounded transition-all">
+                  Inspect Telemetry
+                </button>
+</td>
+</tr>
+<!-- Row 2: Active Technical Series -->
+<tr class="hover:bg-surface-container/50 transition-colors bg-surface-container/20">
+<td class="py-space-md px-space-md">
+<div class="font-headline-sm text-body-lg font-bold text-on-surface">Enterprise Architecture Technical Teardown Series</div>
+<div class="text-on-surface-variant text-label-code-sm font-label-code-sm mt-0.5">
+                  Sponsored deterministic architecture whitepapers &amp; Substack engineering placement.
+                </div>
+<div class="text-outline text-label-code-sm font-label-code-sm mt-1">
+                  Auth Stamp: <span class="font-mono text-primary">#APR-8102-STAMP (Valid)</span>
+</div>
+</td>
+<td class="py-space-md px-space-md font-label-code-md text-label-code-md text-on-surface font-semibold">
+                £3,200.00
+              </td>
+<td class="py-space-md px-space-md font-label-code-md text-label-code-md text-secondary font-semibold">
+                £1,850.00
+              </td>
+<td class="py-space-md px-space-md font-label-code-md text-label-code-md text-primary font-semibold">
+                £1,350.00
+              </td>
+<td class="py-space-md px-space-md">
+<span class="inline-flex items-center gap-1.5 px-space-sm py-0.5 rounded bg-surface-container text-secondary font-label-code-sm text-label-code-sm font-semibold">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+<span>Active &amp; Ingressing</span>
+</span>
+</td>
+<td class="py-space-md px-space-md text-right">
+<button class="px-space-md py-space-xs bg-surface-container hover:bg-surface-container-high text-on-surface font-label-code-sm text-label-code-sm rounded transition-all">
+                  Inspect Telemetry
+                </button>
+</td>
+</tr>
+<!-- Row 3: LOCKED / DISABLED CAMPAIGN (CRUCIAL REQUIREMENT: Plain explanation why activation is refused) -->
+<tr class="bg-surface-container-high/40 hover:bg-surface-container-high/60 transition-colors">
+<td class="py-space-md px-space-md">
+<div class="flex items-center gap-space-xs">
+<div class="font-headline-sm text-body-lg font-bold text-on-surface">Cold Outreach: Top 250 Zapier Certified Experts</div>
+<span class="material-symbols-outlined text-tertiary text-[18px]">lock</span>
+</div>
+<div class="text-on-surface-variant text-label-code-sm font-label-code-sm mt-0.5">
+                  Direct automated invitation to verify client workflow telemetry integrity.
+                </div>
+<!-- Plain explicit why-blocked label -->
+<div class="mt-space-xs p-space-xs rounded bg-surface-container text-tertiary text-label-code-sm font-label-code-sm max-w-2xl flex items-start gap-1">
+<span class="material-symbols-outlined text-[16px] text-tertiary flex-shrink-0 mt-0.5">warning</span>
+<span>
+<strong>Activation locked:</strong> No valid, unconsumed approval stamp found in ledger. Requisition <strong>#REQ-409</strong> must be authorized before traffic routing can be enabled.
+                  </span>
+</div>
+</td>
+<td class="py-space-md px-space-md font-label-code-md text-label-code-md text-outline font-semibold">
+                £1,800.00
+              </td>
+<td class="py-space-md px-space-md font-label-code-md text-label-code-md text-outline font-semibold">
+                £0.00
+              </td>
+<td class="py-space-md px-space-md font-label-code-md text-label-code-md text-outline font-semibold">
+                £1,800.00
+              </td>
+<td class="py-space-md px-space-md">
+<span class="inline-flex items-center gap-1.5 px-space-sm py-0.5 rounded bg-surface-container-highest text-tertiary font-label-code-sm text-label-code-sm font-bold">
+<span class="w-2 h-2 rounded-full bg-tertiary"></span>
+<span>Paused (Awaiting Approvals)</span>
+</span>
+</td>
+<td class="py-space-md px-space-md text-right">
+<!-- Disabled with explicit rationale tooltip/display -->
+<div class="inline-flex flex-col items-end">
+<button class="px-space-md py-space-xs bg-surface-container text-outline font-label-code-sm text-label-code-sm rounded cursor-not-allowed opacity-60 flex items-center gap-1" disabled="">
+<span class="material-symbols-outlined text-[14px]">lock</span>
+<span>Enable Ingress (Blocked)</span>
+</button>
+<span class="text-label-code-sm font-label-code-sm text-outline mt-1">Requires #REQ-409</span>
+</div>
+</td>
+</tr>
+<!-- Row 4: Refused / Halted Campaign -->
+<tr class="hover:bg-surface-container/50 transition-colors">
+<td class="py-space-md px-space-md">
+<div class="font-headline-sm text-body-lg font-bold text-on-surface-variant line-through">
+                  High-Frequency US-East Ingress Proxy Test
+                </div>
+<div class="text-outline text-label-code-sm font-label-code-sm mt-0.5 line-through">
+                  Experimental proxy routing trial through Ashburn edge POP.
+                </div>
+<div class="text-error text-label-code-sm font-label-code-sm mt-1">
+                  Stamp: <span class="font-mono">#REQ-8812 (LAPSED &amp; VOIDED)</span>
+</div>
+</td>
+<td class="py-space-md px-space-md font-label-code-md text-label-code-md text-outline font-semibold line-through">
+                £650.00
+              </td>
+<td class="py-space-md px-space-md font-label-code-md text-label-code-md text-outline font-semibold">
+                £0.00
+              </td>
+<td class="py-space-md px-space-md font-label-code-md text-label-code-md text-outline font-semibold">
+                £0.00
+              </td>
+<td class="py-space-md px-space-md">
+<span class="inline-flex items-center gap-1.5 px-space-sm py-0.5 rounded bg-surface-container text-error font-label-code-sm text-label-code-sm font-semibold">
+<span class="w-2 h-2 rounded-full bg-error"></span>
+<span>Refused / Halted</span>
+</span>
+</td>
+<td class="py-space-md px-space-md text-right">
+<span class="font-label-code-sm text-label-code-sm text-outline">DECOMMISSIONED</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Outlay Audit Footnote -->
+<div class="flex flex-col sm:flex-row items-center justify-between text-label-code-sm font-label-code-sm text-outline pt-space-xs gap-space-xs">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-[16px] text-primary">policy</span>
+<span>Zero-Trust Routing Policy #PO-991: No campaign network interface will bind port 443 without a cryptographically verified ledger entry.</span>
+</div>
+<div class="text-on-surface-variant">
+          Total Discretionary Commitments Active: <span class="text-on-surface font-bold">£9,500.00</span>
+</div>
+</div>
+</section>
+<!-- Bottom Operator Diagnostics & Verification Audit Strip -->
+<section class="bg-surface-container p-space-md rounded-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-space-md">
+<div class="flex items-center gap-space-md">
+<div class="w-10 h-10 rounded bg-surface-container-high flex items-center justify-center text-primary flex-shrink-0">
+<span class="material-symbols-outlined text-[24px]">token</span>
+</div>
+<div>
+<div class="font-headline-sm text-headline-sm font-bold text-on-surface">Dual-Signer Biometric Key Status</div>
+<div class="font-label-code-sm text-label-code-sm text-on-surface-variant mt-0.5">
+            Operator Session: <span class="text-on-surface font-mono">OP-UK-LEAD-88</span> • Key Algorithm: Ed25519 • YubiKey FIPS Validated
+          </div>
+</div>
+</div>
+<div class="flex items-center gap-space-sm flex-wrap">
+<div class="bg-surface-container-low px-space-sm py-space-xs rounded text-label-code-sm font-label-code-sm text-outline">
+          SIGNATURE BUFFER: READY
+        </div>
+<button class="bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-label-code-sm text-label-code-sm font-semibold px-space-md py-space-sm rounded transition-all">
+          Inspect Cryptographic Keystore
+        </button>
+</div>
+</section>
+</div>
+</div></main><footer class="w-full bg-surface-container-lowest shadow-[0_-1px_8px_rgba(0,0,0,0.04)] py-space-md"><div class="w-full px-margin flex flex-col md:flex-row items-center justify-between gap-space-sm"><div class="flex items-center gap-space-md font-label-code-sm text-label-code-sm text-on-surface-variant"><span>BACK-OFFICE CORE v4.18.2</span><span>•</span><span>SESSION: 0x8F9C...48B2</span><span>•</span><span>TELEMETRY SYNC: 12ms</span></div><div class="font-label-code-sm text-label-code-sm text-on-surface-variant">STRICTLY CONFIDENTIAL // RESTRICTED ACCESS LEVEL 4</div></div></footer></body></html>

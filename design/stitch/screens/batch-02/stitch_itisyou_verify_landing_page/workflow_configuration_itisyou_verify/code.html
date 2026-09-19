@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_standard" name="shell-type"/><title>ITISYOU Verify - Forensic Automation Verification</title><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;family=Plus+Jakarta+Sans:wght@600;700&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{colors:{"on-surface-variant":"#bbcabf","error-container":"#93000a","on-tertiary-fixed-variant":"#653e00","secondary-fixed-dim":"#4cd7f6","on-secondary-container":"#00424e","surface-bright":"#353943","tertiary":"#ffb95f","surface-dim":"#0f131c","on-surface":"#dfe2ef","primary-fixed":"#6ffbbe","secondary":"#4cd7f6","inverse-on-surface":"#2c303a","on-secondary-fixed-variant":"#004e5c","surface-variant":"#31353f","surface-container-low":"#181b25","surface-tint":"#4edea3","primary-fixed-dim":"#4edea3","on-primary-fixed-variant":"#005236","on-primary-fixed":"#002113","surface-container":"#1c1f29","inverse-surface":"#dfe2ef","tertiary-container":"#e29100","on-primary":"#003824","surface":"#0f131c","tertiary-fixed-dim":"#ffb95f","outline":"#86948a","surface-container-highest":"#31353f","secondary-container":"#03b5d3","on-tertiary-fixed":"#2a1700","on-secondary-fixed":"#001f26","inverse-primary":"#006c49","on-error-container":"#ffdad6","secondary-fixed":"#acedff","on-error":"#690005","surface-container-high":"#262a34","error":"#ffb4ab","on-tertiary":"#472a00","on-background":"#dfe2ef","background":"#0f131c","primary-container":"#10b981","tertiary-fixed":"#ffddb8","on-primary-container":"#00422b","outline-variant":"#3c4a42","on-tertiary-container":"#523200","primary":"#4edea3","on-secondary":"#003640","surface-container-lowest":"#0a0e17"},borderRadius:{DEFAULT:"0.125rem",lg:"0.25rem",xl:"0.5rem",full:"0.75rem"},spacing:{"margin-sm":"1rem","space-md":"1rem",gutter:"1.5rem","space-xl":"2.5rem","gutter-sm":"1rem","space-xs":"0.25rem","space-sm":"0.5rem",margin:"2rem","space-lg":"1.5rem","margin-lg":"4rem","gutter-lg":"2rem"},fontFamily:{"label-code-sm":["JetBrains Mono"],"label-code-md":["JetBrains Mono"],"label-code-lg":["JetBrains Mono"],"body-md":["Inter"],"body-lg":["Inter"],"headline-lg":["Plus Jakarta Sans"],"display-lg":["Plus Jakarta Sans"],"headline-xl":["Plus Jakarta Sans"],"display-lg-mobile":["Plus Jakarta Sans"],"display-md-mobile":["Plus Jakarta Sans"],"body-sm":["Inter"],"headline-sm":["Plus Jakarta Sans"],"display-md":["Plus Jakarta Sans"]},fontSize:{"label-code-sm":["11px",{lineHeight:"14px",letterSpacing:"0.04em",fontWeight:"600"}],"label-code-md":["12px",{lineHeight:"16px",letterSpacing:"0em",fontWeight:"500"}],"label-code-lg":["14px",{lineHeight:"20px",letterSpacing:"-0.01em",fontWeight:"500"}],"body-md":["14px",{lineHeight:"20px",letterSpacing:"0em",fontWeight:"400"}],"body-lg":["16px",{lineHeight:"24px",letterSpacing:"-0.005em",fontWeight:"400"}],"headline-lg":["24px",{lineHeight:"32px",letterSpacing:"-0.015em",fontWeight:"600"}],"display-lg":["56px",{lineHeight:"64px",letterSpacing:"-0.03em",fontWeight:"700"}],"headline-xl":["30px",{lineHeight:"38px",letterSpacing:"-0.02em",fontWeight:"600"}],"display-lg-mobile":["36px",{lineHeight:"44px",letterSpacing:"-0.02em",fontWeight:"700"}],"display-md-mobile":["28px",{lineHeight:"36px",letterSpacing:"-0.02em",fontWeight:"600"}],"body-sm":["13px",{lineHeight:"18px",letterSpacing:"0.005em",fontWeight:"400"}],"headline-sm":["18px",{lineHeight:"26px",letterSpacing:"-0.01em",fontWeight:"600"}],"display-md":["40px",{lineHeight:"48px",letterSpacing:"-0.02em",fontWeight:"600"}]}}}}</script></head><body class="bg-surface font-body-md text-on-surface antialiased"><header class="fixed top-0 left-0 w-full z-50 bg-surface-container-lowest/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.4)]"><div class="h-16 w-full max-w-[1680px] mx-auto px-gutter-lg flex items-center justify-between gap-space-lg"><div class="flex items-center gap-space-lg shrink-0"><div class="flex items-center gap-space-sm"><img alt="Brand logo. - Primary color: #10b981
+- Font: plusJakartaSans
+- Mode: dark
+- Roundness: rounded-sm
+" class="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1U7B5ZTJffMnV9nd87k-oSX0MbVJFr9ADq2wg5kjNspqTjmWXgOeiOc49rAfQRfCujiC8j3UYH3A71mB2XGBaz8XsX12Uxt7nz1vLFzAJlF-_OeIf-D_KWsMWHWFLXJpx-e9JYP2Qn5ERMbTvz7VAITuJgNPE1WhyiI9CveuRmTRi1QkXufv5P5qamvcrRkPN4g6Xpo2hesOtice_aZ2fLPQpSsn47P4apvhvs5Do71KgycyToCwwbYLkJ3"/><span class="font-headline-sm text-headline-sm uppercase tracking-tight text-on-surface">ITISYOU<span class="text-primary font-label-code-md text-label-code-md ml-space-xs px-space-xs py-0.5 bg-surface-container-high rounded-DEFAULT">VERIFY</span></span></div><div class="hidden xl:flex items-center gap-space-xs px-space-sm py-1 bg-surface-container rounded-DEFAULT"><span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span><span class="font-label-code-sm text-label-code-sm text-on-surface-variant uppercase">ENGINE OPERATIONAL</span><span class="font-label-code-sm text-label-code-sm text-primary font-semibold">[REALITY_SYNC: OK]</span></div></div><nav class="hidden lg:flex items-center gap-space-xs p-1 bg-surface-container-low rounded-DEFAULT" data-active-classes="bg-surface-container text-primary font-semibold"><a class="font-label-code-md text-label-code-md px-space-sm py-1.5 rounded-DEFAULT text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="overview" href="#">Overview</a><a class="font-label-code-md text-label-code-md px-space-sm py-1.5 rounded-DEFAULT text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="how-it-works" href="#">How It Works</a><a class="font-label-code-md text-label-code-md px-space-sm py-1.5 rounded-DEFAULT text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="connections" href="#">Connections</a><a aria-current="page" class="px-space-sm py-1.5 rounded-DEFAULT transition-colors bg-surface-container text-primary font-semibold" data-path="workflow-rules" href="#">Workflow Rules</a><a class="font-label-code-md text-label-code-md px-space-sm py-1.5 rounded-DEFAULT text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="ledger" href="#">Ledger</a><a class="font-label-code-md text-label-code-md px-space-sm py-1.5 rounded-DEFAULT text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="pricing" href="#">Pricing</a><a class="font-label-code-md text-label-code-md px-space-sm py-1.5 rounded-DEFAULT text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="settings" href="#">Settings</a></nav><div class="flex items-center gap-space-md shrink-0"><div class="hidden sm:flex flex-col text-right"><span class="font-label-code-sm text-label-code-sm text-on-surface">NODE_0x7F41</span><span class="font-label-code-sm text-label-code-sm text-on-surface-variant">LATENCY: 12ms</span></div><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div></header><main class="w-full min-h-screen pt-16 bg-surface"><div class="flex flex-col w-full">
+<!-- Subtle decorative aura (contained, non-fixed) -->
+<div class="relative w-full overflow-hidden">
+<div class="absolute -top-32 -left-24 w-96 h-96 bg-primary/5 rounded-full blur-3xl pointer-events-none"></div>
+<div class="absolute top-48 -right-24 w-[28rem] h-[28rem] bg-secondary/5 rounded-full blur-3xl pointer-events-none"></div>
+<div class="max-w-[1680px] w-full mx-auto px-gutter-lg py-space-lg flex flex-col gap-space-xl">
+<!-- Top Title & Architecture Breadcrumb Bar -->
+<div class="flex flex-col lg:flex-row lg:items-end justify-between gap-space-md pb-space-md border-b border-outline-variant/30">
+<div class="flex flex-col gap-space-xs">
+<div class="flex items-center gap-space-sm font-label-code-sm text-label-code-sm text-primary">
+<span class="w-1.5 h-1.5 rounded-full bg-primary animate-ping"></span>
+<span class="tracking-widest uppercase text-on-surface-variant">ENGINE_RULESET // FORENSIC_SPEC_v4.2</span>
+<span class="text-outline-variant">/</span>
+<span class="text-secondary font-label-code-sm">CALIBRATED_EVALUATION</span>
+</div>
+<h1 class="font-headline-xl text-headline-xl text-on-surface tracking-tight">
+            Workflow Verification Rules <span class="text-outline font-headline-sm">// Configuration &amp; Calibrated Evaluation</span>
+</h1>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-4xl">
+            Customer-defined ground truth assertions. Every automation execution is queried across destination APIs to prove post-execution state transition. Logs are untrusted; destination reality is deterministically asserted.
+          </p>
+</div>
+<!-- Workflow Identity Selector & Commit Indicator -->
+<div class="flex flex-col sm:flex-row items-start sm:items-center gap-space-sm bg-surface-container-low p-space-sm rounded-lg shadow-sm">
+<div class="flex items-center gap-space-xs px-space-sm py-1 bg-surface-container rounded-DEFAULT">
+<span class="material-symbols-outlined text-secondary text-[16px]">account_tree</span>
+<span class="font-label-code-xs text-[11px] text-on-surface-variant uppercase font-semibold">ACTIVE TARGET:</span>
+</div>
+<div class="flex items-center gap-space-xs font-label-code-md text-label-code-md text-on-surface">
+<span class="text-primary font-semibold">wf_lead_acquisition_v3</span>
+<span class="text-outline-variant text-[12px] font-body-sm">(HubSpot CRM Deal + Postmark Dispatch)</span>
+</div>
+<div class="h-4 w-[1px] bg-outline-variant/50 hidden sm:block"></div>
+<span class="font-label-code-sm text-label-code-sm px-space-xs py-0.5 bg-primary/10 text-primary rounded-DEFAULT">COMMIT: #71b9c02</span>
+</div>
+</div>
+<!-- Architectural Verdict Taxonomy Strip (Strict 4 Status Glyphs) -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-space-sm bg-surface-container-lowest p-space-sm rounded-xl shadow-md">
+<!-- VERIFIED -->
+<div class="flex items-center justify-between p-space-sm bg-surface-container-low rounded-lg shadow-sm">
+<div class="flex items-center gap-space-sm">
+<span class="w-7 h-7 rounded-DEFAULT bg-primary/15 text-primary flex items-center justify-center font-bold text-[15px]">✓</span>
+<div class="flex flex-col">
+<span class="font-label-code-sm text-label-code-sm text-primary font-bold">VERIFIED</span>
+<span class="font-body-sm text-[11px] text-on-surface-variant">Asserted true by destination query</span>
+</div>
+</div>
+<span class="font-label-code-sm text-[10px] text-primary bg-primary/10 px-1.5 py-0.5 rounded-DEFAULT">STATE: 0x01</span>
+</div>
+<!-- FAILED -->
+<div class="flex items-center justify-between p-space-sm bg-surface-container-low rounded-lg shadow-sm">
+<div class="flex items-center gap-space-sm">
+<span class="w-7 h-7 rounded-DEFAULT bg-error/15 text-error flex items-center justify-center font-bold text-[15px]">✕</span>
+<div class="flex flex-col">
+<span class="font-label-code-sm text-label-code-sm text-error font-bold">FAILED</span>
+<span class="font-body-sm text-[11px] text-on-surface-variant">Asserted false by live reality check</span>
+</div>
+</div>
+<span class="font-label-code-sm text-[10px] text-error bg-error/10 px-1.5 py-0.5 rounded-DEFAULT">STATE: 0x02</span>
+</div>
+<!-- UNVERIFIED (FIRST-CLASS STATUS) -->
+<div class="flex items-center justify-between p-space-sm bg-surface-container-low rounded-lg shadow-sm ring-1 ring-tertiary/20">
+<div class="flex items-center gap-space-sm">
+<span class="w-7 h-7 rounded-DEFAULT bg-tertiary/15 text-tertiary flex items-center justify-center font-bold text-[15px]">◐</span>
+<div class="flex flex-col">
+<span class="font-label-code-sm text-label-code-sm text-tertiary font-bold">UNVERIFIED</span>
+<span class="font-body-sm text-[11px] text-on-surface-variant">Observation failure (429/Timeout/DNS)</span>
+</div>
+</div>
+<span class="font-label-code-sm text-[10px] text-tertiary bg-tertiary/10 px-1.5 py-0.5 rounded-DEFAULT">FIRST-CLASS</span>
+</div>
+<!-- PENDING -->
+<div class="flex items-center justify-between p-space-sm bg-surface-container-low rounded-lg shadow-sm">
+<div class="flex items-center gap-space-sm">
+<span class="w-7 h-7 rounded-DEFAULT bg-surface-bright text-on-surface-variant flex items-center justify-center font-bold text-[15px]">⏱</span>
+<div class="flex flex-col">
+<span class="font-label-code-sm text-label-code-sm text-on-surface font-bold">PENDING</span>
+<span class="font-body-sm text-[11px] text-on-surface-variant">Settling window countdown active</span>
+</div>
+</div>
+<span class="font-label-code-sm text-[10px] text-on-surface-variant bg-surface-variant px-1.5 py-0.5 rounded-DEFAULT">WINDOW_HELD</span>
+</div>
+</div>
+<!-- Closed Set Operator Bar & Architectural Rationale Panel -->
+<div class="grid grid-cols-1 xl:grid-cols-12 gap-space-md">
+<!-- Closed Set Typed Operators Header -->
+<div class="xl:col-span-4 flex flex-col justify-between p-space-lg bg-surface-container-low rounded-xl shadow-md">
+<div class="flex flex-col gap-space-sm">
+<div class="flex items-center justify-between">
+<span class="font-label-code-sm text-label-code-sm text-secondary font-bold uppercase tracking-wider">RESTRICTED GRAMMAR [N=6]</span>
+<span class="font-label-code-sm text-[11px] text-on-surface-variant">CLOSED OPERATOR SET</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+              Every predicate is mathematically typed. Zero scripting runtime allowed.
+            </p>
+<div class="flex flex-wrap gap-space-xs pt-space-xs">
+<span class="px-space-sm py-1 bg-surface-container-high text-primary font-label-code-sm text-label-code-sm rounded-DEFAULT shadow-sm">exists</span>
+<span class="px-space-sm py-1 bg-surface-container-high text-primary font-label-code-sm text-label-code-sm rounded-DEFAULT shadow-sm">equals</span>
+<span class="px-space-sm py-1 bg-surface-container-high text-primary font-label-code-sm text-label-code-sm rounded-DEFAULT shadow-sm">normalised email equals</span>
+<span class="px-space-sm py-1 bg-surface-container-high text-secondary font-label-code-sm text-label-code-sm rounded-DEFAULT shadow-sm">occurred within</span>
+<span class="px-space-sm py-1 bg-surface-container-high text-secondary font-label-code-sm text-label-code-sm rounded-DEFAULT shadow-sm">provider status in</span>
+<span class="px-space-sm py-1 bg-surface-container-high text-secondary font-label-code-sm text-label-code-sm rounded-DEFAULT shadow-sm">one of</span>
+</div>
+</div>
+<div class="pt-space-md mt-space-md border-t border-outline-variant/30 flex items-center justify-between text-on-surface-variant font-label-code-sm text-[11px]">
+<span>ENGINE ARITY: ARITY_STRICT</span>
+<span class="text-primary">TURING_INCOMPLETE: TRUE</span>
+</div>
+</div>
+<!-- Explanatory Architectural Rationale Callout (Exact User Mandate) -->
+<div class="xl:col-span-8 p-space-lg bg-surface-container rounded-xl shadow-md relative overflow-hidden flex flex-col justify-center">
+<div class="absolute -right-8 -bottom-8 opacity-5 text-on-surface pointer-events-none select-none">
+<span class="material-symbols-outlined text-[160px]">lock</span>
+</div>
+<div class="flex items-center gap-space-sm mb-space-xs">
+<span class="material-symbols-outlined text-tertiary text-[20px]">verified_user</span>
+<h2 class="font-headline-sm text-headline-sm text-on-surface tracking-tight">Architectural Rationale // Strict Indeterminacy Isolation</h2>
+</div>
+<blockquote class="font-body-md text-body-md text-on-surface-variant leading-relaxed pl-space-md border-l-2 border-primary">
+            "The rule evaluation grammar is restricted to a finite, deterministic set of typed operators so that <strong class="text-error font-semibold">FAILED</strong> (asserted false by destination query) and <strong class="text-tertiary font-semibold">UNVERIFIED</strong> (could-not-be-checked due to timeout, rate-limiting, or unreachable target) remain strictly distinguishable. A general expression language (or Turing-complete scripting) was explicitly rejected because ambiguous nulls, evaluation exceptions, and unhandled expressions collapse the distinction between a true failure and a system observation failure."
+          </blockquote>
+<div class="mt-space-sm flex items-center gap-space-lg font-label-code-sm text-[11px] text-outline">
+<span>DETERMINISTIC EVALUATION GUARANTEE</span>
+<span>•</span>
+<span>ZERO EXCEPTION COLLAPSE</span>
+<span>•</span>
+<span>AUDIT COMPLIANCE ISO/IEC 27001</span>
+</div>
+</div>
+</div>
+<!-- Settling Window / Completion Window Calibration Panel -->
+<div class="bg-surface-container-low p-space-lg rounded-xl shadow-lg flex flex-col gap-space-md">
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-space-sm pb-space-sm border-b border-outline-variant/20">
+<div class="flex items-center gap-space-sm">
+<div class="w-8 h-8 rounded-DEFAULT bg-surface-container-high flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined text-[20px]">hourglass_top</span>
+</div>
+<div class="flex flex-col">
+<h2 class="font-headline-sm text-headline-sm text-on-surface tracking-tight">Settling Window Calibration // Completion Timing</h2>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Governs the dwell duration while execution transitions from <span class="font-label-code-sm text-on-surface font-semibold">⏱ PENDING</span> to final verification verdict</span>
+</div>
+</div>
+<div class="flex items-center gap-space-xs font-label-code-sm text-label-code-sm bg-surface-container-highest px-space-sm py-1 rounded-DEFAULT text-on-surface">
+<span class="text-secondary font-bold">MODE:</span>
+<span>DETERMINISTIC ASYNC BACKOFF</span>
+</div>
+</div>
+<!-- Controls + Timeline Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-space-lg items-center">
+<!-- Interactive Calibration Inputs -->
+<div class="lg:col-span-5 grid grid-cols-1 sm:grid-cols-3 gap-space-sm">
+<!-- Settling duration slider / input -->
+<div class="flex flex-col gap-space-xs p-space-sm bg-surface-container rounded-lg shadow-sm sm:col-span-3">
+<div class="flex items-center justify-between">
+<label class="font-label-code-sm text-label-code-sm text-on-surface-variant font-semibold">SETTLING DURATION</label>
+<span class="font-label-code-md text-label-code-md text-primary font-bold bg-primary/10 px-2 py-0.5 rounded-DEFAULT" id="settlingValDisplay">180s (3.0 min)</span>
+</div>
+<input class="w-full accent-primary h-1.5 bg-surface-variant rounded-lg cursor-pointer" id="settlingSlider" max="900" min="30" step="15" type="range" value="180"/>
+<div class="flex justify-between font-label-code-sm text-[10px] text-outline">
+<span>30s (Fast Webhook)</span>
+<span>Default: 180s</span>
+<span>900s (Heavy Batch Write)</span>
+</div>
+</div>
+<!-- Max Query Backoff -->
+<div class="flex flex-col gap-space-xs p-space-sm bg-surface-container rounded-lg shadow-sm">
+<label class="font-label-code-sm text-[11px] text-on-surface-variant">MAX BACKOFF</label>
+<div class="flex items-center justify-between">
+<input class="font-label-code-md text-label-code-md bg-surface-container-lowest text-on-surface px-space-xs py-1 rounded-DEFAULT w-full focus:outline-none focus:ring-1 focus:ring-secondary" type="text" value="15s"/>
+</div>
+<span class="font-body-sm text-[10px] text-outline">Interval rate per poll</span>
+</div>
+<!-- Outbound Evaluation Timeout -->
+<div class="flex flex-col gap-space-xs p-space-sm bg-surface-container rounded-lg shadow-sm">
+<label class="font-label-code-sm text-[11px] text-on-surface-variant">OUTBOUND TIMEOUT</label>
+<div class="flex items-center justify-between">
+<input class="font-label-code-md text-label-code-md bg-surface-container-lowest text-on-surface px-space-xs py-1 rounded-DEFAULT w-full focus:outline-none focus:ring-1 focus:ring-secondary" type="text" value="45s"/>
+</div>
+<span class="font-body-sm text-[10px] text-outline">Destination socket timeout</span>
+</div>
+<!-- Max Query Attempts -->
+<div class="flex flex-col gap-space-xs p-space-sm bg-surface-container rounded-lg shadow-sm">
+<label class="font-label-code-sm text-[11px] text-on-surface-variant">RE-EVAL TRIES</label>
+<div class="flex items-center justify-between">
+<input class="font-label-code-md text-label-code-md bg-surface-container-lowest text-on-surface px-space-xs py-1 rounded-DEFAULT w-full focus:outline-none focus:ring-1 focus:ring-secondary" type="text" value="3"/>
+</div>
+<span class="font-body-sm text-[10px] text-outline">Prior to UNVERIFIED mark</span>
+</div>
+</div>
+<!-- Chronological Telemetry Pipeline Visualization -->
+<div class="lg:col-span-7 bg-surface-container p-space-md rounded-lg shadow-sm flex flex-col gap-space-sm">
+<span class="font-label-code-sm text-label-code-sm text-on-surface-variant uppercase tracking-wider">LIFECYCLE TIMELINE: TRIGGER TO DETERMINISTIC VERDICT</span>
+<!-- SVG Pipeline Visualization -->
+<div class="w-full overflow-x-auto py-2">
+<svg class="w-full min-w-[560px] h-20 text-on-surface" fill="none" viewbox="0 0 580 80" xmlns="http://www.w3.org/2000/svg">
+<!-- Timeline track line -->
+<line stroke="currentColor" stroke-dasharray="4 4" stroke-opacity="0.18" stroke-width="2" x1="30" x2="550" y1="36" y2="36"></line>
+<!-- Stage 1: Trigger Receipt -->
+<circle cx="40" cy="36" fill="#181b25" r="10" stroke="#4cd7f6" stroke-width="2"></circle>
+<circle cx="40" cy="36" fill="#4cd7f6" r="4"></circle>
+<text fill="#bbcabf" font-family="JetBrains Mono" font-size="10" font-weight="600" text-anchor="middle" x="40" y="60">t₀ TRIGGER</text>
+<text fill="#86948a" font-family="Inter" font-size="9" text-anchor="middle" x="40" y="72">Receipt Webhook</text>
+<!-- Connecting segment A -->
+<line stroke="#4cd7f6" stroke-width="2" x1="50" x2="160" y1="36" y2="36"></line>
+<!-- Stage 2: Settling Window Window (PENDING) -->
+<rect fill="#262a34" height="24" rx="3" stroke="#64748b" stroke-width="1.5" width="130" x="170" y="24"></rect>
+<text fill="#dfe2ef" font-family="JetBrains Mono" font-size="10" font-weight="600" text-anchor="middle" x="235" y="39">⏱ PENDING (180s)</text>
+<text fill="#bbcabf" font-family="JetBrains Mono" font-size="10" text-anchor="middle" x="235" y="60">ASYNC SETTLING</text>
+<text fill="#86948a" font-family="Inter" font-size="9" text-anchor="middle" x="235" y="72">Provider write latency</text>
+<!-- Connecting segment B -->
+<line stroke="#ffb95f" stroke-dasharray="2 2" stroke-width="2" x1="300" x2="360" y1="36" y2="36"></line>
+<!-- Stage 3: Live Query -->
+<circle cx="370" cy="36" fill="#181b25" r="10" stroke="#ffb95f" stroke-width="2"></circle>
+<circle cx="370" cy="36" fill="#ffb95f" r="4"></circle>
+<text fill="#bbcabf" font-family="JetBrains Mono" font-size="10" font-weight="600" text-anchor="middle" x="370" y="60">t_query EXEC</text>
+<text fill="#86948a" font-family="Inter" font-size="9" text-anchor="middle" x="370" y="72">Outbound assertion</text>
+<!-- Connecting segment C -->
+<line stroke="#4edea3" stroke-width="2" x1="380" x2="460" y1="36" y2="36"></line>
+<!-- Stage 4: Verdict Assignment -->
+<g transform="translate(470, 22)">
+<rect fill="#003824" height="28" rx="4" stroke="#4edea3" stroke-width="1.5" width="94" x="0" y="0"></rect>
+<text fill="#6ffbbe" font-family="JetBrains Mono" font-size="10" font-weight="700" text-anchor="middle" x="47" y="18">✓ VERIFIED</text>
+</g>
+<text fill="#4edea3" font-family="JetBrains Mono" font-size="9" text-anchor="middle" x="517" y="62">TERMINAL STATE</text>
+</svg>
+</div>
+<div class="flex items-center justify-between text-outline text-[11px] font-label-code-sm pt-space-xs border-t border-outline-variant/20">
+<span>ZERO ASSUMPTION ENGINE</span>
+<span class="text-tertiary">IF DESTINATION FAILS SOCKET: TRANSITIONS TO [◐ UNVERIFIED]</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Tab Strip: Configured Rules vs. Empty State Demonstration -->
+<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-space-sm">
+<div class="flex items-center p-1 bg-surface-container-lowest rounded-lg shadow-sm">
+<button class="px-space-md py-1.5 rounded-DEFAULT font-label-code-md text-label-code-md bg-surface-container-high text-primary font-semibold transition-all" id="tabActiveRules">
+            Active Rules (4 Configured)
+          </button>
+<button class="px-space-md py-1.5 rounded-DEFAULT font-label-code-md text-label-code-md text-on-surface-variant hover:text-on-surface transition-all" id="tabEmptyState">
+            Simulate Empty State
+          </button>
+</div>
+<div class="flex items-center gap-space-sm w-full sm:w-auto justify-end">
+<button class="px-space-md py-1.5 bg-surface-container-high hover:bg-surface-container text-on-surface rounded-DEFAULT font-label-code-sm text-label-code-sm flex items-center gap-space-xs transition-colors shadow-sm">
+<span class="material-symbols-outlined text-[16px]">play_arrow</span>
+<span>Dry Run Evaluator</span>
+</button>
+<button class="px-space-md py-1.5 bg-primary hover:bg-primary-container text-on-primary font-bold rounded-DEFAULT font-label-code-sm text-label-code-sm flex items-center gap-space-xs shadow-md transition-all">
+<span class="material-symbols-outlined text-[16px]">add</span>
+<span>Append Assertion Row</span>
+</button>
+</div>
+</div>
+<!-- SECTION 1: Active Rules Builder Table Panel -->
+<div class="flex flex-col gap-space-md" id="activeRulesContainer">
+<!-- Table Header & Column Labels -->
+<div class="bg-surface-container-low p-space-md rounded-t-xl shadow-sm flex flex-col gap-space-xs">
+<div class="hidden lg:grid lg:grid-cols-12 gap-space-md font-label-code-sm text-label-code-sm text-on-surface-variant font-semibold tracking-wider">
+<div class="col-span-3">ASSERTION FIELD (ALLOWLIST)</div>
+<div class="col-span-2">OPERATOR [CLOSED SET]</div>
+<div class="col-span-4">TARGET VALUE &amp; VALIDATION</div>
+<div class="col-span-2 text-center">EVALUATION WEIGHT</div>
+<div class="col-span-1 text-right">ACTIONS</div>
+</div>
+<div class="block lg:hidden font-label-code-sm text-label-code-sm text-on-surface-variant">
+            FORENSIC ASSERTIONS MATRIX
+          </div>
+</div>
+<!-- Rule Row 1: Healthy Mandatory Assertion -->
+<div class="p-space-md bg-surface-container rounded-lg shadow-md flex flex-col lg:grid lg:grid-cols-12 gap-space-md items-center">
+<!-- Field picker -->
+<div class="w-full lg:col-span-3 flex flex-col gap-1">
+<span class="lg:hidden font-label-code-sm text-[10px] text-outline">FIELD:</span>
+<div class="flex items-center gap-space-xs bg-surface-container-lowest px-space-sm py-2 rounded-DEFAULT border-l-2 border-primary">
+<span class="material-symbols-outlined text-primary text-[16px]">schema</span>
+<select class="bg-transparent font-label-code-sm text-label-code-sm text-on-surface w-full focus:outline-none cursor-pointer">
+<option class="bg-surface-container" selected="">deal.status</option>
+<option class="bg-surface-container">contact.email_address</option>
+<option class="bg-surface-container">dispatch.event_timestamp</option>
+<option class="bg-surface-container">contact.lifecycle_stage</option>
+<option class="bg-surface-container">payment.invoice_id</option>
+<option class="bg-surface-container">audit.trace_token</option>
+</select>
+</div>
+<span class="font-body-sm text-[11px] text-on-surface-variant">HubSpot Deal Pipeline Object</span>
+</div>
+<!-- Operator chip selector -->
+<div class="w-full lg:col-span-2 flex flex-col gap-1">
+<span class="lg:hidden font-label-code-sm text-[10px] text-outline">OPERATOR:</span>
+<div class="bg-surface-container-high px-space-sm py-1.5 rounded-DEFAULT text-center shadow-sm">
+<span class="font-label-code-sm text-label-code-sm text-primary font-bold uppercase">equals</span>
+</div>
+<span class="font-body-sm text-[10px] text-outline text-center">Type: string.exact</span>
+</div>
+<!-- Target value -->
+<div class="w-full lg:col-span-4 flex flex-col gap-1">
+<span class="lg:hidden font-label-code-sm text-[10px] text-outline">EXPECTED REALITY:</span>
+<div class="relative">
+<input class="font-label-code-sm text-label-code-sm bg-surface-container-lowest text-on-surface px-space-sm py-2 rounded-DEFAULT w-full focus:outline-none focus:ring-1 focus:ring-primary shadow-inner" type="text" value='"closed_won"'/>
+<span class="absolute right-2 top-2 font-label-code-sm text-[10px] text-primary bg-primary/10 px-1 rounded-DEFAULT">VALID</span>
+</div>
+<span class="font-body-sm text-[11px] text-on-surface-variant">Queried directly against HubSpot REST API v3</span>
+</div>
+<!-- Mandatory vs Advisory Toggle -->
+<div class="w-full lg:col-span-2 flex flex-col items-center justify-center gap-1">
+<span class="lg:hidden font-label-code-sm text-[10px] text-outline">WEIGHT:</span>
+<div class="inline-flex p-0.5 bg-surface-container-lowest rounded-DEFAULT shadow-sm">
+<button class="px-space-sm py-1 bg-primary text-on-primary font-label-code-sm text-[11px] font-bold rounded-DEFAULT">MANDATORY</button>
+<button class="px-space-sm py-1 text-on-surface-variant font-label-code-sm text-[11px] hover:text-on-surface">ADVISORY</button>
+</div>
+<span class="font-body-sm text-[10px] text-error font-medium">Failure fails whole run</span>
+</div>
+<!-- Actions -->
+<div class="w-full lg:col-span-1 flex items-center justify-end gap-space-xs">
+<button class="p-1.5 bg-surface-container-high hover:bg-surface-bright text-secondary rounded-DEFAULT transition-colors" title="Test against sandbox">
+<span class="material-symbols-outlined text-[16px]">bolt</span>
+</button>
+<button class="p-1.5 bg-surface-container-high hover:bg-surface-bright text-on-surface-variant rounded-DEFAULT transition-colors" title="Duplicate Row">
+<span class="material-symbols-outlined text-[16px]">content_copy</span>
+</button>
+<button class="p-1.5 bg-surface-container-high hover:bg-error/20 text-error rounded-DEFAULT transition-colors" title="Delete Row">
+<span class="material-symbols-outlined text-[16px]">delete</span>
+</button>
+</div>
+</div>
+<!-- Rule Row 2: VALIDATION ERROR SPECIFICALLY SHOWN BESIDE THE ROW (User Mandate) -->
+<div class="p-space-md bg-surface-container rounded-lg shadow-md flex flex-col gap-space-sm ring-1 ring-tertiary/40">
+<div class="flex flex-col lg:grid lg:grid-cols-12 gap-space-md items-start lg:items-center">
+<!-- Field picker -->
+<div class="w-full lg:col-span-3 flex flex-col gap-1">
+<span class="lg:hidden font-label-code-sm text-[10px] text-outline">FIELD:</span>
+<div class="flex items-center gap-space-xs bg-surface-container-lowest px-space-sm py-2 rounded-DEFAULT border-l-2 border-tertiary">
+<span class="material-symbols-outlined text-tertiary text-[16px]">mail</span>
+<select class="bg-transparent font-label-code-sm text-label-code-sm text-on-surface w-full focus:outline-none cursor-pointer">
+<option class="bg-surface-container">deal.status</option>
+<option class="bg-surface-container" selected="">contact.email_address</option>
+<option class="bg-surface-container">dispatch.event_timestamp</option>
+<option class="bg-surface-container">contact.lifecycle_stage</option>
+<option class="bg-surface-container">payment.invoice_id</option>
+<option class="bg-surface-container">audit.trace_token</option>
+</select>
+</div>
+<span class="font-body-sm text-[11px] text-tertiary">Targeted for RFC 5322 normalization</span>
+</div>
+<!-- Operator chip selector -->
+<div class="w-full lg:col-span-2 flex flex-col gap-1">
+<span class="lg:hidden font-label-code-sm text-[10px] text-outline">OPERATOR:</span>
+<div class="bg-surface-container-high px-space-sm py-1.5 rounded-DEFAULT text-center shadow-sm">
+<span class="font-label-code-sm text-label-code-sm text-secondary font-bold uppercase">normalised email equals</span>
+</div>
+<span class="font-body-sm text-[10px] text-outline text-center">Strict Case/Domain Strip</span>
+</div>
+<!-- Target value with faulty syntax -->
+<div class="w-full lg:col-span-4 flex flex-col gap-1">
+<span class="lg:hidden font-label-code-sm text-[10px] text-outline">EXPECTED REALITY:</span>
+<div class="relative">
+<input class="font-label-code-sm text-label-code-sm bg-surface-container-lowest text-tertiary px-space-sm py-2 rounded-DEFAULT w-full focus:outline-none ring-1 ring-tertiary shadow-inner" type="text" value='"alex@domain."'/>
+<span class="absolute right-2 top-2 font-label-code-sm text-[10px] text-tertiary bg-tertiary/10 px-1 rounded-DEFAULT">SYNTAX_ERR</span>
+</div>
+<span class="font-body-sm text-[11px] text-on-surface-variant">Postmark outbound recipient record</span>
+</div>
+<!-- Mandatory vs Advisory Toggle -->
+<div class="w-full lg:col-span-2 flex flex-col items-center justify-center gap-1">
+<span class="lg:hidden font-label-code-sm text-[10px] text-outline">WEIGHT:</span>
+<div class="inline-flex p-0.5 bg-surface-container-lowest rounded-DEFAULT shadow-sm">
+<button class="px-space-sm py-1 bg-primary text-on-primary font-label-code-sm text-[11px] font-bold rounded-DEFAULT">MANDATORY</button>
+<button class="px-space-sm py-1 text-on-surface-variant font-label-code-sm text-[11px] hover:text-on-surface">ADVISORY</button>
+</div>
+<span class="font-body-sm text-[10px] text-error font-medium">Blocking verification</span>
+</div>
+<!-- Actions -->
+<div class="w-full lg:col-span-1 flex items-center justify-end gap-space-xs">
+<button class="p-1.5 bg-surface-container-high text-outline-variant cursor-not-allowed rounded-DEFAULT" title="Test against sandbox">
+<span class="material-symbols-outlined text-[16px]">bolt</span>
+</button>
+<button class="p-1.5 bg-surface-container-high hover:bg-surface-bright text-on-surface-variant rounded-DEFAULT transition-colors" title="Duplicate Row">
+<span class="material-symbols-outlined text-[16px]">content_copy</span>
+</button>
+<button class="p-1.5 bg-surface-container-high hover:bg-error/20 text-error rounded-DEFAULT transition-colors" title="Delete Row">
+<span class="material-symbols-outlined text-[16px]">delete</span>
+</button>
+</div>
+</div>
+<!-- INLINE VALIDATION ERROR ATTACHED DIRECTLY BESIDE / BELOW INPUT -->
+<div class="bg-surface-container-lowest p-space-sm rounded-DEFAULT flex items-start gap-space-sm border-l-4 border-tertiary">
+<span class="material-symbols-outlined text-tertiary text-[18px] shrink-0">error</span>
+<div class="flex flex-col font-label-code-sm text-label-code-sm text-tertiary">
+<span class="font-bold">[Invalid syntax: Missing top-level domain in RFC 5322 normalization target. Evaluation would halt with deterministic parse failure.]</span>
+<span class="text-on-surface-variant font-body-sm text-[11px]">Trailing dot indicates an uncompleted domain name string. Target must follow: <code>name@fqdn.tld</code>.</span>
+</div>
+</div>
+</div>
+<!-- Rule Row 3: Temporal Operator (occurred within) -->
+<div class="p-space-md bg-surface-container rounded-lg shadow-md flex flex-col lg:grid lg:grid-cols-12 gap-space-md items-center">
+<!-- Field picker -->
+<div class="w-full lg:col-span-3 flex flex-col gap-1">
+<span class="lg:hidden font-label-code-sm text-[10px] text-outline">FIELD:</span>
+<div class="flex items-center gap-space-xs bg-surface-container-lowest px-space-sm py-2 rounded-DEFAULT border-l-2 border-secondary">
+<span class="material-symbols-outlined text-secondary text-[16px]">schedule</span>
+<select class="bg-transparent font-label-code-sm text-label-code-sm text-on-surface w-full focus:outline-none cursor-pointer">
+<option class="bg-surface-container">deal.status</option>
+<option class="bg-surface-container">contact.email_address</option>
+<option class="bg-surface-container" selected="">dispatch.event_timestamp</option>
+<option class="bg-surface-container">contact.lifecycle_stage</option>
+<option class="bg-surface-container">payment.invoice_id</option>
+<option class="bg-surface-container">audit.trace_token</option>
+</select>
+</div>
+<span class="font-body-sm text-[11px] text-on-surface-variant">Postmark Delivery Event Log</span>
+</div>
+<!-- Operator chip selector -->
+<div class="w-full lg:col-span-2 flex flex-col gap-1">
+<span class="lg:hidden font-label-code-sm text-[10px] text-outline">OPERATOR:</span>
+<div class="bg-surface-container-high px-space-sm py-1.5 rounded-DEFAULT text-center shadow-sm">
+<span class="font-label-code-sm text-label-code-sm text-secondary font-bold uppercase">occurred within</span>
+</div>
+<span class="font-body-sm text-[10px] text-outline text-center">Temporal Delta Δt</span>
+</div>
+<!-- Target value -->
+<div class="w-full lg:col-span-4 flex flex-col gap-1">
+<span class="lg:hidden font-label-code-sm text-[10px] text-outline">EXPECTED REALITY:</span>
+<div class="relative">
+<input class="font-label-code-sm text-label-code-sm bg-surface-container-lowest text-on-surface px-space-sm py-2 rounded-DEFAULT w-full focus:outline-none focus:ring-1 focus:ring-secondary shadow-inner" type="text" value="300s of webhook.received_at"/>
+<span class="absolute right-2 top-2 font-label-code-sm text-[10px] text-secondary bg-secondary/10 px-1 rounded-DEFAULT">VALID_TIME</span>
+</div>
+<span class="font-body-sm text-[11px] text-on-surface-variant">Relative to initial incoming payload timestamp</span>
+</div>
+<!-- Mandatory vs Advisory Toggle -->
+<div class="w-full lg:col-span-2 flex flex-col items-center justify-center gap-1">
+<span class="lg:hidden font-label-code-sm text-[10px] text-outline">WEIGHT:</span>
+<div class="inline-flex p-0.5 bg-surface-container-lowest rounded-DEFAULT shadow-sm">
+<button class="px-space-sm py-1 bg-primary text-on-primary font-label-code-sm text-[11px] font-bold rounded-DEFAULT">MANDATORY</button>
+<button class="px-space-sm py-1 text-on-surface-variant font-label-code-sm text-[11px] hover:text-on-surface">ADVISORY</button>
+</div>
+<span class="font-body-sm text-[10px] text-error font-medium">Failure fails whole run</span>
+</div>
+<!-- Actions -->
+<div class="w-full lg:col-span-1 flex items-center justify-end gap-space-xs">
+<button class="p-1.5 bg-surface-container-high hover:bg-surface-bright text-secondary rounded-DEFAULT transition-colors" title="Test against sandbox">
+<span class="material-symbols-outlined text-[16px]">bolt</span>
+</button>
+<button class="p-1.5 bg-surface-container-high hover:bg-surface-bright text-on-surface-variant rounded-DEFAULT transition-colors" title="Duplicate Row">
+<span class="material-symbols-outlined text-[16px]">content_copy</span>
+</button>
+<button class="p-1.5 bg-surface-container-high hover:bg-error/20 text-error rounded-DEFAULT transition-colors" title="Delete Row">
+<span class="material-symbols-outlined text-[16px]">delete</span>
+</button>
+</div>
+</div>
+<!-- Rule Row 4: Advisory Status Set (provider status in) -->
+<div class="p-space-md bg-surface-container rounded-lg shadow-md flex flex-col lg:grid lg:grid-cols-12 gap-space-md items-center opacity-90">
+<!-- Field picker -->
+<div class="w-full lg:col-span-3 flex flex-col gap-1">
+<span class="lg:hidden font-label-code-sm text-[10px] text-outline">FIELD:</span>
+<div class="flex items-center gap-space-xs bg-surface-container-lowest px-space-sm py-2 rounded-DEFAULT border-l-2 border-secondary">
+<span class="material-symbols-outlined text-secondary text-[16px]">dns</span>
+<select class="bg-transparent font-label-code-sm text-label-code-sm text-on-surface w-full focus:outline-none cursor-pointer">
+<option class="bg-surface-container">deal.status</option>
+<option class="bg-surface-container">contact.email_address</option>
+<option class="bg-surface-container">dispatch.event_timestamp</option>
+<option class="bg-surface-container" selected="">provider status in</option>
+<option class="bg-surface-container">payment.invoice_id</option>
+<option class="bg-surface-container">audit.trace_token</option>
+</select>
+</div>
+<span class="font-body-sm text-[11px] text-on-surface-variant">Postmark Message Delivery Status</span>
+</div>
+<!-- Operator chip selector -->
+<div class="w-full lg:col-span-2 flex flex-col gap-1">
+<span class="lg:hidden font-label-code-sm text-[10px] text-outline">OPERATOR:</span>
+<div class="bg-surface-container-high px-space-sm py-1.5 rounded-DEFAULT text-center shadow-sm">
+<span class="font-label-code-sm text-label-code-sm text-secondary font-bold uppercase">provider status in</span>
+</div>
+<span class="font-body-sm text-[10px] text-outline text-center">Enum Array Membership</span>
+</div>
+<!-- Target value -->
+<div class="w-full lg:col-span-4 flex flex-col gap-1">
+<span class="lg:hidden font-label-code-sm text-[10px] text-outline">EXPECTED REALITY:</span>
+<div class="relative">
+<input class="font-label-code-sm text-label-code-sm bg-surface-container-lowest text-on-surface px-space-sm py-2 rounded-DEFAULT w-full focus:outline-none focus:ring-1 focus:ring-secondary shadow-inner" type="text" value='["sent", "delivered", "opened"]'/>
+<span class="absolute right-2 top-2 font-label-code-sm text-[10px] text-secondary bg-secondary/10 px-1 rounded-DEFAULT">ARRAY_OK</span>
+</div>
+<span class="font-body-sm text-[11px] text-on-surface-variant">Tolerates downstream dispatch progression</span>
+</div>
+<!-- Mandatory vs Advisory Toggle (ADVISORY SELECTED) -->
+<div class="w-full lg:col-span-2 flex flex-col items-center justify-center gap-1">
+<span class="lg:hidden font-label-code-sm text-[10px] text-outline">WEIGHT:</span>
+<div class="inline-flex p-0.5 bg-surface-container-lowest rounded-DEFAULT shadow-sm">
+<button class="px-space-sm py-1 text-on-surface-variant font-label-code-sm text-[11px] hover:text-on-surface">MANDATORY</button>
+<button class="px-space-sm py-1 bg-surface-variant text-on-surface font-label-code-sm text-[11px] font-bold rounded-DEFAULT shadow">ADVISORY</button>
+</div>
+<span class="font-body-sm text-[10px] text-on-surface-variant">Logged as telemetry warning</span>
+</div>
+<!-- Actions -->
+<div class="w-full lg:col-span-1 flex items-center justify-end gap-space-xs">
+<button class="p-1.5 bg-surface-container-high hover:bg-surface-bright text-secondary rounded-DEFAULT transition-colors" title="Test against sandbox">
+<span class="material-symbols-outlined text-[16px]">bolt</span>
+</button>
+<button class="p-1.5 bg-surface-container-high hover:bg-surface-bright text-on-surface-variant rounded-DEFAULT transition-colors" title="Duplicate Row">
+<span class="material-symbols-outlined text-[16px]">content_copy</span>
+</button>
+<button class="p-1.5 bg-surface-container-high hover:bg-error/20 text-error rounded-DEFAULT transition-colors" title="Delete Row">
+<span class="material-symbols-outlined text-[16px]">delete</span>
+</button>
+</div>
+</div>
+</div>
+<!-- SECTION 2: EMPTY STATE DEMONSTRATION PANEL (User Mandate) -->
+<div class="hidden flex-col items-center justify-center p-space-xl bg-surface-container-low rounded-xl shadow-lg text-center gap-space-md" id="emptyStateContainer">
+<!-- Architectural Empty State Glyph -->
+<div class="w-16 h-16 rounded-full bg-surface-container flex items-center justify-center text-outline shadow-inner">
+<span class="material-symbols-outlined text-[36px]">rule_folder</span>
+</div>
+<!-- Strict Mandatory Copy (User Mandate) -->
+<div class="flex flex-col gap-space-xs max-w-xl">
+<h2 class="font-headline-lg text-headline-lg text-on-surface tracking-tight">No verification rules configured for this workflow.</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">
+            Without active rules, ITISYOU Verify records incoming trigger notifications but executes no outbound queries against connected evidence sources.
+          </p>
+</div>
+<!-- Direct Next Action Call to Action -->
+<div class="flex flex-col sm:flex-row items-center gap-space-sm pt-space-sm">
+<button class="px-space-lg py-2.5 bg-primary hover:bg-primary-container text-on-primary font-bold rounded-DEFAULT font-label-code-md text-label-code-md flex items-center gap-space-xs shadow-md transition-all">
+<span class="material-symbols-outlined text-[18px]">add_box</span>
+<span>+ Add First Rule from Template</span>
+</button>
+<button class="px-space-lg py-2.5 bg-surface-container-high hover:bg-surface-bright text-on-surface rounded-DEFAULT font-label-code-md text-label-code-md flex items-center gap-space-xs transition-colors shadow-sm">
+<span class="material-symbols-outlined text-[18px]">library_books</span>
+<span>Select Pre-validated CRM Rule Pack</span>
+</button>
+</div>
+<div class="pt-space-md border-t border-outline-variant/30 text-outline font-label-code-sm text-[11px]">
+          TRIGGER_NOTIFICATION_LOG: RETAINED // DESTINATION_AUDITING: INACTIVE
+        </div>
+</div>
+<!-- Lower Forensic Audit & Currency Cost Matrix -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-space-md">
+<!-- Query Cost Estimate -->
+<div class="p-space-md bg-surface-container rounded-lg shadow-sm flex flex-col justify-between gap-space-xs">
+<div class="flex items-center justify-between">
+<span class="font-label-code-sm text-label-code-sm text-on-surface-variant">EVALUATION COST PER 1K EXEC</span>
+<span class="material-symbols-outlined text-primary text-[18px]">payments</span>
+</div>
+<div class="flex items-baseline gap-space-xs">
+<span class="font-headline-lg text-headline-lg text-primary font-bold">£0.14</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">GBP / 1,000 runs</span>
+</div>
+<p class="font-body-sm text-[11px] text-outline">Calculated across HubSpot read tokens and Postmark audit traces.</p>
+</div>
+<!-- Deterministic Arity Check -->
+<div class="p-space-md bg-surface-container rounded-lg shadow-sm flex flex-col justify-between gap-space-xs">
+<div class="flex items-center justify-between">
+<span class="font-label-code-sm text-label-code-sm text-on-surface-variant">DETERMINISTIC DRIFT CHECK</span>
+<span class="material-symbols-outlined text-secondary text-[18px]">security</span>
+</div>
+<div class="flex items-baseline gap-space-xs">
+<span class="font-headline-lg text-headline-lg text-secondary font-bold">0.00%</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Expression Ambiguity</span>
+</div>
+<p class="font-body-sm text-[11px] text-outline">All four rules map strictly to deterministic target schema definitions.</p>
+</div>
+<!-- Verification Engine Quorum -->
+<div class="p-space-md bg-surface-container rounded-lg shadow-sm flex flex-col justify-between gap-space-xs">
+<div class="flex items-center justify-between">
+<span class="font-label-code-sm text-label-code-sm text-on-surface-variant">ACTIVE DESTINATION CONNECTORS</span>
+<span class="material-symbols-outlined text-tertiary text-[18px]">hub</span>
+</div>
+<div class="flex items-baseline gap-space-xs">
+<span class="font-headline-lg text-headline-lg text-on-surface font-bold">2 / 2 Active</span>
+<span class="font-body-sm text-body-sm text-primary font-semibold">100% HEALTH</span>
+</div>
+<p class="font-body-sm text-[11px] text-outline">HubSpot OAuth token verified; Postmark Server API Token verified.</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Interactive script to toggle between active table and empty state demonstration -->
+<script>
+    (function() {
+      const tabActive = document.getElementById('tabActiveRules');
+      const tabEmpty = document.getElementById('tabEmptyState');
+      const activeContainer = document.getElementById('activeRulesContainer');
+      const emptyContainer = document.getElementById('emptyStateContainer');
+      const slider = document.getElementById('settlingSlider');
+      const display = document.getElementById('settlingValDisplay');
+
+      if (tabActive && tabEmpty && activeContainer && emptyContainer) {
+        tabActive.addEventListener('click', function() {
+          tabActive.className = 'px-space-md py-1.5 rounded-DEFAULT font-label-code-md text-label-code-md bg-surface-container-high text-primary font-semibold transition-all';
+          tabEmpty.className = 'px-space-md py-1.5 rounded-DEFAULT font-label-code-md text-label-code-md text-on-surface-variant hover:text-on-surface transition-all';
+          activeContainer.classList.remove('hidden');
+          emptyContainer.classList.add('hidden');
+        });
+
+        tabEmpty.addEventListener('click', function() {
+          tabEmpty.className = 'px-space-md py-1.5 rounded-DEFAULT font-label-code-md text-label-code-md bg-surface-container-high text-primary font-semibold transition-all';
+          tabActive.className = 'px-space-md py-1.5 rounded-DEFAULT font-label-code-md text-label-code-md text-on-surface-variant hover:text-on-surface transition-all';
+          emptyContainer.classList.remove('hidden');
+          emptyContainer.classList.add('flex');
+          activeContainer.classList.add('hidden');
+        });
+      }
+
+      if (slider && display) {
+        slider.addEventListener('input', function(e) {
+          const val = parseInt(e.target.value, 10);
+          const minutes = (val / 60).toFixed(1);
+          display.textContent = val + 's (' + minutes + ' min)';
+        });
+      }
+    })();
+  </script>
+</div></main><footer class="w-full bg-surface-container-lowest py-space-lg"><div class="w-full max-w-[1680px] mx-auto px-gutter-lg flex flex-col md:flex-row items-center justify-between gap-space-md font-label-code-sm text-label-code-sm text-on-surface-variant"><div class="flex items-center gap-space-md"><span>VERIFY_PROTOCOL: v4.2.0</span><span class="text-outline-variant">|</span><span class="text-primary font-semibold">ZERO-TRUST DETERMINISTIC ENGINE</span></div><div class="flex items-center gap-space-lg"><a class="text-on-surface-variant hover:text-primary transition-colors" data-path="telemetry" href="#">Telemetry</a><a class="text-on-surface-variant hover:text-primary transition-colors" data-path="cryptographic-schema" href="#">Cryptographic Schema</a><a class="text-on-surface-variant hover:text-primary transition-colors" data-path="documentation" href="#">Documentation</a></div><div class="text-outline">AUDIT HASH: e89f2a99...d03</div></div></footer></body></html>

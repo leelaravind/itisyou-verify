@@ -53,7 +53,9 @@ export function iso(seconds: number): string {
 // A connector double that records what it was asked and answers from a script
 // ---------------------------------------------------------------------------
 
-export type FetchScript = (input: FetchEvidenceInput) => ConnectorFetchResult | Promise<ConnectorFetchResult>;
+export type FetchScript = (
+  input: FetchEvidenceInput,
+) => ConnectorFetchResult | Promise<ConnectorFetchResult>;
 
 export interface FakeConnector extends Connector {
   readonly calls: FetchEvidenceInput[];
@@ -108,7 +110,12 @@ export function makeFakeConnector(provider: ProviderId, script: FetchScript): Fa
       };
     },
     async revokeOrDisconnect(): Promise<RevokeResult> {
-      return { local_credential_cleared: true, provider_revoked: false, manual_steps: [], calls_made: 0 };
+      return {
+        local_credential_cleared: true,
+        provider_revoked: false,
+        manual_steps: [],
+        calls_made: 0,
+      };
     },
   };
 }
@@ -121,7 +128,10 @@ export function makeThrowingConnector(provider: ProviderId): FakeConnector {
 }
 
 /** Answer with a fixed bundle, as the two connectors would have split it between them. */
-export function bundleScript(bundle: EvidenceBundle, callsMade = 1): {
+export function bundleScript(
+  bundle: EvidenceBundle,
+  callsMade = 1,
+): {
   hubspot: FetchScript;
   resend: FetchScript;
 } {
@@ -164,7 +174,9 @@ export function makeRegistry(hubspot: FakeConnector, resend: FakeConnector): Fak
 // ---------------------------------------------------------------------------
 
 /** Every provider resolves. Used by the tests that are about evidence, not connections. */
-export function connectedResolver(accountIds: { hubspot?: string; resend?: string } = {}): CredentialResolver {
+export function connectedResolver(
+  accountIds: { hubspot?: string; resend?: string } = {},
+): CredentialResolver {
   return {
     async resolve(_workspaceId: string, provider: ProviderId): Promise<ConnectionResolution> {
       return {
@@ -175,7 +187,9 @@ export function connectedResolver(accountIds: { hubspot?: string; resend?: strin
           connection: {
             provider,
             account_id:
-              provider === 'hubspot' ? (accountIds.hubspot ?? 'hub-acct-1000') : (accountIds.resend ?? 'resend-acct-2000'),
+              provider === 'hubspot'
+                ? (accountIds.hubspot ?? 'hub-acct-1000')
+                : (accountIds.resend ?? 'resend-acct-2000'),
           },
         },
       };
@@ -185,7 +199,9 @@ export function connectedResolver(accountIds: { hubspot?: string; resend?: strin
 
 /** Nothing resolves, which is today's production reality. */
 export function notConnectedResolver(
-  reason: ConnectionResolution extends { ok: false } ? never : 'not_connected' | 'credential_unreadable' = 'not_connected',
+  reason: ConnectionResolution extends { ok: false }
+    ? never
+    : 'not_connected' | 'credential_unreadable' = 'not_connected',
 ): CredentialResolver {
   return {
     async resolve(_workspaceId: string, provider: ProviderId): Promise<ConnectionResolution> {
@@ -400,7 +416,9 @@ export function createSchedulerHarness(
           ...(tickOptions.maxExternalCalls === undefined
             ? {}
             : { maxExternalCalls: tickOptions.maxExternalCalls }),
-          ...(tickOptions.wallClockMs === undefined ? {} : { wallClockMs: tickOptions.wallClockMs }),
+          ...(tickOptions.wallClockMs === undefined
+            ? {}
+            : { wallClockMs: tickOptions.wallClockMs }),
           ...(tickOptions.elapsed === undefined ? {} : { elapsed: tickOptions.elapsed }),
         });
       return runSchedulerTick({
@@ -432,18 +450,25 @@ export function createSchedulerHarness(
 
     entitlement() {
       const row = h.raw
-        .prepare('SELECT run_limit, consumed, reserved FROM entitlements WHERE workspace_id = ? AND billing_period = ?')
+        .prepare(
+          'SELECT run_limit, consumed, reserved FROM entitlements WHERE workspace_id = ? AND billing_period = ?',
+        )
         .get(ws.workspaceId, ws.billingPeriod) as
-        | { run_limit: number; consumed: number; reserved: number }
-        | undefined;
+        { run_limit: number; consumed: number; reserved: number } | undefined;
       if (row === undefined) throw new Error('no entitlement row');
-      return { run_limit: Number(row.run_limit), consumed: Number(row.consumed), reserved: Number(row.reserved) };
+      return {
+        run_limit: Number(row.run_limit),
+        consumed: Number(row.consumed),
+        reserved: Number(row.reserved),
+      };
     },
 
     allowanceRows() {
       return (
         h.raw
-          .prepare('SELECT billing_period, consumed, reserved FROM entitlements WHERE workspace_id = ? ORDER BY billing_period')
+          .prepare(
+            'SELECT billing_period, consumed, reserved FROM entitlements WHERE workspace_id = ? ORDER BY billing_period',
+          )
           .all(ws.workspaceId) as { billing_period: string; consumed: number; reserved: number }[]
       ).map((row) => ({
         billing_period: row.billing_period,
@@ -453,7 +478,9 @@ export function createSchedulerHarness(
     },
 
     setSubscriptionPeriodEnd(periodEnd: string) {
-      h.raw.prepare('UPDATE subscriptions SET current_period_end = ? WHERE workspace_id = ?').run(periodEnd, ws.workspaceId);
+      h.raw
+        .prepare('UPDATE subscriptions SET current_period_end = ? WHERE workspace_id = ?')
+        .run(periodEnd, ws.workspaceId);
     },
 
     close: () => h.close(),
@@ -461,6 +488,10 @@ export function createSchedulerHarness(
 }
 
 /** Remaining allowance, computed the one way the whole system agrees on. */
-export function remainingAllowance(e: { run_limit: number; consumed: number; reserved: number }): number {
+export function remainingAllowance(e: {
+  run_limit: number;
+  consumed: number;
+  reserved: number;
+}): number {
   return e.run_limit - e.consumed - e.reserved;
 }

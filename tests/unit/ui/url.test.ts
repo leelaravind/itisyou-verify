@@ -80,7 +80,9 @@ describe('the link-target guard', () => {
 
       // 1. The accept/reject decision must be identical. This is the security property.
       if ((mine === null) !== (reference === null)) {
-        disagreements.push(`decision: ${JSON.stringify(value)} mine=${mine} reference=${reference}`);
+        disagreements.push(
+          `decision: ${JSON.stringify(value)} mine=${mine} reference=${reference}`,
+        );
         continue;
       }
       if (mine === null || reference === null) continue;
@@ -95,7 +97,9 @@ describe('the link-target guard', () => {
       //    special case is needed. That is what this test is for: the divergence was loud,
       //    it got settled, and the settlement is now enforced rather than described.
       if (escapeHtml(mine) !== reference) {
-        disagreements.push(`target: ${JSON.stringify(value)} mine=${JSON.stringify(escapeHtml(mine))} reference=${JSON.stringify(reference)}`);
+        disagreements.push(
+          `target: ${JSON.stringify(value)} mine=${JSON.stringify(escapeHtml(mine))} reference=${JSON.stringify(reference)}`,
+        );
       }
     }
     expect(disagreements).toEqual([]);
@@ -126,7 +130,9 @@ describe('the link-target guard', () => {
   });
 
   it('CUST-102 attrs() drops a URL-bearing attribute whose value fails the guard, and keeps the rest', async () => {
-    const markup = await render(html`<a ${attrs({ class: 'x', href: 'javascript:alert(1)' })}>t</a>`);
+    const markup = await render(
+      html`<a ${attrs({ class: 'x', href: 'javascript:alert(1)' })}>t</a>`,
+    );
     expect(markup).not.toContain('javascript:');
     expect(markup).not.toContain('href=');
     expect(markup).toContain('class="x"');
@@ -143,7 +149,9 @@ describe('the link-target guard', () => {
   });
 
   it('CUST-104 a Button given an unvouchable target renders an inert control, never a live link', async () => {
-    const markup = await render(Button({ label: 'Open the billing portal', href: 'javascript:alert(1)' }));
+    const markup = await render(
+      Button({ label: 'Open the billing portal', href: 'javascript:alert(1)' }),
+    );
     expect(markup).not.toContain('javascript:');
     expect(markup).not.toContain('<a');
     expect(markup).toContain('data-href-rejected="true"');
@@ -152,7 +160,9 @@ describe('the link-target guard', () => {
   });
 
   it('CUST-105 a Button given a real external target links out with rel set, whether or not the caller said so', async () => {
-    const markup = await render(Button({ label: 'Billing portal', href: 'https://billing.stripe.com/p/session_x' }));
+    const markup = await render(
+      Button({ label: 'Billing portal', href: 'https://billing.stripe.com/p/session_x' }),
+    );
     expect(markup).toContain('href="https://billing.stripe.com/p/session_x"');
     expect(markup).toContain('rel="noopener noreferrer"');
 
@@ -178,7 +188,9 @@ describe('the link-target guard', () => {
 
   it('CUST-107 the rendered site contains no script-bearing URL in any attribute', async () => {
     const markup = await render(PublicLayout({ title: 'Home', path: '/', body: HomePage() }));
-    expect(markup).not.toMatch(/(href|src|action|formaction|poster|cite|ping)\s*=\s*"\s*(javascript|data|vbscript|file|about|blob):/i);
+    expect(markup).not.toMatch(
+      /(href|src|action|formaction|poster|cite|ping)\s*=\s*"\s*(javascript|data|vbscript|file|about|blob):/i,
+    );
   });
 
   it('CUST-108 a development-story link uses the same guard, so a javascript: target stays as text', () => {
@@ -187,7 +199,9 @@ describe('the link-target guard', () => {
     );
     expect(rendered).not.toContain('href="javascript:');
     expect(rendered).not.toContain('href="JaVaScRiPt:');
-    expect(rendered).toContain('<a href="https://example.test/a" rel="nofollow noopener noreferrer">ok</a>');
+    expect(rendered).toContain(
+      '<a href="https://example.test/a" rel="nofollow noopener noreferrer">ok</a>',
+    );
     expect(rendered).toContain('href="/app/runs"');
   });
 });

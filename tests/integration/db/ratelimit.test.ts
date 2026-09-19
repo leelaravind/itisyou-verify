@@ -69,7 +69,9 @@ describe('fixed-window rate limiter', () => {
     await consume(h.db, 'new', 5, 60, at(100));
     const removed = await purgeExpired(h.db, at(150));
     expect(removed).toBe(1);
-    const remaining = await h.db.prepare('SELECT bucket FROM rate_limits').all<{ bucket: string }>();
+    const remaining = await h.db
+      .prepare('SELECT bucket FROM rate_limits')
+      .all<{ bucket: string }>();
     expect(remaining.results.map((r) => r.bucket)).toEqual(['new']);
   });
 });

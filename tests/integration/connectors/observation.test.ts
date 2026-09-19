@@ -89,13 +89,20 @@ interface Stubs {
 async function observe(stubs: Stubs, now: Date = T_INSIDE_WINDOW) {
   const hubspotFetch = (async (url: string) => {
     if (url.includes('access-token-info')) {
-      return stubs.tokenInfo?.() ?? json({ hubId: Number(PORTAL), scopes: ['crm.objects.contacts.read'] });
+      return (
+        stubs.tokenInfo?.() ??
+        json({ hubId: Number(PORTAL), scopes: ['crm.objects.contacts.read'] })
+      );
     }
     return stubs.search?.() ?? json({ total: 1, results: [contact()] });
   }) as unknown as typeof fetch;
   const resendFetch = (async () => stubs.resend?.() ?? json(email())) as unknown as typeof fetch;
 
-  const hubspot = new HubSpotConnector({ fetchImpl: hubspotFetch, sleep: noSleep, jitterSeed: 0.5 });
+  const hubspot = new HubSpotConnector({
+    fetchImpl: hubspotFetch,
+    sleep: noSleep,
+    jitterSeed: 0.5,
+  });
   const resend = new ResendConnector({ fetchImpl: resendFetch, sleep: noSleep, jitterSeed: 0.5 });
 
   const crm = await hubspot.fetchEvidence({
@@ -186,7 +193,10 @@ describe('a complete observation', () => {
   });
 
   it('CONN-141 fails a run at the deadline when the provider authoritatively found nothing', async () => {
-    const { results } = await observe({ search: () => json({ total: 0, results: [] }) }, T_AFTER_DEADLINE);
+    const { results } = await observe(
+      { search: () => json({ total: 0, results: [] }) },
+      T_AFTER_DEADLINE,
+    );
     const { bundle, decision } = evaluate(results, T_AFTER_DEADLINE, 0);
 
     expect(bundle.gaps.some((g) => g.code === 'NOT_FOUND')).toBe(true);
@@ -194,7 +204,10 @@ describe('a complete observation', () => {
   });
 
   it('CONN-142 leaves the same run UNVERIFIED when the provider never answered', async () => {
-    const { results } = await observe({ search: () => json({ status: 'error' }, 503) }, T_AFTER_DEADLINE);
+    const { results } = await observe(
+      { search: () => json({ status: 'error' }, 503) },
+      T_AFTER_DEADLINE,
+    );
     const { bundle, decision } = evaluate(results, T_AFTER_DEADLINE, 0);
 
     expect(bundle.gaps.some((g) => g.code === 'PROVIDER_UNAVAILABLE')).toBe(true);
@@ -216,7 +229,8 @@ describe('a complete observation', () => {
 
   it('CONN-144 fails a run when the record belongs to a different portal', async () => {
     const { results } = await observe({
-      tokenInfo: () => json({ hubId: Number(FOREIGN_PORTAL), scopes: ['crm.objects.contacts.read'] }),
+      tokenInfo: () =>
+        json({ hubId: Number(FOREIGN_PORTAL), scopes: ['crm.objects.contacts.read'] }),
     });
     const { bundle, assertions, decision } = evaluate(results, T_INSIDE_WINDOW);
 
@@ -265,7 +279,9 @@ describe('the external call ceiling', () => {
   it('CONN-150 keeps one observation inside the per-observation retry budget', async () => {
     const { results } = await observe({ search: () => json({ status: 'error' }, 503) });
     const crm = results[0];
-    expect(crm?.calls_made).toBeLessThanOrEqual(1 + LIMITS.MAX_TRANSIENT_RETRIES_PER_OBSERVATION + 1);
+    expect(crm?.calls_made).toBeLessThanOrEqual(
+      1 + LIMITS.MAX_TRANSIENT_RETRIES_PER_OBSERVATION + 1,
+    );
   });
 
   it('CONN-151 keeps a whole run inside the ceiling A03 proved', async () => {

@@ -646,8 +646,13 @@ export const STANDING: readonly StandingItem[] = [
     source: 'docs/development-story.md § Where it stands',
   },
   {
-    heading: 'Independently audited',
-    body: 'The public website: live, accurate and safe to use. Taking payment: not ready; release is blocked. No audit of a moving tree is valid for longer than it takes to run.',
-    source: 'docs/audit-summary.md § The verdict',
+    // Heading reworded 2026-09-19. "Independently audited" is the exact phrasing a security
+    // attestation uses, and this business holds none — the audit meant here is one specialist
+    // agent on this project reviewing another's work against the code. A reader scanning
+    // claim-scan:allow names the attestations in order to deny holding them; the denial is the point
+    // headings should not be able to take an internal review for SOC 2 or ISO 27001.
+    heading: 'Reviewed by a second specialist, in-house',
+    body: 'Not a security attestation and not a third-party audit: one agent on this project reviewing another’s work against the code. The public website: live and safe to use, with twelve overstated claims corrected on 19 September. Taking payment: not ready; release is blocked. No review of a moving tree is valid for longer than it takes to run.',
+    source: 'docs/audit-summary.md § The verdict; docs/product-scope.md § 11',
   },
 ];

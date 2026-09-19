@@ -15,14 +15,30 @@
  * `synthetic` is false, so A07's pages drop the placeholder banner — which is only
  * truthful because of rule 2.
  */
-import type { AccessMode, Currency, JobState, SubscriptionStatus } from '@verify/contracts';
+import {
+  CAMPAIGN_STATE,
+  type AccessMode,
+  type CampaignState,
+  type Currency,
+  type JobState,
+  type SubscriptionStatus,
+} from '@verify/contracts';
 import { maskEmail, maskToken } from '@verify/security';
 import { ANONYMOUS_PRINCIPAL, type OwnerPrincipal } from '../owner/access';
 import {
   APPROVAL_LIFETIME_SECONDS,
+  checkCampaignApproval,
+  claimApproval,
+  consumeApproval,
+  explainApprovalRejection,
+  grantOwnerApproval,
   isOwnerActionType,
+  ownerPayloadHash,
   type OwnerApproval,
+  type OwnerApprovalPayload,
 } from '../owner/approvals';
+import { packetHash, type CampaignApproval, type CampaignPacket } from '../growth/approval';
+import { initialLifecycle, transition } from '../growth/lifecycle';
 import {
   CONTROL_KEYS,
   controlSettingKey,
@@ -32,10 +48,23 @@ import {
   type ControlKey,
   type Controls,
 } from '../owner/controls';
-import type { CleanupInventory, CleanupReport } from '../owner/cleanup';
+import {
+  executeCleanup,
+  isCleanupCategory,
+  OWNERSHIP_TAG,
+  previewCleanup,
+  type CleanupInventory,
+  type CleanupReport,
+  type InventoryItem,
+} from '../owner/cleanup';
 import type { NotificationHealth } from '../owner/notifications';
-import type { QualityRun } from '../owner/quality';
-import { AssistantOff, OfflineRunner } from '../owner/runner';
+import {
+  dispatchQualityRun,
+  isTerminalState,
+  type ExecutorAvailability,
+  type QualityRun,
+} from '../owner/quality';
+import type { AssistantStatusPort, MaintenanceRunnerPort } from '../owner/runner';
 import {
   DEFAULT_ACCESS_MODE,
   DEFAULT_BUDGET_LIMITS,
@@ -81,6 +110,7 @@ import { resolveIdentity } from '../lib/session';
 import { addSecondsIso, nowIso } from '../lib/time';
 import { generateCsrfToken, hashToken } from '@verify/security';
 import { AppError } from '@verify/contracts';
+import { D1ApprovalClaims } from './approvalClaims';
 import { auditEvents, settings } from './audit';
 import { orders as ordersRepo, refunds as refundsRepo, subscriptions } from './commerce';
 import { connections } from './connections';
@@ -91,12 +121,29 @@ import { runs } from './runs';
 /** A dependency sentence, used wherever a real source does not exist yet. */
 const NO_ADS =
   'No advertising provider is connected to this deployment, so there is no campaign to act on.';
-const NO_RUNNER =
-  'No maintenance runner is paired with this deployment, so nothing can be dispatched.';
-const NO_CLEANUP =
-  'Cloud resource inventory is not wired to this deployment, so there is nothing to preview.';
 const NO_REFUND_PATH =
   'Refunds are issued through Stripe, which is not configured on this deployment.';
+
+/**
+ * What is true after an activation has been authorised and nothing else can happen.
+ *
+ * The approval **has** been spent by the time this is returned, and the sentence says so.
+ * An owner who reads "nothing happened" and grants a second approval would be right to be
+ * surprised when the first one is gone; the whole point of consume-before-act is that the
+ * spend is visible even when the act could not complete.
+ */
+const ADS_AUTHORISED_BUT_UNSUBMITTED =
+  'The approval has been spent and this campaign is now marked ready to submit, with the exact packet you ' +
+  'approved recorded against it. Nothing has been created at an advertising platform, because no advertising ' +
+  'provider is connected to this deployment — no money can be spent by this action. Submitting is a separate ' +
+  'step that needs a connected platform.';
+
+/** Cleanup categories are scanned here; a category with no scanner returns nothing at all. */
+const CLEANUP_STALE_QUALITY_RUN_SECONDS = 90 * 24 * 60 * 60;
+const CLEANUP_STALE_PREVIEW_SECONDS = 7 * 24 * 60 * 60;
+
+/** Thrown by the quality persist step when a concurrent request won the dedupe key. */
+class DedupeCollision extends Error {}
 
 function unknownHealth(component: string, detail: string): ServiceHealthView {
   return { component, state: 'unknown', detail, observedAt: null };
@@ -120,14 +167,49 @@ export class D1OwnerDataPort implements OwnerDataPort {
   readonly #env: Env;
   readonly #request: { readonly headers: Headers; readonly url: string };
   readonly #now: Date;
-  readonly #runner = new OfflineRunner();
   #principal: OwnerPrincipal | undefined = undefined;
+  #runnerPort: MaintenanceRunnerPort | undefined = undefined;
+  #assistantPort: AssistantStatusPort | undefined = undefined;
+
+  /**
+   * A10's compare-and-set store. One instance per port, and the only way an approval is
+   * ever spent from here — `CLAIM_APPROVAL_SQL` has exactly one spelling and it is not in
+   * this file.
+   */
+  readonly #claims: D1ApprovalClaims;
 
   constructor(input: OwnerPortInput) {
     this.#db = input.db;
     this.#env = input.env;
     this.#request = input.request;
     this.#now = input.now ?? new Date();
+    this.#claims = new D1ApprovalClaims(input.db);
+  }
+
+  /**
+   * A08's real runner, bound lazily.
+   *
+   * Lazily and by dynamic import for one reason: `maintenance/ownerPort.ts` imports
+   * `db/index.ts`, which imports this file. A top-level import would make that cycle load
+   * order-dependent; resolving it on first use resolves it after every module has
+   * evaluated. The previous binding was `OfflineRunner` — an in-memory stand-in that
+   * reported "no runner" whatever the database said, and whose queued jobs vanished with
+   * the request that made them.
+   */
+  async #runner(): Promise<MaintenanceRunnerPort> {
+    if (this.#runnerPort === undefined) {
+      const { D1MaintenanceRunnerPort } = await import('../maintenance/ownerPort.js');
+      this.#runnerPort = new D1MaintenanceRunnerPort(this.#db, () => nowIso(this.#now));
+    }
+    return this.#runnerPort;
+  }
+
+  async #assistant(): Promise<AssistantStatusPort> {
+    if (this.#assistantPort === undefined) {
+      const { D1AssistantStatusPort } = await import('../maintenance/ownerPort.js');
+      this.#assistantPort = new D1AssistantStatusPort(this.#db);
+    }
+    return this.#assistantPort;
   }
 
   /**
@@ -550,13 +632,52 @@ export class D1OwnerDataPort implements OwnerDataPort {
     return writeOk('/owner/customers', 'The order is rejected and the customer can see why.');
   }
 
+  /**
+   * The owner panel's own refund button.
+   *
+   * It used to read the approval, compare `status !== 'granted'`, and stop — a check with
+   * no act behind it and, worse, a check-then-act shape waiting for the act to be wired in.
+   * `decideRefund` (A06/A16's path) was already correct; this one was the unwired twin.
+   *
+   * Now the approval is **validated and spent in the same call**, through `claimApproval`,
+   * which is the only way to get an `ok` out of it. The ordering is the control: consume
+   * before anything could reach a provider, so a crash leaves an approval that is visibly
+   * spent rather than one that still looks spendable beside money that has moved.
+   *
+   * Stripe is not configured on this deployment, so what follows the claim today is an
+   * honest dependency — and the sentence says the approval has been spent, because it has.
+   */
   async issueRefund(ctx: ActionContext, input: RefundRequestInput): Promise<OwnerWriteResult> {
     const approval = await this.approval(input.approvalId);
-    if (approval === null || approval.status !== 'granted') {
+    if (approval === null) {
       return writeFailed('That approval is not usable. Grant one for this exact refund first.');
     }
+
+    const payload: OwnerApprovalPayload = {
+      action_type: 'refund_issue',
+      payload: {
+        workspace_id: input.workspaceId,
+        order_id: input.orderId,
+        amount_minor: input.amountMinor,
+        currency: 'GBP',
+        policy_rule: input.policyRule,
+        reason: input.reason,
+      },
+    };
+
+    // Spending the approval IS the authorisation. Nothing below this line can run twice on
+    // one approval: the loser of the compare-and-set gets `false` and stops here.
+    const claim = await claimApproval(approval, payload, { store: this.#claims, now: ctx.now });
+    if (!claim.ok) {
+      await this.#audit(ctx, 'owner.refund.refused', input.orderId);
+      return writeFailed(explainApprovalRejection(claim.reason));
+    }
+    await this.#audit(ctx, 'owner.approval.consumed', approval.id);
     await this.#audit(ctx, 'owner.refund.blocked', input.orderId);
-    return writeBlocked(NO_REFUND_PATH);
+    return writeBlocked(
+      `${NO_REFUND_PATH} The approval has been spent, so nothing can use it a second time; grant another when the ` +
+        'payment provider is configured and you still want this refund.',
+    );
   }
 
   /* --------------------------------------------------------------- verification */
@@ -726,17 +847,201 @@ export class D1OwnerDataPort implements OwnerDataPort {
 
   /* ----------------------------------------------------------------------- ads */
 
+  /** tenant-scope:exempt campaigns belong to the platform, not to a customer workspace. */
   async campaigns(): Promise<readonly CampaignView[]> {
-    return [];
+    const result = await this.#db
+      .prepare(`${CAMPAIGN_COLUMNS} ORDER BY created_at DESC LIMIT 50`)
+      .all<CampaignRow>();
+    const out: CampaignView[] = [];
+    for (const row of result.results) out.push(await this.#campaignView(row));
+    return out;
   }
 
-  async campaign(): Promise<CampaignView | null> {
-    return null;
+  /** tenant-scope:exempt as above; a campaign has no workspace to scope it by. */
+  async campaign(campaignId: string): Promise<CampaignView | null> {
+    const row = await this.#db
+      .prepare(`${CAMPAIGN_COLUMNS} WHERE id = ?`)
+      .bind(campaignId)
+      .first<CampaignRow>();
+    return row === null ? null : this.#campaignView(row);
   }
 
-  async activateCampaign(ctx: ActionContext, campaignId: string): Promise<OwnerWriteResult> {
-    await this.#audit(ctx, 'owner.campaign.activate_blocked', campaignId);
-    return writeBlocked(NO_ADS);
+  async #campaignView(row: CampaignRow): Promise<CampaignView> {
+    const packet = parsePacket(row.packet_json);
+    // Spend is whatever the provider last reported, summed. No rows means nobody has told
+    // us anything — which is unknown, and must never render as £0.00 beside a live budget.
+    const spend = await this.#db
+      .prepare(
+        `SELECT SUM(spend_minor) AS total, COUNT(spend_minor) AS n
+           FROM campaign_metrics WHERE campaign_id = ?`,
+      )
+      .bind(row.id)
+      .first<{ total: number | null; n: number }>();
+
+    return {
+      id: row.id,
+      provider: row.provider,
+      externalId: row.external_id,
+      state: toCampaignState(row.state),
+      headline: packet?.creative.headline ?? 'This campaign has no readable packet.',
+      destinationUrl: packet?.destination.url ?? '',
+      audienceSummary:
+        packet?.audience.description ??
+        'The approved packet for this campaign cannot be read, so there is nothing to describe.',
+      budgetMinor: Number(row.budget_minor),
+      currency: row.currency,
+      approvalId: row.approval_id,
+      approvedPayloadHash: row.approved_payload_hash,
+      spendMinor: Number(spend?.n ?? 0) === 0 ? null : Number(spend?.total ?? 0),
+      // Per-campaign attribution is A12's analytics and is not computed here. Null renders
+      // as "unknown"; a zero here would read as "nobody came", which we do not know.
+      visits: null,
+      signups: null,
+      lastSyncAt: row.last_sync_at,
+      lastSyncError: row.last_sync_error,
+      startsAt: row.starts_at,
+      endsAt: row.ends_at,
+    };
+  }
+
+  /**
+   * Activate a campaign — the one owner action that can commit the £15 advertising
+   * allocation, and therefore the one that must not be possible without a separate,
+   * explicit, single-use approval.
+   *
+   * The order below is the control, and it is deliberate:
+   *
+   *  1. **Everything that can refuse without spending, refuses first.** An unknown
+   *     campaign, an unreadable packet, a campaign in a state that cannot be activated, a
+   *     missing or wrong-typed approval, a packet that no longer hashes to what the owner
+   *     read — all of these leave the approval untouched, so it can still be used on the
+   *     thing it was actually granted for.
+   *  2. **Then the compare-and-set spends it.** `meta.changes === 1` is the permission. A
+   *     retry, a double-tapped button or two tabs produce exactly one activation; the loser
+   *     is told the approval is already used and stops.
+   *  3. **Only then is the campaign stamped**, with the approval id and the hash of the
+   *     packet that authorised it, guarded by its previous state so a concurrent edit
+   *     cannot be overwritten silently.
+   *
+   * The campaign's own hash binding is A12's `packetHash`, not this module's, which is why
+   * this uses the raw `consumeApproval` primitive rather than `claimApproval`: the
+   * guarantee needed here is single-use, and that is exactly what the statement provides.
+   */
+  async activateCampaign(
+    ctx: ActionContext,
+    campaignId: string,
+    approvalId: string,
+  ): Promise<OwnerWriteResult> {
+    const row = await this.#db
+      .prepare(`${CAMPAIGN_COLUMNS} WHERE id = ?`)
+      .bind(campaignId)
+      .first<CampaignRow>();
+    if (row === null) return writeFailed('There is no campaign with that id.');
+
+    const packet = parsePacket(row.packet_json);
+    if (packet === null) {
+      return writeFailed(
+        'This campaign’s approved packet cannot be read, so there is nothing to check an approval against. ' +
+          'Nothing has been activated.',
+      );
+    }
+
+    const wanted = approvalId.trim();
+    if (wanted.length === 0) {
+      return writeFailed(
+        'An activation needs the id of the approval that authorises this exact campaign. Grant one on the ' +
+          'approvals page and paste its id here. Nothing has been activated.',
+        { approval_id: 'Paste the approval id.' },
+      );
+    }
+
+    // The state machine is A12's, and it refuses activation from anywhere but a packet the
+    // owner has been asked about. Checked BEFORE the approval is spent: an approval must
+    // never be burned on a campaign that could not have been activated anyway.
+    const moved = transition(
+      { ...initialLifecycle(), state: toCampaignState(row.state), external_id: row.external_id },
+      { type: 'owner_approved' },
+    );
+    if (!moved.ok) {
+      return writeFailed(
+        `This campaign cannot be activated from ${row.state}: ${moved.reason}. Nothing has been activated and ` +
+          'the approval is untouched.',
+      );
+    }
+
+    const approval = await this.approval(wanted);
+    if (approval === null) {
+      return writeFailed(
+        'There is no approval with that id, so nothing authorises this activation.',
+      );
+    }
+    if (approval.action_type !== 'campaign_launch') {
+      return writeFailed(
+        `That approval was granted for ${approval.action_type}, not for launching a campaign, so it does not ` +
+          'authorise this. Nothing has been activated.',
+      );
+    }
+    if (approval.maximum_amount_minor === null || approval.currency === null) {
+      return writeFailed(
+        'That approval names no spending ceiling, so it cannot authorise a campaign that can spend money.',
+      );
+    }
+
+    const bound: CampaignApproval = {
+      id: approval.id,
+      action_type: 'campaign_launch',
+      owner_id: approval.owner_id,
+      canonical_payload_hash: approval.canonical_payload_hash,
+      maximum_amount_minor: approval.maximum_amount_minor,
+      currency: approval.currency,
+      // The provider we would actually submit to. A packet naming a different platform is
+      // a platform mismatch, which is A12's rejection and not a technicality.
+      platform: row.provider,
+      status: approval.status,
+      created_at: approval.created_at,
+      expires_at: approval.expires_at,
+    };
+    const check = await checkCampaignApproval(bound, packet, ctx.now);
+    if (!check.valid) {
+      await this.#audit(ctx, 'owner.campaign.activate_refused', campaignId);
+      return writeFailed(
+        `That approval does not authorise this campaign: ${check.detail}. Nothing has been activated and the ` +
+          'approval has not been used.',
+      );
+    }
+
+    const spent = await consumeApproval(this.#claims, {
+      approvalId: approval.id,
+      at: nowIso(ctx.now),
+    });
+    if (!spent) {
+      await this.#audit(ctx, 'owner.campaign.activate_refused', campaignId);
+      return writeFailed(
+        'That approval has already been used, or it has lapsed or been withdrawn. Each approval authorises one ' +
+          'activation once, so a second attempt stops here rather than happening twice. Approve the campaign ' +
+          'again if you genuinely want it to run.',
+      );
+    }
+    await this.#audit(ctx, 'owner.approval.consumed', approval.id);
+
+    const stamped = await this.#db
+      .prepare(
+        `UPDATE campaigns SET state = ?, approval_id = ?, approved_payload_hash = ?, updated_at = ?
+          WHERE id = ? AND state = ?`,
+      )
+      .bind(moved.next.state, approval.id, check.hash, nowIso(ctx.now), campaignId, row.state)
+      .run();
+    if (stamped.meta.changes !== 1) {
+      await this.#audit(ctx, 'owner.campaign.activate_raced', campaignId);
+      return writeFailed(
+        'This campaign changed while the activation was being authorised, so it has not been activated. The ' +
+          'approval has been spent and cannot be reused — read the campaign again and approve it again if you ' +
+          'still want it to run.',
+      );
+    }
+
+    await this.#audit(ctx, 'owner.campaign.activated', campaignId);
+    return writeBlocked(ADS_AUTHORISED_BUT_UNSUBMITTED);
   }
 
   async pauseCampaign(ctx: ActionContext, campaignId: string): Promise<OwnerWriteResult> {
@@ -759,9 +1064,11 @@ export class D1OwnerDataPort implements OwnerDataPort {
       ],
       deployments: [],
       alerts: [],
-      runner: await this.#runner.status(),
-      maintenanceJobs: await this.#runner.listJobs(20),
-      assistant: await new AssistantOff().status(),
+      // A08's real runner over `runner_devices` and `maintenance_jobs`, not an in-memory
+      // stand-in whose queue emptied itself at the end of every request.
+      runner: await (await this.#runner()).status(),
+      maintenanceJobs: await (await this.#runner()).listJobs(20),
+      assistant: await (await this.#assistant()).status(),
       // Real, not a stand-in: `notification_deliveries` exists, so "is anything stuck?"
       // is a question this deployment can actually answer.
       notifications: await this.#notificationHealth(now),
@@ -826,7 +1133,9 @@ export class D1OwnerDataPort implements OwnerDataPort {
    * reason attached — accepted honestly rather than refused or faked.
    */
   async enqueueMaintenance(ctx: ActionContext, kind: string): Promise<OwnerWriteResult> {
-    const outcome = await this.#runner.enqueue({
+    const outcome = await (
+      await this.#runner()
+    ).enqueue({
       kind,
       requestedBy: ctx.principal.userId ?? 'owner',
       at: nowIso(ctx.now),
@@ -834,7 +1143,10 @@ export class D1OwnerDataPort implements OwnerDataPort {
     });
     await this.#audit(ctx, 'owner.maintenance.enqueued', kind);
     if (!outcome.ok) return writeBlocked(outcome.detail);
-    return writeOk('/owner/operations', 'The job is queued and will run when a runner is paired.');
+    return writeOk(
+      '/owner/operations',
+      `The job is recorded as ${outcome.job.id} and will run when a runner is paired.`,
+    );
   }
 
   async acknowledgeAlert(ctx: ActionContext, alertId: string): Promise<OwnerWriteResult> {
@@ -923,7 +1235,72 @@ export class D1OwnerDataPort implements OwnerDataPort {
     }
     if (ctx.principal.userId === null) return writeFailed('Only a signed-in owner can approve.');
 
+    let payload: unknown;
+    try {
+      payload = JSON.parse(input.payloadJson);
+    } catch {
+      return writeFailed(
+        'That approval payload is not readable, so there is nothing to bind an approval to.',
+        { payload_json: 'This has to be valid JSON.' },
+      );
+    }
+
     const id = newId(ID_PREFIX.approval, ctx.now.getTime());
+    const createdAt = nowIso(ctx.now);
+    const expiresAt = addSecondsIso(ctx.now, APPROVAL_LIFETIME_SECONDS);
+
+    /*
+     * The hash has to be the one the *consuming* side computes, or an approval granted here
+     * can never authorise anything — which is exactly what was happening: this method
+     * stored `hashToken(payloadJson)` while `claimApproval` and `checkCampaignApproval`
+     * both compare against a canonical, domain-prefixed hash of the parsed payload. Two
+     * hash functions for one binding is a control that always refuses, which reads to the
+     * owner as a broken button and trains them to stop using it.
+     *
+     * So the hash is computed here by the same function the consumer uses: A12's
+     * `packetHash` for a campaign, and `grantOwnerApproval` (which also enforces "an
+     * approval can never authorise less than the thing it approves") for the other three.
+     */
+    let hash: string;
+    try {
+      if (input.actionType === 'campaign_launch') {
+        const packet = parsePacket(input.payloadJson);
+        if (packet === null) {
+          return writeFailed(
+            'That is not a campaign packet. A campaign approval is bound to the exact packet you read — its ' +
+              'platform, budget, audience, creative, destination and dates.',
+            { payload_json: 'Paste the campaign packet.' },
+          );
+        }
+        if (input.maximumAmountMinor === null || input.maximumAmountMinor < packet.budget_minor) {
+          return writeFailed(
+            `The ceiling you are approving is below this campaign's budget of ${packet.budget_minor} minor units. ` +
+              'An approval cannot authorise less than the thing it approves.',
+            { maximum_amount: 'Approve at least the budget.' },
+          );
+        }
+        hash = await packetHash(packet);
+      } else {
+        const granted = await grantOwnerApproval(
+          { action_type: input.actionType, payload } as OwnerApprovalPayload,
+          {
+            id,
+            owner_id: ctx.principal.userId,
+            maximum_amount_minor: input.maximumAmountMinor,
+            currency: input.maximumAmountMinor === null ? null : 'GBP',
+            summary: input.summary.trim(),
+            created_at: createdAt,
+            expires_at: expiresAt,
+          },
+        );
+        hash = granted.canonical_payload_hash;
+      }
+    } catch (error) {
+      return writeFailed(
+        error instanceof Error ? error.message : 'That approval could not be granted.',
+      );
+    }
+
     await this.#db
       .prepare(
         `INSERT INTO approvals (id, owner_id, action_type, canonical_payload_hash, maximum_amount_minor, currency, status, note, created_at, expires_at)
@@ -933,12 +1310,12 @@ export class D1OwnerDataPort implements OwnerDataPort {
         id,
         ctx.principal.userId,
         input.actionType,
-        await hashToken(input.payloadJson, 'approval'),
+        hash,
         input.maximumAmountMinor,
         input.maximumAmountMinor === null ? null : 'GBP',
         input.summary.trim(),
-        nowIso(ctx.now),
-        addSecondsIso(ctx.now, APPROVAL_LIFETIME_SECONDS),
+        createdAt,
+        expiresAt,
       )
       .run();
     await this.#audit(ctx, 'owner.approval.granted', id);
@@ -996,61 +1373,722 @@ export class D1OwnerDataPort implements OwnerDataPort {
 
   async qualityRuns(limit: number): Promise<readonly QualityRun[]> {
     const result = await this.#db
-      .prepare(
-        `SELECT id, suite_id, environment, executor, state, commit_sha, dedupe_key, total_cases,
-                passed, failed, skipped, started_at, ended_at, report_ref, limitations, created_at
-           FROM quality_runs ORDER BY created_at DESC LIMIT ?`,
-      )
+      .prepare(`${QUALITY_RUN_COLUMNS} ORDER BY created_at DESC LIMIT ?`)
       .bind(Math.min(Math.max(1, limit), 50))
       .all<Record<string, unknown>>();
-    return result.results.map((row) => ({
-      id: String(row['id']),
-      suiteId: String(row['suite_id']),
-      environment: String(row['environment']),
-      executor: row['executor'] as QualityRun['executor'],
-      state: row['state'] as JobState,
-      commitSha: (row['commit_sha'] as string | null) ?? null,
-      dedupeKey: String(row['dedupe_key'] ?? ''),
-      requestedBy: 'owner',
-      totalCases: row['total_cases'] === null ? null : Number(row['total_cases']),
-      passed: row['passed'] === null ? null : Number(row['passed']),
-      failed: row['failed'] === null ? null : Number(row['failed']),
-      skipped: row['skipped'] === null ? null : Number(row['skipped']),
-      startedAt: (row['started_at'] as string | null) ?? null,
-      endedAt: (row['ended_at'] as string | null) ?? null,
-      reportRef: (row['report_ref'] as string | null) ?? null,
-      limitations:
-        (row['limitations'] as string | null) ??
-        'This run recorded no statement about what it could not prove.',
-      blockedReason: null,
-      createdAt: String(row['created_at']),
-    }));
+    return result.results.map(toQualityRun);
   }
 
+  /**
+   * Ask for a test suite to run.
+   *
+   * This used to return `NO_RUNNER` without asking anything — so A07's dispatch engine, its
+   * allowlist, its executable-shape guard and its dedupe key were all unreachable, and the
+   * panel reported "no runner" even on a deployment with a runner paired and heartbeating.
+   *
+   * What happens now, in order:
+   *
+   *  - `dispatchQualityRun` validates the suite id against the closed list (and against the
+   *    second wall that rejects anything shaped like a command or a path);
+   *  - it deduplicates against a **live** row for the same suite, environment and commit,
+   *    so a double-tapped button is one request;
+   *  - it asks the real runner whether an executor exists, and records `queued` or
+   *    `awaiting_runner` accordingly, with the limitation text that says what has and has
+   *    not been proved;
+   *  - and only if an executor genuinely exists does a maintenance job get created, with
+   *    **the suite the owner asked for**.
+   *
+   * Nothing here ever reports a pass. A dispatch is a request to run, and until something
+   * runs it the honest answer is a dependency.
+   */
   async dispatchQuality(
     ctx: ActionContext,
     suiteId: string,
   ): Promise<OwnerWriteResult & { runState: JobState | null }> {
-    await this.#audit(ctx, 'owner.quality.dispatch_blocked', suiteId);
-    return { ...writeBlocked(NO_RUNNER), runState: null };
+    const environment = String(this.#env.ENVIRONMENT);
+    const runner = await this.#runner();
+
+    const availability = async (): Promise<ExecutorAvailability> => {
+      const status = await runner.status();
+      return {
+        executor: 'local_runner',
+        available: status.connected,
+        reason: status.connected
+          ? null
+          : (status.unavailableReason ??
+            'No test executor is connected to this deployment. A Cloudflare Worker cannot run a test suite itself, ' +
+              'so the job waits for a runner.'),
+      };
+    };
+
+    let result: Awaited<ReturnType<typeof dispatchQualityRun>>;
+    try {
+      result = await dispatchQualityRun(
+        {
+          suiteId,
+          environment,
+          // No commit is recorded in this deployment, and inventing one would put a
+          // verdict against code nobody can identify.
+          commitSha: null,
+          requestedBy: ctx.principal.userId ?? 'owner',
+          at: nowIso(ctx.now),
+        },
+        {
+          findLive: (dedupeKey) => this.#liveQualityRun(dedupeKey),
+          availability,
+          persist: (run) => this.#persistQualityRun(run),
+          newId: () => newId(ID_PREFIX.qualityRun, ctx.now.getTime()),
+        },
+      );
+    } catch (error) {
+      if (error instanceof DedupeCollision) {
+        // Somebody else won the same dedupe key between our read and our write. That is one
+        // request, not two, and saying so is the truth rather than a second row.
+        await this.#audit(ctx, 'owner.quality.dispatch', suiteId);
+        return {
+          ...writeOk(
+            '/owner/quality',
+            'That suite is already queued for this commit, so this is the same request, not a second one.',
+          ),
+          runState: null,
+        };
+      }
+      // The store is broken. The owner is told, because a dispatch that could not be
+      // recorded has not happened, and a queued-looking page would be a lie.
+      await this.#audit(ctx, 'owner.quality.dispatch_failed', suiteId);
+      return {
+        ...writeFailed(
+          'The test run could not be recorded, so nothing has been dispatched and nothing has been tested. ' +
+            `The database refused the write: ${errorSentence(error)}`,
+        ),
+        runState: null,
+      };
+    }
+
+    if (!result.ok) return { ...writeFailed(result.detail), runState: null };
+
+    await this.#audit(ctx, 'owner.quality.dispatch', result.run.id);
+
+    if (result.deduplicated) {
+      return {
+        ...writeOk(
+          '/owner/quality',
+          'That suite is already queued for this commit, so this is the same request, not a second one.',
+        ),
+        runState: result.run.state,
+      };
+    }
+
+    if (result.run.state === 'queued') {
+      // A queued run is only queued if something was actually asked to run it. The
+      // maintenance job is the real artefact; the `quality_runs` row is our record of
+      // having asked.
+      const queued = await this.#queueTestSuiteJob(ctx, result.run.suiteId);
+      if (!queued.ok) {
+        await this.#markQualityRunAwaitingRunner(result.run.id, queued.detail);
+        return {
+          ...writeBlocked(
+            queued.detail,
+            'The request is recorded, but nothing has picked it up. Nothing has been tested.',
+          ),
+          runState: 'awaiting_runner',
+        };
+      }
+      return {
+        ...writeOk('/owner/quality', `Queued as maintenance job ${queued.jobId}.`),
+        runState: result.run.state,
+      };
+    }
+
+    return {
+      ...writeBlocked(
+        result.run.blockedReason ?? 'No test executor is connected to this deployment.',
+        'The request is saved and will run when an executor is connected. Nothing has been tested yet.',
+      ),
+      runState: result.run.state,
+    };
+  }
+
+  /** The live run for a dedupe key, or null. Only live states deduplicate. */
+  async #liveQualityRun(dedupeKey: string): Promise<QualityRun | null> {
+    const row = await this.#db
+      .prepare(`${QUALITY_RUN_COLUMNS} WHERE dedupe_key = ?`)
+      .bind(dedupeKey)
+      .first<Record<string, unknown>>();
+    return row === null ? null : toQualityRun(row);
+  }
+
+  /**
+   * Write the run.
+   *
+   * `dedupe_key` is `UNIQUE`, so two simultaneous presses race here rather than in
+   * application code. The loser gets zero rows and raises {@link DedupeCollision}, which
+   * the caller turns into "that is the same request" — never into a second run, and never
+   * into a silent success for a row that does not exist.
+   */
+  async #persistQualityRun(run: QualityRun): Promise<void> {
+    if (await this.#insertQualityRun(run)) return;
+
+    /*
+     * The key is taken. There are two ways that happens and they mean opposite things.
+     *
+     * `quality_runs.dedupe_key` is `UNIQUE` for all time, but a dedupe key is only meant to
+     * collapse requests that are genuinely the same request — a double-tapped button, two
+     * tabs. A run that finished last week is not the same request as one asked for now, and
+     * leaving its key in place would mean each suite could be run exactly once, ever, on
+     * this deployment. So a **terminal** row hands its key back (keeping its id, its
+     * results and its place in the history) and the insert is retried once.
+     *
+     * A **live** row keeps its key, and the caller is told this is the same request.
+     */
+    const existing = await this.#db
+      .prepare('SELECT id, state FROM quality_runs WHERE dedupe_key = ?')
+      .bind(run.dedupeKey)
+      .first<{ id: string; state: string }>();
+    if (existing === null) throw new DedupeCollision('dedupe key already taken');
+    if (!isTerminalState(existing.state as JobState)) {
+      throw new DedupeCollision('a live run already holds this dedupe key');
+    }
+
+    // The retired key can never be produced by the hash function, which emits 64 hex
+    // characters and nothing else, so it can never collide with a future dispatch.
+    await this.#db
+      .prepare('UPDATE quality_runs SET dedupe_key = ? WHERE id = ? AND dedupe_key = ?')
+      .bind(`${run.dedupeKey}:${existing.id}`, existing.id, run.dedupeKey)
+      .run();
+    if (!(await this.#insertQualityRun(run))) {
+      throw new DedupeCollision('another request took the dedupe key first');
+    }
+  }
+
+  /** The insert itself. False means the unique dedupe key was already taken. */
+  async #insertQualityRun(run: QualityRun): Promise<boolean> {
+    const inserted = await this.#db
+      .prepare(
+        `INSERT INTO quality_runs (id, suite_id, environment, executor, state, commit_sha, dedupe_key,
+                                   total_cases, passed, failed, skipped, started_at, ended_at,
+                                   report_ref, limitations, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, NULL, NULL, NULL, ?, ?)
+         ON CONFLICT(dedupe_key) DO NOTHING`,
+      )
+      .bind(
+        run.id,
+        run.suiteId,
+        run.environment,
+        run.executor,
+        run.state,
+        run.commitSha,
+        run.dedupeKey,
+        run.limitations,
+        run.createdAt,
+      )
+      .run();
+    return inserted.meta.changes === 1;
+  }
+
+  /** A run nobody could pick up is `awaiting_runner`, with the reason kept beside it. */
+  async #markQualityRunAwaitingRunner(runId: string, reason: string): Promise<void> {
+    await this.#db
+      .prepare("UPDATE quality_runs SET state = 'awaiting_runner', limitations = ? WHERE id = ?")
+      .bind(`This run has not executed and nothing has been proved either way: ${reason}`, runId)
+      .run();
+  }
+
+  /**
+   * Create the maintenance job that actually runs the suite.
+   *
+   * `enqueueJob` is called directly rather than through the narrow runner port because that
+   * port carries a kind and no payload, and its implementation hard-codes `suite: 'all'` —
+   * so an owner who asked for the unit suite would have been queued the whole suite without
+   * being told. The suite id crosses into the payload only after `dispatchQualityRun` has
+   * matched it against the closed allowlist, and the runner maps a kind to its own recipe;
+   * nothing here becomes part of a command.
+   */
+  async #queueTestSuiteJob(
+    ctx: ActionContext,
+    suiteId: string,
+  ): Promise<{ ok: true; jobId: string } | { ok: false; detail: string }> {
+    const { enqueueJob } = await import('../maintenance/jobs.js');
+    const { TEST_SUITES } = await import('../maintenance/kinds.js');
+    const suite = (TEST_SUITES as readonly string[]).includes(suiteId)
+      ? suiteId
+      : suiteId === 'full' || suiteId === 'release_report'
+        ? 'all'
+        : null;
+    if (suite === null) {
+      return {
+        ok: false,
+        detail:
+          `A runner is connected, but its job vocabulary has no recipe for the "${suiteId}" suite, so nothing has ` +
+          'been dispatched and nothing has been tested. The request is recorded.',
+      };
+    }
+    const outcome = await enqueueJob({
+      db: this.#db,
+      kind: 'run_test_suite',
+      payload: { suite },
+      requestedBy: ctx.principal.userId ?? 'owner',
+      now: nowIso(ctx.now),
+      requestId: ctx.requestId,
+    });
+    return outcome.ok
+      ? { ok: true, jobId: outcome.jobId }
+      : { ok: false, detail: outcome.refusal.detail };
   }
 
   /* ------------------------------------------------------------------- cleanup */
 
-  async cleanupPreview(): Promise<
-    { ok: true; inventory: CleanupInventory } | { ok: false; detail: string }
-  > {
-    return { ok: false, detail: NO_CLEANUP };
+  /**
+   * Build the inventory, and record it.
+   *
+   * The engine in `owner/cleanup.ts` does the deciding — the closed category list, the
+   * scope gate, the exclusions and the hash. This method supplies exactly one thing: a
+   * scanner that returns what is really in this database. It returns everything it finds,
+   * in scope or not, because the gate is the engine's job and an item filtered out here
+   * would never appear in the "found and deliberately left out" list the owner reads.
+   *
+   * The preview is written to `cleanup_runs` so the run can be bound to it later. A preview
+   * deletes nothing; that is what makes it a preview.
+   */
+  async cleanupPreview(
+    ctx: ActionContext,
+    categories: readonly string[],
+  ): Promise<{ ok: true; inventory: CleanupInventory } | { ok: false; detail: string }> {
+    const environment = String(this.#env.ENVIRONMENT);
+    let result: Awaited<ReturnType<typeof previewCleanup>>;
+    try {
+      result = await previewCleanup(
+        { categories, environment },
+        { scan: (category) => this.#scanCleanup(category, environment), now: ctx.now },
+      );
+    } catch (error) {
+      return {
+        ok: false,
+        detail:
+          'The inventory could not be taken, so there is nothing to show and nothing has been deleted: ' +
+          errorSentence(error),
+      };
+    }
+    if (!result.ok) return { ok: false, detail: result.detail };
+
+    const inventory = result.inventory;
+    await this.#db
+      .prepare(
+        `INSERT INTO cleanup_runs (id, state, categories, inventory_json, inventory_hash,
+                                   report_json, requested_by, created_at, completed_at)
+         VALUES (?, 'preview', ?, ?, ?, NULL, ?, ?, NULL)`,
+      )
+      .bind(
+        newId(ID_PREFIX.cleanupRun, ctx.now.getTime()),
+        JSON.stringify(inventory.categories),
+        JSON.stringify(inventory),
+        inventory.hash,
+        ctx.principal.userId ?? 'owner',
+        nowIso(ctx.now),
+      )
+      .run();
+    await this.#audit(ctx, 'owner.cleanup.preview', inventory.hash);
+    return { ok: true, inventory };
   }
 
-  async cleanupExecute(): Promise<
-    { ok: true; report: CleanupReport } | { ok: false; detail: string }
-  > {
-    return { ok: false, detail: NO_CLEANUP };
+  /**
+   * Delete what was previewed — the only owner action with no undo.
+   *
+   * The order is the control, and every step before the consumption leaves the world and
+   * the approval untouched:
+   *
+   *  1. the run must name a preview this deployment actually took;
+   *  2. the world must still look the way the owner read it (the hash, rebuilt now);
+   *  3. an approval bound to **this exact inventory** must exist and must be spendable;
+   *  4. the approval is spent — once, by compare-and-set;
+   *  5. and only then does anything get deleted, one resource at a time, each one
+   *     re-checked against the scope gate and re-verified immediately before removal.
+   *
+   * An interrupted or failing run reports `partial` or `failed` and never claims
+   * completion. `claimsComplete` is the engine's field and this method does not touch it.
+   */
+  async cleanupExecute(
+    ctx: ActionContext,
+    input: { readonly inventoryHash: string; readonly quarantine: boolean },
+  ): Promise<{ ok: true; report: CleanupReport } | { ok: false; detail: string }> {
+    const environment = String(this.#env.ENVIRONMENT);
+    const previewRow = await this.#db
+      .prepare(
+        `SELECT id, categories, inventory_json FROM cleanup_runs
+          WHERE inventory_hash = ? AND state = 'preview' ORDER BY created_at DESC LIMIT 1`,
+      )
+      .bind(input.inventoryHash)
+      .first<{ id: string; categories: string; inventory_json: string }>();
+    if (previewRow === null) {
+      return {
+        ok: false,
+        detail:
+          'There is no preview on record with that inventory. Nothing is deleted that has not been listed and ' +
+          'read first — take a preview and read it.',
+      };
+    }
+
+    const categories = parseStringArray(previewRow.categories);
+
+    // Nothing on this deployment can quarantine a row: a quarantine that is really a
+    // deletion is the worst possible outcome of a safety option, so the run refuses
+    // instead, before the approval is touched.
+    if (input.quarantine) {
+      return {
+        ok: false,
+        detail:
+          'Quarantine is not available on this deployment — there is nowhere to move these rows to, and moving ' +
+          'nothing while reporting "quarantined" would be a lie. Nothing has been deleted. Untick quarantine to ' +
+          'delete them, or leave them where they are.',
+      };
+    }
+
+    const rescan = async (): Promise<CleanupInventory> => {
+      const fresh = await previewCleanup(
+        { categories, environment },
+        { scan: (category) => this.#scanCleanup(category, environment), now: ctx.now },
+      );
+      if (!fresh.ok) throw new Error(fresh.detail);
+      return fresh.inventory;
+    };
+
+    // Rebuilt now, and compared before anything is spent. The engine compares it again
+    // inside `executeCleanup`; this first pass exists so that a world that has already
+    // moved costs the owner nothing.
+    let current: CleanupInventory;
+    try {
+      current = await rescan();
+    } catch (error) {
+      return {
+        ok: false,
+        detail:
+          'The inventory could not be rebuilt, so nothing has been deleted: ' +
+          errorSentence(error),
+      };
+    }
+    if (current.hash !== input.inventoryHash) {
+      return {
+        ok: false,
+        detail:
+          'The list of things to remove is not the list you approved — something has been added or has gone away ' +
+          'since you looked. Nothing has been deleted, and no approval has been used. Take a fresh preview.',
+      };
+    }
+    if (current.items.length === 0) {
+      return {
+        ok: false,
+        detail: 'There is nothing to remove in these categories. Nothing was deleted.',
+      };
+    }
+
+    /*
+     * The approval. It is found by the hash of the canonical payload rather than by an id
+     * pasted into a form, which is why `idx_approvals_lookup(action_type,
+     * canonical_payload_hash, status)` exists: an approval authorises this run only if it
+     * was granted over exactly these categories, this inventory hash, this count and this
+     * environment. A cleanup that grew by one resource hashes differently and finds nothing.
+     */
+    const payload: OwnerApprovalPayload = {
+      action_type: 'cleanup_execute',
+      payload: {
+        categories: current.categories,
+        inventory_hash: current.hash,
+        resource_count: current.items.length,
+        environment,
+      },
+    };
+    const wantedHash = await ownerPayloadHash(payload);
+    const approvalRow = await this.#db
+      .prepare(
+        `SELECT id FROM approvals
+          WHERE action_type = 'cleanup_execute' AND canonical_payload_hash = ? AND status = 'granted'
+          ORDER BY created_at DESC LIMIT 1`,
+      )
+      .bind(wantedHash)
+      .first<{ id: string }>();
+    if (approvalRow === null) {
+      return {
+        ok: false,
+        detail:
+          'Nothing has been deleted: no standing approval covers this exact cleanup. Deleting is the one action ' +
+          'with no undo, so it needs its own approval. Grant one on the approvals page for "cleanup_execute" with ' +
+          `this payload, and run it again: ${JSON.stringify(payload.payload)}`,
+      };
+    }
+    const approval = await this.approval(approvalRow.id);
+    if (approval === null) {
+      return { ok: false, detail: 'That approval could not be read. Nothing has been deleted.' };
+    }
+
+    // Spend it. Before the first delete, never after — an approval consumed afterwards is
+    // not single-use across a crash, and this is the action that cannot be undone.
+    const claim = await claimApproval(approval, payload, { store: this.#claims, now: ctx.now });
+    if (!claim.ok) {
+      await this.#audit(ctx, 'owner.cleanup.refused', current.hash);
+      return {
+        ok: false,
+        detail: `${explainApprovalRejection(claim.reason)} Nothing has been deleted.`,
+      };
+    }
+    await this.#audit(ctx, 'owner.approval.consumed', approval.id);
+
+    const runId = newId(ID_PREFIX.cleanupRun, ctx.now.getTime());
+    let outcome: Awaited<ReturnType<typeof executeCleanup>>;
+    try {
+      outcome = await executeCleanup(
+        {
+          runId,
+          approvedInventoryHash: input.inventoryHash,
+          quarantineInsteadOfDelete: false,
+        },
+        {
+          rescan,
+          verify: (item) => this.#verifyCleanupItem(item),
+          remove: (item) => this.#removeCleanupItem(item),
+          now: () => ctx.now,
+        },
+      );
+    } catch (error) {
+      await this.#recordCleanupFailure(previewRow.id, errorSentence(error), ctx);
+      return {
+        ok: false,
+        detail:
+          'The cleanup stopped on an error and is NOT complete. The approval has been spent. What was removed ' +
+          `before it stopped is on the record; what was not is still there: ${errorSentence(error)}`,
+      };
+    }
+
+    if (!outcome.ok) {
+      await this.#recordCleanupFailure(previewRow.id, outcome.detail, ctx);
+      return { ok: false, detail: `${outcome.detail} The approval has been spent.` };
+    }
+
+    const report = outcome.report;
+    await this.#db
+      .prepare(`UPDATE cleanup_runs SET state = ?, report_json = ?, completed_at = ? WHERE id = ?`)
+      .bind(report.state, JSON.stringify(report), nowIso(ctx.now), previewRow.id)
+      .run();
+    await this.#audit(ctx, 'owner.cleanup.execute', report.runId);
+    return { ok: true, report };
+  }
+
+  /** A run that could not finish is recorded as failed. It is never left looking like a preview. */
+  async #recordCleanupFailure(rowId: string, detail: string, ctx: ActionContext): Promise<void> {
+    await this.#db
+      .prepare(
+        "UPDATE cleanup_runs SET state = 'failed', report_json = ?, completed_at = ? WHERE id = ?",
+      )
+      .bind(JSON.stringify({ failure: detail }), nowIso(ctx.now), rowId)
+      .run();
+    await this.#audit(ctx, 'owner.cleanup.failed', rowId);
   }
 
   async lastCleanupReport(): Promise<CleanupReport | null> {
-    return null;
+    const row = await this.#db
+      .prepare(
+        `SELECT report_json FROM cleanup_runs
+          WHERE report_json IS NOT NULL ORDER BY completed_at DESC, id DESC LIMIT 1`,
+      )
+      .first<{ report_json: string }>();
+    if (row === null) return null;
+    try {
+      const parsed: unknown = JSON.parse(row.report_json);
+      if (parsed === null || typeof parsed !== 'object') return null;
+      // A failure record is not a report. Rendering it as one would put a half-built
+      // object through a page that expects counts.
+      if (!('claimsComplete' in parsed)) return null;
+      return parsed as CleanupReport;
+    } catch {
+      return null;
+    }
+  }
+
+  /* ------------------------------------------------------- cleanup scanners */
+
+  /**
+   * What is really in this database, for one category.
+   *
+   * Every row is returned with the facts the scope gate needs and no filtering of our own:
+   * `isCustomerData` is read from the row rather than assumed, so a real customer workspace
+   * found by the synthetic-workspace scan is *refused and shown as refused* rather than
+   * silently dropped — which is the difference between a gate you can see working and a
+   * gate you are told about.
+   */
+  async #scanCleanup(category: string, environment: string): Promise<readonly InventoryItem[]> {
+    if (!isCleanupCategory(category)) return [];
+    const now = nowIso(this.#now);
+    const base = {
+      category,
+      environment,
+      ownershipTag: OWNERSHIP_TAG,
+      // Nothing here measures bytes. Null renders as "unknown"; a zero would be a guess
+      // presented as a measurement.
+      estimatedBytes: null,
+      quarantineAvailable: false,
+    } as const;
+
+    switch (category) {
+      case 'synthetic_workspaces': {
+        const rows = await this.#db
+          .prepare(
+            "SELECT id, is_synthetic FROM workspaces WHERE status != 'deleted' ORDER BY created_at LIMIT 500",
+          )
+          .all<{ id: string; is_synthetic: number }>();
+        return rows.results.map((row) => ({
+          ...base,
+          resourceId: row.id,
+          kind: 'workspace',
+          retentionConstraint: null,
+          isCustomerData: Number(row.is_synthetic) !== 1,
+        }));
+      }
+      case 'expired_sessions': {
+        const rows = await this.#db
+          .prepare('SELECT id FROM sessions WHERE expires_at <= ? ORDER BY id LIMIT 500')
+          .bind(now)
+          .all<{ id: string }>();
+        return rows.results.map((row) => ({
+          ...base,
+          resourceId: row.id,
+          kind: 'session',
+          retentionConstraint: null,
+          isCustomerData: false,
+        }));
+      }
+      case 'consumed_login_tokens': {
+        // Addressed by rowid, never by the token hash: the hash is the lookup key for a
+        // sign-in link and has no business being rendered on a page or written to a report.
+        const rows = await this.#db
+          .prepare(
+            'SELECT rowid AS rid FROM login_tokens WHERE consumed_at IS NOT NULL OR expires_at <= ? ORDER BY rowid LIMIT 500',
+          )
+          .bind(now)
+          .all<{ rid: number }>();
+        return rows.results.map((row) => ({
+          ...base,
+          resourceId: `login_token:${row.rid}`,
+          kind: 'login_token',
+          retentionConstraint: null,
+          isCustomerData: false,
+        }));
+      }
+      case 'expired_visit_sessions': {
+        const rows = await this.#db
+          .prepare('SELECT id FROM visit_sessions WHERE expires_at <= ? ORDER BY id LIMIT 500')
+          .bind(now)
+          .all<{ id: string }>();
+        return rows.results.map((row) => ({
+          ...base,
+          resourceId: row.id,
+          kind: 'visit_session',
+          retentionConstraint: null,
+          isCustomerData: false,
+        }));
+      }
+      case 'dead_outbox_entries': {
+        const rows = await this.#db
+          .prepare(
+            "SELECT id FROM outbox WHERE dispatch_state = 'dead' ORDER BY created_at LIMIT 500",
+          )
+          .all<{ id: string }>();
+        return rows.results.map((row) => ({
+          ...base,
+          resourceId: row.id,
+          kind: 'outbox_entry',
+          retentionConstraint: null,
+          isCustomerData: false,
+        }));
+      }
+      case 'stale_quality_runs': {
+        const cutoff = addSecondsIso(this.#now, -CLEANUP_STALE_QUALITY_RUN_SECONDS);
+        const rows = await this.#db
+          .prepare(
+            `SELECT id FROM quality_runs
+              WHERE state NOT IN ('queued','awaiting_runner','running') AND created_at < ?
+              ORDER BY created_at LIMIT 500`,
+          )
+          .bind(cutoff)
+          .all<{ id: string }>();
+        return rows.results.map((row) => ({
+          ...base,
+          resourceId: row.id,
+          kind: 'quality_run',
+          retentionConstraint: null,
+          isCustomerData: false,
+        }));
+      }
+      case 'orphaned_preview_cleanups': {
+        const cutoff = addSecondsIso(this.#now, -CLEANUP_STALE_PREVIEW_SECONDS);
+        const rows = await this.#db
+          .prepare(
+            "SELECT id FROM cleanup_runs WHERE state = 'preview' AND created_at < ? ORDER BY created_at LIMIT 500",
+          )
+          .bind(cutoff)
+          .all<{ id: string }>();
+        return rows.results.map((row) => ({
+          ...base,
+          resourceId: row.id,
+          kind: 'cleanup_preview',
+          retentionConstraint: null,
+          isCustomerData: false,
+        }));
+      }
+      default:
+        return [];
+    }
+  }
+
+  /**
+   * Is this still the row we inventoried, right now?
+   *
+   * Asked immediately before each delete, per the engine's rule 4: an id that matched ten
+   * minutes ago is not proof it matches now. A row that has gone, or that no longer meets
+   * the predicate that put it in the inventory, is skipped and the skip is reported.
+   */
+  async #verifyCleanupItem(item: InventoryItem): Promise<boolean> {
+    const target = cleanupTarget(item);
+    if (target === null) return false;
+    const now = nowIso(this.#now);
+    try {
+      const row = await this.#db
+        .prepare(`SELECT 1 AS present FROM ${target.table} WHERE ${target.predicate}`)
+        .bind(...target.bind(now))
+        .first<{ present: number }>();
+      return row !== null;
+    } catch {
+      return false;
+    }
+  }
+
+  /** Remove exactly one inventoried row. A delete that changes no rows is a failure, not a success. */
+  async #removeCleanupItem(
+    item: InventoryItem,
+  ): Promise<
+    | { status: 'done'; reclaimedBytes: number | null }
+    | { status: 'failed'; detail: string }
+    | { status: 'interrupted'; detail: string }
+  > {
+    const target = cleanupTarget(item);
+    if (target === null) {
+      return { status: 'failed', detail: `No deletion is defined for a ${item.kind}.` };
+    }
+    const now = nowIso(this.#now);
+    try {
+      const result = await this.#db
+        .prepare(`DELETE FROM ${target.table} WHERE ${target.predicate}`)
+        .bind(...target.bind(now))
+        .run();
+      if (result.meta.changes !== 1) {
+        return {
+          status: 'failed',
+          detail:
+            'The row was there a moment ago and the delete removed nothing. It is still there.',
+        };
+      }
+      return { status: 'done', reclaimedBytes: null };
+    } catch (error) {
+      return { status: 'failed', detail: errorSentence(error) };
+    }
   }
 
   /* --------------------------------------------------------------------- audit */
@@ -1118,6 +2156,188 @@ function toApproval(row: ApprovalRow): OwnerApproval | null {
     expires_at: row.expires_at,
     consumed_at: row.consumed_at,
   };
+}
+
+/* -------------------------------------------------------------- shared helpers */
+
+/**
+ * A thrown value turned into one sentence an owner can read.
+ *
+ * Never the stack, never the SQL. What the owner needs to know is that it failed and
+ * roughly what failed, and what they must not be told is anything that came out of a
+ * credential or a customer row.
+ */
+function errorSentence(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.length > 300 ? `${message.slice(0, 300)}…` : message;
+}
+
+function parseStringArray(json: string): readonly string[] {
+  try {
+    const parsed: unknown = JSON.parse(json);
+    return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+/* -------------------------------------------------------------- quality runs */
+
+const QUALITY_RUN_COLUMNS = `SELECT id, suite_id, environment, executor, state, commit_sha, dedupe_key,
+        total_cases, passed, failed, skipped, started_at, ended_at, report_ref, limitations, created_at
+   FROM quality_runs`;
+
+function toQualityRun(row: Record<string, unknown>): QualityRun {
+  return {
+    id: String(row['id']),
+    suiteId: String(row['suite_id']),
+    environment: String(row['environment']),
+    executor: row['executor'] as QualityRun['executor'],
+    state: row['state'] as JobState,
+    commitSha: (row['commit_sha'] as string | null) ?? null,
+    dedupeKey: String(row['dedupe_key'] ?? ''),
+    requestedBy: 'owner',
+    totalCases: row['total_cases'] === null ? null : Number(row['total_cases']),
+    passed: row['passed'] === null ? null : Number(row['passed']),
+    failed: row['failed'] === null ? null : Number(row['failed']),
+    skipped: row['skipped'] === null ? null : Number(row['skipped']),
+    startedAt: (row['started_at'] as string | null) ?? null,
+    endedAt: (row['ended_at'] as string | null) ?? null,
+    reportRef: (row['report_ref'] as string | null) ?? null,
+    limitations:
+      (row['limitations'] as string | null) ??
+      'This run recorded no statement about what it could not prove.',
+    blockedReason: null,
+    createdAt: String(row['created_at']),
+  };
+}
+
+/* -------------------------------------------------------------------- cleanup */
+
+/**
+ * Where one inventoried resource lives, and the predicate that addresses exactly it.
+ *
+ * The table name comes from this closed map and never from the item — an `InventoryItem`
+ * carries a `kind` the engine produced, and the only kinds that appear here are the ones
+ * the scanners create. There is no path by which a value from a form reaches a SQL
+ * identifier, and every value that varies is bound.
+ */
+function cleanupTarget(
+  item: InventoryItem,
+): { table: string; predicate: string; bind: (now: string) => readonly unknown[] } | null {
+  switch (item.kind) {
+    case 'workspace':
+      return {
+        table: 'workspaces',
+        predicate: 'id = ? AND is_synthetic = 1',
+        bind: () => [item.resourceId],
+      };
+    case 'session':
+      return {
+        table: 'sessions',
+        predicate: 'id = ? AND expires_at <= ?',
+        bind: (now) => [item.resourceId, now],
+      };
+    case 'login_token': {
+      const rowid = Number(item.resourceId.slice('login_token:'.length));
+      if (!Number.isSafeInteger(rowid)) return null;
+      return {
+        table: 'login_tokens',
+        predicate: 'rowid = ? AND (consumed_at IS NOT NULL OR expires_at <= ?)',
+        bind: (now) => [rowid, now],
+      };
+    }
+    case 'visit_session':
+      return {
+        table: 'visit_sessions',
+        predicate: 'id = ? AND expires_at <= ?',
+        bind: (now) => [item.resourceId, now],
+      };
+    case 'outbox_entry':
+      return {
+        table: 'outbox',
+        predicate: "id = ? AND dispatch_state = 'dead'",
+        bind: () => [item.resourceId],
+      };
+    case 'quality_run':
+      return {
+        table: 'quality_runs',
+        predicate: "id = ? AND state NOT IN ('queued','awaiting_runner','running')",
+        bind: () => [item.resourceId],
+      };
+    case 'cleanup_preview':
+      return {
+        table: 'cleanup_runs',
+        predicate: "id = ? AND state = 'preview'",
+        bind: () => [item.resourceId],
+      };
+    default:
+      return null;
+  }
+}
+
+/* ------------------------------------------------------------------ campaigns */
+
+const CAMPAIGN_COLUMNS = `SELECT id, provider, external_id, state, approved_payload_hash, approval_id,
+        packet_json, budget_minor, currency, starts_at, ends_at, last_sync_at, last_sync_error,
+        created_at, updated_at
+   FROM campaigns`;
+
+interface CampaignRow {
+  readonly id: string;
+  readonly provider: string;
+  readonly external_id: string | null;
+  readonly state: string;
+  readonly approved_payload_hash: string | null;
+  readonly approval_id: string | null;
+  readonly packet_json: string;
+  readonly budget_minor: number;
+  readonly currency: string;
+  readonly starts_at: string | null;
+  readonly ends_at: string | null;
+  readonly last_sync_at: string | null;
+  readonly last_sync_error: string | null;
+  readonly created_at: string;
+  readonly updated_at: string;
+}
+
+/**
+ * A stored packet, or null when it cannot be read.
+ *
+ * Null rather than a partially-built object on purpose: a packet we cannot parse is a
+ * packet we cannot hash, and a campaign whose packet cannot be hashed can never be
+ * activated. Guessing the missing fields would produce a hash for something nobody
+ * approved.
+ */
+function parsePacket(json: string): CampaignPacket | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(json);
+  } catch {
+    return null;
+  }
+  if (parsed === null || typeof parsed !== 'object') return null;
+  const p = parsed as Partial<CampaignPacket>;
+  if (
+    typeof p.platform !== 'string' ||
+    !Number.isSafeInteger(p.budget_minor) ||
+    typeof p.currency !== 'string' ||
+    p.audience === undefined ||
+    p.creative === undefined ||
+    p.destination === undefined ||
+    p.duration === undefined ||
+    p.bidding === undefined
+  ) {
+    return null;
+  }
+  return p as CampaignPacket;
+}
+
+/** The CHECK constraint restated in the type system. An unknown state is `unknown`. */
+function toCampaignState(value: string): CampaignState {
+  return (CAMPAIGN_STATE as readonly string[]).includes(value)
+    ? (value as CampaignState)
+    : 'unknown';
 }
 
 /* -------------------------------------------------------------------------- */

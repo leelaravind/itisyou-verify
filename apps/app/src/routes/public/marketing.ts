@@ -9,6 +9,7 @@ import {
   ACTIVATION_UNAVAILABLE_REASON,
   ACTIVATION_UNAVAILABLE_WHEN,
   ActivationNotice,
+  ProviderProofNotice,
   Button,
   ButtonRow,
   UnavailableAction,
@@ -37,6 +38,22 @@ import {
   iconArrow,
 } from '@verify/ui';
 import { LIMITS } from '@verify/contracts';
+/*
+ * A06's approved policy, imported rather than restated.
+ *
+ * The founder's requirement was that the payment-recovery window is *displayed before
+ * checkout, not discovered afterwards*. A06 built `preCheckoutPanel()` for exactly that and
+ * A05 renders it on `/app/onboarding/review` — a page behind a session nobody can currently
+ * obtain. So on the one page a prospective customer can actually read, the price, the
+ * renewal terms, the cancellation terms and the tax treatment were all disclosed, and what
+ * happens when a payment fails was not.
+ *
+ * `policy.ts` is pure: it reads no request, no clock and no binding, so importing it into a
+ * public page adds nothing to a page that must stay safe to serve anonymously. Every number
+ * and sentence below comes from the constant; nothing here is retyped, so a change to the
+ * approved policy changes this page or fails CUST-334.
+ */
+import { PAYMENT_RECOVERY_POLICY } from '../../billing/policy.js';
 import { FaqAll, FaqList, findFaq } from './faq.js';
 import { TodoOwnerInput } from './todo.js';
 
@@ -58,6 +75,11 @@ export function HowItWorksPage(): Html {
       'This page is the long version. Nothing here is a summary of a feature we have not built — if a step sounds like work, it is work.',
     )}
 
+    <!-- Before the steps, not after them. Step 1 and step 3 are both "we read your
+         provider back"; a reader must not finish those sentences and only then learn how
+         that has been proven. -->
+    ${ProviderProofNotice()}
+
     <ol class="steps">
       ${HOME_HOW_IT_WORKS.map(
         (step) => html`<li>
@@ -70,12 +92,15 @@ export function HowItWorksPage(): Html {
     <section class="stack">
       <h2>What you need before day one</h2>
       <p class="small muted measure">${findFaq('what-do-i-need-before-starting').answer}</p>
+      <!-- The answer above used to end "see our onboarding guide for the exact steps",
+           and this callout existed to contradict it. The answer itself now says there is
+           no guide, so the correction only has to say where the instructions are. -->
       ${Callout({
         tone: 'limit',
-        title: 'There is no onboarding guide published yet',
+        title: 'This page is the guide',
         body: html`<p>
-          The setup steps above are complete as far as they go, but the step-by-step guide the answer
-          refers to has not been written. Until it is, treat this page as the full instructions and ask
+          There is no separate step-by-step onboarding document, and we would rather say so than link
+          to one that does not exist. The steps above are the full instructions as far as they go; ask
           us if a step is unclear.
         </p>`,
       })}
@@ -129,6 +154,46 @@ export function HowItWorksPage(): Html {
 
 /* ---------------------------------------------------------------------- pricing */
 
+/**
+ * What happens if a payment fails — on the page a buyer reads before deciding.
+ *
+ * Rendered as an ordinary section, not behind a `<details>`: a policy a customer has to
+ * open to find is one they will meet for the first time when their card has already
+ * failed, which is the thing the founder asked us not to do.
+ *
+ * Every sentence comes from `PAYMENT_RECOVERY_POLICY`. The heading is the only prose
+ * written here, and it carries no number.
+ */
+function PaymentRecoveryDisclosure(): Html {
+  const policy = PAYMENT_RECOVERY_POLICY;
+  return html`<section class="stack" data-payment-recovery>
+    <h2>If a payment fails</h2>
+    <p class="measure">${policy.headline}</p>
+    <div class="grid grid-2">
+      ${Card({
+        title: 'What pauses',
+        headingLevel: 3,
+        body: html`<ul class="stack-sm small muted">
+          ${policy.whatPauses.map((line) => html`<li>${line}</li>`)}
+        </ul>`,
+      })}
+      ${Card({
+        title: 'What keeps working',
+        headingLevel: 3,
+        body: html`<ul class="stack-sm small muted">
+          ${policy.whatStaysAvailable.map((line) => html`<li>${line}</li>`)}
+        </ul>`,
+      })}
+    </div>
+    ${Callout({
+      tone: 'limit',
+      title: `After ${policy.graceDays} days`,
+      body: html`<p>${policy.afterWindow}</p>
+        <p>${policy.dataHandling}</p>`,
+    })}
+  </section>`;
+}
+
 export function PricingPage(): Html {
   return html`<div class="wrap section stack-lg">
     ${pageHead(
@@ -136,8 +201,6 @@ export function PricingPage(): Html {
       'One plan, one workflow, no overage',
       'The price is the price. If you use the whole allowance we stop accepting events rather than billing you more.',
     )}
-
-    ${ActivationNotice()}
 
     ${ActivationNotice()}
 
@@ -173,6 +236,8 @@ export function PricingPage(): Html {
         ${Callout({ tone: 'limit', title: 'Tax', body: html`<p>${PLAN_TAXES_NOTE}</p>` })}
       </div>
     </div>
+
+    ${PaymentRecoveryDisclosure()}
 
     <section class="stack">
       <h2>Pricing questions</h2>
@@ -211,6 +276,8 @@ export function SecurityPage(): Html {
         })}
       </p>`,
     })}
+
+    ${ProviderProofNotice()}
 
     <section class="stack">
       <h2>The data flow, end to end</h2>

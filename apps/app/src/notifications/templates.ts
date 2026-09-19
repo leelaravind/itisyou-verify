@@ -23,16 +23,32 @@
  * ## Reachability — read this before trusting anything below
  *
  * Audited 2026-09-19 with the question that matters: not "is this implemented" but **does
- * a real request or a real scheduled tick reach it**. The answer today is that **no
- * template in this file has a live send path**.
+ * a real request or a real scheduled tick reach it**. The answer then was that **no
+ * template in this file had a live send path**: `handleStripeEvent` built a
+ * `payment_problem` notification and returned it in `outcome.notifications`, which
+ * `routes/webhooks/stripe.ts` logged and discarded, and the other eleven had no caller at
+ * all.
  *
- * `payment_problem` comes closest and still does not arrive. The Stripe webhook route is
- * mounted, a signed `invoice.payment_failed` reaches `handleStripeEvent`, and that builds
- * a `payment_problem` notification — and then returns it in `outcome.notifications`,
- * which `routes/webhooks/stripe.ts` logs and discards. Nothing calls `sendNotification`.
- * The other eleven have no caller at all.
+ * Re-audited 2026-09-19 (A06b), after wiring. **Two of the twelve are now reached**, and
+ * both are covered by tests that start at the entry point rather than at a template:
  *
- * So the words here are correct and unreached. That is not an argument for leaving a
+ *  - `payment_problem` — a signed `invoice.payment_failed` to
+ *    `POST /api/v1/webhooks/stripe/:opaqueId` (stage `paused`), and the day-8 recovery
+ *    sweep inside `handleScheduled` (stage `suspended`). See
+ *    `tests/integration/support/notification-wiring.test.ts`, CUST-360 and CUST-367.
+ *  - `cancellation_confirmed` — `customer.subscription.updated` carrying
+ *    `cancel_at_period_end`, or `customer.subscription.deleted`, through the same route.
+ *    Both map to one key, so one cancellation sends one message. CUST-364.
+ *
+ * **The other ten still have no triggering event.** `sign_in_link` is the one that costs
+ * the most: `issueSignInToken` mints a token the owner path never emails, and the customer
+ * path refuses outright and says so. `welcome`, `data_export_ready`, `deletion_scheduled`,
+ * `deletion_completed`, `allowance_approaching`, `allowance_reached`,
+ * `first_material_failure`, `recovery` and `provider_disconnected` are each waiting on the
+ * path that owns the event, not on this file. None of them is dead code; every one is a
+ * missing wire, and the list is in A06b's handoff with the owner named.
+ *
+ * So the words here are correct, and ten of them are unreached. That is not an argument for leaving a
  * false sentence in one — a template ships the moment somebody wires it, and the wiring
  * change is the one nobody re-reads the copy during. It *is* an argument against writing
  * a qualification into a template to describe a gap in its own delivery: a message that
@@ -396,13 +412,21 @@ const paymentProblem: Renderer<'payment_problem'> = (vars) =>
       //
       // REMOVE THIS QUALIFICATION only when ALL of the following are true, verified
       // against the deployed candidate rather than the source tree:
-      //   1. the scheduler tick actually calls the billing maintenance pass (today
-      //      `handleScheduled` calls `runRetentionPass` and nothing billing-related);
+      //   1. the scheduler tick actually calls the billing maintenance pass;
       //   2. a confirmed payment observed only by that scheduled read — no webhook —
       //      moves a `past_due` subscription back to serving;
       //   3. the auditor has reproduced that against the deployed candidate.
       // Not on my say-so, not on the lead's, and not on A06's. The standard it keeps —
       // confirmed, never a retry or a promise to pay — must survive the rewrite.
+      //
+      // STATUS 2026-09-19 (A06b): **condition 1 is now met and 2 and 3 are not.**
+      // `handleScheduled` calls `runBillingNotificationTick`, which calls
+      // `runBillingMaintenance`, which runs `reconcileSubscriptions` every fifteenth
+      // minute — proven from the tick entry point by CUST-367. Condition 2 has no test
+      // that drives a resume through the scheduled read alone, and condition 3 cannot be
+      // met by anyone who has not deployed. **So the sentence stays.** Meeting one of
+      // three conditions is not meeting the condition, and the paragraph below is the
+      // thing standing between a paused customer and a silent wait.
       'Checking starts again once a confirmed payment reaches us. Not a retry and not a promise to pay — a payment that has actually gone through. We are still finishing the automatic check for this, so if it feels slow after you have paid, contact us and we will sort it out by hand.',
       'Card details are handled entirely by the payment provider. We never see them, and we cannot update them for you.',
     ],

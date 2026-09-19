@@ -23,7 +23,10 @@ import { DemoPage } from '../../../apps/app/src/routes/public/demo.js';
 import { HowItWorksPage, PricingPage } from '../../../apps/app/src/routes/public/marketing.js';
 import { CompatibilityPage, ReviewPage } from '../../../apps/app/src/routes/app/onboardingPages.js';
 import { WorkspacePage } from '../../../apps/app/src/routes/app/workspacePage.js';
-import { SyntheticCustomerDataPort, resetSyntheticState } from '../../../apps/app/src/routes/app/syntheticPort.js';
+import {
+  SyntheticCustomerDataPort,
+  resetSyntheticState,
+} from '../../../apps/app/src/routes/app/syntheticPort.js';
 
 function text(markup: string): string {
   return markup
@@ -65,6 +68,10 @@ describe('the service activation notice', () => {
     expect(noticeAt).toBeGreaterThan(-1);
     expect(firstCta).toBeGreaterThan(-1);
     expect(noticeAt).toBeLessThan(firstCta);
+    // Exactly once. A banner rendered twice reads as a page that has lost track of itself,
+    // and a doubled warning is easier to dismiss than a single one. This caught a real
+    // duplicate introduced while wiring it in.
+    expect((markup.match(/data-activation-notice/g) ?? []).length).toBe(1);
   });
 
   it('CUST-122 the pricing page carries it, and it is not behind a disclosure control', async () => {
@@ -78,12 +85,14 @@ describe('the service activation notice', () => {
     const noticeAt = markup.indexOf('data-activation-notice');
     const enclosing = markup.lastIndexOf('callout--', noticeAt);
     expect(markup.slice(enclosing, enclosing + 20)).toContain('callout--warn');
+    expect((markup.match(/data-activation-notice/g) ?? []).length).toBe(1);
   });
 
   it('CUST-123 the onboarding entry point carries it too', async () => {
     const markup = await compatibility();
     expect(text(markup)).toContain(collapse(SERVICE_ACTIVATION_NOTICE.headline));
     expect(text(markup)).toContain(collapse(SERVICE_ACTIVATION_NOTICE.body));
+    expect((markup.match(/data-activation-notice/g) ?? []).length).toBe(1);
   });
 
   it('CUST-124 the notice names each gap rather than apologising in general terms', async () => {
@@ -197,7 +206,10 @@ describe('the pre-checkout disclosure', () => {
         expect(block, section.id).toContain('<li>');
       } else {
         expect(block, section.id).toContain('<p');
-        expect(block.slice(0, block.indexOf('data-disclosure-section', 1) + 1), section.id).not.toContain('<li>');
+        expect(
+          block.slice(0, block.indexOf('data-disclosure-section', 1) + 1),
+          section.id,
+        ).not.toContain('<li>');
       }
     }
     // The seven A06 named, in that order.

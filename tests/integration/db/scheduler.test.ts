@@ -106,10 +106,20 @@ describe('scheduler', () => {
   it('PERSIST-145 a stale revision cannot claim', async () => {
     seedRun(h, ws, 'run_1', { nextCheckAt: '2026-09-19T10:00:00.000Z', revision: 3 });
     expect(
-      await runs.tryClaim(h.db, { runId: 'run_1', expectedRevision: 2, now: NOW, leaseUntil: LEASE_UNTIL }),
+      await runs.tryClaim(h.db, {
+        runId: 'run_1',
+        expectedRevision: 2,
+        now: NOW,
+        leaseUntil: LEASE_UNTIL,
+      }),
     ).toBe(false);
     expect(
-      await runs.tryClaim(h.db, { runId: 'run_1', expectedRevision: 3, now: NOW, leaseUntil: LEASE_UNTIL }),
+      await runs.tryClaim(h.db, {
+        runId: 'run_1',
+        expectedRevision: 3,
+        now: NOW,
+        leaseUntil: LEASE_UNTIL,
+      }),
     ).toBe(true);
   });
 

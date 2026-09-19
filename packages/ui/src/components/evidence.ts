@@ -127,6 +127,29 @@ export function meterFillClass(percentage: number | null): string {
   return `meter__fill meter__fill--${String(Math.floor(clamped / 5) * 5)}`;
 }
 
+/**
+ * A proportion as a whole-number percentage that **never rounds up**.
+ *
+ * `meterFillClass` fixed the bar and left the arithmetic alone, which turned out to be half
+ * the defect. Every caller still reached for `Math.round`, so 499 of 500 runs used — 99.8% —
+ * became the integer 100, and 100 selects `meter__fill--100`: a bar drawn completely full
+ * for an allowance that is not spent, with an accessible name saying "100 per cent" to
+ * anyone listening rather than looking. Same lie as the original bug, one layer up.
+ *
+ * Use this anywhere a ratio becomes a figure a customer reads. It floors, so the number and
+ * the bar agree and both err mean; 100 is returned only when the ratio genuinely reaches
+ * one, so rounding down never becomes "the bar can never finish". A zero or negative
+ * denominator is 0, not a division by zero and not a fabricated 100.
+ */
+export function percentFloor(numerator: number, denominator: number): number {
+  if (!Number.isFinite(numerator) || !Number.isFinite(denominator)) return 0;
+  if (denominator <= 0) return 0;
+  const raw = (numerator / denominator) * 100;
+  if (raw >= 100) return 100;
+  if (raw <= 0) return 0;
+  return Math.floor(raw);
+}
+
 /** Structurally satisfied by `summariseWorkflowHealth()`. */
 export interface WorkflowHealthLike {
   readonly state: string;

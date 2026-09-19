@@ -3,6 +3,7 @@ export {
   ACTIVATION_UNAVAILABLE_REASON,
   ACTIVATION_UNAVAILABLE_WHEN,
   ActivationNotice,
+  ProviderProofNotice,
   UnavailableAction,
   type UnavailableActionOptions,
 } from './activation.js';
@@ -42,6 +43,7 @@ export {
   iconCross,
   iconDash,
   iconExternal,
+  iconLimit,
   glyphFor,
   type GlyphName,
 } from './icons.js';
@@ -54,6 +56,7 @@ export {
   NextStep,
   RunVerdict,
   meterFillClass,
+  percentFloor,
   StandingLimitations,
   type AssertionExplanationLike,
   type AssertionRowOptions,

@@ -76,7 +76,9 @@ interface Harness {
   post(path: string, fields?: Record<string, string>): Promise<Response>;
 }
 
-function mount(options: { port?: MemoryOwnerDataPort; artifacts?: D1QualityArtifactStore } = {}): Harness {
+function mount(
+  options: { port?: MemoryOwnerDataPort; artifacts?: D1QualityArtifactStore } = {},
+): Harness {
   const port =
     options.port ??
     new MemoryOwnerDataPort({
@@ -127,9 +129,8 @@ function seedApproval(id: string, hash: string): void {
 }
 
 function approvalRow(id: string): { status: string; consumed_at: string | null } | undefined {
-  return h.raw
-    .prepare('SELECT status, consumed_at FROM approvals WHERE id = ?')
-    .get(id) as { status: string; consumed_at: string | null } | undefined;
+  return h.raw.prepare('SELECT status, consumed_at FROM approvals WHERE id = ?').get(id) as
+    { status: string; consumed_at: string | null } | undefined;
 }
 
 const REFUND_FORM = {
@@ -228,7 +229,11 @@ describe('a real request reaches the approval compare-and-set', () => {
       {
         method: 'POST',
         body: new URLSearchParams({ csrf_token: CSRF, ...REFUND_FORM, approval_id: id }).toString(),
-        headers: { cookie: `verify_csrf=${CSRF}`, origin: ORIGIN, 'content-type': 'application/x-www-form-urlencoded' },
+        headers: {
+          cookie: `verify_csrf=${CSRF}`,
+          origin: ORIGIN,
+          'content-type': 'application/x-www-form-urlencoded',
+        },
       },
       ENV,
     );
@@ -301,7 +306,11 @@ describe('a real request reaches the evidence pack', () => {
       '/',
       createOwnerRoutes({ now: () => NOW, artifacts: new D1QualityArtifactStore(h.db) }),
     );
-    const response = await anonymous.request(`${ORIGIN}/owner/quality/report/test-report.md`, {}, ENV);
+    const response = await anonymous.request(
+      `${ORIGIN}/owner/quality/report/test-report.md`,
+      {},
+      ENV,
+    );
     expect(response.status).toBe(404);
     expect(await response.text()).not.toContain('2026 passed');
   });

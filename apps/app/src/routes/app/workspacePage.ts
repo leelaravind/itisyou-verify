@@ -11,7 +11,10 @@ import {
   ACTIVATION_UNAVAILABLE_REASON,
   ACTIVATION_UNAVAILABLE_WHEN,
   UnavailableAction,
+  Button,
   Card,
+  EmptyState,
+  LoadingState,
   CoverageNotice,
   HealthReadout,
   InactivityNotice,
@@ -20,6 +23,7 @@ import {
   Table,
   attrs,
   html,
+  percentFloor,
   safeHref,
   type Html,
   type StatusKey,
@@ -93,10 +97,38 @@ export function WorkspacePage(options: WorkspacePageOptions): Html {
     now: options.now,
   });
   const coverage = describeCoverage({ coverage_mode: workflow.coverageMode });
-  const usedPercent = Math.round((options.usage.runsUsed / options.usage.runsIncluded) * 100);
+  // Floored, never rounded: 499 of 500 is 99%, not 100%. This figure and the meter on
+  // /app/usage are the same proportion, so they must round the same way or the summary
+  // here contradicts the detail there.
+  const usedPercent = percentFloor(options.usage.runsUsed, options.usage.runsIncluded);
 
   return html`<div class="wrap section stack-lg">
     ${pageHead({ eyebrow: 'Workspace', title: workflow.name })}
+
+    ${
+      /*
+       * The not-yet-settled state, and it is a real page state rather than a spinner.
+       *
+       * `awaiting_first_result` is A03's own name for "runs have arrived and none has
+       * reached a terminal status" — every one is still inside its completion window. Left
+       * unsaid, that renders as a table of clock badges and a rate card with no number,
+       * which invites a customer to conclude the product is stuck. It is not: this service
+       * checks evidence on a schedule, so waiting is the design working.
+       *
+       * It removes itself the moment anything is decided, because then there is a figure to
+       * read and a panel saying "still looking" beside it would say two things at once.
+       */
+      health.state === 'awaiting_first_result'
+        ? LoadingState({
+            title: 'Still checking',
+            body:
+              `${String(health.total_runs)} ${health.total_runs === 1 ? 'run is' : 'runs are'} inside the ` +
+              `agreed completion window, so none of them has an answer yet. We check evidence on a schedule ` +
+              `rather than instantly, and a result can take up to an hour to settle. Nothing here has failed, ` +
+              `and nothing here has passed.`,
+          })
+        : null
+    }
 
     <div class="health">
       ${Card({ title: 'Verification rate', headingLevel: 2, body: HealthReadout(health) })}
@@ -112,6 +144,26 @@ export function WorkspacePage(options: WorkspacePageOptions): Html {
       body: Table({
         caption: 'The most recent runs in this workspace',
         captionHidden: true,
+        /*
+         * This is the first thing a new customer sees, and at that moment the list is
+         * empty by definition. Without this branch the card drew four column headers over
+         * an empty body — a panel that reads like a table which failed to load rather
+         * than a workspace that has not started. The wording is deliberately the same
+         * argument /app/runs makes: no runs is not a pass.
+         */
+        empty: EmptyState({
+          title: 'No runs received yet',
+          body:
+            'Nothing has reached us for this workflow. That is not a pass — an empty workspace is not a ' +
+            'verified one. If you expected enquiries by now, your automation may not be sending us events.',
+          actions: [
+            Button({
+              label: 'Check your setup',
+              href: '/app/onboarding/compatibility',
+              variant: 'quiet',
+            }),
+          ],
+        }),
         columns: [
           {
             key: 'status',
@@ -163,7 +215,17 @@ export function WorkspacePage(options: WorkspacePageOptions): Html {
         <dt>Completion window</dt>
         <dd>${formatDuration(workflow.deadlineSeconds)}</dd>
         <dt>Correlation property</dt>
-        <dd>${workflow.mapping.correlationProperty}</dd>
+        <!-- An empty value is a blank state in miniature: a label with nothing after it reads
+             as a figure that failed to load rather than a setting that has not been made.
+             The port returns '' when the stored rules carry no correlation property — a
+             workflow that has not reached the mapping step, or whose rules would not parse. -->
+        <dd>
+          ${
+            workflow.mapping.correlationProperty === ''
+              ? html`<span class="muted">Not set — nothing can be matched back to an enquiry yet</span>`
+              : workflow.mapping.correlationProperty
+          }
+        </dd>
       </dl>`,
     })}
 

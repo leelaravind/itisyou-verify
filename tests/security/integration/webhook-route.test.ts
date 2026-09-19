@@ -28,15 +28,7 @@ import {
   type BillingHarness,
 } from '../../integration/billing/harness';
 
-const ROUTE_SOURCE = join(
-  process.cwd(),
-  'apps',
-  'app',
-  'src',
-  'routes',
-  'webhooks',
-  'stripe.ts',
-);
+const ROUTE_SOURCE = join(process.cwd(), 'apps', 'app', 'src', 'routes', 'webhooks', 'stripe.ts');
 
 /** Only `OPAQUE_ID` is a real endpoint. Everything else is unknown. */
 function route(harness: BillingHarness) {
@@ -107,7 +99,11 @@ describe('Stripe webhook route: the unknown-endpoint path', () => {
     const harness = createHarness();
     const event = anEvent(harness);
 
-    const wrongSecret = await signedDelivery(event, harness.at(), ['whsec', 'definitely', 'not', 'the', 'secret'].join('_'));
+    const wrongSecret = await signedDelivery(
+      event,
+      harness.at(),
+      ['whsec', 'definitely', 'not', 'the', 'secret'].join('_'),
+    );
     const unknownEndpoint = await signedDelivery(event, harness.at(), WEBHOOK_SECRET);
 
     const a = await route(harness).request(`/api/v1/webhooks/stripe/${OPAQUE_ID}`, {
@@ -286,7 +282,11 @@ describe('Stripe webhook route: signing key hygiene', () => {
     const app = createStripeWebhookRoute({
       ...harness,
       resolveEndpointSecret: async (id) =>
-        id === 'wh_endpoint_a' ? 'whsec_secret_a_0000' : id === 'wh_endpoint_b' ? 'whsec_secret_b_0000' : null,
+        id === 'wh_endpoint_a'
+          ? 'whsec_secret_a_0000'
+          : id === 'wh_endpoint_b'
+            ? 'whsec_secret_b_0000'
+            : null,
     });
     const event = anEvent(harness);
     const timestamp = Math.floor(Date.parse(harness.at()) / 1000);

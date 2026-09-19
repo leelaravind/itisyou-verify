@@ -13,13 +13,17 @@ describe('harness', () => {
       expect(row?.run_limit).toBe(500);
 
       const upd = await h.db
-        .prepare('UPDATE entitlements SET reserved = reserved + 1 WHERE workspace_id = ? AND run_limit >= 1')
+        .prepare(
+          'UPDATE entitlements SET reserved = reserved + 1 WHERE workspace_id = ? AND run_limit >= 1',
+        )
         .bind(ws.workspaceId)
         .run();
       expect(upd.meta.changes).toBe(1);
 
       const noop = await h.db
-        .prepare('UPDATE entitlements SET reserved = reserved + 1 WHERE workspace_id = ? AND run_limit >= 99999')
+        .prepare(
+          'UPDATE entitlements SET reserved = reserved + 1 WHERE workspace_id = ? AND run_limit >= 99999',
+        )
         .bind(ws.workspaceId)
         .run();
       expect(noop.meta.changes).toBe(0);
@@ -35,8 +39,12 @@ describe('harness', () => {
 
       await expect(
         h.db.batch([
-          h.db.prepare('INSERT INTO settings (key, value_json, updated_at) VALUES (?, ?, ?)').bind('a', '{}', 'x'),
-          h.db.prepare('UPDATE entitlements SET reserved = NULL WHERE workspace_id = ?').bind(ws.workspaceId),
+          h.db
+            .prepare('INSERT INTO settings (key, value_json, updated_at) VALUES (?, ?, ?)')
+            .bind('a', '{}', 'x'),
+          h.db
+            .prepare('UPDATE entitlements SET reserved = NULL WHERE workspace_id = ?')
+            .bind(ws.workspaceId),
         ]),
       ).rejects.toThrow(/NOT NULL/i);
 

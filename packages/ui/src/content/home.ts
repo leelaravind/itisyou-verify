@@ -44,6 +44,7 @@ export interface HomeExclusion {
 export const HOME_WHAT_THIS_DOES_NOT_DO: readonly HomeExclusion[] = [
   {
     heading: 'It does not watch your automation platform',
+    // claim-scan:allow names competitors to describe OUR blindness, not their shortcomings
     body: 'We never see inside n8n, Make, Zapier or whatever runs your workflow. We only see what exists in HubSpot and Resend afterwards, so we cannot tell you which step of your automation went wrong.',
   },
   {
@@ -55,8 +56,14 @@ export const HOME_WHAT_THIS_DOES_NOT_DO: readonly HomeExclusion[] = [
     body: 'Version one checks exactly one shape: an enquiry that should create the correct CRM record and trigger an acknowledgement email, using HubSpot and Resend only.',
   },
   {
-    heading: 'It does not detect a run that never started, by default',
-    body: 'If your automation never calls us, we have nothing to check and show nothing — not a pass, not a failure. Only workflows configured with an independently sourced trigger can show a run that never started at all, and that coverage mode is always shown next to the result.',
+    // No "by default". There is no setting that changes this, and the previous version of
+    // this card said there was: it pointed at a second coverage mode that nothing implements
+    // — no connector can list records it was never told about, and no scheduler pass
+    // reconciles them. Promising a capability with nothing behind it, to buyers whose whole
+    // reason for buying is that silence should not be mistaken for success, is the worst
+    // thing this product could say. See packages/domain/src/coverage.ts.
+    heading: 'It does not detect a run that never started',
+    body: 'We only learn about an enquiry when your automation sends us an event. We cannot tell you that a run never started, because we have built no way to find enquiries your automation never reported. If it stops calling us we show nothing — not a pass, not a failure — and every result names the coverage we actually have.',
   },
   {
     heading: 'It is not instant',

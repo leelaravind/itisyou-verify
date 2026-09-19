@@ -43,9 +43,7 @@ export interface StubGateway extends BillingGatewayPort {
   failNext(method: keyof BillingGatewayPort, error: unknown): void;
 }
 
-export function createStubGateway(
-  options: { readonly livemode?: boolean } = {},
-): StubGateway {
+export function createStubGateway(options: { readonly livemode?: boolean } = {}): StubGateway {
   const livemode = options.livemode ?? false;
   const calls: GatewayCall[] = [];
   const subscriptions = new Map<string, GatewaySubscription>();
@@ -217,16 +215,18 @@ export function stripeEvent(
 }
 
 /** A subscription object in the **current** shape: period end lives on the item. */
-export function subscriptionObject(overrides: {
-  readonly id?: string;
-  readonly status?: string;
-  readonly customer?: string;
-  readonly priceId?: string;
-  readonly currentPeriodEnd?: number;
-  readonly cancelAtPeriodEnd?: boolean;
-  readonly livemode?: boolean;
-  readonly workspaceId?: string;
-} = {}): Record<string, unknown> {
+export function subscriptionObject(
+  overrides: {
+    readonly id?: string;
+    readonly status?: string;
+    readonly customer?: string;
+    readonly priceId?: string;
+    readonly currentPeriodEnd?: number;
+    readonly cancelAtPeriodEnd?: boolean;
+    readonly livemode?: boolean;
+    readonly workspaceId?: string;
+  } = {},
+): Record<string, unknown> {
   return {
     id: overrides.id ?? 'sub_live_1',
     object: 'subscription',
@@ -255,14 +255,16 @@ export function subscriptionObject(overrides: {
 }
 
 /** An invoice in the current shape: the subscription hangs off `parent`. */
-export function invoiceObject(overrides: {
-  readonly id?: string;
-  readonly customer?: string;
-  readonly subscriptionId?: string | null;
-  readonly billingReason?: string;
-  readonly periodStart?: number;
-  readonly amountPaid?: number;
-} = {}): Record<string, unknown> {
+export function invoiceObject(
+  overrides: {
+    readonly id?: string;
+    readonly customer?: string;
+    readonly subscriptionId?: string | null;
+    readonly billingReason?: string;
+    readonly periodStart?: number;
+    readonly amountPaid?: number;
+  } = {},
+): Record<string, unknown> {
   const periodStart = overrides.periodStart ?? 1_797_908_000;
   return {
     id: overrides.id ?? 'in_1',
@@ -290,10 +292,9 @@ export function invoiceObject(overrides: {
   };
 }
 
-export function chargeRefundedObject(refunds: readonly Record<string, unknown>[]): Record<
-  string,
-  unknown
-> {
+export function chargeRefundedObject(
+  refunds: readonly Record<string, unknown>[],
+): Record<string, unknown> {
   return {
     id: 'ch_1',
     object: 'charge',

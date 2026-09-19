@@ -30,7 +30,11 @@ import { JOB_STATE } from '@verify/contracts';
 
 const AT = '2026-09-19T12:00:00.000Z';
 
-const AVAILABLE: ExecutorAvailability = { executor: 'github_actions', available: true, reason: null };
+const AVAILABLE: ExecutorAvailability = {
+  executor: 'github_actions',
+  available: true,
+  reason: null,
+};
 const UNAVAILABLE: ExecutorAvailability = {
   executor: 'local_runner',
   available: false,
@@ -59,7 +63,13 @@ function deps(options: { availability: ExecutorAvailability; existing?: QualityR
   };
 }
 
-const REQUEST = { suiteId: 'unit', environment: 'staging', commitSha: 'abc123', requestedBy: 'usr_owner', at: AT };
+const REQUEST = {
+  suiteId: 'unit',
+  environment: 'staging',
+  commitSha: 'abc123',
+  requestedBy: 'usr_owner',
+  at: AT,
+};
 
 describe('quality centre', () => {
   it('OWNER-060 a suite id outside the allowlist is rejected', async () => {
@@ -157,7 +167,11 @@ describe('quality centre', () => {
   it('OWNER-070 the dedupe key is stable across calls and varies with the environment', async () => {
     const a = await qualityDedupeKey({ suiteId: 'unit', environment: 'staging', commitSha: 'x' });
     const b = await qualityDedupeKey({ suiteId: 'unit', environment: 'staging', commitSha: 'x' });
-    const c = await qualityDedupeKey({ suiteId: 'unit', environment: 'production', commitSha: 'x' });
+    const c = await qualityDedupeKey({
+      suiteId: 'unit',
+      environment: 'production',
+      commitSha: 'x',
+    });
     expect(a).toBe(b);
     expect(a).not.toBe(c);
   });
@@ -176,7 +190,14 @@ describe('quality centre', () => {
   it('OWNER-072 only passed and failed are treated as verdicts about the code', () => {
     expect(stateIsVerdict('passed')).toBe(true);
     expect(stateIsVerdict('failed')).toBe(true);
-    for (const state of ['queued', 'awaiting_runner', 'running', 'cancelled', 'timed_out', 'infrastructure_error'] as const) {
+    for (const state of [
+      'queued',
+      'awaiting_runner',
+      'running',
+      'cancelled',
+      'timed_out',
+      'infrastructure_error',
+    ] as const) {
       expect(stateIsVerdict(state)).toBe(false);
     }
   });

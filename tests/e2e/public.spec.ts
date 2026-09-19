@@ -4,9 +4,13 @@
 import { expect, test } from '@playwright/test';
 
 test.describe('public journey', () => {
-  test('CUST-067 the home page says what the product does and what it does not, without scrolling past the fold for the first', async ({ page }) => {
+  test('CUST-067 the home page says what the product does and what it does not, without scrolling past the fold for the first', async ({
+    page,
+  }) => {
     await page.goto('/');
-    await expect(page.getByRole('heading', { level: 1 })).toContainText('Know whether your automation actually did the job.');
+    await expect(page.getByRole('heading', { level: 1 })).toContainText(
+      'Know whether your automation actually did the job.',
+    );
     // The exclusions are on the same page, not on a sub-page nobody visits.
     await expect(page.getByRole('heading', { name: 'What this does not do' })).toBeVisible();
     await expect(page.getByText('It does not fix anything')).toBeVisible();
@@ -22,18 +26,25 @@ test.describe('public journey', () => {
       ['Security', '/security', 'Where your data goes, and who else touches it'],
       ['Support', '/support', 'Answers first, then a person'],
     ] as const) {
-      await page.getByRole('navigation', { name: 'Primary' }).getByRole('link', { name: label, exact: true }).click();
+      await page
+        .getByRole('navigation', { name: 'Primary' })
+        .getByRole('link', { name: label, exact: true })
+        .click();
       await expect(page).toHaveURL(new RegExp(`${path}$`));
       await expect(page.getByRole('heading', { level: 1 })).toContainText(heading);
       await page.goto('/');
     }
   });
 
-  test('CUST-069 the demo shows one run of each of the four statuses, each with a text label', async ({ page }) => {
+  test('CUST-069 the demo shows one run of each of the four statuses, each with a text label', async ({
+    page,
+  }) => {
     await page.goto('/demo');
     for (const label of ['Verified', 'Failed', 'Unverified', 'Pending']) {
       await expect(page.locator(`[data-status="${label.toUpperCase()}"]`).first()).toBeVisible();
-      await expect(page.locator(`[data-status="${label.toUpperCase()}"]`).first()).toContainText(label);
+      await expect(page.locator(`[data-status="${label.toUpperCase()}"]`).first()).toContainText(
+        label,
+      );
     }
     await expect(page.locator('.synthetic__tag')).toHaveText('Synthetic workspace');
     await expect(page.getByRole('note')).toContainText('Synthetic data');
@@ -45,7 +56,9 @@ test.describe('public journey', () => {
     expect(await page.locator('input, textarea, select, button').count()).toBe(0);
   });
 
-  test('CUST-071 the demo shows the coverage limitation and the standing limitations as visible text', async ({ page }) => {
+  test('CUST-071 the demo shows the coverage limitation and the standing limitations as visible text', async ({
+    page,
+  }) => {
     await page.goto('/demo');
     const limitation = page.locator('[data-coverage-limitation]');
     await expect(limitation).toBeVisible();
@@ -54,7 +67,9 @@ test.describe('public journey', () => {
     expect(await page.locator('details').count()).toBe(0);
   });
 
-  test('CUST-072 the legal pages show every missing owner detail as a visible gap', async ({ page }) => {
+  test('CUST-072 the legal pages show every missing owner detail as a visible gap', async ({
+    page,
+  }) => {
     for (const path of ['/terms', '/privacy']) {
       await page.goto(path);
       await expect(page.locator('[data-todo-owner-input="registeredAddress"]')).toBeVisible();
@@ -63,9 +78,13 @@ test.describe('public journey', () => {
     }
   });
 
-  test('CUST-073 the status page publishes no uptime figure and no green tick', async ({ page }) => {
+  test('CUST-073 the status page publishes no uptime figure and no green tick', async ({
+    page,
+  }) => {
     await page.goto('/status');
-    await expect(page.getByText('We publish no uptime figure and no incident history')).toBeVisible();
+    await expect(
+      page.getByText('We publish no uptime figure and no incident history'),
+    ).toBeVisible();
     await expect(page.getByText(/all systems operational/i)).toHaveCount(0);
   });
 
@@ -99,14 +118,18 @@ test.describe('public journey', () => {
     expect(bodyLength).toBeGreaterThan(2000);
   });
 
-  test('CUST-075 an unknown address renders a real 404 page, not a bare string', async ({ page }) => {
+  test('CUST-075 an unknown address renders a real 404 page, not a bare string', async ({
+    page,
+  }) => {
     const response = await page.goto('/this-does-not-exist');
     expect(response?.status()).toBe(404);
     await expect(page.getByRole('heading', { level: 1 })).toContainText('That page does not exist');
     await expect(page.getByRole('link', { name: 'Back to the home page' })).toBeVisible();
   });
 
-  test('CUST-076 the skip link is the first thing a keyboard reaches and moves focus into main', async ({ page }) => {
+  test('CUST-076 the skip link is the first thing a keyboard reaches and moves focus into main', async ({
+    page,
+  }) => {
     await page.goto('/');
     await page.keyboard.press('Tab');
     const focused = page.locator(':focus');
@@ -116,7 +139,9 @@ test.describe('public journey', () => {
     await expect(page).toHaveURL(/#main$/);
   });
 
-  test('CUST-077 the dark palette follows the operating system preference with no JavaScript involved', async ({ browser }) => {
+  test('CUST-077 the dark palette follows the operating system preference with no JavaScript involved', async ({
+    browser,
+  }) => {
     const context = await browser.newContext({ colorScheme: 'dark', javaScriptEnabled: false });
     const page = await context.newPage();
     await page.goto('/');
@@ -125,20 +150,28 @@ test.describe('public journey', () => {
     await context.close();
   });
 
-  test('CUST-078 an explicit data-theme override beats the system preference in both directions', async ({ browser }) => {
+  test('CUST-078 an explicit data-theme override beats the system preference in both directions', async ({
+    browser,
+  }) => {
     const context = await browser.newContext({ colorScheme: 'dark' });
     const page = await context.newPage();
     await page.goto('/');
     await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'));
-    expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe('rgb(241, 244, 246)');
+    expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe(
+      'rgb(241, 244, 246)',
+    );
     await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
-    expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe('rgb(13, 18, 23)');
+    expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe(
+      'rgb(13, 18, 23)',
+    );
     await context.close();
   });
 
   test('CUST-079 every interactive element shows a visible focus ring', async ({ page }) => {
-    await page.goto('/pricing');
-    const link = page.getByRole('link', { name: 'Start setting this up' });
+    // Was the pricing page's sign-up call to action, which has been taken down while the
+    // activation path is closed. Uses a link that is not tied to that state.
+    await page.goto('/');
+    const link = page.getByRole('link', { name: 'See a worked example' }).first();
     await link.focus();
     const outline = await link.evaluate((element) => {
       const style = getComputedStyle(element);

@@ -19,7 +19,13 @@
 import { sha256Hex } from '@verify/security';
 import { getConnector, type ProviderId } from '@verify/connectors';
 import { runs, type DueRun } from '../db/runs';
-import { D1BillingDataPort } from '../db/billingPort';
+import { D1BillingDataPort, createBillingContactLookup } from '../db/billingPort';
+import { D1SupportDataPort } from '../db/supportPort';
+import {
+  runBillingNotificationTick,
+  type BillingNotificationTickReport,
+} from '../notifications/billingTick';
+import type { NotificationDelivery, DeliveryLog } from '../notifications/delivery';
 import type { SubscriptionPeriodSource } from '../billing/period';
 import type { Db } from '../db/d1';
 import { newId } from '../lib/ids';
@@ -70,6 +76,14 @@ export interface TickReport {
   };
   /** Set when the tick itself failed. The handler still resolves; the number is the signal. */
   readonly error: string | null;
+  /**
+   * The billing-maintenance and customer-notification pass.
+   *
+   * `undefined` from `runSchedulerTick`, which does not own it; populated by
+   * `handleScheduled`, which is the entry point the cron actually reaches. Optional so the
+   * scheduler's own tests and the operations view are unaffected by its presence.
+   */
+  readonly billing?: BillingNotificationTickReport | undefined;
 }
 
 export interface TickDeps {
@@ -316,6 +330,22 @@ export interface SchedulerEnv {
   readonly CREDENTIAL_KEY_V1?: string | undefined;
   /** Which Stripe world this deployment's subscriptions live in. Defaults to test. */
   readonly STRIPE_MODE?: string | undefined;
+
+  /* -- the billing-maintenance and notification pass ------------------------ *
+   *
+   * Optional and structural, all of them. The Worker's `Env` already satisfies this, and a
+   * deployment missing any Stripe secret skips the pass entirely rather than degrading:
+   * an unconfigured development Worker makes no provider call on its tick. See
+   * `notifications/billingTick.ts`.
+   */
+  readonly PUBLIC_BASE_URL?: string | undefined;
+  readonly STRIPE_SECRET_KEY?: string | undefined;
+  readonly STRIPE_PRICE_ID?: string | undefined;
+  readonly STRIPE_WEBHOOK_SECRET?: string | undefined;
+  readonly STRIPE_WEBHOOK_PATH_ID?: string | undefined;
+  readonly STRIPE_WEBHOOK_UNKNOWN_KEY?: string | undefined;
+  readonly RESEND_API_KEY?: string | undefined;
+  readonly RESEND_FROM_ADDRESS?: string | undefined;
 }
 
 export interface ScheduledOptions {
@@ -323,6 +353,18 @@ export interface ScheduledOptions {
   readonly now?: Date;
   readonly logger?: SchedulerLogger;
   readonly sweeper?: RetentionSweeper | undefined;
+  /**
+   * Where a customer notification produced by the billing pass is sent.
+   *
+   * Injected in tests so nothing builds a Resend client and nothing reaches the network.
+   * Omitted in production, where it is built from `RESEND_API_KEY` and
+   * `RESEND_FROM_ADDRESS`; absent those, every notification is still claimed and recorded
+   * as `no_email_transport_configured` rather than silently not happening.
+   */
+  readonly notifications?: NotificationDelivery | undefined;
+  readonly notificationLog?: DeliveryLog | undefined;
+  /** Run every billing job regardless of the minute. Tests and a manual owner trigger. */
+  readonly forceBillingMaintenance?: boolean | undefined;
 }
 
 /**
@@ -351,7 +393,7 @@ export async function handleScheduled(
         NOT_CONNECTED_RESOLVER
       : createD1CredentialResolver({ db, credentialKeyBase64: env.CREDENTIAL_KEY_V1 });
 
-  return runSchedulerTick({
+  const report = await runSchedulerTick({
     db,
     now,
     resolver,
@@ -362,6 +404,43 @@ export async function handleScheduled(
     ...(options.logger === undefined ? {} : { logger: options.logger }),
     ...(options.sweeper === undefined ? {} : { sweeper: options.sweeper }),
   });
+
+  // The fourth pass, and the one that had no caller at all.
+  //
+  // `billing/scheduled.ts` documents its own contract — "A03's tick calls
+  // `runBillingMaintenance(runtime, { now })` and does nothing else" — and nothing called
+  // it. So the seven-day payment-recovery window never reached day 8, no subscription was
+  // ever marked `unpaid`, and the notification telling a customer their verification is
+  // paused was built by a function with no caller. Last in the tick, deliberately: the
+  // product's own work comes first, and a billing pass that cannot run must not cost a
+  // due run its observation.
+  //
+  // Never throws. A configuration failure is a populated `failures` list, which is a
+  // number the operator can see; a rejection here would be a cron retry nobody asked for.
+  const billing = await runBillingNotificationTick({
+    // `BillingEnv` requires both of these as strings; `SchedulerEnv` has them optional
+    // because the scheduler itself needs neither. An empty `PUBLIC_BASE_URL` cannot
+    // produce a half-configured money path: `checkBillingSecrets` skips the whole pass
+    // when a Stripe secret is absent, and `buildBillingConfig` throws on an invalid base
+    // URL, which is caught and reported rather than acted on.
+    env: {
+      ...env,
+      ENVIRONMENT: env.ENVIRONMENT ?? 'development',
+      PUBLIC_BASE_URL: env.PUBLIC_BASE_URL ?? '',
+    },
+    billingData: new D1BillingDataPort(db),
+    supportPort: new D1SupportDataPort(db),
+    billingContact: createBillingContactLookup(db),
+    newId: (prefix: string) => newId(prefix),
+    now: toIso(now),
+    ...(options.notifications === undefined ? {} : { delivery: options.notifications }),
+    ...(options.notificationLog === undefined ? {} : { log: options.notificationLog }),
+    ...(options.forceBillingMaintenance === undefined
+      ? {}
+      : { force: options.forceBillingMaintenance }),
+  });
+
+  return { ...report, billing };
 }
 
 export { createRetentionSweeper };

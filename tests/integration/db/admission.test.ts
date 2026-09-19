@@ -82,7 +82,9 @@ describe('sourceEvents.admitOnce', () => {
 
   it('PERSIST-102 ten identical retries still produce exactly one run and one reservation', async () => {
     const results = await Promise.all(
-      Array.from({ length: 10 }, (_, i) => sourceEvents.admitOnce(h.db, admitParams(ws, { suffix: `r${i}` }))),
+      Array.from({ length: 10 }, (_, i) =>
+        sourceEvents.admitOnce(h.db, admitParams(ws, { suffix: `r${i}` })),
+      ),
     );
     const runIds = new Set(results.map((r) => r.runId));
     expect(runIds.size).toBe(1);
@@ -161,13 +163,17 @@ describe('sourceEvents.admitOnce', () => {
     expect(admitted).toHaveLength(1);
     expect(refused).toHaveLength(1);
     expect(countRows(h, 'runs', 'workspace_id = ?', tight.workspaceId)).toBe(1);
-    expect((await entitlements.get(h.db, tight.workspaceId, tight.billingPeriod))?.reserved).toBe(1);
+    expect((await entitlements.get(h.db, tight.workspaceId, tight.billingPeriod))?.reserved).toBe(
+      1,
+    );
   });
 
   it('PERSIST-108 the outbox row is committed with the run and carries a stable dedupe key', async () => {
     await sourceEvents.admitOnce(h.db, admitParams(ws));
     const row = await h.db
-      .prepare('SELECT unique_event_key, event_type, entity_id, dispatch_state, workspace_id FROM outbox')
+      .prepare(
+        'SELECT unique_event_key, event_type, entity_id, dispatch_state, workspace_id FROM outbox',
+      )
       .first<{
         unique_event_key: string;
         event_type: string;

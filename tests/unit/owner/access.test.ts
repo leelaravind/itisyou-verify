@@ -106,7 +106,9 @@ describe('owner panel access', () => {
   });
 
   it('OWNER-006 a consequential action without recent MFA is refused', () => {
-    const stale = owner({ mfaVerifiedAt: new Date(NOW.getTime() - (MFA_WINDOW_SECONDS + 60) * 1000).toISOString() });
+    const stale = owner({
+      mfaVerifiedAt: new Date(NOW.getTime() - (MFA_WINDOW_SECONDS + 60) * 1000).toISOString(),
+    });
     const decision = authorise(stale, 'refund.issue', NOW);
     if (decision.ok) throw new Error('unreachable');
     expect(decision.refusal).toBe('mfa_required');
@@ -114,7 +116,9 @@ describe('owner panel access', () => {
   });
 
   it('OWNER-007 the same action with MFA inside the window is permitted', () => {
-    const fresh = owner({ mfaVerifiedAt: new Date(NOW.getTime() - (MFA_WINDOW_SECONDS - 60) * 1000).toISOString() });
+    const fresh = owner({
+      mfaVerifiedAt: new Date(NOW.getTime() - (MFA_WINDOW_SECONDS - 60) * 1000).toISOString(),
+    });
     expect(authorise(fresh, 'refund.issue', NOW).ok).toBe(true);
   });
 
@@ -169,7 +173,12 @@ describe('owner panel access', () => {
     expect(decision.refusal).toBe('capability_denied');
     expect(AUTOMATION_CAPABILITIES.has('owner.grant')).toBe(false);
     // The four denials are a published list, so a page can state them and a test can pin them.
-    expect([...AUTOMATION_DENIED].sort()).toEqual(['ads.activate', 'budget.move', 'owner.grant', 'refund.issue']);
+    expect([...AUTOMATION_DENIED].sort()).toEqual([
+      'ads.activate',
+      'budget.move',
+      'owner.grant',
+      'refund.issue',
+    ]);
   });
 
   it('OWNER-016 the automation identity can still drive the panel it exists to test', () => {
@@ -181,7 +190,9 @@ describe('owner panel access', () => {
   it('OWNER-017 an automation session issued beyond its permitted lifetime is refused as not_found', () => {
     const tooLong = automation({
       sessionCreatedAt: NOW.toISOString(),
-      sessionExpiresAt: new Date(NOW.getTime() + (AUTOMATION_MAX_LIFETIME_SECONDS + 3600) * 1000).toISOString(),
+      sessionExpiresAt: new Date(
+        NOW.getTime() + (AUTOMATION_MAX_LIFETIME_SECONDS + 3600) * 1000,
+      ).toISOString(),
     });
     expect(automationLifetimeExceeded(tooLong)).toBe(true);
     const decision = authorise(tooLong, 'owner.view', NOW);
