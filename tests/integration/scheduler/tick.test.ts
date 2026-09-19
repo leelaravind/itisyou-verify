@@ -11,6 +11,10 @@
  * intermediate state we actually have to survive.
  */
 import { describe, expect, it, beforeEach, afterEach } from 'vitest';
+import { readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { isAllowancePeriodKey } from '@app/billing/period';
 import { LIMITS } from '@verify/contracts';
 import { MAX_EXTERNAL_CALLS_PER_RUN } from '@verify/domain';
 import { runs } from '@app/db/runs';
@@ -30,6 +34,7 @@ import {
   notConnectedResolver,
   remainingAllowance,
   standardRules,
+  ALLOWANCE_PERIOD_KEY,
   T0,
   type SchedulerHarness,
 } from './harness';
@@ -834,5 +839,97 @@ describe('the tick reports rather than throws', () => {
     await harness.tick({ now: at(5), resolver: notConnectedResolver() });
     expect(harness.runRow(runId).completed_at).toBe(iso(5));
     expect(new Date(T0).toISOString()).toBe(T0);
+  });
+});
+
+describe('the allowance period key is read, never derived (A13-010)', () => {
+  it('PERSIST-370 the settle uses the subscription’s period key, not the run’s month or date', async () => {
+    const runId = await harness.admit('evt-key');
+    // The row was opened under the subscription's period end. Neither the run's calendar
+    // month nor its date would address it.
+    expect(ALLOWANCE_PERIOD_KEY).toBe('2026-10-05');
+    expect(ALLOWANCE_PERIOD_KEY).not.toBe(T0.slice(0, 7));
+    expect(ALLOWANCE_PERIOD_KEY).not.toBe(T0.slice(0, 10));
+
+    await harness.tick({ now: at(1), resolver: notConnectedResolver() });
+
+    const rows = harness.allowanceRows();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ billing_period: ALLOWANCE_PERIOD_KEY, consumed: 1, reserved: 0 });
+    expect(harness.runRow(runId).status).toBe('UNVERIFIED');
+  });
+
+  it('PERSIST-371 the key the scheduler settles with is shaped like an allowance key', async () => {
+    await harness.admit('evt-key-shape');
+    await harness.tick({ now: at(1), resolver: notConnectedResolver() });
+    for (const row of harness.allowanceRows()) {
+      expect(isAllowancePeriodKey(row.billing_period)).toBe(true);
+    }
+  });
+
+  it('PERSIST-372 settling never opens a second allowance row under another key', async () => {
+    // The defect's twin: two spellings of one key let `UNIQUE (workspace_id, billing_period)`
+    // hold both, which is 1,000 runs sold for one payment.
+    for (let i = 0; i < 3; i += 1) await harness.admit(`evt-one-row-${i}`);
+    await harness.tick({ now: at(1), resolver: notConnectedResolver(), maxRuns: 10 });
+    const rows = harness.allowanceRows();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ consumed: 3, reserved: 0 });
+  });
+
+  it('PERSIST-373 a run decided after a renewal settles against its own period, not the new one', async () => {
+    const runId = await harness.admit('evt-renewal');
+
+    // The subscription rolls forward before the scheduler gets to the run.
+    harness.setSubscriptionPeriodEnd('2026-11-05T00:00:00.000Z');
+
+    await harness.tick({ now: at(1), resolver: notConnectedResolver() });
+
+    // The reservation was taken from the September-to-October period, so that is where the
+    // consumption must land. Using "the current period" would have credited the wrong month.
+    const rows = harness.allowanceRows();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ billing_period: '2026-10-05', consumed: 1, reserved: 0 });
+    expect(harness.runRow(runId).status).toBe('UNVERIFIED');
+  });
+
+  it('PERSIST-374 a workspace with no subscription settles nothing and invents nothing', async () => {
+    const solo = createSchedulerHarness({ subscription: 'none' });
+    try {
+      const runId = await solo.admit('evt-nosub');
+      const before = solo.allowanceRows();
+      await solo.tick({ now: at(1), resolver: notConnectedResolver() });
+
+      // The run is still decided — billing state must never block verification.
+      expect(solo.runRow(runId).status).toBe('UNVERIFIED');
+      // And no key was guessed into existence.
+      const after = solo.allowanceRows();
+      expect(after).toHaveLength(before.length);
+      expect(after.every((row) => isAllowancePeriodKey(row.billing_period))).toBe(true);
+    } finally {
+      solo.close();
+    }
+  });
+
+  it('PERSIST-375 nothing under scheduler/ derives an allowance period key', () => {
+    // The finding was a *shape*, not a string format: three modules each computing a key
+    // from a different input. This asserts the scheduler is not one of them any more.
+    const dir = fileURLToPath(new URL('../../../apps/app/src/scheduler', import.meta.url));
+    const offenders: string[] = [];
+    for (const file of readdirSync(dir).filter((name) => name.endsWith('.ts'))) {
+      const source = readFileSync(join(dir, file), 'utf8');
+      if (/billingPeriodFor/.test(source)) offenders.push(`${file}: imports billingPeriodFor`);
+      if (/\.slice\(\s*0\s*,\s*(7|10)\s*\)/.test(source)) offenders.push(`${file}: slices a date into a key`);
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it('PERSIST-376 the scheduler reads the key through the shared resolver', () => {
+    const source = readFileSync(
+      fileURLToPath(new URL('../../../apps/app/src/scheduler/observe.ts', import.meta.url)),
+      'utf8',
+    );
+    expect(source).toContain('resolveAllowancePeriodKey');
+    expect(source).toContain("from '../billing/period'");
   });
 });

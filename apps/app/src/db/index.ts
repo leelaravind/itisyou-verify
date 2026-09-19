@@ -114,13 +114,13 @@ export type {
 
 export { D1BillingDataPort, createBillingContactLookup } from './billingPort';
 export { D1SupportDataPort, D1RateLimiter } from './supportPort';
-export { D1CustomerDataPort, createCustomerDataPort, billingPeriodFor } from './customerPort';
+export { D1CustomerDataPort, createCustomerDataPort } from './customerPort';
 export type { CustomerPortInput } from './customerPort';
 
 export { D1OwnerDataPort, D1OwnerAuth, createOwnerDataPort, createOwnerAuth } from './ownerPort';
 export type { OwnerPortInput } from './ownerPort';
 
-export { D1ApprovalClaims, createApprovalClaims } from './approvalClaims';
+export { D1ApprovalClaims, createApprovalClaims, createRefundApprovalConsumer } from './approvalClaims';
 export {
   AUTOMATION_AUTH_SUBJECT,
   automationSeedExports,

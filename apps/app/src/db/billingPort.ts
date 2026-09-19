@@ -18,7 +18,9 @@
  *  - `reserveRun` — one conditional UPDATE, success through `meta.changes`.
  */
 import type { OrderStatus, SubscriptionStatus } from '@verify/contracts';
+import { AppError } from '@verify/contracts';
 import type { BillingEnvironment } from '../billing/config';
+import { isAllowancePeriodKey } from '../billing/period';
 import type {
   AllowanceRecord,
   BillingCustomerRecord,
@@ -274,15 +276,38 @@ export class D1BillingDataPort implements BillingDataPort {
 
   // -- allowance ------------------------------------------------------------
 
+  /**
+   * Refuse a key that is not an allowance period key, loudly.
+   *
+   * A13-010 survived several rounds of review because the mismatch was **silent**: a
+   * `YYYY-MM` key simply found no row, `settleReservation` returned `false`, and nothing
+   * anywhere said so. A workspace at its limit reported itself unblocked.
+   *
+   * So this throws rather than returning a miss. A wrong key is a programming error, and a
+   * programming error should stop a test, not quietly under-bill a customer in production.
+   */
+  #assertPeriodKey(billingPeriod: string, method: string): void {
+    if (!isAllowancePeriodKey(billingPeriod)) {
+      throw new AppError(
+        500,
+        'ALLOWANCE_PERIOD_KEY_INVALID',
+        'We could not read this workspace’s allowance.',
+      );
+    }
+    void method;
+  }
+
   async findAllowance(
     workspaceId: string,
     billingPeriod: string,
   ): Promise<AllowanceRecord | null> {
+    this.#assertPeriodKey(billingPeriod, 'findAllowance');
     const row = await entitlements.get(this.db, workspaceId, billingPeriod);
     return row === null ? null : toAllowance(row);
   }
 
   async openAllowancePeriod(record: AllowanceRecord): Promise<AllowanceRecord> {
+    this.#assertPeriodKey(record.billingPeriod, 'openAllowancePeriod');
     const row = await entitlements.ensurePeriod(this.db, {
       id: record.id,
       workspaceId: record.workspaceId,
@@ -295,6 +320,7 @@ export class D1BillingDataPort implements BillingDataPort {
   }
 
   async reserveRun(workspaceId: string, billingPeriod: string, at: string): Promise<boolean> {
+    this.#assertPeriodKey(billingPeriod, 'reserveRun');
     return entitlements.reserve(this.db, workspaceId, billingPeriod, at);
   }
 
@@ -303,6 +329,7 @@ export class D1BillingDataPort implements BillingDataPort {
     billingPeriod: string,
     at: string,
   ): Promise<boolean> {
+    this.#assertPeriodKey(billingPeriod, 'settleReservedRun');
     return entitlements.settleReservation(this.db, workspaceId, billingPeriod, at);
   }
 
@@ -311,6 +338,7 @@ export class D1BillingDataPort implements BillingDataPort {
     billingPeriod: string,
     at: string,
   ): Promise<boolean> {
+    this.#assertPeriodKey(billingPeriod, 'releaseReservedRun');
     return entitlements.releaseReservation(this.db, workspaceId, billingPeriod, at);
   }
 

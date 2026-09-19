@@ -186,9 +186,24 @@ Nothing in the code review would have found it. The template was correct, the te
 asserted the template was correct, and the policy was correct in isolation. It took
 deploying the page and looking at a screenshot.
 
-The fix is a narrow exception — inline style *attributes* are permitted; inline scripts
-and injected stylesheets still are not — written into the policy with a comment saying
-why it is there and what has to change before it can be removed.
+The first fix was a narrow exception: permit inline style *attributes*, keep blocking
+inline scripts and injected stylesheets, and write into the policy why the exception
+existed and what would have to change before it could be removed.
+
+That exception is gone. The better fix was to stop needing it — the computed width moved
+out of a style attribute and into a small set of predefined CSS classes, so the policy
+went back to refusing inline style attributes entirely. The classes round **down**: 33%
+draws as 30, 99% draws as 95, and only a true 100% fills the bar. On a product whose
+whole argument is that a partial result must never look complete, a bar that errs
+generous is worse than one that errs mean.
+
+The deployed page was checked afterwards rather than assumed: `style-src-attr 'none'` in
+the response header, zero inline style attributes in the markup, and the meter rendering
+as `meter__fill--30`.
+
+*(This paragraph previously described only the exception. It was caught during a later
+audit of the deployed site against the documentation — the story was underselling its own
+fix, which is a smaller sin than the reverse but the same class of drift.)*
 
 ### A pinned action that did not exist
 

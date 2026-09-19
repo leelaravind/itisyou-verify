@@ -139,6 +139,15 @@ export interface MemoryOwnerPortOptions {
    */
   readonly executor?: ExecutorAvailability;
   readonly notifications?: NotificationHealthPort;
+  /**
+   * Override the approval compare-and-set.
+   *
+   * Exists so a test can drive the **real** `D1ApprovalClaims` over a real database through
+   * the real route, and then assert the `approvals` row actually moved. Proving the
+   * primitive in isolation is not the same as proving a request reaches it, and this option
+   * is what makes the difference testable rather than assumed.
+   */
+  readonly claims?: ApprovalClaimStore;
   /** Extra inventory items the cleanup preview should find, on top of the built-in ones. */
   readonly extraCleanupItems?: readonly InventoryItem[];
 }
@@ -152,6 +161,7 @@ export class MemoryOwnerDataPort implements OwnerDataPort {
   readonly #assistant: AssistantStatusPort;
   readonly #executor: ExecutorAvailability | null;
   readonly #notifications: NotificationHealthPort;
+  readonly #claims: ApprovalClaimStore | null;
 
   #controls: Controls = defaultControls();
   #approvals: OwnerApproval[] = [];
@@ -182,6 +192,7 @@ export class MemoryOwnerDataPort implements OwnerDataPort {
     this.#assistant = options.assistant ?? new AssistantOff();
     this.#executor = options.executor ?? null;
     this.#notifications = options.notifications ?? new NotificationHealthUnavailable();
+    this.#claims = options.claims ?? null;
     this.#alerts = [
       {
         id: 'alr_1',
@@ -233,6 +244,7 @@ export class MemoryOwnerDataPort implements OwnerDataPort {
    * It never re-reads and compares — that would put the race straight back.
    */
   #claimStore(): ApprovalClaimStore {
+    if (this.#claims !== null) return this.#claims;
     return {
       claim: async ({ approvalId, at }) => {
         const index = this.#approvals.findIndex((a) => a.id === approvalId);

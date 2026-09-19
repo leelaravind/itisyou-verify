@@ -19,6 +19,8 @@
 import { sha256Hex } from '@verify/security';
 import { getConnector, type ProviderId } from '@verify/connectors';
 import { runs, type DueRun } from '../db/runs';
+import { D1BillingDataPort } from '../db/billingPort';
+import type { SubscriptionPeriodSource } from '../billing/period';
 import type { Db } from '../db/d1';
 import { newId } from '../lib/ids';
 import { addSecondsIso, toIso } from '../lib/time';
@@ -75,6 +77,12 @@ export interface TickDeps {
   /** Injected. Nothing in the tick reads a wall clock for business time. */
   readonly now: Date;
   readonly resolver: CredentialResolver;
+  /**
+   * Where the allowance period key is read from. Required: the scheduler must never derive
+   * one of its own (A13-010).
+   */
+  readonly billing: SubscriptionPeriodSource;
+  readonly billingEnvironment?: 'test' | 'live';
   readonly connectors?: ConnectorRegistry;
   readonly handlers?: ReadonlyMap<string, OutboxHandler>;
   readonly sweeper?: RetentionSweeper | undefined;
@@ -234,6 +242,8 @@ async function runDuePass(deps: TickDeps, budget: TickBudget, logger: SchedulerL
     budget,
     newId: deps.newId ?? ((prefix: string) => newId(prefix)),
     digest: deps.digest ?? DEFAULT_DIGEST,
+    billing: deps.billing,
+    billingEnvironment: deps.billingEnvironment ?? 'test',
     ...(deps.logger === undefined ? {} : { logger: deps.logger }),
   };
 
@@ -285,6 +295,8 @@ export interface SchedulerEnv {
   readonly DB: D1Database;
   readonly ENVIRONMENT?: string | undefined;
   readonly CREDENTIAL_KEY_V1?: string | undefined;
+  /** Which Stripe world this deployment's subscriptions live in. Defaults to test. */
+  readonly STRIPE_MODE?: string | undefined;
 }
 
 export interface ScheduledOptions {
@@ -321,6 +333,10 @@ export async function handleScheduled(env: SchedulerEnv, options: ScheduledOptio
     db,
     now,
     resolver,
+    // The allowance period key is owned by billing and read through this port. The
+    // scheduler holds a workspace and an instant, and nothing else about billing.
+    billing: new D1BillingDataPort(db),
+    billingEnvironment: env.STRIPE_MODE === 'live' ? 'live' : 'test',
     ...(options.logger === undefined ? {} : { logger: options.logger }),
     ...(options.sweeper === undefined ? {} : { sweeper: options.sweeper }),
   });

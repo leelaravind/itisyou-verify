@@ -49,7 +49,11 @@ import { workflowVersions } from '../db/workflows';
 import { sourceEvents } from '../db/sourceEvents';
 import { entitlements } from '../db/entitlements';
 import { outbox } from '../db/webhooks';
-import { billingPeriodFor } from '../db/customerPort';
+import {
+  isAllowancePeriodKey,
+  resolveAllowancePeriodKey,
+  type SubscriptionPeriodSource,
+} from '../billing/period';
 import type { Db } from '../db/d1';
 import { addSecondsIso, parseIso, toIso } from '../lib/time';
 import { ID_PREFIX } from '../lib/ids';
@@ -127,6 +131,13 @@ export interface ObserveDeps {
   readonly budget: TickBudget;
   readonly newId: IdFactory;
   readonly digest: DigestFn;
+  /**
+   * Where the allowance period key comes from. Required, not optional: the defect this
+   * replaced (A13-010) was a consumer deriving a key of its own, and an optional port is a
+   * port somebody forgets to pass. The scheduler must be unable to settle without it.
+   */
+  readonly billing: SubscriptionPeriodSource;
+  readonly billingEnvironment: 'test' | 'live';
   readonly logger?: SchedulerLogger;
 }
 
@@ -171,6 +182,8 @@ export async function observeRun(run: DueRun, deps: ObserveDeps): Promise<Observ
         createdAt: row.created_at,
         now: deps.now,
         newId: deps.newId,
+        billing: deps.billing,
+        billingEnvironment: deps.billingEnvironment,
       },
       logger,
     );
@@ -391,6 +404,8 @@ export async function observeRun(run: DueRun, deps: ObserveDeps): Promise<Observ
         createdAt: row.created_at,
         now: deps.now,
         newId: deps.newId,
+        billing: deps.billing,
+        billingEnvironment: deps.billingEnvironment,
       },
       logger,
     );
@@ -443,6 +458,8 @@ interface FinaliseInput {
   readonly createdAt: string;
   readonly now: Date;
   readonly newId: IdFactory;
+  readonly billing: SubscriptionPeriodSource;
+  readonly billingEnvironment: 'test' | 'live';
 }
 
 /**
@@ -496,12 +513,62 @@ async function finaliseTerminalRun(input: FinaliseInput, logger: SchedulerLogger
     return false;
   }
 
+  /*
+   * THE ALLOWANCE PERIOD KEY IS READ, NEVER DERIVED.
+   *
+   * This call site used to compute `YYYY-MM` from the run's creation date while billing
+   * opened the row as `YYYY-MM-DD`. The two never matched, so nothing was ever settled and
+   * a workspace at its limit reported itself unblocked (A13-010).
+   *
+   * The fix is not a different string format — it is that the consumer stops deriving the
+   * key at all and asks the one module that owns it. `resolveAllowancePeriodKey` reads the
+   * subscription's own period end and steps *backwards* from it, so a run decided a minute
+   * after a renewal still settles against the period the reservation was taken from rather
+   * than against the new one.
+   */
+  const period = await resolveAllowancePeriodKey(input.billing, {
+    workspaceId: input.workspaceId,
+    atIso: input.createdAt,
+    environment: input.billingEnvironment,
+  });
+
+  if (period.key === null) {
+    // No subscription means no allowance row to settle, so there is nothing to do and
+    // nothing to repair. Inventing a key here would write to a row that should not exist —
+    // which is how the original defect would have been "fixed" by guessing.
+    if (period.reason === 'no_period_end') {
+      // A subscription that carries no period end is a data problem worth seeing: the row
+      // exists, so an allowance row probably does too, and we cannot address it.
+      logger.warn('scheduler.allowance.no_period_end', {
+        run_id: input.runId,
+        workspace_id: input.workspaceId,
+      });
+    } else {
+      logger.info('scheduler.allowance.no_subscription', { run_id: input.runId });
+    }
+    return false;
+  }
+
+  // Cheap guard, loud failure. If a key of the wrong shape ever reaches this line again,
+  // it stops here instead of silently matching nothing for another six months.
+  if (!isAllowancePeriodKey(period.key)) {
+    logger.warn('scheduler.allowance.bad_period_key', {
+      run_id: input.runId,
+      workspace_id: input.workspaceId,
+    });
+    return false;
+  }
+
   const settled = await entitlements.settleReservation(
     input.db,
     input.workspaceId,
-    billingPeriodFor(parseIso(input.createdAt)),
+    period.key,
     nowIso,
   );
+  if (!settled) {
+    // The row was there to address but held no reservation: already settled, or released.
+    logger.info('scheduler.allowance.nothing_to_settle', { run_id: input.runId });
+  }
   return settled;
 }
 
@@ -541,6 +608,8 @@ async function resolveWithoutEvaluation(
       createdAt: row?.created_at ?? nowIso,
       now: deps.now,
       newId: deps.newId,
+      billing: deps.billing,
+      billingEnvironment: deps.billingEnvironment,
     },
     deps.logger ?? SILENT_LOGGER,
   );

@@ -196,8 +196,26 @@ export {
   reconcileSubscriptions,
   type Discrepancy,
   type DiscrepancyKind,
+  type PaymentRecovered,
+  type ReconcileOptions,
   type ReconciliationReport,
 } from './reconcile';
+
+export {
+  checkAdmission,
+  type AdmissionRefusal,
+  type AdmissionVerdict,
+  type CheckAdmissionParams,
+} from './admission';
+
+export {
+  RECONCILE_EVERY_MINUTES,
+  RECOVERY_SWEEP_MINUTE,
+  maintenanceNotifications,
+  runBillingMaintenance,
+  type BillingMaintenanceOptions,
+  type BillingMaintenanceReport,
+} from './scheduled';
 
 export {
   HANDLED_EVENT_TYPES,

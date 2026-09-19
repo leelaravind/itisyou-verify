@@ -1,23 +1,54 @@
 /**
  * Scheduled reconciliation: compare what we believe against Stripe's own records.
  *
- * It **reports**. It does not repair. A reconciliation that silently "fixes" state is how
+ * It **reports, and repairs exactly one thing.**
+ *
+ * Reporting is the default and the rule. A reconciliation that silently fixes state is how
  * a bug in the webhook handler becomes invisible, and how a cancelled subscription gets
  * quietly re-enabled by a job nobody is watching. Every disagreement comes back as a typed
- * discrepancy for the owner to look at.
+ * discrepancy for the owner.
  *
- * The one write it performs is `markSubscriptionReconciled`, on rows that agreed. That is
- * a timestamp, not a state change.
+ * ## The one exception: payment recovery
  *
- * This is also the second of the only two things permitted to change entitlement: a
+ * The founder's requirement 4 names two ways verification may resume — "a signature-verified
+ * webhook, **or** our scheduled check reading that payment back from the provider's own
+ * records" — and `PAYMENT_RECOVERY_POLICY.resumeRequires` promises the customer exactly
+ * that. A reconciliation that could only detect would make that a published promise with
+ * nothing behind it, which is the same class of defect as claiming a coverage mode we do
+ * not implement.
+ *
+ * So when we hold a payment-paused status and Stripe's own records say the subscription is
+ * being served, that is provider-confirmed payment and we apply it. The repair is
+ * deliberately narrow:
+ *
+ *  - **One direction only.** It can move `past_due` / `unpaid` / `paused` to `active` or
+ *    `trialing`. It can never move anything *to* a paused or cancelled state — that is
+ *    reported, never applied, because "Stripe says cancelled" is exactly the case where a
+ *    bug in our webhook handling should be visible rather than papered over.
+ *  - **Through the same guards.** It goes through `reconcileSubscription()`, so the
+ *    terminal-cancellation guard still holds: a cancelled subscription is never
+ *    resurrected, whatever Stripe returns (`BILL-152`).
+ *  - **Reported, not silent.** Every recovery appears in the report's `recovered` list. The
+ *    owner sees that it happened; it is not a state change nobody can account for.
+ *
+ * Everything else — a status drifting the other way, a price change, a period-end
+ * mismatch, a missing allowance row — is still reported and never touched.
+ *
+ * This is the second of the only two things permitted to change entitlement: a
  * signature-verified webhook, or a read against Stripe's own records. A customer arriving
  * at a URL is neither.
  */
-import { entitlementFor } from './state';
+import { rollover } from './entitlements';
+import { allowancePeriodKey } from './period';
 import type { SubscriptionRecord } from './port';
 import type { BillingRuntime } from './runtime';
-import { allowancePeriodKey } from './period';
-import { unixToIso } from './state';
+import {
+  SERVING_SUBSCRIPTION_STATUSES,
+  asSubscriptionStatus,
+  entitlementFor,
+  reconcileSubscription,
+  unixToIso,
+} from './state';
 
 export type DiscrepancyKind =
   | 'status_mismatch'
@@ -42,6 +73,20 @@ export interface Discrepancy {
   readonly note: string;
 }
 
+/**
+ * A subscription whose payment we confirmed against Stripe's own records, and resumed.
+ *
+ * Listed rather than merely counted: a state change made by a background job must be
+ * accountable to a person afterwards.
+ */
+export interface PaymentRecovered {
+  readonly workspaceId: string;
+  readonly subscriptionId: string;
+  readonly providerSubscriptionId: string;
+  readonly from: string;
+  readonly to: string;
+}
+
 export interface ReconciliationReport {
   readonly checkedAt: string;
   readonly environment: string;
@@ -50,10 +95,17 @@ export interface ReconciliationReport {
   readonly discrepancies: readonly Discrepancy[];
   /** Rows we could not read at all. Not a discrepancy in our data — a provider problem. */
   readonly unreadable: number;
+  /** Payment recoveries applied on this pass. Empty on a pass that changed nothing. */
+  readonly recovered: readonly PaymentRecovered[];
 }
 
 export interface ReconcileOptions {
   readonly limit?: number;
+  /**
+   * Apply confirmed payment recoveries. Default true — it is the promise the policy makes.
+   * Set false for a dry run that only reports.
+   */
+  readonly applyPaymentRecovery?: boolean;
 }
 
 export async function reconcileSubscriptions(
@@ -66,10 +118,13 @@ export async function reconcileSubscriptions(
   const stored = await data.listSubscriptionsForReconciliation(config.environment, limit);
 
   const discrepancies: Discrepancy[] = [];
+  const recovered: PaymentRecovered[] = [];
+  const applyRecovery = options.applyPaymentRecovery ?? true;
   let agreed = 0;
   let unreadable = 0;
 
-  for (const record of stored) {
+  for (const original of stored) {
+    let record = original;
     let provider;
     try {
       provider = await gateway.retrieveSubscription(record.providerSubscriptionId);
@@ -109,15 +164,53 @@ export async function reconcileSubscriptions(
 
     if (provider.status !== record.status) {
       matched = false;
-      discrepancies.push(
-        discrepancy(record, 'status_mismatch', record.status, provider.status, [
-          'Our stored subscription status differs from Stripe.',
-          'Most often a webhook we never received, or one we rejected as stale.',
-        ]),
-      );
+      const providerStatus = asSubscriptionStatus(provider.status);
+      const isConfirmedPayment =
+        applyRecovery &&
+        providerStatus !== null &&
+        SERVING_SUBSCRIPTION_STATUSES.has(providerStatus) &&
+        !SERVING_SUBSCRIPTION_STATUSES.has(record.status);
+
+      if (isConfirmedPayment && providerStatus !== null) {
+        // Requirement 4's second route, and the only repair this job performs. It runs
+        // through the same guards as a webhook, so a cancelled subscription is still
+        // never resurrected however the provider answers.
+        const applied = await applyConfirmedPayment(deps, record, {
+          status: providerStatus,
+          priceId: providerPriceIdOf(provider),
+          currentPeriodEnd: providerPeriodEndOf(provider),
+          cancelAtPeriodEnd: provider.cancel_at_period_end,
+          at: checkedAt,
+        });
+        if (applied !== null) {
+          recovered.push({
+            workspaceId: record.workspaceId,
+            subscriptionId: record.id,
+            providerSubscriptionId: record.providerSubscriptionId,
+            from: record.status,
+            to: applied.status,
+          });
+          record = applied;
+        } else {
+          discrepancies.push(
+            discrepancy(record, 'status_mismatch', record.status, provider.status, [
+              'Stripe reports this subscription as served, but our guards refused the change.',
+              'A cancelled subscription is never resurrected automatically — look at it.',
+            ]),
+          );
+        }
+      } else {
+        discrepancies.push(
+          discrepancy(record, 'status_mismatch', record.status, provider.status, [
+            'Our stored subscription status differs from Stripe.',
+            'Most often a webhook we never received, or one we rejected as stale.',
+            'Nothing has been changed: a drift away from being served is reported, never applied.',
+          ]),
+        );
+      }
     }
 
-    const providerPriceId = provider.items?.data?.[0]?.price?.id ?? null;
+    const providerPriceId = providerPriceIdOf(provider);
     if (providerPriceId !== null && providerPriceId !== record.priceId) {
       matched = false;
       discrepancies.push(
@@ -128,9 +221,7 @@ export async function reconcileSubscriptions(
       );
     }
 
-    const providerPeriodEnd =
-      unixToIso(provider.items?.data?.[0]?.current_period_end) ??
-      unixToIso(provider.current_period_end);
+    const providerPeriodEnd = providerPeriodEndOf(provider);
     if (providerPeriodEnd !== null && providerPeriodEnd !== record.currentPeriodEnd) {
       matched = false;
       discrepancies.push(
@@ -193,7 +284,84 @@ export async function reconcileSubscriptions(
     agreed,
     discrepancies,
     unreadable,
+    recovered,
   };
+}
+
+/**
+ * Apply a confirmed payment, through the same guards a webhook goes through.
+ *
+ * Returns the saved record, or `null` when the guards refused — which happens when the
+ * stored subscription is terminally cancelled. `providerEventCreated` is stamped with the
+ * read time, because a direct read of the provider's records is newer truth than any event
+ * generated before it; a webhook generated earlier but delivered later is then correctly
+ * treated as stale.
+ */
+async function applyConfirmedPayment(
+  deps: BillingRuntime,
+  stored: SubscriptionRecord,
+  next: {
+    readonly status: SubscriptionRecord['status'];
+    readonly priceId: string | null;
+    readonly currentPeriodEnd: string | null;
+    readonly cancelAtPeriodEnd: boolean;
+    readonly at: string;
+  },
+): Promise<SubscriptionRecord | null> {
+  const decision = reconcileSubscription(stored, {
+    providerSubscriptionId: stored.providerSubscriptionId,
+    environment: stored.environment,
+    status: next.status,
+    priceId: next.priceId ?? stored.priceId,
+    currentPeriodEnd: next.currentPeriodEnd ?? stored.currentPeriodEnd,
+    cancelAtPeriodEnd: next.cancelAtPeriodEnd,
+    providerEventCreated: Math.floor(Date.parse(next.at) / 1000),
+  });
+  if (decision.action !== 'apply' && decision.action !== 'insert') return null;
+
+  const saved = await deps.data.saveSubscriptionSnapshot({
+    ...stored,
+    status: decision.next.status,
+    priceId: decision.next.priceId,
+    currentPeriodEnd: decision.next.currentPeriodEnd,
+    cancelAtPeriodEnd: decision.next.cancelAtPeriodEnd,
+    providerEventCreated: decision.next.providerEventCreated,
+    updatedAt: next.at,
+  });
+
+  // Being served again means the period's allowance must exist. Idempotent and keyed by
+  // the period end, so a resume inside the window resumes on the allowance the customer
+  // already has rather than being handed a fresh one.
+  if (saved.currentPeriodEnd !== null) {
+    const fresh = rollover(deps.config.plan.runsPerPeriod);
+    await deps.data.openAllowancePeriod({
+      id: deps.newId('ent'),
+      workspaceId: saved.workspaceId,
+      billingPeriod: allowancePeriodKey(saved.currentPeriodEnd),
+      planVersion: deps.config.plan.version,
+      runLimit: fresh.runLimit,
+      consumed: fresh.consumed,
+      reserved: fresh.reserved,
+      updatedAt: next.at,
+    });
+  }
+  return saved;
+}
+
+function providerPriceIdOf(provider: {
+  readonly items?: { readonly data: readonly { readonly price?: { readonly id: string } }[] };
+}): string | null {
+  return provider.items?.data?.[0]?.price?.id ?? null;
+}
+
+function providerPeriodEndOf(provider: {
+  readonly items?: { readonly data: readonly { readonly current_period_end?: number }[] };
+  readonly current_period_end?: number;
+}): string | null {
+  return (
+    unixToIso(provider.items?.data?.[0]?.current_period_end) ??
+    unixToIso(provider.current_period_end)
+  );
 }
 
 function discrepancy(

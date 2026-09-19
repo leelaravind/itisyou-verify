@@ -9,6 +9,7 @@
 import { Hono, type Context } from 'hono';
 import { CSS, THEME_SCRIPT, render } from '@verify/ui';
 import { publicRoutes, notFoundPage } from './routes/public/index.js';
+import { storyRoutes } from './routes/public/story/index.js';
 import { createAppRoutes } from './routes/app/index.js';
 import { createCustomerDataPort, createOwnerDataPort, createOwnerAuth } from './db/index.js';
 import { createOwnerRoutes } from './routes/owner/index.js';
@@ -356,6 +357,8 @@ async function ownerRoute(c: Context<Bindings>): Promise<Response> {
   });
   return ownerApp.fetch(c.req.raw, c.env, c.executionCtx);
 }
+
+app.route('/', storyRoutes);
 
 app.route('/', publicRoutes);
 

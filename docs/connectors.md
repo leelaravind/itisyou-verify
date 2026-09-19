@@ -341,8 +341,10 @@ That trade is yours to make, and it is a real one.
 ### Webhook setup is manual, and we do not pretend otherwise
 
 Resend's public API has no endpoint for creating a webhook endpoint. We cannot set it up
-for you. `validateConnection` returns a guided setup step (A05 renders it) and the
-connection stays **incomplete** until a correctly signed callback has arrived.
+for you. `validateConnection` returns a guided setup step (A05 renders it), and the
+connection stays **incomplete** until a correctly signed callback has actually arrived and
+been understood - a stored signing secret is a promise that a webhook will work, not
+evidence that one did. The URL to point it at is in "The webhook endpoint" below.
 
 Subscribe the endpoint to: `email.sent`, `email.delivered`, `email.delivery_delayed`,
 `email.bounced`, `email.complained`, `email.failed`.
@@ -388,6 +390,50 @@ us the ids it has already stored and we reject a repeat.
 
 Implementation note for the lead: `verifySvixSignature` lives in `@verify/security`
 (A02) and this connector **reuses it**. There is no duplicate implementation to reconcile.
+
+### The webhook endpoint
+
+We give you a URL unique to your connection:
+
+```
+https://<your ITISYOU Verify host>/api/v1/webhooks/resend/<your endpoint id>
+```
+
+The last segment is an opaque id we issue. It is not your workspace id, not your
+connection id, and not derivable from anything about you - so the endpoint cannot be
+guessed by someone who knows who you are.
+
+It is a gate, not a password. **An id we did not issue is rejected before we do any work
+on the event**, and a request carrying a valid signature for an id we do not recognise is
+refused exactly like one with a bad signature: same status, same response, same amount of
+work. We never tell a caller whether an endpoint exists. Treat the URL as private anyway -
+it is one of two things standing between a stranger and your evidence log, and the other
+one is the signature.
+
+What the route does, in this order, every time:
+
+1. Refuses an oversized body before reading it.
+2. Reads the raw bytes **once**. Svix signs the exact payload; parsing and re-serialising
+   would verify a document Resend never sent.
+3. Verifies the Svix signature against those bytes, and only then parses.
+4. Claims the delivery id, so a redelivery is acknowledged and has no second effect.
+5. Records the evidence, and only then marks the connection working.
+
+| What happened | What we return |
+| --- | --- |
+| Correctly signed, first delivery | `200`, evidence stored |
+| Correctly signed, already seen | `200`, nothing happens twice |
+| Correctly signed, event type we do not map | `200`, recorded as seen, **not** treated as delivery evidence |
+| Bad or missing signature | `400` - never `200` |
+| Endpoint id we did not issue | `400`, identical to the above |
+| Connection you revoked | `400`, identical to the above |
+| Body larger than 256 KB | `413` |
+| Our own storage failed | `500`, and the delivery is released so Resend's retry is a fresh attempt |
+
+**A revoked connection accepts nothing.** If you disconnect Resend, a callback still in
+flight - or one captured earlier and replayed - cannot quietly bring the connection back to
+life. And because a replay is recognised as a duplicate, it can never promote a connection
+a second time either.
 
 ### Event mapping
 

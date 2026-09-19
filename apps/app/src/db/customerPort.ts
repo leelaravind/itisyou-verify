@@ -51,7 +51,7 @@ import type { Db } from './d1';
 import { entitlements } from './entitlements';
 import { assertions, runs } from './runs';
 import { sourceEvents } from './sourceEvents';
-import { allowancePeriodKeyAt } from '../billing/period';
+import { resolveAllowancePeriodKey, type SubscriptionPeriodSource } from '../billing/period';
 import { subscriptions } from './commerce';
 import { supportCases } from './supportData';
 import { workflows, workflowVersions } from './workflows';
@@ -75,15 +75,17 @@ const refuse = (message: string, fieldErrors: Record<string, string> = {}): Writ
 });
 
 /**
- * @deprecated **Never use this for an allowance row.** Calendar month, and therefore the
- * wrong key: `apps/app/src/billing/period.ts` owns the one spelling
- * (`allowancePeriodKey` / `allowancePeriodKeyAt`), keyed on the paid period end.
+ * @deprecated **This is not an allowance period key and must never be used as one.**
  *
- * Kept exported only because `BILL-244` locks the A13-010 regression by calling it and
- * asserting it settles nothing, and because `scheduler/observe.ts` still calls it at the
- * settle site — that call is the live defect, and A06 owns moving it.
+ * Renamed from `billingPeriodFor` so nobody reaches for it by its old, plausible name. It
+ * returns a calendar month (`YYYY-MM`); allowance rows are keyed on the paid period END
+ * (`YYYY-MM-DD`) by `apps/app/src/billing/period.ts`, which owns the one spelling.
+ *
+ * It survives for exactly one reason: `BILL-244` locks the A13-010 regression by calling it
+ * and asserting it settles nothing. Nothing correct calls it. If you want a key, call
+ * `resolveAllowancePeriodKey`.
  */
-export function billingPeriodFor(at: Date): string {
+export function calendarMonthNotAnAllowanceKey(at: Date): string {
   return toIso(at).slice(0, 7);
 }
 
@@ -149,6 +151,24 @@ function connectionProblem(status: string, lastErrorCode: string | null): {
             : `We could not use this connection on the last attempt (${lastErrorCode}).`,
         nextStep: 'Reconnect. If it keeps happening, send us the run id.',
       };
+  }
+}
+
+/**
+ * The one method `resolveAllowancePeriodKey` needs, over the real subscriptions table.
+ *
+ * Deliberately not the whole billing port: the resolver should be able to answer "which
+ * period is this instant in" without being handed everything that can move money.
+ */
+class BillingPortSubscriptionSource implements SubscriptionPeriodSource {
+  constructor(private readonly db: Db) {}
+
+  async findSubscriptionForWorkspace(
+    workspaceId: string,
+    environment: 'test' | 'live',
+  ): Promise<{ readonly currentPeriodEnd: string | null } | null> {
+    const row = await subscriptions.getForWorkspace(this.db, workspaceId, environment);
+    return row === null ? null : { currentPeriodEnd: row.current_period_end };
   }
 }
 
@@ -680,21 +700,30 @@ export class D1CustomerDataPort implements CustomerDataPort {
 
     if (scope === null) return nothingYet(toIso(this.#now), toIso(this.#now));
 
+    const environment = this.#env.STRIPE_MODE === 'live' ? 'live' : 'test';
     const subscription = await subscriptions.getForWorkspace(
       this.#db,
       scope.workspaceId,
-      this.#env.STRIPE_MODE === 'live' ? 'live' : 'test',
+      environment,
     );
-    const periodEnd = subscription?.current_period_end ?? null;
-    if (periodEnd === null) {
+
+    // The key comes from A06's resolver, which reads the subscription's own period end.
+    // Deriving one here is the A13-010 defect: this page read `YYYY-MM` while billing wrote
+    // `YYYY-MM-DD`, so it looked up a row that never existed and reported 0 used / 500 left
+    // forever — to a customer who might be at their limit and being refused.
+    const resolved = await resolveAllowancePeriodKey(
+      new BillingPortSubscriptionSource(this.#db),
+      { workspaceId: scope.workspaceId, atIso: toIso(this.#now), environment },
+    );
+    if (resolved.key === null) {
       return {
         ...nothingYet(toIso(this.#now), toIso(this.#now)),
         subscriptionStatus: (subscription?.status as SubscriptionStatus | undefined) ?? null,
       };
     }
+    const periodEnd = subscription?.current_period_end ?? toIso(this.#now);
 
-    const period = allowancePeriodKeyAt(toIso(this.#now), periodEnd);
-    const allowance = await entitlements.get(this.#db, scope.workspaceId, period);
+    const allowance = await entitlements.get(this.#db, scope.workspaceId, resolved.key);
     const used = (allowance?.consumed ?? 0) + (allowance?.reserved ?? 0);
     const included = allowance?.run_limit ?? LIMITS.PLAN_RUNS_PER_PERIOD;
 

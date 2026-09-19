@@ -22,12 +22,24 @@ import type {
   RevokeResult,
 } from '@verify/connectors';
 import { sourceEvents } from '@app/db/sourceEvents';
+import { D1BillingDataPort } from '@app/db/billingPort';
+import { allowancePeriodKey } from '@app/billing/period';
 import type { ConnectionResolution, ConnectorRegistry, CredentialResolver } from '@app/scheduler';
 import { runSchedulerTick, TickBudget, type TickReport } from '@app/scheduler';
 import { createTestDb, seedWorkspace, T0, type SeededWorkspace, type TestDb } from '../db/harness';
 
 export { T0 };
 export const DEADLINE_SECONDS = 600;
+
+/**
+ * The subscription's current period end, and therefore the allowance period key.
+ *
+ * Chosen so it is neither the run's calendar month (`2026-09`) nor the run's date
+ * (`2026-09-19`). A harness whose key happened to match either would let a caller that
+ * re-derived the key pass — which is precisely how A13-010 survived two green suites.
+ */
+export const SUBSCRIPTION_PERIOD_END = '2026-10-05T00:00:00.000Z';
+export const ALLOWANCE_PERIOD_KEY = allowancePeriodKey(SUBSCRIPTION_PERIOD_END);
 
 export function at(seconds: number): Date {
   return new Date(new Date(T0).getTime() + seconds * 1_000);
@@ -197,6 +209,7 @@ export interface TickOptions {
   readonly elapsed?: () => number;
   readonly handlers?: Parameters<typeof runSchedulerTick>[0]['handlers'];
   readonly sweeper?: Parameters<typeof runSchedulerTick>[0]['sweeper'];
+  readonly billing?: Parameters<typeof runSchedulerTick>[0]['billing'];
 }
 
 export interface SchedulerHarness {
@@ -210,6 +223,9 @@ export interface SchedulerHarness {
   tick(options?: TickOptions): Promise<TickReport>;
   runRow(runId: string): RunSnapshot;
   entitlement(): { run_limit: number; consumed: number; reserved: number };
+  /** Every allowance row, so a test can prove nothing was opened under a second key. */
+  allowanceRows(): { billing_period: string; consumed: number; reserved: number }[];
+  setSubscriptionPeriodEnd(periodEnd: string): void;
   close(): void;
 }
 
@@ -283,10 +299,27 @@ export function crmOnlyRules(): WorkflowRules {
 }
 
 export function createSchedulerHarness(
-  options: { rules?: WorkflowRules; runLimit?: number } = {},
+  options: { rules?: WorkflowRules; runLimit?: number; subscription?: 'active' | 'none' } = {},
 ): SchedulerHarness {
   const h = createTestDb();
-  const ws = seedWorkspace(h, 'sched', { runLimit: options.runLimit ?? 500, createdAt: T0 });
+  // The allowance row is opened under the key BILLING would use — the subscription's period
+  // end — not under anything derived from the run. That is the round trip under test.
+  const ws = seedWorkspace(h, 'sched', {
+    runLimit: options.runLimit ?? 500,
+    createdAt: T0,
+    billingPeriod: ALLOWANCE_PERIOD_KEY,
+  });
+
+  if (options.subscription !== 'none') {
+    h.raw
+      .prepare(
+        `INSERT INTO subscriptions
+           (id, workspace_id, provider_subscription_id, environment, status, price_id,
+            current_period_end, cancel_at_period_end, provider_event_created, updated_at)
+         VALUES (?, ?, ?, 'test', 'active', 'price_test', ?, 0, 0, ?)`,
+      )
+      .run('sub_sched', ws.workspaceId, 'sub_provider_sched', SUBSCRIPTION_PERIOD_END, T0);
+  }
 
   let counter = 0;
   const newId = (prefix: string): string => {
@@ -374,6 +407,10 @@ export function createSchedulerHarness(
         db: h.db,
         now: tickOptions.now ?? at(1),
         resolver: tickOptions.resolver ?? notConnectedResolver(),
+        // The real port against the real schema, so the key the scheduler settles with is
+        // the key billing actually stored. A fake here would hide the whole defect class.
+        billing: tickOptions.billing ?? new D1BillingDataPort(h.db),
+        billingEnvironment: 'test',
         connectors: tickOptions.connectors ?? registry,
         budget,
         newId,
@@ -401,6 +438,22 @@ export function createSchedulerHarness(
         | undefined;
       if (row === undefined) throw new Error('no entitlement row');
       return { run_limit: Number(row.run_limit), consumed: Number(row.consumed), reserved: Number(row.reserved) };
+    },
+
+    allowanceRows() {
+      return (
+        h.raw
+          .prepare('SELECT billing_period, consumed, reserved FROM entitlements WHERE workspace_id = ? ORDER BY billing_period')
+          .all(ws.workspaceId) as { billing_period: string; consumed: number; reserved: number }[]
+      ).map((row) => ({
+        billing_period: row.billing_period,
+        consumed: Number(row.consumed),
+        reserved: Number(row.reserved),
+      }));
+    },
+
+    setSubscriptionPeriodEnd(periodEnd: string) {
+      h.raw.prepare('UPDATE subscriptions SET current_period_end = ? WHERE workspace_id = ?').run(periodEnd, ws.workspaceId);
     },
 
     close: () => h.close(),

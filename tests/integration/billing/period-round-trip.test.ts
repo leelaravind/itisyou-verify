@@ -25,7 +25,9 @@ import {
   isAllowancePeriodKey,
   resolveAllowancePeriodKey,
 } from '@app/billing/period';
-import { billingPeriodFor } from '@app/db/customerPort';
+// Renamed from `billingPeriodFor` (A13-010 follow-up): the old name looked like an
+// allowance key and is not one. Nothing correct calls it; this case locks the regression.
+import { calendarMonthNotAnAllowanceKey } from '@app/db/customerPort';
 import {
   createTestDb,
   seedWorkspace,
@@ -118,7 +120,7 @@ describe('A13-010 the allowance period key round trip', () => {
       reserved: 1,
     });
 
-    const calendarMonthKey = billingPeriodFor(new Date(RUN_CREATED_AT));
+    const calendarMonthKey = calendarMonthNotAnAllowanceKey(new Date(RUN_CREATED_AT));
     expect(calendarMonthKey).toBe('2026-09');
     expect(calendarMonthKey).not.toBe(openedKey);
     expect(isAllowancePeriodKey(calendarMonthKey)).toBe(false);
