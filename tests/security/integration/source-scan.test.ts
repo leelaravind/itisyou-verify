@@ -59,7 +59,27 @@ function stringLiterals(source: string): { readonly text: string; readonly index
   return out;
 }
 
-const SQL_KEYWORD = /\b(SELECT|INSERT INTO|UPDATE|DELETE FROM)\b/i;
+/**
+ * A string literal only counts as SQL when it has a verb AND a clause, both uppercase.
+ *
+ * The first version matched a bare keyword case-insensitively, which flagged ordinary
+ * customer-facing prose: the payment-recovery notice says "you can update your card"
+ * and mentions "runs" and "evidence", and that was reported as an unscoped query on
+ * customer tables. A detector that cries wolf on English gets muted, and then it is
+ * protecting nothing.
+ *
+ * Requiring uppercase plus a clause keyword is TIGHTER on prose, not looser on SQL:
+ * every statement in `apps/app/src/db` writes its keywords uppercase, and there are 122
+ * WHERE, 73 FROM, 44 SET and 15 VALUES in there to match against. A future statement
+ * written in lowercase would escape this check — which is why SEC-205 below fails the
+ * build if any lowercase SQL verb ever appears inside a literal in the data layer.
+ */
+const SQL_KEYWORD = /\b(SELECT|INSERT INTO|UPDATE|DELETE FROM)\b/;
+const SQL_CLAUSE = /\b(FROM|WHERE|SET|VALUES|JOIN|ON CONFLICT)\b/;
+
+function looksLikeSql(literal: string): boolean {
+  return SQL_KEYWORD.test(literal) && SQL_CLAUSE.test(literal);
+}
 
 /** Tables holding data that belongs to exactly one paying customer. */
 const WORKSPACE_SCOPED_TABLES = [
@@ -106,7 +126,7 @@ describe('tenant scope: every SQL statement that reads customer data is scoped',
     for (const file of walk(join(ROOT, 'apps', 'app', 'src'))) {
       if (file.startsWith(dbDir)) continue;
       for (const literal of stringLiterals(blankComments(read(file)))) {
-        if (!SQL_KEYWORD.test(literal.text)) continue;
+        if (!looksLikeSql(literal.text)) continue;
         if (scopedTablesIn(literal.text).length === 0) continue;
         offenders.push(`${relative(ROOT, file)}: ${literal.text.slice(0, 90).replace(/\s+/g, ' ')}`);
       }
@@ -120,11 +140,35 @@ describe('tenant scope: every SQL statement that reads customer data is scoped',
       const source = read(file);
       for (const literal of stringLiterals(blankComments(source))) {
         const sql = literal.text;
-        if (!SQL_KEYWORD.test(sql)) continue;
+        if (!looksLikeSql(sql)) continue;
         if (scopedTablesIn(sql).length === 0) continue;
         if (/\bworkspace_id\b/.test(sql)) continue;
         if (isExempt(source, literal.index)) continue;
         offenders.push(`${relative(ROOT, file)}: ${sql.slice(0, 110).replace(/\s+/g, ' ')}`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it('SEC-205 no SQL verb in the data layer is written in lower case', () => {
+    // This is the price of tightening SEC-201/202/204 to uppercase-only matching.
+    // Those checks now ignore `select * from runs`, so this one makes writing it
+    // impossible. Without this pair, a lowercase statement would be invisible to every
+    // tenant-scope check in this file — a far worse outcome than the prose false
+    // positive the tightening removed.
+    const LOWER_VERB = /(?:^|[\s(;])(select|insert\s+into|update|delete\s+from)\s/;
+    const offenders: string[] = [];
+    for (const file of walk(dbDir)) {
+      for (const literal of stringLiterals(blankComments(read(file)))) {
+        // Only literals that are plausibly statements: they mention a table we know.
+        if (scopedTablesIn(literal.text).length === 0 && !/\b(FROM|INTO|UPDATE)\b/i.test(literal.text)) {
+          continue;
+        }
+        const m = LOWER_VERB.exec(literal.text);
+        if (m === null) continue;
+        offenders.push(
+          `${relative(ROOT, file)}: lowercase "${m[1]}" in ${literal.text.slice(0, 80).replace(/\s+/g, ' ')}`,
+        );
       }
     }
     expect(offenders).toEqual([]);
@@ -139,7 +183,7 @@ describe('tenant scope: every SQL statement that reads customer data is scoped',
     const offenders: string[] = [];
     for (const file of walk(dbDir)) {
       for (const literal of stringLiterals(blankComments(read(file)))) {
-        if (!literal.text.startsWith('`') || !SQL_KEYWORD.test(literal.text)) continue;
+        if (!literal.text.startsWith('`') || !looksLikeSql(literal.text)) continue;
         for (const m of literal.text.matchAll(/\$\{([^}]*)\}/g)) {
           const expression = (m[1] ?? '').replace(/\s+/g, ' ');
           if (SAFE.test(expression)) continue;
