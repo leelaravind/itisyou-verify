@@ -68,7 +68,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@a8198c4bff370c8506180b035930dea56dbd5288 # v5
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
         with:
           # Matches `packageManager` in package.json. Keep the two in step.
           version: 11.22.0
@@ -86,27 +86,13 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
-      # TODO(lead): there is no eslint.config.js in the repository yet, so `pnpm lint`
-      # exits non-zero for a reason that has nothing to do with code quality. The guard
-      # below must be DELETED the moment the config lands — a lint step that silently
-      # skips itself is worse than no lint step.
       - name: Lint
-        run: |
-          if ls eslint.config.* >/dev/null 2>&1; then
-            pnpm lint
-          else
-            echo "::warning title=Lint skipped::No eslint.config.* found. Remove this guard once it exists."
-          fi
+        run: pnpm lint
 
-      - name: Unit and integration tests
+      # One suite: unit, integration and the security regression tests all run from the
+      # root vitest config. A security suite CI does not run is not a control.
+      - name: Unit, integration and security tests
         run: pnpm test
-
-      # The security suite lives outside the root vitest `include` globs until the lead
-      # adds 'tests/security/**/*.test.ts' there (security-acceptance item SEC-ACC-01),
-      # so it is run explicitly. Do not delete this step when the globs are merged —
-      # change it to `pnpm test` and delete the config instead.
-      - name: Security regression suite
-        run: npx vitest run --config tests/security/vitest.config.ts
 
       - name: Secret scan (tracked tree)
         run: node scripts/scan-secrets.mjs

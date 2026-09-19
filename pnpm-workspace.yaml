@@ -2,12 +2,10 @@ packages:
   - 'apps/*'
   - 'packages/*'
 
+# Build scripts we have reviewed and permit. esbuild and workerd ship prebuilt
+# platform binaries that wrangler and vitest need; sharp arrives transitively.
+# Anything not listed here does not get to run a postinstall script.
 allowBuilds:
-  esbuild: set this to true or false
-  sharp: set this to true or false
-  workerd: set this to true or false
-
-onlyBuiltDependencies:
-  - esbuild
-  - workerd
-  - sharp
+  esbuild: true
+  workerd: true
+  sharp: true
