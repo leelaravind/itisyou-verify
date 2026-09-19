@@ -124,4 +124,10 @@ export const FAQ_ENTRIES: readonly FaqEntry[] = [
     answer:
       'The headline price is what you see at checkout before tax. Any tax required by law, such as VAT, is calculated and added by our payment provider based on your billing details, so the amount actually charged may be higher.',
   },
+  {
+    id: 'is-verification-live-today',
+    question: 'Is this actually running for real accounts right now?',
+    answer:
+      'Not yet. The checking logic described on this site is real and tested, but the parts that connect it to a real, paying workspace are not finished: the endpoint that receives your automation\'s signed events is not live, a Resend connection cannot yet finish reaching "ready", and the automatic checks that pause verification at your plan allowance or after a failed payment do not yet run on a schedule. We are not taking payment or activating new workspaces until those are wired and confirmed. This page will stop saying that the day it stops being true.',
+  },
 ];

@@ -39,7 +39,10 @@ const CATEGORY_BY_PREFIX = {
 
 function sh(cmd, args) {
   try {
-    return execFileSync(cmd, args, { encoding: 'utf8', shell: process.platform === 'win32' }).trim();
+    return execFileSync(cmd, args, {
+      encoding: 'utf8',
+      shell: process.platform === 'win32',
+    }).trim();
   } catch {
     return null;
   }
@@ -61,8 +64,19 @@ const jsonPath = `${OUT}/vitest-raw.json`;
 try {
   execFileSync(
     'npx',
-    ['vitest', 'run', '--reporter=json', '--reporter=junit', `--outputFile.json=${jsonPath}`, `--outputFile.junit=${OUT}/junit.xml`],
-    { stdio: ['ignore', 'ignore', 'inherit'], shell: process.platform === 'win32', env: { ...process.env, NODE_OPTIONS: '--no-warnings' } },
+    [
+      'vitest',
+      'run',
+      '--reporter=json',
+      '--reporter=junit',
+      `--outputFile.json=${jsonPath}`,
+      `--outputFile.junit=${OUT}/junit.xml`,
+    ],
+    {
+      stdio: ['ignore', 'ignore', 'inherit'],
+      shell: process.platform === 'win32',
+      env: { ...process.env, NODE_OPTIONS: '--no-warnings' },
+    },
   );
 } catch {
   // A failing suite is a legitimate outcome to report. Carry on and record it.
@@ -70,7 +84,9 @@ try {
 }
 
 if (!existsSync(jsonPath)) {
-  console.error(`build-test-report — ${jsonPath} was not produced. Cannot build a report from nothing.`);
+  console.error(
+    `build-test-report — ${jsonPath} was not produced. Cannot build a report from nothing.`,
+  );
   process.exit(1);
 }
 
@@ -140,8 +156,12 @@ writeFileSync(
 // ---------- test-report.md ----------
 const md = [];
 md.push('# ITISYOU Verify — test report\n');
-md.push(`Generated ${meta.generated_at} from commit \`${meta.commit_sha?.slice(0, 12) ?? 'unknown'}\` on \`${meta.branch}\`.`);
-md.push(`Working tree ${meta.tree_clean ? 'clean' : '**dirty — this report does not correspond to a reproducible commit**'}. Node ${meta.node}, vitest ${meta.vitest}.\n`);
+md.push(
+  `Generated ${meta.generated_at} from commit \`${meta.commit_sha?.slice(0, 12) ?? 'unknown'}\` on \`${meta.branch}\`.`,
+);
+md.push(
+  `Working tree ${meta.tree_clean ? 'clean' : '**dirty — this report does not correspond to a reproducible commit**'}. Node ${meta.node}, vitest ${meta.vitest}.\n`,
+);
 md.push('## Summary\n');
 md.push('| Measure | Value |');
 md.push('| --- | ---: |');
@@ -151,7 +171,9 @@ md.push(`| Failed | ${counts.failed} |`);
 md.push(`| Skipped / other | ${counts.skipped} |`);
 md.push(`| Total executions | ${counts.executions} |`);
 md.push(`| Executions with no case id | ${counts.unidentified_executions} |`);
-md.push(`| Release gate (${GATE} distinct passing, zero failures) | ${gateMet ? 'MET' : 'NOT MET'} |`);
+md.push(
+  `| Release gate (${GATE} distinct passing, zero failures) | ${gateMet ? 'MET' : 'NOT MET'} |`,
+);
 md.push('');
 md.push('## Coverage by category\n');
 md.push('| Category | Cases | Passed | Failed | Skipped |');
@@ -173,43 +195,74 @@ if (failures.length) {
   md.push('## Failures\n\nNone in this run.\n');
 }
 md.push('## What this report does not prove\n');
-md.push('- **Mocked providers are not a working integration.** Connector cases stub HTTP responses captured from vendor documentation. They prove our handling of a shape, not that the provider behaves that way today.');
-md.push('- **Emulated viewports are not physical devices.** Browser cases run in a headless engine at set widths.');
-md.push('- **Integration cases run against SQLite, not D1 over the network.** The SQL, the transactions and the idempotency guards are real; Cloudflare network behaviour, replicas and true parallelism are not exercised.');
-md.push('- **A passing suite says nothing about demand.** Test totals are a coverage measure, not evidence of a market.');
-md.push('- A case that was skipped, quarantined or never executed is not counted toward the gate.\n');
+md.push(
+  '- **Mocked providers are not a working integration.** Connector cases stub HTTP responses captured from vendor documentation. They prove our handling of a shape, not that the provider behaves that way today.',
+);
+md.push(
+  '- **Emulated viewports are not physical devices.** Browser cases run in a headless engine at set widths.',
+);
+md.push(
+  '- **Integration cases run against SQLite, not D1 over the network.** The SQL, the transactions and the idempotency guards are real; Cloudflare network behaviour, replicas and true parallelism are not exercised.',
+);
+md.push(
+  '- **A passing suite says nothing about demand.** Test totals are a coverage measure, not evidence of a market.',
+);
+md.push(
+  '- A case that was skipped, quarantined or never executed is not counted toward the gate.\n',
+);
 writeFileSync(`${OUT}/test-report.md`, md.join('\n'));
 
 // ---------- release-readiness.md ----------
 const rr = [];
 rr.push('# Release readiness\n');
 rr.push(`Commit \`${meta.commit_sha?.slice(0, 12) ?? 'unknown'}\` · ${meta.generated_at}\n`);
-rr.push(`**Decision: ${gateMet ? 'the automated gate is met' : 'NOT READY — the automated gate is not met'}.**\n`);
+rr.push(
+  `**Decision: ${gateMet ? 'the automated gate is met' : 'NOT READY — the automated gate is not met'}.**\n`,
+);
 rr.push('| Gate | Required | Actual | Result |');
 rr.push('| --- | --- | --- | --- |');
-rr.push(`| Distinct passing cases | ≥ ${GATE} | ${counts.passed} | ${counts.passed >= GATE ? 'pass' : 'FAIL'} |`);
+rr.push(
+  `| Distinct passing cases | ≥ ${GATE} | ${counts.passed} | ${counts.passed >= GATE ? 'pass' : 'FAIL'} |`,
+);
 rr.push(`| Failed cases | 0 | ${counts.failed} | ${counts.failed === 0 ? 'pass' : 'FAIL'} |`);
-rr.push(`| Reproducible commit | clean tree | ${meta.tree_clean ? 'clean' : 'dirty'} | ${meta.tree_clean ? 'pass' : 'FAIL'} |`);
+rr.push(
+  `| Reproducible commit | clean tree | ${meta.tree_clean ? 'clean' : 'dirty'} | ${meta.tree_clean ? 'pass' : 'FAIL'} |`,
+);
 rr.push('');
 rr.push('## Blockers\n');
 if (failures.length === 0 && gateMet) {
-  rr.push('No automated blockers in this run. External dependencies are listed below and are not covered by the suite.\n');
+  rr.push(
+    'No automated blockers in this run. External dependencies are listed below and are not covered by the suite.\n',
+  );
 } else {
   for (const f of failures) rr.push(`- \`${f.id}\` — ${f.title}`);
-  if (counts.passed < GATE) rr.push(`- Distinct passing cases (${counts.passed}) below the required ${GATE}.`);
+  if (counts.passed < GATE)
+    rr.push(`- Distinct passing cases (${counts.passed}) below the required ${GATE}.`);
   rr.push('');
 }
 rr.push('## External dependencies no test can clear\n');
-rr.push('- Live payment processing requires the owner\'s verified business details and Stripe approval.');
-rr.push('- Provider-backed evidence requires real HubSpot and Resend credentials; until then the connector path is proven only against mocks.');
-rr.push('- Advertising requires an approved account, billing and the owner\'s approval of a specific campaign packet.\n');
+rr.push(
+  "- Live payment processing requires the owner's verified business details and Stripe approval.",
+);
+rr.push(
+  '- Provider-backed evidence requires real HubSpot and Resend credentials; until then the connector path is proven only against mocks.',
+);
+rr.push(
+  "- Advertising requires an approved account, billing and the owner's approval of a specific campaign packet.\n",
+);
 rr.push('## Rollback readiness\n');
 rr.push('- Cloudflare retains the previous Worker version; `wrangler rollback` restores it.');
-rr.push('- Migration `0001` is additive. A code rollback does not reverse a schema change, and `scripts/migrate.mjs` refuses a destructive production migration without an explicit flag.\n');
+rr.push(
+  '- Migration `0001` is additive. A code rollback does not reverse a schema change, and `scripts/migrate.mjs` refuses a destructive production migration without an explicit flag.\n',
+);
 writeFileSync(`${OUT}/release-readiness.md`, rr.join('\n'));
 
 // ---------- test-report.html ----------
-const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const esc = (s) =>
+  String(s ?? '').replace(
+    /[&<>"']/g,
+    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c],
+  );
 const html = `<!doctype html>
 <html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ITISYOU Verify — test report</title>
@@ -248,7 +301,13 @@ pre{overflow-x:auto;background:color-mix(in srgb,var(--fg) 5%,transparent);paddi
 </div>
 <h2>Coverage by category</h2>
 <div class="scroll"><table><thead><tr><th>Category</th><th class="n">Cases</th><th class="n">Passed</th><th class="n">Failed</th><th class="n">Skipped</th></tr></thead><tbody>
-${Object.entries(byCategory).sort().map(([c, n]) => `<tr><td>${esc(c)}</td><td class="n">${n.total}</td><td class="n ok">${n.passed}</td><td class="n ${n.failed ? 'bad' : ''}">${n.failed}</td><td class="n">${n.skipped}</td></tr>`).join('\n')}
+${Object.entries(byCategory)
+  .sort()
+  .map(
+    ([c, n]) =>
+      `<tr><td>${esc(c)}</td><td class="n">${n.total}</td><td class="n ok">${n.passed}</td><td class="n ${n.failed ? 'bad' : ''}">${n.failed}</td><td class="n">${n.skipped}</td></tr>`,
+  )
+  .join('\n')}
 </tbody></table></div>
 <h2>Failures</h2>
 ${failures.length === 0 ? '<p>None in this run.</p>' : failures.map((f) => `<details><summary><span class="bad">${esc(f.id)}</span> — ${esc(f.title)}</summary><p><code>${esc(f.file)}</code></p><pre>${esc((f.failure ?? '').split('\n').slice(0, 12).join('\n'))}</pre></details>`).join('\n')}
@@ -256,9 +315,17 @@ ${failures.length === 0 ? '<p>None in this run.</p>' : failures.map((f) => `<det
 </main></body></html>`;
 writeFileSync(`${OUT}/test-report.html`, html);
 
-console.log(`\nbuild-test-report — wrote ${OUT}/test-results.json, test-report.md, test-report.html, release-readiness.md, junit.xml`);
-console.log(`  ${counts.distinct_cases} distinct cases · ${counts.passed} passed · ${counts.failed} failed · ${counts.skipped} skipped`);
+console.log(
+  `\nbuild-test-report — wrote ${OUT}/test-results.json, test-report.md, test-report.html, release-readiness.md, junit.xml`,
+);
+console.log(
+  `  ${counts.distinct_cases} distinct cases · ${counts.passed} passed · ${counts.failed} failed · ${counts.skipped} skipped`,
+);
 console.log(`  release gate (${GATE} passing, 0 failing): ${gateMet ? 'MET' : 'NOT MET'}`);
-if (counts.duplicate_ids > 0) console.log(`  note: ${counts.duplicate_ids} execution(s) reused an existing case id`);
-if (counts.unidentified_executions > 0) console.log(`  note: ${counts.unidentified_executions} execution(s) carry no case id and are not counted`);
+if (counts.duplicate_ids > 0)
+  console.log(`  note: ${counts.duplicate_ids} execution(s) reused an existing case id`);
+if (counts.unidentified_executions > 0)
+  console.log(
+    `  note: ${counts.unidentified_executions} execution(s) carry no case id and are not counted`,
+  );
 process.exit(0);

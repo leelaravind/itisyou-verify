@@ -24,7 +24,7 @@ export interface OnboardingGuideStep {
 }
 
 export const ONBOARDING_INTRO =
-  "This is not a one-click connection. You need an existing enquiry automation that already creates a HubSpot contact and sends an acknowledgement email through Resend — we verify that automation, we do not build it for you. Four things have to be true before we can check a single enquiry. Budget a real afternoon for this if you built the automation yourself; longer if you need someone else's help to change it.";
+  "This is not a one-click connection. You need an existing enquiry automation that already creates a HubSpot contact and sends an acknowledgement email through Resend — we verify that automation, we do not build it for you. Four things have to be true before we can check a single enquiry. Budget a real afternoon for this if you built the automation yourself; longer if you need someone else's help to change it. This guide describes the steps as the product is designed to work; see the notice on this page about whether we are accepting live traffic yet before you start handing over credentials.";
 
 export const ONBOARDING_GUIDE_STEPS: readonly OnboardingGuideStep[] = [
   {
@@ -71,10 +71,10 @@ export const ONBOARDING_GUIDE_STEPS: readonly OnboardingGuideStep[] = [
     whatToDo: [
       'Create or copy an existing API key and paste it into your workspace.',
       'In the Resend dashboard, create a webhook endpoint pointed at the address we give you, and subscribe it to: email.sent, email.delivered, email.delivery_delayed, email.bounced, email.complained, email.failed.',
-      'Copy the webhook signing secret into your workspace. Your connection stays marked incomplete until a correctly signed event has actually arrived from Resend — not just when you save the settings.',
+      'Copy the webhook signing secret into your workspace. Your connection is designed to stay marked incomplete until a correctly signed event has actually arrived from Resend — not just when you save the settings.',
     ],
     honestCaveat:
-      'Resend has no read-only API key — only "full access" or "sending access", and reading a message back requires full access. We are asking for more power than we use, because Resend offers nothing narrower, and we say so rather than letting the permission name imply otherwise. If you would rather not hand over a full-access key, you can run on webhook evidence alone; you lose the ability to re-check a message on demand, so a run whose webhook never arrives stays unverified instead of being resolvable by asking Resend directly. Also: Resend\'s API has no way for us to create the webhook endpoint for you. This step is manual, on your side, every time.',
+      'Resend has no read-only API key — only "full access" or "sending access", and reading a message back requires full access. We are asking for more power than we use, because Resend offers nothing narrower, and we say so rather than letting the permission name imply otherwise. If you would rather not hand over a full-access key, you can run on webhook evidence alone; you lose the ability to re-check a message on demand, so a run whose webhook never arrives stays unverified instead of being resolvable by asking Resend directly. Also: Resend\'s API has no way for us to create the webhook endpoint for you. This step is manual, on your side, every time. As of this writing our side of that webhook is not yet reachable either — the route exists in our codebase but is not yet live — so a Resend connection cannot currently finish reaching "ready" for a real workspace. Do not treat this step as complete until we tell you it is live.',
   },
   {
     id: 'signed-event',
@@ -89,9 +89,9 @@ export const ONBOARDING_GUIDE_STEPS: readonly OnboardingGuideStep[] = [
       'That event is what starts a run. Nothing is checked before it arrives.',
     ],
     honestCaveat:
-      'This event is a trigger, not proof. We do not trust it — it only tells us what to go and check. The result you get back is decided entirely by what we read from HubSpot and Resend afterwards, never by what this event claims happened. By default, if this step never fires for a given enquiry, we have nothing to check and nothing to show — we do not treat silence as a pass.',
+      'This event is a trigger, not proof. We do not trust it — it only tells us what to go and check. The result you get back is decided entirely by what we read from HubSpot and Resend afterwards, never by what this event claims happened. By default, if this step never fires for a given enquiry, we have nothing to check and nothing to show — we do not treat silence as a pass. As of this writing, the endpoint that receives this event is not yet live for real workspaces — this step describes the design, not something you can wire up today.',
   },
 ];
 
 export const ONBOARDING_DONE_MEANS =
-  'Once all four steps are complete, your next signed event starts a real run. It can take up to the completion window your workflow is set to — ten minutes by default, never more than an hour — to settle into verified, failed or unverified. Nothing about this is instant, and nothing is checked retroactively for enquiries that happened before you finished setting up.';
+  'Once all four steps are complete and live traffic is switched on, your next signed event starts a real run. It can take up to the completion window your workflow is set to — ten minutes by default, never more than an hour — to settle into verified, failed or unverified. Nothing about this is instant, and nothing is checked retroactively for enquiries that happened before you finished setting up.';

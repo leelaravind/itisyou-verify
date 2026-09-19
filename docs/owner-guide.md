@@ -14,10 +14,10 @@ tell whoever is maintaining the software. A guide that has drifted is worse than
 
 ### The two doors
 
-| Address | Who it is for |
-| --- | --- |
-| `/app` | Your customers. Their workspaces, their runs, their bills. |
-| `/admin/login` | You. |
+| Address        | Who it is for                                              |
+| -------------- | ---------------------------------------------------------- |
+| `/app`         | Your customers. Their workspaces, their runs, their bills. |
+| `/admin/login` | You.                                                       |
 
 `/admin/login` is a public web page. Anyone can open it. That is deliberate — you need to
 be able to reach it from a borrowed laptop at a bad moment, and a hidden address is not a
@@ -49,8 +49,8 @@ thing they will not have.
 The owner account is not created by signing up. It is claimed once, using a secret set on
 the deployment, from the page at `/admin/bootstrap`:
 
-1. Sign in with a magic link first. The bootstrap secret proves *which installation this
-   is*; it does not prove who you are, and you need both.
+1. Sign in with a magic link first. The bootstrap secret proves _which installation this
+   is_; it does not prove who you are, and you need both.
 2. Paste the bootstrap token.
 3. You become the platform owner.
 
@@ -84,12 +84,12 @@ These are the words you will meet most often and the ones most easily misread.
 
 ### About verification
 
-| Word | What it means | What to do |
-| --- | --- | --- |
-| **Verified** | We looked in the customer's connected systems and found evidence for everything their rules required. | Nothing. |
-| **Failed** | We looked, we found evidence, and the evidence contradicts one of their rules. | The customer's automation probably did something wrong. The run page names which check and what it expected. |
-| **Unverified** | We could not get enough evidence to say either way. | **This is not a failure.** Usually a connection is broken or a provider is down. Check the connections page for that customer. |
-| **Pending** | The agreed window for the job to finish has not closed yet. | Nothing. Wait. |
+| Word           | What it means                                                                                         | What to do                                                                                                                     |
+| -------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| **Verified**   | We looked in the customer's connected systems and found evidence for everything their rules required. | Nothing.                                                                                                                       |
+| **Failed**     | We looked, we found evidence, and the evidence contradicts one of their rules.                        | The customer's automation probably did something wrong. The run page names which check and what it expected.                   |
+| **Unverified** | We could not get enough evidence to say either way.                                                   | **This is not a failure.** Usually a connection is broken or a provider is down. Check the connections page for that customer. |
+| **Pending**    | The agreed window for the job to finish has not closed yet.                                           | Nothing. Wait.                                                                                                                 |
 
 The distinction between **failed** and **unverified** is the product. Never describe an
 unverified run to a customer as a failure — we did not prove anything went wrong, we proved
@@ -97,29 +97,29 @@ we could not look.
 
 ### About things that are waiting
 
-| Word | What it means | What to do |
-| --- | --- | --- |
-| **Pending** (an approval) | You approved something and it has not been used yet. | Nothing, or withdraw it if you have changed your mind. |
-| **Expired** (an approval) | More than a day has passed. It no longer authorises anything. | If you still want the thing to happen, approve it again. |
-| **Pause requested** (an advert) | We asked the ad platform to stop. **It has not confirmed.** | Assume the advert may still be showing and may still be spending. Check again in a few minutes. If it stays like this for an hour, open the ad platform yourself. |
-| **Paused** (an advert) | The ad platform told us it is paused, or you told us you saw it paused there. | Nothing. |
-| **Waiting for a runner** | Something needs a machine that can actually do work — run tests, deploy — and nothing is connected. | The job is saved, not lost. It will run when a runner is connected. Nothing has been tested or deployed yet. |
-| **Runner offline** | The machine that does that work has not checked in for over two minutes. | Anything queued stays queued. If you need it now, someone has to start the runner. |
-| **Unknown** | We have not measured this. | **It is not zero.** Treat it as a hole in what you know, not as good news. |
-| **Out of date** | We measured this, but a while ago. | Do not make a spending decision on it. Refresh it or go and look at the source. |
+| Word                            | What it means                                                                                       | What to do                                                                                                                                                        |
+| ------------------------------- | --------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Pending** (an approval)       | You approved something and it has not been used yet.                                                | Nothing, or withdraw it if you have changed your mind.                                                                                                            |
+| **Expired** (an approval)       | More than a day has passed. It no longer authorises anything.                                       | If you still want the thing to happen, approve it again.                                                                                                          |
+| **Pause requested** (an advert) | We asked the ad platform to stop. **It has not confirmed.**                                         | Assume the advert may still be showing and may still be spending. Check again in a few minutes. If it stays like this for an hour, open the ad platform yourself. |
+| **Paused** (an advert)          | The ad platform told us it is paused, or you told us you saw it paused there.                       | Nothing.                                                                                                                                                          |
+| **Waiting for a runner**        | Something needs a machine that can actually do work — run tests, deploy — and nothing is connected. | The job is saved, not lost. It will run when a runner is connected. Nothing has been tested or deployed yet.                                                      |
+| **Runner offline**              | The machine that does that work has not checked in for over two minutes.                            | Anything queued stays queued. If you need it now, someone has to start the runner.                                                                                |
+| **Unknown**                     | We have not measured this.                                                                          | **It is not zero.** Treat it as a hole in what you know, not as good news.                                                                                        |
+| **Out of date**                 | We measured this, but a while ago.                                                                  | Do not make a spending decision on it. Refresh it or go and look at the source.                                                                                   |
 
 ### About tests
 
-| Word | What it means |
-| --- | --- |
-| **Queued** | Accepted, not started. |
-| **Waiting for a runner** | Nothing can run it. No result exists. |
-| **Running** | In progress. |
-| **Passed** | Every case ran and passed, on the commit named beside it. |
-| **Failed** | At least one case failed. The report says which. |
-| **Cancelled** | Someone stopped it. Nothing is proved. |
-| **Timed out** | It ran too long and was stopped. **Not a pass and not a failure.** |
-| **Could not run** | The machinery broke, not the code. Nothing is proved. Run it again. |
+| Word                     | What it means                                                       |
+| ------------------------ | ------------------------------------------------------------------- |
+| **Queued**               | Accepted, not started.                                              |
+| **Waiting for a runner** | Nothing can run it. No result exists.                               |
+| **Running**              | In progress.                                                        |
+| **Passed**               | Every case ran and passed, on the commit named beside it.           |
+| **Failed**               | At least one case failed. The report says which.                    |
+| **Cancelled**            | Someone stopped it. Nothing is proved.                              |
+| **Timed out**            | It ran too long and was stopped. **Not a pass and not a failure.**  |
+| **Could not run**        | The machinery broke, not the code. Nothing is proved. Run it again. |
 
 ---
 
@@ -190,7 +190,7 @@ platform.
 
 Two rules this screen keeps:
 
-1. **A pause you requested is not a pause that happened.** It reads *pause requested* until
+1. **A pause you requested is not a pause that happened.** It reads _pause requested_ until
    the ad platform confirms it, and says so in words.
 2. **Stale numbers are marked stale.** A spend figure we last read an hour ago carries an
    "out of date" tag. Do not decide anything on an out-of-date spend figure.
@@ -212,7 +212,7 @@ pairing rather than going looking for the old one. Pairing asks for your six-dig
 first, because the code you get lets a machine claim and run maintenance jobs.
 
 **Restoring a previous version** replaces the running code. Read this before you do it:
-a rollback undoes *code*, not *data*. Anything written to the database since that version
+a rollback undoes _code_, not _data_. Anything written to the database since that version
 stays written, and a change to the database's own shape is not reversed. You have to type
 "restore" to confirm.
 
@@ -220,12 +220,12 @@ stays written, and a change to the database's own shape is not reversed. You hav
 
 Four stop switches, each of which states what it stops **and what it does not stop**:
 
-| Switch | Stops | Does not stop |
-| --- | --- | --- |
-| Advertising | New campaigns; we ask the platform to pause running ones. | An ad already showing, until the platform confirms. |
-| New orders | Anyone new reaching checkout. | Existing customers' service or billing. |
-| Expensive verification | The retries and extra provider reads that cost money. | Verification being correct. Runs become *unverified* where we could not look — nothing is marked failed because of this. |
-| Assistant | The optional assistant, everywhere. | Anything at all about verification, billing or support. It never decided those. |
+| Switch                 | Stops                                                     | Does not stop                                                                                                            |
+| ---------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Advertising            | New campaigns; we ask the platform to pause running ones. | An ad already showing, until the platform confirms.                                                                      |
+| New orders             | Anyone new reaching checkout.                             | Existing customers' service or billing.                                                                                  |
+| Expensive verification | The retries and extra provider reads that cost money.     | Verification being correct. Runs become _unverified_ where we could not look — nothing is marked failed because of this. |
+| Assistant              | The optional assistant, everywhere.                       | Anything at all about verification, billing or support. It never decided those.                                          |
 
 **Whatever you pause, a customer can still cancel their plan and still reach support.** That
 is not a promise we are being careful about; the code refuses to suspend those pages, and a
@@ -275,8 +275,8 @@ You choose a suite from a list. You never type what to run — there is no box o
 that reaches a machine, which is why nobody can turn this screen into a way to run arbitrary
 commands on our systems.
 
-**If nothing is connected that can run tests**, the job is saved and shows *waiting for a
-runner*, with the reason. It is never reported as passing. A green tick you did not earn is
+**If nothing is connected that can run tests**, the job is saved and shows _waiting for a
+runner_, with the reason. It is never reported as passing. A green tick you did not earn is
 the single most dangerous thing a page like this could show you.
 
 Four files are downloadable once a run has produced them: the test report, the raw results,
@@ -330,7 +330,7 @@ than quietly leaving it out.
 ### An advert is spending more than expected
 
 1. Go to `/owner/ads` and press **Request pause** on the campaign.
-2. It will read *pause requested*. **Assume it is still spending** until the platform
+2. It will read _pause requested_. **Assume it is still spending** until the platform
    confirms.
 3. If you need it stopped now, open the ad platform's own console and pause it there. Then
    come back — we will pick that up on the next read.

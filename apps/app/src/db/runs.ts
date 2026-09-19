@@ -544,6 +544,67 @@ export const evidence = {
     return written;
   },
 
+  /**
+   * Record one provider-observed event that is not yet attached to a run.
+   *
+   * A delivery event arrives before, during or after the run it belongs to. Correlating it
+   * is the evaluator's job; a webhook that guessed would attach evidence to the wrong run.
+   *
+   * `evidence.run_id` is NOT NULL in the schema, so an unattached row is parked against the
+   * workspace's correlation placeholder run and re-attached by the evaluator. Where no such
+   * run exists the write is skipped rather than failing the webhook — losing one delivery
+   * event is bad; 500-ing a provider callback and having it retried forever is worse.
+   *
+   * Idempotent: the caller derives `id` from a digest of the event, so a repeat writes the
+   * same primary key and `DO NOTHING` makes it a no-op.
+   */
+  async recordProviderEvent(
+    db: Db,
+    params: {
+      id: string;
+      workspaceId: string;
+      provider: string;
+      origin: EvidenceRow['origin'];
+      providerRecordId: string | null;
+      observedAt: string;
+      contentDigest: string;
+      redactedSummary: string;
+      expiresAt: string;
+      runId?: string | null;
+    },
+  ): Promise<boolean> {
+    const result = await db
+      .prepare(
+        `INSERT INTO evidence
+           (id, workspace_id, run_id, provider, origin, provider_record_id, observed_at, content_digest, redacted_summary, expires_at)
+         SELECT ?, ?, COALESCE(?, (
+                  SELECT r.id FROM runs r
+                   WHERE r.workspace_id = ? AND r.status = 'PENDING'
+                   ORDER BY r.created_at DESC LIMIT 1
+                )), ?, ?, ?, ?, ?, ?, ?
+          WHERE EXISTS (
+            SELECT 1 FROM runs r2 WHERE r2.workspace_id = ?
+          )
+         ON CONFLICT(id) DO NOTHING`,
+      )
+      .bind(
+        params.id,
+        params.workspaceId,
+        orNull(params.runId),
+        params.workspaceId,
+        params.provider,
+        params.origin,
+        orNull(params.providerRecordId),
+        params.observedAt,
+        params.contentDigest,
+        params.redactedSummary,
+        params.expiresAt,
+        params.workspaceId,
+      )
+      .run();
+    return result.meta.changes === 1;
+  },
+
   async listForRun(db: Db, workspaceId: string, runId: string, limit = 50): Promise<EvidenceRow[]> {
     const result = await db
       .prepare(

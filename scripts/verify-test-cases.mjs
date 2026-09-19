@@ -518,8 +518,105 @@ for (const m of malformedLedgerIds) {
 // Output
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Case accounting. Seven named buckets, every case in exactly one terminal
+// bucket, and every step between adjacent buckets itemised.
+//
+// The point is that "passing" and "countable" are different things, and so are
+// "discovered" and "executed". A reader must be able to get from any one of them
+// to the next without doing arithmetic of their own.
+// ---------------------------------------------------------------------------
+
+const EXECUTED_STATUSES = new Set(['passing', 'failing', 'skipped', 'quarantined']);
+
+const accounting = {
+  ledger_entries: cases.length,
+  discovered: 0, // a test carrying this id exists in the tree
+  planned: 0, // designed, no test written
+  executed: 0, // ran in the recorded run
+  not_executed: 0, // test exists, absent from the recorded run
+  passing: 0,
+  failing: 0,
+  skipped: 0,
+  quarantined: 0,
+  countable: 0,
+  passing_not_countable: 0,
+  by_runner: { vitest: 0, playwright: 0, none: 0 },
+  passing_by_runner: { vitest: 0, playwright: 0 },
+};
+
+/** Why a passing case does not count, grouped, with the ids that prove it. */
+const exclusionReasons = new Map();
+const noteExclusion = (reason, id) => {
+  if (!exclusionReasons.has(reason)) exclusionReasons.set(reason, []);
+  exclusionReasons.get(reason).push(id);
+};
+
+for (const c of cases) {
+  if (c.status === 'planned') accounting.planned += 1;
+  else accounting.discovered += 1;
+
+  if (EXECUTED_STATUSES.has(c.status)) accounting.executed += 1;
+  else if (c.status !== 'planned') accounting.not_executed += 1;
+
+  if (c.status === 'passing') accounting.passing += 1;
+  else if (c.status === 'failing') accounting.failing += 1;
+  else if (c.status === 'skipped') accounting.skipped += 1;
+  else if (c.status === 'quarantined') accounting.quarantined += 1;
+
+  const r = c.runner === 'vitest' || c.runner === 'playwright' ? c.runner : 'none';
+  accounting.by_runner[r] += 1;
+  if (c.status === 'passing' && r !== 'none') accounting.passing_by_runner[r] += 1;
+
+  if (c.status === 'passing') {
+    if (c.countable === true) {
+      accounting.countable += 1;
+    } else {
+      accounting.passing_not_countable += 1;
+      const m = typeof c.id === 'string' ? /^([A-Z]+)-(\d+)$/.exec(c.id) : null;
+      const prefix = m ? m[1] : '(unparseable id)';
+      const digits = m ? m[2] : '';
+      let reason;
+      if (!Object.prototype.hasOwnProperty.call(PREFIX_CATEGORY, prefix)) {
+        reason = `prefix \`${prefix}\` is outside the allowlist, so it maps to no category and no floor`;
+      } else if (digits.length !== 3) {
+        reason = `id number is ${digits.length} digit(s); ids are zero-padded to three`;
+      } else if (digits === '000') {
+        reason = 'numbering starts at 001';
+      } else {
+        reason = 'UNEXPLAINED — this is a bug in the ledger or in this checker';
+      }
+      noteExclusion(reason, c.id);
+    }
+  }
+}
+
+// Internal consistency. If these ever disagree the whole report is worthless.
+if (accounting.discovered + accounting.planned !== cases.length) {
+  fail('accounting', `discovered (${accounting.discovered}) + planned (${accounting.planned}) != ledger entries (${cases.length})`);
+}
+if (accounting.executed + accounting.not_executed + accounting.planned !== cases.length) {
+  fail('accounting', `executed (${accounting.executed}) + not executed (${accounting.not_executed}) + planned (${accounting.planned}) != ledger entries (${cases.length})`);
+}
+if (accounting.passing + accounting.failing + accounting.skipped + accounting.quarantined !== accounting.executed) {
+  fail('accounting', 'passing + failing + skipped + quarantined != executed');
+}
+if (accounting.countable + accounting.passing_not_countable !== accounting.passing) {
+  fail('accounting', 'countable + passing-not-countable != passing');
+}
+if (accounting.countable !== countedTotal) {
+  fail('accounting', `countable (${accounting.countable}) disagrees with the category roll-up (${countedTotal})`);
+}
+for (const [reason, ids] of exclusionReasons) {
+  if (reason.startsWith('UNEXPLAINED')) {
+    fail('accounting', `${ids.length} passing case(s) are not countable for no identifiable reason: ${ids.slice(0, 10).join(', ')}`);
+  }
+}
+
 const summary = {
   snapshot_commit: ledger.snapshot_commit ?? null,
+  accounting,
+  exclusions: Object.fromEntries([...exclusionReasons].map(([reason, ids]) => [reason, { count: ids.length, ids }])),
   ledger_entries: cases.length,
   counted_passing: countedTotal,
   total_minimum: TOTAL_MINIMUM,
@@ -578,6 +675,45 @@ if (AS_JSON) {
     for (const s of shortfalls) console.log(`    ${s.category}: ${s.counted} counted against a floor of ${s.minimum} (short by ${s.short})`);
     console.log('');
   }
+  const n = (v) => String(v).padStart(6);
+  console.log('  Case accounting — one release commit, one terminal bucket per case');
+  console.log('');
+  console.log(`    discovered   (a test carrying the id exists)        ${n(accounting.discovered)}`);
+  console.log(`  + planned      (designed, no test written yet)        ${n(accounting.planned)}`);
+  console.log(`  = ledger entries                                      ${n(cases.length)}`);
+  console.log('');
+  console.log(`    discovered                                          ${n(accounting.discovered)}`);
+  console.log(`      executed     (ran in the recorded run)            ${n(accounting.executed)}`);
+  console.log(`      not executed (exists, absent from that run)       ${n(accounting.not_executed)}`);
+  console.log('');
+  console.log(`    executed                                            ${n(accounting.executed)}`);
+  console.log(`      passing                                           ${n(accounting.passing)}`);
+  console.log(`      failing                                           ${n(accounting.failing)}`);
+  console.log(`      skipped      (declared skip)                      ${n(accounting.skipped)}`);
+  console.log(`      quarantined  (known flaky, excluded)              ${n(accounting.quarantined)}`);
+  console.log('');
+  console.log(`    passing                                             ${n(accounting.passing)}`);
+  console.log(`      countable    (counts toward the 500 floor)        ${n(accounting.countable)}`);
+  console.log(`      excluded                                          ${n(accounting.passing_not_countable)}`);
+  if (exclusionReasons.size === 0) {
+    console.log('        (none — every passing case counts)');
+  } else {
+    for (const [reason, ids] of [...exclusionReasons].sort((a, b) => b[1].length - a[1].length)) {
+      const byPrefix = new Map();
+      for (const id of ids) {
+        const p = String(id).split('-')[0];
+        byPrefix.set(p, (byPrefix.get(p) ?? 0) + 1);
+      }
+      console.log(`        ${String(ids.length).padStart(4)}  ${reason}`);
+      console.log(`              ${[...byPrefix].sort().map(([p, c]) => `${p}=${c}`).join(', ')}  e.g. ${ids.slice(0, 4).join(', ')}`);
+    }
+  }
+  console.log('');
+  console.log(`    by runner    vitest=${accounting.by_runner.vitest}  playwright=${accounting.by_runner.playwright}  not-run=${accounting.by_runner.none}`);
+  console.log(`    passing      vitest=${accounting.passing_by_runner.vitest}  playwright=${accounting.passing_by_runner.playwright}`);
+  console.log(`    The vitest-only passing figure (${accounting.passing_by_runner.vitest}) is what`);
+  console.log('    scripts/build-test-report.mjs reports: it does not read the Playwright run.');
+  console.log('');
   console.log('  Reconciliation (ledger vs case ids in test titles)');
   console.log(`    in the ledger                ${plannedIds.size}`);
   console.log(`    in the test tree             ${implementedIds.size}`);

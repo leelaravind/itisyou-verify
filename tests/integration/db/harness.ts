@@ -42,16 +42,32 @@
  * that takes a `D1Database` in production takes `h.db` in a test unchanged.
  */
 import { DatabaseSync, type StatementSync } from 'node:sqlite';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Db, DbResult, DbStatement } from '@app/db/d1';
 
-const MIGRATION_PATH = fileURLToPath(new URL('../../../migrations/0001_init.sql', import.meta.url));
+const MIGRATIONS_DIR = fileURLToPath(new URL('../../../migrations/', import.meta.url));
 
 let cachedMigration: string | null = null;
 
+/**
+ * Every migration, in filename order.
+ *
+ * Deliberately not just `0001_init.sql`. The harness was one migration behind for a while
+ * and the symptom was `no such column` in whichever test happened to touch the new column
+ * first — which reads like a broken test rather than a stale harness. Reading the whole
+ * directory means a migration the lead adds is picked up with no change here.
+ */
 function migrationSql(): string {
-  if (cachedMigration === null) cachedMigration = readFileSync(MIGRATION_PATH, 'utf8');
+  if (cachedMigration === null) {
+    const files = readdirSync(MIGRATIONS_DIR)
+      .filter((name) => name.endsWith('.sql'))
+      .sort();
+    cachedMigration = files
+      .map((name) => readFileSync(join(MIGRATIONS_DIR, name), 'utf8'))
+      .join(String.fromCharCode(10));
+  }
   return cachedMigration;
 }
 

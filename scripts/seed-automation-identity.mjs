@@ -66,7 +66,11 @@ const MAX_LIFETIME_SECONDS = 12 * 60 * 60;
 const CROCKFORD = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 
 function base64url(bytes) {
-  return Buffer.from(bytes).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  return Buffer.from(bytes)
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
 }
 
 function randomBytes(n) {
@@ -95,11 +99,11 @@ async function hashToken(token, domain) {
 /** One `wrangler d1 execute` call. Local by default; `--remote` for staging. */
 function execute(sql) {
   const flags = env === 'staging' ? ['--remote', '--env', 'staging'] : ['--local'];
-  execFileSync(
-    'npx',
-    ['wrangler', 'd1', 'execute', DATABASE, ...flags, '--command', sql],
-    { cwd: 'apps/app', stdio: ['ignore', 'ignore', 'inherit'], shell: process.platform === 'win32' },
-  );
+  execFileSync('npx', ['wrangler', 'd1', 'execute', DATABASE, ...flags, '--command', sql], {
+    cwd: 'apps/app',
+    stdio: ['ignore', 'ignore', 'inherit'],
+    shell: process.platform === 'win32',
+  });
 }
 
 function quote(value) {
@@ -129,7 +133,9 @@ execute(
 
 // `is_platform_owner = 0` is asserted rather than assumed: a previous seed against a
 // database somebody had edited must not silently hand the suite owner rights.
-execute(`UPDATE users SET is_platform_owner = 0 WHERE auth_subject = ${quote(AUTOMATION_SUBJECT)};`);
+execute(
+  `UPDATE users SET is_platform_owner = 0 WHERE auth_subject = ${quote(AUTOMATION_SUBJECT)};`,
+);
 
 execute(
   `INSERT INTO sessions (id, user_id, created_at, expires_at, last_seen_at, mfa_verified_at, is_automation)

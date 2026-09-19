@@ -17,17 +17,17 @@ entire product.
 Early-stage, in active development. This repository is **public by design** and contains
 no production credentials, no customer data and no confidential operational records.
 
-Version one supports one workflow shape: *an enquiry should create the correct CRM record
-and trigger an acknowledgement email*, using HubSpot and Resend as evidence sources.
+Version one supports one workflow shape: _an enquiry should create the correct CRM record
+and trigger an acknowledgement email_, using HubSpot and Resend as evidence sources.
 
 ## The four statuses
 
-| Status | Meaning |
-| --- | --- |
-| **VERIFIED** | Every mandatory check has sufficient supporting evidence. |
-| **FAILED** | Evidence contradicts a rule, or a deadline was missed and evidence access was working. |
-| **UNVERIFIED** | Access, correlation or evidence is missing or ambiguous. Not a pass, not a failure. |
-| **PENDING** | Still inside the agreed completion window. |
+| Status         | Meaning                                                                                |
+| -------------- | -------------------------------------------------------------------------------------- |
+| **VERIFIED**   | Every mandatory check has sufficient supporting evidence.                              |
+| **FAILED**     | Evidence contradicts a rule, or a deadline was missed and evidence access was working. |
+| **UNVERIFIED** | Access, correlation or evidence is missing or ambiguous. Not a pass, not a failure.    |
+| **PENDING**    | Still inside the agreed completion window.                                             |
 
 Absence of evidence never becomes VERIFIED. "No runs received yet" is never "100% success".
 

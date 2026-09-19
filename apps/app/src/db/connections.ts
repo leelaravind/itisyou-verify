@@ -251,6 +251,38 @@ export const credentials = {
    * a platform owner is not a member of any tenant in this capacity, so there is no
    * workspace id to scope by. The caller has already authenticated as that user.
    */
+  /**
+   * The active credential for one connection AND one purpose.
+   *
+   * A connection holds more than one secret — Resend has an API token and a webhook signing
+   * secret — so `activeForConnection` alone would hand back whichever was stored last. The
+   * purpose is matched against the AAD, which is the field that actually binds a ciphertext
+   * to what it is for, rather than a column somebody could edit.
+   *
+   * The join to `connections` is the tenant check: another workspace's connection id
+   * returns null rather than a ciphertext.
+   */
+  async activeForScope(
+    db: Db,
+    workspaceId: string,
+    connectionId: string,
+    purpose: string,
+  ): Promise<CredentialEnvelopeRow | null> {
+    return db
+      .prepare(
+        `SELECT cv.id, cv.connection_id, cv.owner_scope, cv.key_version,
+                cv.ciphertext, cv.nonce, cv.aad, cv.created_at
+           FROM credential_versions cv
+           JOIN connections c ON c.id = cv.connection_id
+          WHERE c.workspace_id = ? AND c.id = ? AND cv.retired_at IS NULL
+            AND cv.aad LIKE ?
+          ORDER BY cv.created_at DESC
+          LIMIT 1`,
+      )
+      .bind(workspaceId, connectionId, `%|purpose=${purpose}`)
+      .first<CredentialEnvelopeRow>();
+  },
+
   async activeForUser(db: Db, userId: string): Promise<CredentialEnvelopeRow | null> {
     // tenant-scope:exempt user-scoped TOTP secret; owner_scope is 'user:<id>'.
     return db

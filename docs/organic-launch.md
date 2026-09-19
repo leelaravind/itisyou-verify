@@ -35,6 +35,7 @@ the lead** — do not reword the post to get around a rule.
    way. Note the fill bucket is `--30` for a score of 33 — it rounds **down**, which is the
    correct direction for this product, but confirm it still looks like a third and not like
    a pass.
+
 3. Confirm `ANALYTICS_SALT` is set in the deployed environment. Without it no visit is
    counted at all and the launch report will read zero.
 4. Open one of the UTM'd links from this document in a private window. Confirm it lands on
@@ -80,7 +81,7 @@ three hundred visitors — and nothing written here changes which of those happe
 reading this document should treat every "expected outcome" below as a guess with a wide
 error bar.
 
-What *is* under our control: the posts are honest, they are in the right places, and they
+What _is_ under our control: the posts are honest, they are in the right places, and they
 do not claim anything the product cannot do.
 
 ### How the result will be reported
@@ -88,11 +89,11 @@ do not claim anything the product cannot do.
 Three numbers, **always separate, never rolled into one** — the same separation
 `apps/app/src/growth/analytics.ts` already enforces:
 
-| Figure | What it is | What it is **not** |
-| --- | --- | --- |
+| Figure                        | What it is                                                                                            | What it is **not**                                                                                                        |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
 | **Observed landing sessions** | Sessions that reached the Worker, classified `external`, deduplicated by a daily-rotating salted hash | Not "unique people". Not interest. One person on a phone and a laptop is two. Somebody who bounces in two seconds counts. |
-| **Qualified signups** | A workspace created and a HubSpot connection reaching `ready` | Not customers. Not revenue. |
-| **Paying customers** | An active Stripe subscription | The only one of the three that is money |
+| **Qualified signups**         | A workspace created and a HubSpot connection reaching `ready`                                         | Not customers. Not revenue.                                                                                               |
+| **Paying customers**          | An active Stripe subscription                                                                         | The only one of the three that is money                                                                                   |
 
 A visit is not interest, and interest is not a customer. The launch report must never
 imply otherwise, and must never present a single blended "results" number.
@@ -107,13 +108,13 @@ three and **never count toward the ten**. Our own testing does not count.
 The lead asked for each community's promotion rules read **from the source**. Here is
 exactly how far that got.
 
-| Destination | Rules readable from source? | Evidence quality |
-| --- | --- | --- |
-| **Hacker News / Show HN** | **Yes** — both guideline pages fetched and quoted below | **Primary** |
-| **r/n8n** | **No** | None — see below |
-| **r/automate** | **No** | None |
-| **r/msp** | **No** | Secondary only |
-| **Indie Hackers** | **No** — `indiehackers.com/guidelines` returns HTTP 404 | Secondary, and contradictory |
+| Destination               | Rules readable from source?                             | Evidence quality             |
+| ------------------------- | ------------------------------------------------------- | ---------------------------- |
+| **Hacker News / Show HN** | **Yes** — both guideline pages fetched and quoted below | **Primary**                  |
+| **r/n8n**                 | **No**                                                  | None — see below             |
+| **r/automate**            | **No**                                                  | None                         |
+| **r/msp**                 | **No**                                                  | Secondary only               |
+| **Indie Hackers**         | **No** — `indiehackers.com/guidelines` returns HTTP 404 | Secondary, and contradictory |
 
 **Why Reddit rules could not be read.** Every Reddit host is unreachable from this
 environment: `www.reddit.com`, `old.reddit.com`, `business.reddit.com` and
@@ -140,13 +141,13 @@ below as **conditional**, not recommended.
 Fewer than five survived, as the lead anticipated. A post that gets removed is worth less
 than no post.
 
-| Destination | Verdict |
-| --- | --- |
-| Show HN | **Recommended** — rules read from source, and the demo page fits what Show HN asks for |
-| r/n8n | **Recommended, pre-flight required** — closest audience match in existence |
-| r/automate | **Recommended, pre-flight required** — same post, adjusted, posted later |
-| Indie Hackers | **Conditional** — only after the founder establishes which guidelines apply |
-| r/msp | **Dropped** — see §8 |
+| Destination   | Verdict                                                                                |
+| ------------- | -------------------------------------------------------------------------------------- |
+| Show HN       | **Recommended** — rules read from source, and the demo page fits what Show HN asks for |
+| r/n8n         | **Recommended, pre-flight required** — closest audience match in existence             |
+| r/automate    | **Recommended, pre-flight required** — same post, adjusted, posted later               |
+| Indie Hackers | **Conditional** — only after the founder establishes which guidelines apply            |
+| r/msp         | **Dropped** — see §8                                                                   |
 
 ---
 
@@ -220,7 +221,7 @@ https://verify.itisyou.app/demo?utm_source=hn&utm_medium=organic&utm_campaign=or
 > **Straight about what I have and have not actually run:** the HubSpot and Resend adapters
 > have never been pointed at a live account. I hold no provider credentials, and every
 > connector test injects a fake HTTP layer — the provider responses are synthetic, built
-> from each vendor's own API documentation. What *has* been exercised for real is the rule
+> from each vendor's own API documentation. What _has_ been exercised for real is the rule
 > evaluator and the decision table, over synthetic evidence: which assertion outcomes
 > combine into VERIFIED vs FAILED vs UNVERIFIED, what happens when evidence is missing
 > rather than contradictory, and when a missed deadline is allowed to count as a failure.
@@ -237,7 +238,7 @@ https://verify.itisyou.app/demo?utm_source=hn&utm_medium=organic&utm_campaign=or
 > - One workflow shape only: an enquiry that should create a CRM record and send an
 >   acknowledgement email. Not quotes, invoices or tickets.
 > - HubSpot and Resend only. Different CRM or different email provider, it cannot help.
-> - It never looks inside n8n/Make/Zapier. It has no idea *why* a step failed, only whether
+> - It never looks inside n8n/Make/Zapier. It has no idea _why_ a step failed, only whether
 >   the outcome exists downstream.
 > - It does not fix anything. No writes to your CRM, no resent emails.
 > - By default it cannot detect a run that never started, because by default your
@@ -336,7 +337,7 @@ future paid campaign on Reddit.
 > **Where it actually is, honestly:** the HubSpot and Resend adapters have not been run
 > against a live account. I have no provider credentials yet, and every connector test
 > injects a fake HTTP layer with synthetic responses shaped from the vendors' API docs. The
-> part that *is* properly exercised is the evaluator and the decision table, over synthetic
+> part that _is_ properly exercised is the evaluator and the decision table, over synthetic
 > evidence — which assertion outcomes produce which of the four statuses, what happens when
 > evidence is missing rather than contradictory, and when a blown deadline is allowed to
 > count as a failure at all. I would rather say that plainly than let "reads it back from
@@ -356,7 +357,7 @@ future paid campaign on Reddit.
 >   invoices, not tickets.
 > - HubSpot and Resend only. Another CRM or another email provider, it can't help yet.
 > - It never looks inside n8n. It has no visibility into your executions and cannot tell
->   you *why* something failed — only whether the outcome exists downstream.
+>   you _why_ something failed — only whether the outcome exists downstream.
 > - It doesn't fix anything. No writes to your CRM, no resent emails. It reads.
 > - Setup is real work, not "connect and go": you need a stable correlation value written
 >   into a named HubSpot property on every enquiry, a signing key, and one extra HTTP node
@@ -487,7 +488,7 @@ request for feedback rather than an announcement, with MRR claims requiring proo
 is not clear those apply to the `indiehackers.com` site at all.
 
 **This destination is not recommended until the founder resolves which place they mean and
-reads that place's actual rules.** It is included because the *framing* below is right for
+reads that place's actual rules.** It is included because the _framing_ below is right for
 either, once that is settled.
 
 ### 7.2 The post, if it goes ahead
@@ -615,21 +616,21 @@ we do not have.
 Every sentence in all four posts has been sorted into one of two buckets, and anything in
 the second is worded as design, not as something we have watched happen.
 
-| Claim in the posts | Status | What backs it |
-| --- | --- | --- |
-| Four outcomes: verified / failed / unverified / pending, and never a fifth | **Observed** | `RUN_STATUS` is a closed tuple; the evaluator and decision table are exercised across `tests/unit/domain/` |
-| Missing or ambiguous evidence resolves to UNVERIFIED, never to a pass | **Observed** | Evaluator tests over synthetic evidence |
-| A blown deadline only counts as FAILED when evidence access was working | **Observed** | Same |
-| The customer's own "success" signal is a trigger, not proof | **Observed** | `EvidenceOrigin: 'customer_claim'` is the weakest tier by construction; no path lets it satisfy a mandatory assertion |
-| The demo shows four seeded runs and needs no account, email or JavaScript | **Observed** | `apps/app/src/routes/public/demo.ts`, server-rendered |
-| The CSP bug that rendered 33% as a full green bar | **Observed** | It happened; the fix is in the policy with a comment saying why |
-| Setup cost: correlation property, signing key, an extra call in the customer's flow | **Observed** | It is the documented onboarding in `docs/product-scope.md` §5 |
-| Every limitation in the "what it cannot do" lists | **Observed** | True by absence — there is no code path that could do those things |
-| **Querying HubSpot and Resend for the record and the message event** | **DESIGNED, NOT OBSERVED** | `packages/connectors/src/hubspot.ts` / `resend.ts` exist and are tested, but against an injected fake HTTP layer. The connector tests state it outright: "No real portal, no real contact, no real token." |
+| Claim in the posts                                                                  | Status                     | What backs it                                                                                                                                                                                              |
+| ----------------------------------------------------------------------------------- | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Four outcomes: verified / failed / unverified / pending, and never a fifth          | **Observed**               | `RUN_STATUS` is a closed tuple; the evaluator and decision table are exercised across `tests/unit/domain/`                                                                                                 |
+| Missing or ambiguous evidence resolves to UNVERIFIED, never to a pass               | **Observed**               | Evaluator tests over synthetic evidence                                                                                                                                                                    |
+| A blown deadline only counts as FAILED when evidence access was working             | **Observed**               | Same                                                                                                                                                                                                       |
+| The customer's own "success" signal is a trigger, not proof                         | **Observed**               | `EvidenceOrigin: 'customer_claim'` is the weakest tier by construction; no path lets it satisfy a mandatory assertion                                                                                      |
+| The demo shows four seeded runs and needs no account, email or JavaScript           | **Observed**               | `apps/app/src/routes/public/demo.ts`, server-rendered                                                                                                                                                      |
+| The CSP bug that rendered 33% as a full green bar                                   | **Observed**               | It happened; the fix is in the policy with a comment saying why                                                                                                                                            |
+| Setup cost: correlation property, signing key, an extra call in the customer's flow | **Observed**               | It is the documented onboarding in `docs/product-scope.md` §5                                                                                                                                              |
+| Every limitation in the "what it cannot do" lists                                   | **Observed**               | True by absence — there is no code path that could do those things                                                                                                                                         |
+| **Querying HubSpot and Resend for the record and the message event**                | **DESIGNED, NOT OBSERVED** | `packages/connectors/src/hubspot.ts` / `resend.ts` exist and are tested, but against an injected fake HTTP layer. The connector tests state it outright: "No real portal, no real contact, no real token." |
 
 **The claim was softened in all four posts, on the lead's instruction, and the reason is
 recorded here because it is the right reason:** a reader in r/n8n hears "reads the record
-back from HubSpot" as *this has been pointed at a real portal and it worked*. It has not. We
+back from HubSpot" as _this has been pointed at a real portal and it worked_. It has not. We
 hold no provider credentials, every connector test stubs the transport, and the only two
 provider-backed cases in the ledger — `CONN-050` (a real HubSpot sandbox read) and
 `CONN-051` (a real Resend test-mode event read) — are both still `planned`, never run.
@@ -639,7 +640,7 @@ gap this product exists to complain about: a system reporting on its own success
 independent evidence. Making that claim in the post that introduces us would be the same
 error we are selling against, in public, on page one.
 
-Each post now says what *was* tested instead — stubbed provider responses built from the
+Each post now says what _was_ tested instead — stubbed provider responses built from the
 vendors' own API documentation, with the real evaluator and decision table run over
 synthetic evidence. That is true, it is more specific than a hedge, and in these communities
 it reads as someone worth replying to.
@@ -697,7 +698,7 @@ The fix is one character of syntax: write `'\u001f'` as an escape rather than em
 raw control character, and use the unit separator instead of NUL. Same "cannot occur in the
 input" property, plain-ASCII source, and the file is text again.
 
-The lesson worth telling: a correct value and a correct *encoding of that value in source*
+The lesson worth telling: a correct value and a correct _encoding of that value in source_
 are different things, and the failure mode of getting the second one wrong is not an error —
 it is a tool going quiet. The reasoning is now recorded in a comment at the constant itself,
 so the next person reaching for a separator finds it.
@@ -710,7 +711,7 @@ a real HubSpot sandbox read, and a real Resend test-mode event read. Both are st
 transport.
 
 That is an honest position for a pre-launch project, and the interesting part is that the
-ledger makes it *visible* — `provider_backed: true` plus `status: planned` is a machine-
+ledger makes it _visible_ — `provider_backed: true` plus `status: planned` is a machine-
 readable admission that the integration has never touched a real system. Most projects
 discover that fact in production.
 
@@ -727,4 +728,4 @@ discover that fact in production.
       live account, and I will not remove that line to make the post read better.
 - [ ] I will publish these myself. Nothing here is posted on my behalf.
 
-**Signed:** ______________________  **Date:** ______________
+**Signed:** ______________________ **Date:** ______________

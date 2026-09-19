@@ -14,13 +14,13 @@ pricing on the date stated, or explicitly labelled an estimate.
 
 **£29 per month. One workflow. 500 verification runs per billing period.**
 
-| Thing | Value | Where it comes from |
-| --- | --- | --- |
-| Price | £29.00 / month | `LIMITS.PLAN_PRICE_PENCE = 2900` |
-| Allowance | 500 runs per period | `LIMITS.PLAN_RUNS_PER_PERIOD = 500` |
-| Currency | GBP | `PLAN.currency` in `apps/app/src/billing/config.ts` |
-| Billing interval | Monthly, recurring | Stripe price, `recurring[interval]=month` |
-| Workflows | One per workspace | `docs/product-scope.md` §6 |
+| Thing            | Value               | Where it comes from                                 |
+| ---------------- | ------------------- | --------------------------------------------------- |
+| Price            | £29.00 / month      | `LIMITS.PLAN_PRICE_PENCE = 2900`                    |
+| Allowance        | 500 runs per period | `LIMITS.PLAN_RUNS_PER_PERIOD = 500`                 |
+| Currency         | GBP                 | `PLAN.currency` in `apps/app/src/billing/config.ts` |
+| Billing interval | Monthly, recurring  | Stripe price, `recurring[interval]=month`           |
+| Workflows        | One per workspace   | `docs/product-scope.md` §6                          |
 
 The price is held in integer pence everywhere. There is no floating-point arithmetic
 anywhere near a charge or a cap (`packages/contracts/src/money.ts`).
@@ -98,18 +98,18 @@ The period allowance is 500 runs, held as three integers: `run_limit`, `consumed
 A release is correct exactly when the customer got nothing for the unit. This is the
 complete list, and it is enforced in `apps/app/src/billing/entitlements.ts`:
 
-| Case | Reservation | Why |
-| --- | --- | --- |
-| Admitted, but the run row failed to commit | **released** | Nothing exists to verify |
-| Scheduler could never lease the run | **released** | No observation was ever attempted |
-| Our own configuration was invalid (missing workflow version) | **released** | Our fault, before any provider work |
-| Retention or cleanup deleted the run before it settled | **released** | We destroyed the work |
-| Workspace deleted mid-flight | **released** | Nobody to serve |
-| Provider call failed and the run settled `UNVERIFIED` | **consumed** | We did the work; that is a real answer |
-| Run settled `VERIFIED` / `FAILED` / `UNVERIFIED` | **consumed** | Terminal state reached |
-| A **queue retry** of an already-admitted run | **neither** | Same unit — a retry is not a new run |
-| A **provider callback** for an existing run | **neither** | Evidence for a unit already held |
-| **Internal error recovery** re-running an admitted run | **neither** | Same unit |
+| Case                                                         | Reservation  | Why                                    |
+| ------------------------------------------------------------ | ------------ | -------------------------------------- |
+| Admitted, but the run row failed to commit                   | **released** | Nothing exists to verify               |
+| Scheduler could never lease the run                          | **released** | No observation was ever attempted      |
+| Our own configuration was invalid (missing workflow version) | **released** | Our fault, before any provider work    |
+| Retention or cleanup deleted the run before it settled       | **released** | We destroyed the work                  |
+| Workspace deleted mid-flight                                 | **released** | Nobody to serve                        |
+| Provider call failed and the run settled `UNVERIFIED`        | **consumed** | We did the work; that is a real answer |
+| Run settled `VERIFIED` / `FAILED` / `UNVERIFIED`             | **consumed** | Terminal state reached                 |
+| A **queue retry** of an already-admitted run                 | **neither**  | Same unit — a retry is not a new run   |
+| A **provider callback** for an existing run                  | **neither**  | Evidence for a unit already held       |
+| **Internal error recovery** re-running an admitted run       | **neither**  | Same unit                              |
 
 The last three are the ones that become a double charge if you get them wrong, which is
 why they reserve nothing at all rather than reserving and releasing. Tests `BILL-051`,
@@ -131,11 +131,11 @@ nothing logged — a conditional `UPDATE` that matches no row is not an error.
 
 Two entry points, which agree by construction:
 
-| Function | For | Used by |
-| --- | --- | --- |
-| `allowancePeriodKey(periodEndIso)` | You hold provider evidence of the period end | billing, opening the row |
-| `allowancePeriodKeyAt(atIso, currentPeriodEndIso)` | You hold an instant and need the period that contained it | the scheduler, settling and releasing |
-| `resolveAllowancePeriodKey(source, {workspaceId, atIso, environment})` | You hold only a workspace and an instant | one call for the scheduler |
+| Function                                                               | For                                                       | Used by                               |
+| ---------------------------------------------------------------------- | --------------------------------------------------------- | ------------------------------------- |
+| `allowancePeriodKey(periodEndIso)`                                     | You hold provider evidence of the period end              | billing, opening the row              |
+| `allowancePeriodKeyAt(atIso, currentPeriodEndIso)`                     | You hold an instant and need the period that contained it | the scheduler, settling and releasing |
+| `resolveAllowancePeriodKey(source, {workspaceId, atIso, environment})` | You hold only a workspace and an instant                  | one call for the scheduler            |
 
 `...At` returns exactly `allowancePeriodKey(end)` for any instant inside the current period,
 and keeps working after a renewal: boundaries are computed by clamping the anchor day into
@@ -144,7 +144,7 @@ each month rather than by subtracting elapsed time, so a 31st anchor gives 31 Ja
 silently move a customer's renewal date. A settle that happens after the subscription rolled
 still finds the run's own period (`BILL-247`).
 
-A period is half-open, `[start, end)`: `current_period_end` is the instant the *next* period
+A period is half-open, `[start, end)`: `current_period_end` is the instant the _next_ period
 begins, so a run at exactly that instant belongs to the next one (`BILL-251`). I asserted
 the opposite when writing the test; the implementation was right and the assertion wrong.
 
@@ -154,12 +154,10 @@ production.
 
 ### Why the key is the period end, and not the start
 
-
-
 The allowance row is keyed by the UTC date the paid period **ends**, not the date it
 starts. This is load-bearing. Two different events describe the same period —
 `customer.subscription.*` carries `items.data[].current_period_end` and `invoice.paid`
-carries its line item's `period.end` — and both give the end *exactly*. Neither carries a
+carries its line item's `period.end` — and both give the end _exactly_. Neither carries a
 start we can trust to agree: deriving one by stepping a month backwards lands on a 30- or
 31-day boundary depending on the month, so the two sources would produce two different
 keys for one period, `UNIQUE (workspace_id, billing_period)` would happily allow both rows,
@@ -171,11 +169,11 @@ two sources agree by construction (`BILL-183`, `BILL-192`).
 Anywhere two subsystems derive a shared key independently, this bug is possible. I checked
 the three other shared keys in the system:
 
-| Key | Verdict |
-| --- | --- |
-| `refunds.idempotency_key` | **Safe.** Built once by `refundIdempotencyKey()`. `decideRefund` reads `refund.idempotencyKey` off the stored row rather than rebuilding it, so the value sent to Stripe is by construction the value stored. |
-| `outbox.unique_event_key` | **Safe.** Built once per event type at enqueue; `dispatch.ts` reads `row.unique_event_key` rather than re-deriving it. |
-| `notification_deliveries.notification_key` | **Safe.** Built once by A09's `notificationKey()`; `supportData.ts` stores and looks up by the stored value. |
+| Key                                        | Verdict                                                                                                                                                                                                       |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `refunds.idempotency_key`                  | **Safe.** Built once by `refundIdempotencyKey()`. `decideRefund` reads `refund.idempotencyKey` off the stored row rather than rebuilding it, so the value sent to Stripe is by construction the value stored. |
+| `outbox.unique_event_key`                  | **Safe.** Built once per event type at enqueue; `dispatch.ts` reads `row.unique_event_key` rather than re-deriving it.                                                                                        |
+| `notification_deliveries.notification_key` | **Safe.** Built once by A09's `notificationKey()`; `supportData.ts` stores and looks up by the stored value.                                                                                                  |
 
 The generalisation worth keeping: all three are safe for the same reason — **the consumer
 reads the stored key rather than re-deriving it from its own inputs.** The allowance period
@@ -214,7 +212,7 @@ enquiries are not being checked. That is the whole of it.
 
 **What the customer is told.** Not "there is a billing issue". The message names the
 consequence they care about — that we have paused checking new runs — alongside what has
-*not* stopped. It goes out on A09's `payment_problem` template, keyed so that Stripe's
+_not_ stopped. It goes out on A09's `payment_problem` template, keyed so that Stripe's
 card retries cannot become a stream of identical emails (`BILL-187`, `BILL-188`).
 
 **How verification resumes.** Only on a payment confirmed by Stripe: a signature-verified
@@ -279,7 +277,7 @@ until the period end, then stops. `BILL-100`.
 owner-decided act (`BILL-101`).
 
 Cancellation can be done from the Stripe hosted Billing Portal or from our own UI; both
-end in the same place. Our stored state is *not* written at the moment of cancellation —
+end in the same place. Our stored state is _not_ written at the moment of cancellation —
 the `customer.subscription.updated` or `.deleted` event that follows is what changes it,
 so cancellation goes through exactly the same out-of-order guards as every other provider
 change.
@@ -303,15 +301,15 @@ there is no code path that submits a refund without a recorded owner approval
 A refund moves through seven distinct states, because collapsing any two of them is how a
 customer gets told they were refunded when they were not:
 
-| State | What it means |
-| --- | --- |
-| `requested` | We have written the request down. Nothing has been decided. |
-| `queued_for_owner` | Waiting for the owner. Every request lands here. |
-| `submitted` | Sent to Stripe. No usable answer yet. |
-| `pending` | Stripe accepted it and is still moving the money. |
-| `succeeded` | Stripe says the money went back. **Only this may be called "refunded".** |
-| `failed` | Stripe could not do it. The customer still has a claim. |
-| `rejected` | The owner declined. |
+| State              | What it means                                                            |
+| ------------------ | ------------------------------------------------------------------------ |
+| `requested`        | We have written the request down. Nothing has been decided.              |
+| `queued_for_owner` | Waiting for the owner. Every request lands here.                         |
+| `submitted`        | Sent to Stripe. No usable answer yet.                                    |
+| `pending`          | Stripe accepted it and is still moving the money.                        |
+| `succeeded`        | Stripe says the money went back. **Only this may be called "refunded".** |
+| `failed`           | Stripe could not do it. The customer still has a claim.                  |
+| `rejected`         | The owner declined.                                                      |
 
 What the customer sees is derived from that state and never from a button press: a
 submitted request reads "Refund in progress with our payment provider", a queued one reads
@@ -335,7 +333,7 @@ owner grants an approval bound to `refundApprovalPayload(refund, rule)` — A07'
 to `decideRefund`.
 
 **The payload is rebuilt from our stored row, never from the caller.** That is the whole
-mechanism. `decideRefund` takes the approval *record*, not an approval id: an id alone
+mechanism. `decideRefund` takes the approval _record_, not an approval id: an id alone
 would only prove that some approval exists, whereas the record carries the hash of what the
 owner actually read. We re-derive the payload from the refund on file, hash it, and compare.
 A refund whose amount, order, workspace, reason or cited rule differs from the approved one
@@ -362,7 +360,7 @@ reordering fails there.
 There is no default consumer: an absent one is a 422, not a silent skip (`BILL-257`). An
 approval already spent on a different refund authorises nothing and no call is made
 (`BILL-259`); a consume that returns false leaves the refund queued rather than
-half-submitted (`BILL-260`). Re-consuming for the *same* refund must succeed, otherwise the
+half-submitted (`BILL-260`). Re-consuming for the _same_ refund must succeed, otherwise the
 documented retry after a transport failure could never complete — A07 owns that contract and
 it is stated on the parameter.
 
@@ -389,14 +387,14 @@ the founder supplies a test key. That is a stated dependency, not a silent one.
 
 All checked against Stripe's own published UK pricing on **2026-09-19**.
 
-| Fee | Rate | Source |
-| --- | --- | --- |
-| UK standard domestic cards | **1.5% + 20p** | https://stripe.com/gb/pricing |
-| UK premium cards (commercial/corporate) | **2.8% + 20p** | https://stripe.com/gb/pricing |
-| EEA cards | **2.5% + 20p** | https://stripe.com/gb/pricing |
-| International cards | **3.15% + 20p** | https://stripe.com/gb/pricing |
-| Currency conversion (EEA/international, when required) | **+2%** | https://stripe.com/gb/pricing |
-| Stripe Billing, pay-as-you-go | **0.7% of billing volume** | https://stripe.com/gb/billing/pricing |
+| Fee                                                    | Rate                       | Source                                |
+| ------------------------------------------------------ | -------------------------- | ------------------------------------- |
+| UK standard domestic cards                             | **1.5% + 20p**             | https://stripe.com/gb/pricing         |
+| UK premium cards (commercial/corporate)                | **2.8% + 20p**             | https://stripe.com/gb/pricing         |
+| EEA cards                                              | **2.5% + 20p**             | https://stripe.com/gb/pricing         |
+| International cards                                    | **3.15% + 20p**            | https://stripe.com/gb/pricing         |
+| Currency conversion (EEA/international, when required) | **+2%**                    | https://stripe.com/gb/pricing         |
+| Stripe Billing, pay-as-you-go                          | **0.7% of billing volume** | https://stripe.com/gb/billing/pricing |
 
 Stripe Billing's paid tiers start at £450/month, which is nonsense at our volume — the
 pay-as-you-go 0.7% is the correct line. There is **no free allowance** on Stripe Billing
@@ -406,13 +404,13 @@ volume (checked 2026-09-19 on the page above).
 
 Arithmetic in pence, per successful monthly charge:
 
-| Card type | Card fee | Billing fee (0.7%) | Total fees | Net to us | Margin |
-| --- | --- | --- | --- | --- | --- |
-| **UK standard (expected case)** | 43.5p + 20p = **63.5p** | 20.3p | **83.8p** | **£28.16** | **97.1%** |
-| EEA | 72.5p + 20p = 92.5p | 20.3p | 112.8p | £27.87 | 96.1% |
-| UK premium/commercial | 81.2p + 20p = 101.2p | 20.3p | 121.5p | £27.79 | 95.8% |
-| International | 91.35p + 20p = 111.35p | 20.3p | 131.65p | £27.68 | 95.5% |
-| International + conversion | 111.35p + 58p = 169.35p | 20.3p | 189.65p | £27.10 | 93.5% |
+| Card type                       | Card fee                | Billing fee (0.7%) | Total fees | Net to us  | Margin    |
+| ------------------------------- | ----------------------- | ------------------ | ---------- | ---------- | --------- |
+| **UK standard (expected case)** | 43.5p + 20p = **63.5p** | 20.3p              | **83.8p**  | **£28.16** | **97.1%** |
+| EEA                             | 72.5p + 20p = 92.5p     | 20.3p              | 112.8p     | £27.87     | 96.1%     |
+| UK premium/commercial           | 81.2p + 20p = 101.2p    | 20.3p              | 121.5p     | £27.79     | 95.8%     |
+| International                   | 91.35p + 20p = 111.35p  | 20.3p              | 131.65p    | £27.68     | 95.5%     |
+| International + conversion      | 111.35p + 58p = 169.35p | 20.3p              | 189.65p    | £27.10     | 93.5%     |
 
 **The expected case is £28.16 net on a £29 subscription — a contribution margin of about
 97% before any of our own costs.**
@@ -447,19 +445,19 @@ https://docs.stripe.com/api/versioning.
 
 Endpoints and parameters, all verified the same day:
 
-| Operation | Endpoint | Source |
-| --- | --- | --- |
-| Create a customer | `POST /v1/customers` | https://docs.stripe.com/api/customers/create |
-| Create a Checkout Session | `POST /v1/checkout/sessions` | https://docs.stripe.com/api/checkout/sessions/create |
-| Create a Billing Portal session | `POST /v1/billing_portal/sessions` | https://docs.stripe.com/api/customer_portal/sessions/create |
-| Retrieve a subscription | `GET /v1/subscriptions/:id` | https://docs.stripe.com/api/subscriptions/object |
-| Cancel now | `DELETE /v1/subscriptions/:id` | https://docs.stripe.com/api/subscriptions/cancel |
-| Cancel at period end | `POST /v1/subscriptions/:id` with `cancel_at_period_end=true` | https://docs.stripe.com/api/subscriptions/cancel |
-| Create a refund | `POST /v1/refunds` | https://docs.stripe.com/api/refunds/create |
-| List events for reconciliation | `GET /v1/events` (30 days, limit 1–100) | https://docs.stripe.com/api/events/list |
-| Create product / price | `POST /v1/products`, `POST /v1/prices` | https://docs.stripe.com/api/prices/create |
-| Idempotency | `Idempotency-Key` header, ≤255 chars, 24h retention | https://docs.stripe.com/api/idempotent_requests |
-| Webhook signatures | `Stripe-Signature: t=…,v1=…`, HMAC-SHA-256 over `${t}.${rawBody}`, ignore non-`v1` schemes, 5-minute tolerance | https://docs.stripe.com/webhooks |
+| Operation                       | Endpoint                                                                                                       | Source                                                      |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| Create a customer               | `POST /v1/customers`                                                                                           | https://docs.stripe.com/api/customers/create                |
+| Create a Checkout Session       | `POST /v1/checkout/sessions`                                                                                   | https://docs.stripe.com/api/checkout/sessions/create        |
+| Create a Billing Portal session | `POST /v1/billing_portal/sessions`                                                                             | https://docs.stripe.com/api/customer_portal/sessions/create |
+| Retrieve a subscription         | `GET /v1/subscriptions/:id`                                                                                    | https://docs.stripe.com/api/subscriptions/object            |
+| Cancel now                      | `DELETE /v1/subscriptions/:id`                                                                                 | https://docs.stripe.com/api/subscriptions/cancel            |
+| Cancel at period end            | `POST /v1/subscriptions/:id` with `cancel_at_period_end=true`                                                  | https://docs.stripe.com/api/subscriptions/cancel            |
+| Create a refund                 | `POST /v1/refunds`                                                                                             | https://docs.stripe.com/api/refunds/create                  |
+| List events for reconciliation  | `GET /v1/events` (30 days, limit 1–100)                                                                        | https://docs.stripe.com/api/events/list                     |
+| Create product / price          | `POST /v1/products`, `POST /v1/prices`                                                                         | https://docs.stripe.com/api/prices/create                   |
+| Idempotency                     | `Idempotency-Key` header, ≤255 chars, 24h retention                                                            | https://docs.stripe.com/api/idempotent_requests             |
+| Webhook signatures              | `Stripe-Signature: t=…,v1=…`, HMAC-SHA-256 over `${t}.${rawBody}`, ignore non-`v1` schemes, 5-minute tolerance | https://docs.stripe.com/webhooks                            |
 
 **Two shape changes in the current API that the code deliberately handles:**
 
@@ -488,8 +486,7 @@ Endpoints and parameters, all verified the same day:
 6. Dispatch. An unrecognised event type is recorded and ignored with a 200 (`BILL-131`) —
    returning non-2xx would make Stripe retry it for three days.
 
-Status codes: **400** for a bad signature, an unparseable body or a mode mismatch — never
-200. **413** for an oversized body. **200** for duplicates and for ignored types. **500**
+Status codes: **400** for a bad signature, an unparseable body or a mode mismatch — never 200. **413** for an oversized body. **200** for duplicates and for ignored types. **500**
 when our own handler throws, after **releasing the receipt** so Stripe's retry is a fresh
 attempt rather than a deduplicated no-op (`BILL-132`). Without that release, one internal
 error would permanently swallow a paid invoice behind the dedupe constraint.
@@ -501,7 +498,7 @@ guessed endpoint URL is not by itself a way in. Two independent conditions must 
 an id we did not issue is rejected **before any work is done on the event**:
 
 - the opaque id resolves to an endpoint we issued, **and**
-- the signature verifies under *that endpoint's* secret.
+- the signature verifies under _that endpoint's_ secret.
 
 Verification is still executed when the id is unknown, against a stand-in key, so the work
 done and the time taken are the same either way and the response is byte-identical to a
@@ -544,13 +541,13 @@ need.
 **What makes it sufficient is that every handler is idempotent by construction.** Not
 "probably safe to retry" — idempotent, for a stated reason, per handler:
 
-| Handler | Why a second execution changes nothing |
-| --- | --- |
-| `checkout.session.completed` | `rememberBillingCustomer` is insert-once and never rebinds; the order transition `active → active` is legal and terminal; the subscription write goes through `reconcileSubscription`, which returns `ignore_duplicate` for an identical snapshot |
-| `customer.subscription.created/updated/deleted` | `reconcileSubscription` returns `ignore_duplicate` for an identical snapshot, `ignore_stale` for an older one, and `ignore_terminal` once cancelled |
-| `invoice.paid` | `openAllowancePeriod` is keyed by period end and refreshes terms, never counters — so a re-run cannot grant a second allowance or reset a used one (`BILL-191`) |
-| `invoice.payment_failed` | the `past_due` write goes through the same guards; the order transition to `failed` is idempotent; the notification key is derived from the window, not the clock (`BILL-188`) |
-| `charge.refunded` | `applyProviderRefund` returns `no_change` when the transition would not move the state |
+| Handler                                         | Why a second execution changes nothing                                                                                                                                                                                                            |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `checkout.session.completed`                    | `rememberBillingCustomer` is insert-once and never rebinds; the order transition `active → active` is legal and terminal; the subscription write goes through `reconcileSubscription`, which returns `ignore_duplicate` for an identical snapshot |
+| `customer.subscription.created/updated/deleted` | `reconcileSubscription` returns `ignore_duplicate` for an identical snapshot, `ignore_stale` for an older one, and `ignore_terminal` once cancelled                                                                                               |
+| `invoice.paid`                                  | `openAllowancePeriod` is keyed by period end and refreshes terms, never counters — so a re-run cannot grant a second allowance or reset a used one (`BILL-191`)                                                                                   |
+| `invoice.payment_failed`                        | the `past_due` write goes through the same guards; the order transition to `failed` is idempotent; the notification key is derived from the window, not the clock (`BILL-188`)                                                                    |
+| `charge.refunded`                               | `applyProviderRefund` returns `no_change` when the transition would not move the state                                                                                                                                                            |
 
 **The three windows, named.**
 
@@ -587,7 +584,7 @@ guards, both in `apps/app/src/billing/state.ts`:
 1. **Monotonic** — `subscriptions.provider_event_created` holds the `created` of the event
    that last wrote the row. A smaller value is ignored (`BILL-016`, `BILL-121`).
 2. **Terminal** — once stored `canceled`, no event moves it to another status. Guard 1
-   alone would let a *same-second* `customer.subscription.updated` re-enable a deleted
+   alone would let a _same-second_ `customer.subscription.updated` re-enable a deleted
    subscription, because Stripe warns those timestamps can collide. Guard 2 closes it
    (`BILL-018`, `BILL-019`, `BILL-020`).
 
@@ -601,7 +598,7 @@ that caused the drift, and for a cancelled subscription would be the resurrectio
 design exists to prevent (`BILL-151`, `BILL-152`, `BILL-274`).
 
 **The one exception is payment recovery**, because the founder's requirement 4 names two
-ways verification may resume — a signature-verified webhook, *or* a scheduled read against
+ways verification may resume — a signature-verified webhook, _or_ a scheduled read against
 Stripe's own records — and `PAYMENT_RECOVERY_POLICY.resumeRequires` promises the customer
 exactly that. A reconciliation that could only detect would make that a published promise
 with nothing behind it. So when we hold a payment-paused status and Stripe says the
@@ -617,7 +614,7 @@ subscription is served, we apply it (`BILL-271`). The repair is deliberately nar
 - **Dry-runnable.** `applyPaymentRecovery: false` reports without applying (`BILL-275`).
 
 One subtlety worth knowing about: the recovery stamps `provider_event_created` with
-`max(readTime, storedValue)`. The monotonic guard exists to stop out-of-order *events*
+`max(readTime, storedValue)`. The monotonic guard exists to stop out-of-order _events_
 overwriting newer state; a direct read is not an event but a point-in-time query of current
 truth, so letting a stale-event rule veto it is a category error. Without the `max`, clock
 skew between Stripe's `created` and our own clock would make a workspace permanently
@@ -651,10 +648,10 @@ for (const notification of maintenanceNotifications(report)) {
 }
 ```
 
-| Job | Cadence | Why |
-| --- | --- | --- |
-| Payment-recovery expiry (day 8) | hourly, at minute `RECOVERY_SWEEP_MINUTE` (7) | The window is seven *days*. Running it every minute is 60× the scans for at most an hour's less latency on a boundary measured in days. Idempotent, so cadence only affects latency. |
-| Subscription reconciliation | every `RECONCILE_EVERY_MINUTES` (15) | One provider call per subscription, so it is the expensive one — but it is also the safety net for a missed webhook and the second route by which a payment resumes, so hours of latency would be felt by a paying customer. |
+| Job                             | Cadence                                       | Why                                                                                                                                                                                                                          |
+| ------------------------------- | --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Payment-recovery expiry (day 8) | hourly, at minute `RECOVERY_SWEEP_MINUTE` (7) | The window is seven _days_. Running it every minute is 60× the scans for at most an hour's less latency on a boundary measured in days. Idempotent, so cadence only affects latency.                                         |
+| Subscription reconciliation     | every `RECONCILE_EVERY_MINUTES` (15)          | One provider call per subscription, so it is the expensive one — but it is also the safety net for a missed webhook and the second route by which a payment resumes, so hours of latency would be felt by a paying customer. |
 
 `runBillingMaintenance` **never throws**: a cron tick that throws takes every other job in
 the same tick with it, so each job is isolated and its failure is reported in `failures`
@@ -676,7 +673,7 @@ await sourceEvents.admitOnce(db, { ...params, billingPeriod: verdict.billingPeri
 **It belongs at the events route, before `admitOnce` — not inside it.** Three reasons:
 
 1. `admitOnce` answers a different question. Its conditional `UPDATE` is the atomic gate on
-   the *allowance*, which is what stops two simultaneous events sharing the last unit.
+   the _allowance_, which is what stops two simultaneous events sharing the last unit.
    Entitlement is the prior question of whether we should be doing work for this workspace
    at all, and answering it inside the reservation would mean taking a unit from a workspace
    we have already decided not to serve.
@@ -750,12 +747,12 @@ structurally.
 
 ### The five secrets
 
-| Name | What it is |
-| --- | --- |
-| `STRIPE_SECRET_KEY` | The API key. Test mode until the founder authorises live. |
-| `STRIPE_PRICE_ID` | The £29/month GBP price, from the provisioning step below. |
-| `STRIPE_WEBHOOK_SECRET` | The endpoint signing secret, `whsec_…`. |
-| `STRIPE_WEBHOOK_PATH_ID` | The opaque path segment we issue. Not public. |
+| Name                         | What it is                                                         |
+| ---------------------------- | ------------------------------------------------------------------ |
+| `STRIPE_SECRET_KEY`          | The API key. Test mode until the founder authorises live.          |
+| `STRIPE_PRICE_ID`            | The £29/month GBP price, from the provisioning step below.         |
+| `STRIPE_WEBHOOK_SECRET`      | The endpoint signing secret, `whsec_…`.                            |
+| `STRIPE_WEBHOOK_PATH_ID`     | The opaque path segment we issue. Not public.                      |
 | `STRIPE_WEBHOOK_UNKNOWN_KEY` | The stand-in key verification runs against for an unknown path id. |
 
 The last one is not a credential — nothing is ever accepted under it — but it must be
@@ -830,7 +827,7 @@ available (`BILL-239`).
 - **No call has ever been made to Stripe from this repository.** There is no key here, and
   a test-mode call would still create real objects in the owner's account. Every test
   injects a stub; `tests/setup.ts` fails loudly on any escaping `fetch`. The adapter is
-  verified against the *documentation*, not against the live API.
+  verified against the _documentation_, not against the live API.
 - The bootstrap helper `ensureProductAndPrice` has never been run. It is written to be
   idempotent through the price `lookup_key` and to refuse rather than create a second price
   when the key is in use on different terms (`BILL-081`, `BILL-083`), but that is a claim
@@ -846,7 +843,7 @@ available (`BILL-239`).
   only one matches any given secret.
 
   `verifyStripeSignature` in `packages/security/src/signatures.ts` already iterates every
-  `v1` value in the header, so the *verifier* handles the dual-secret case correctly. The
+  `v1` value in the header, so the _verifier_ handles the dual-secret case correctly. The
   gap is one level up: `resolveEndpointSecret(opaqueId)` in
   `apps/app/src/routes/webhooks/stripe.ts` returns a **single** secret, so only signatures
   produced with that one secret can match.
@@ -860,10 +857,11 @@ available (`BILL-239`).
   Do **not** choose immediate expiry — that removes the overlap entirely and guarantees
   rejections with nothing to fall back on but the retry schedule.
 
-  **The fix, when someone picks it up**, is to have `resolveEndpointSecret` return a *list*
+  **The fix, when someone picks it up**, is to have `resolveEndpointSecret` return a _list_
   of candidate secrets and try each. That needs no change to the verifier and no schema
   change. It was left undone rather than guessed at because it needs a decision about where
   the second secret is stored and how it expires.
+
 - Dispute/chargeback fees are unverified (§7).
 - **The refund submission has never reached Stripe.** The approval binding, the hash check,
   the state machine and the idempotency key are all real and tested; the final

@@ -30,9 +30,8 @@ import type {
 } from '../routes/webhooks/resend';
 import type { WebhookAdmission, WebhookProcessingStatus } from './webhooks';
 import type { Env } from '../lib/context';
-import { ID_PREFIX, newId } from '../lib/ids';
 import { addSecondsIso } from '../lib/time';
-import { credentials, connectionScope } from './connections';
+import { credentials } from './connections';
 import type { Db } from './d1';
 import { evidence } from './runs';
 import { webhookReceipts } from './webhooks';
@@ -296,4 +295,4 @@ export function createResendWebhookData(db: Db): D1ResendWebhookDataPort {
   return new D1ResendWebhookDataPort(db);
 }
 
-export { ID_PREFIX, newId, connectionScope };
+

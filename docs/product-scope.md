@@ -23,7 +23,7 @@ before.
 **What they do today when an automation silently fails:**
 
 - They rely on the automation platform's own execution log or error notification (see
-  `docs/competitors.md`), which tells them the *workflow* threw an error — not whether the
+  `docs/competitors.md`), which tells them the _workflow_ threw an error — not whether the
   CRM record or email actually exists downstream. A workflow that runs top to bottom
   without throwing can still write to the wrong record, skip a step because of a stale
   condition, or fire the email to the wrong address. None of that raises an error.
@@ -64,34 +64,34 @@ the weakest evidence origin; `provider_readback` and `provider_webhook` are what
 Every claim we intend to make, or explicitly refuse to make, with the code path or rule
 constant that makes it true. A claim with no entry in the third column does not ship.
 
-| Claim (customer-facing) | Implementation it maps to | Status |
-| --- | --- | --- |
-| "We read your CRM record back from HubSpot ourselves" | `EvidenceOrigin: 'provider_readback'`, `CrmRecordEvidence` (`evidence.ts`); HubSpot connector reads `record.*` fields (A04, not yet built) | Cut until A04 ships the connector — claim only after `provider_readback` path exists |
-| "We check the record matches what your automation expected" | `assertionSpecSchema` operators `exists`, `equals`, `not_equals`, `normalised_email_equals`, `one_of` against `CRM_FIELD` (`rules.ts`) | Implemented at contract level; evaluator is A03's `packages/domain` (not yet built) |
-| "We check the email was accepted by the sending service" | `EMAIL_STATUS` includes `'accepted'`; assertions against `message.status` with `provider_status_in` (`evidence.ts`, `rules.ts`) | Contract-level yes; do not conflate with delivery (see below) |
-| "We check the email was delivered to the receiving mail server" | `DELIVERY_PROVING_STATUSES = {'delivered'}` (`evidence.ts`) — a distinct, stronger claim than "accepted" | Contract-level yes. **Never merge this wording with "accepted"** |
-| "We never treat an email open as proof someone read it" | `EMAIL_STATUS` lists `'opened'`/`'clicked'` separately from `DELIVERY_PROVING_STATUSES`; no rule in `rules.ts` allows `opened` to satisfy a delivery assertion by itself unless the customer explicitly writes that rule | Negative claim — true by omission, keep it that way |
-| "You get a VERIFIED, FAILED, UNVERIFIED or PENDING result — never a fifth state" | `RUN_STATUS` (`status.ts`) is a closed tuple of exactly those four | Implemented at contract level |
-| "No evidence yet is never treated as success" | `RUN_STATUS`/`ASSERTION_STATUS` design: absence maps to `UNVERIFIED`/`PENDING`, never `VERIFIED` (brief, "Absence of evidence is `UNVERIFIED`") | Contract-level rule; evaluator (A03) must honour it — flag as a test case, not just a doc claim |
-| "A missed deadline only counts as FAILED if evidence access was actually working" | Brief: "a deadline failure is supported by *working* evidence access"; `ConnectorErrorCode`/`isRetryableConnectorError` (`errors.ts`) distinguish access problems from a genuine miss | Contract-level; evaluator logic pending (A03) |
-| "Your workflow's own success webhook is a trigger, not proof" | `EvidenceOrigin: 'customer_claim'` is explicitly the weakest tier; `sourceEventSchema` only carries *expected* values, never asserted outcomes | Implemented at contract level |
-| "We tell you when a run never started" | Only true in `coverage_mode: 'independently_sourced'` (`COVERAGE_MODE`, `rules.ts`); default is `'customer_triggered'`, which by definition cannot see a run that never fired | Conditional claim — must always be shown next to the workflow's actual coverage mode, never asserted globally |
-| "We show our reasoning as a plain-language reason, not a black box" | `REASON_CODE` enum (`errors.ts`) — `MATCHED`, `VALUE_MISMATCH`, `RECORD_NOT_FOUND`, etc., each mapped to plain language by the UI | Contract-level; UI translation owned by A05 |
-| "Evidence is kept for 30 days" | `LIMITS.EVIDENCE_RETENTION_DAYS = 30` (`rules.ts`) | Implemented as a constant; enforcement job is A02/A09 |
-| "One workflow, 500 runs a month, £29" | `LIMITS.PLAN_RUNS_PER_PERIOD = 500`, `LIMITS.PLAN_PRICE_PENCE = 2900` (`rules.ts`) | Implemented as a constant |
-| "We never modify your CRM or resend your emails" | No write scope requested anywhere in the frozen contract; `EvidenceSource` and `Evidence` types are read-only shapes; brief states this as a hard boundary | True by absence of any write path — keep it true by never adding one |
-| "No customer-supplied URL is ever fetched by us" | Brief rule 8: "No customer-controlled URL is ever fetched. Provider hosts are a fixed allowlist." | Engineering rule, not yet independently testable from this repo snapshot — A02/A04 must enforce |
-| "Your data is scoped to your workspace; nobody else can see it" | Brief rule 1: tenant scope is application-enforced, every query includes `workspace_id` | Engineering rule pending `apps/app/src/db/` (A02) — do not claim until enforced and tested |
-| "We never let a model decide pass/fail or your bill" | Brief rule 9; `ASSISTANT_MODE` default is `'off'` (`status.ts`) | Contract-level; enforcement is A08's assistant boundary |
-| "Card details never touch us" | Brief: Stripe hosted Checkout + Billing Portal | Architectural decision, not yet built (A07/billing) |
-| **Negative claim:** "We do not detect a run that never started, unless coverage mode is independently_sourced" | See coverage-mode row above | Must ship as a standing caveat, not a footnote |
-| **Negative claim:** "We do not verify any workflow shape other than enquiry → CRM record → acknowledgement email" | `workflowRulesSchema` has one `crm_correlation_property` and a bounded assertion set against exactly `CRM_FIELD`/`EMAIL_FIELD` — no other object type exists | True by absence |
-| **Negative claim:** "We make no accuracy, uptime or security certification" | No such infrastructure exists in this repo; brief forbids the wording outright | Tone rule, keep enforcing it in copy review |
-| **Cut:** "Real-time verification" / "instant results" | `DEFAULT_DEADLINE_SECONDS = 600`, up to `MAX_DEADLINE_SECONDS = 3600`; results depend on a one-minute cron poll of a due-job table, not a live push | No implementation — a result can legitimately take up to an hour to resolve |
-| **Cut:** "Unlimited workflows" | v1 pricing model is one workflow per workspace (see §6) | Contradicts the frozen plan |
-| **Cut:** "Works with any CRM / any email provider" | Only HubSpot and Resend connectors are planned for v1 (brief: "First connectors: HubSpot (CRM) and Resend (email)") | No other connector exists |
-| **Cut:** "Guaranteed accuracy" / "certified secure" / "100% uptime" / income guarantees | Explicitly forbidden wording (tone rules) and nothing in the stack proves any of them | Never write these |
-| **Cut:** "We tell you the automation is broken" | We report evidence status against your rules, not a diagnosis of *why* an automation failed — we have no visibility into the automation platform itself | Out of scope; the customer still has to go and fix their own workflow |
+| Claim (customer-facing)                                                                                           | Implementation it maps to                                                                                                                                                                                                | Status                                                                                                        |
+| ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
+| "We read your CRM record back from HubSpot ourselves"                                                             | `EvidenceOrigin: 'provider_readback'`, `CrmRecordEvidence` (`evidence.ts`); HubSpot connector reads `record.*` fields (A04, not yet built)                                                                               | Cut until A04 ships the connector — claim only after `provider_readback` path exists                          |
+| "We check the record matches what your automation expected"                                                       | `assertionSpecSchema` operators `exists`, `equals`, `not_equals`, `normalised_email_equals`, `one_of` against `CRM_FIELD` (`rules.ts`)                                                                                   | Implemented at contract level; evaluator is A03's `packages/domain` (not yet built)                           |
+| "We check the email was accepted by the sending service"                                                          | `EMAIL_STATUS` includes `'accepted'`; assertions against `message.status` with `provider_status_in` (`evidence.ts`, `rules.ts`)                                                                                          | Contract-level yes; do not conflate with delivery (see below)                                                 |
+| "We check the email was delivered to the receiving mail server"                                                   | `DELIVERY_PROVING_STATUSES = {'delivered'}` (`evidence.ts`) — a distinct, stronger claim than "accepted"                                                                                                                 | Contract-level yes. **Never merge this wording with "accepted"**                                              |
+| "We never treat an email open as proof someone read it"                                                           | `EMAIL_STATUS` lists `'opened'`/`'clicked'` separately from `DELIVERY_PROVING_STATUSES`; no rule in `rules.ts` allows `opened` to satisfy a delivery assertion by itself unless the customer explicitly writes that rule | Negative claim — true by omission, keep it that way                                                           |
+| "You get a VERIFIED, FAILED, UNVERIFIED or PENDING result — never a fifth state"                                  | `RUN_STATUS` (`status.ts`) is a closed tuple of exactly those four                                                                                                                                                       | Implemented at contract level                                                                                 |
+| "No evidence yet is never treated as success"                                                                     | `RUN_STATUS`/`ASSERTION_STATUS` design: absence maps to `UNVERIFIED`/`PENDING`, never `VERIFIED` (brief, "Absence of evidence is `UNVERIFIED`")                                                                          | Contract-level rule; evaluator (A03) must honour it — flag as a test case, not just a doc claim               |
+| "A missed deadline only counts as FAILED if evidence access was actually working"                                 | Brief: "a deadline failure is supported by _working_ evidence access"; `ConnectorErrorCode`/`isRetryableConnectorError` (`errors.ts`) distinguish access problems from a genuine miss                                    | Contract-level; evaluator logic pending (A03)                                                                 |
+| "Your workflow's own success webhook is a trigger, not proof"                                                     | `EvidenceOrigin: 'customer_claim'` is explicitly the weakest tier; `sourceEventSchema` only carries _expected_ values, never asserted outcomes                                                                           | Implemented at contract level                                                                                 |
+| "We tell you when a run never started"                                                                            | Only true in `coverage_mode: 'independently_sourced'` (`COVERAGE_MODE`, `rules.ts`); default is `'customer_triggered'`, which by definition cannot see a run that never fired                                            | Conditional claim — must always be shown next to the workflow's actual coverage mode, never asserted globally |
+| "We show our reasoning as a plain-language reason, not a black box"                                               | `REASON_CODE` enum (`errors.ts`) — `MATCHED`, `VALUE_MISMATCH`, `RECORD_NOT_FOUND`, etc., each mapped to plain language by the UI                                                                                        | Contract-level; UI translation owned by A05                                                                   |
+| "Evidence is kept for 30 days"                                                                                    | `LIMITS.EVIDENCE_RETENTION_DAYS = 30` (`rules.ts`)                                                                                                                                                                       | Implemented as a constant; enforcement job is A02/A09                                                         |
+| "One workflow, 500 runs a month, £29"                                                                             | `LIMITS.PLAN_RUNS_PER_PERIOD = 500`, `LIMITS.PLAN_PRICE_PENCE = 2900` (`rules.ts`)                                                                                                                                       | Implemented as a constant                                                                                     |
+| "We never modify your CRM or resend your emails"                                                                  | No write scope requested anywhere in the frozen contract; `EvidenceSource` and `Evidence` types are read-only shapes; brief states this as a hard boundary                                                               | True by absence of any write path — keep it true by never adding one                                          |
+| "No customer-supplied URL is ever fetched by us"                                                                  | Brief rule 8: "No customer-controlled URL is ever fetched. Provider hosts are a fixed allowlist."                                                                                                                        | Engineering rule, not yet independently testable from this repo snapshot — A02/A04 must enforce               |
+| "Your data is scoped to your workspace; nobody else can see it"                                                   | Brief rule 1: tenant scope is application-enforced, every query includes `workspace_id`                                                                                                                                  | Engineering rule pending `apps/app/src/db/` (A02) — do not claim until enforced and tested                    |
+| "We never let a model decide pass/fail or your bill"                                                              | Brief rule 9; `ASSISTANT_MODE` default is `'off'` (`status.ts`)                                                                                                                                                          | Contract-level; enforcement is A08's assistant boundary                                                       |
+| "Card details never touch us"                                                                                     | Brief: Stripe hosted Checkout + Billing Portal                                                                                                                                                                           | Architectural decision, not yet built (A07/billing)                                                           |
+| **Negative claim:** "We do not detect a run that never started, unless coverage mode is independently_sourced"    | See coverage-mode row above                                                                                                                                                                                              | Must ship as a standing caveat, not a footnote                                                                |
+| **Negative claim:** "We do not verify any workflow shape other than enquiry → CRM record → acknowledgement email" | `workflowRulesSchema` has one `crm_correlation_property` and a bounded assertion set against exactly `CRM_FIELD`/`EMAIL_FIELD` — no other object type exists                                                             | True by absence                                                                                               |
+| **Negative claim:** "We make no accuracy, uptime or security certification"                                       | No such infrastructure exists in this repo; brief forbids the wording outright                                                                                                                                           | Tone rule, keep enforcing it in copy review                                                                   |
+| **Cut:** "Real-time verification" / "instant results"                                                             | `DEFAULT_DEADLINE_SECONDS = 600`, up to `MAX_DEADLINE_SECONDS = 3600`; results depend on a one-minute cron poll of a due-job table, not a live push                                                                      | No implementation — a result can legitimately take up to an hour to resolve                                   |
+| **Cut:** "Unlimited workflows"                                                                                    | v1 pricing model is one workflow per workspace (see §6)                                                                                                                                                                  | Contradicts the frozen plan                                                                                   |
+| **Cut:** "Works with any CRM / any email provider"                                                                | Only HubSpot and Resend connectors are planned for v1 (brief: "First connectors: HubSpot (CRM) and Resend (email)")                                                                                                      | No other connector exists                                                                                     |
+| **Cut:** "Guaranteed accuracy" / "certified secure" / "100% uptime" / income guarantees                           | Explicitly forbidden wording (tone rules) and nothing in the stack proves any of them                                                                                                                                    | Never write these                                                                                             |
+| **Cut:** "We tell you the automation is broken"                                                                   | We report evidence status against your rules, not a diagnosis of _why_ an automation failed — we have no visibility into the automation platform itself                                                                  | Out of scope; the customer still has to go and fix their own workflow                                         |
 
 ## 4. Explicit v1 exclusions (customer-facing wording)
 
@@ -172,13 +172,13 @@ include, and this document is not asserting they are additive on top of the 4,00
 flagging them so nobody is surprised later:
 
 - `MAX_TRANSIENT_RETRIES_PER_OBSERVATION = 3` — a retryable connector error
-  (`RATE_LIMITED`, `PROVIDER_UNAVAILABLE`) can cause up to 3 extra calls *for that one
-  observation*. In the true pathological case (every observation needs every retry) the
+  (`RATE_LIMITED`, `PROVIDER_UNAVAILABLE`) can cause up to 3 extra calls _for that one
+  observation_. In the true pathological case (every observation needs every retry) the
   ceiling is higher than 4,000; I'm treating the brief's 4,000 figure as the number to
   publish and design against, and flagging that retries are a further safety margin the
   system consumes, not creates.
 - `MAX_CONCURRENT_CONNECTOR_REQUESTS_PER_WORKSPACE = 2` /
-  `..._GLOBAL = 5` — these cap *simultaneous* requests, not the monthly total. They matter
+  `..._GLOBAL = 5` — these cap _simultaneous_ requests, not the monthly total. They matter
   for the rate-limit check below because they bound how many requests a single workspace
   can throw at HubSpot or Resend in the same instant.
 
@@ -198,7 +198,7 @@ flagging them so nobody is surprised later:
   https://resend.com/docs/api-reference/rate-limit); this applies across account tiers
   per that page, i.e. it isn't described there as a free-tier-only restriction. Our
   workspace-level concurrency cap of 2 is far below that. **Important distinction**:
-  Resend's separate monthly *sending* allowance (a free account's own email-send quota) is
+  Resend's separate monthly _sending_ allowance (a free account's own email-send quota) is
   the customer's own limit for the emails their automation sends — it is not consumed by
   our read calls to check message status, which are a different kind of API usage. I did
   not find an explicit documented cap on read/status-check API calls separate from the
@@ -228,17 +228,17 @@ below is built instead from what is actually specified elsewhere in the frozen c
 best reconstruction, not a verbatim copy of plan §37. Flag to the lead if the real §37
 phase list differs.
 
-| Journey phase | Observable definition of "working" |
-| --- | --- |
-| Sign-up and workspace creation | A `workspace_admin` (owner) session exists; a workspace row exists scoped by `workspace_id` (brief rule 1) |
-| Connect HubSpot | `ConnectionStatus` for the HubSpot connection reaches `'ready'` (`status.ts`); anything short of that (`'authorising'`, `'testing'`, `'degraded'`, `'expired'`, `'revoked'`, `'unsupported'`) is shown as not yet usable, in plain language |
-| Connect Resend | Same connection lifecycle, `ConnectionStatus` reaches `'ready'` for the Resend connection |
-| Define the workflow rules | A `WorkflowRules` object validates against `workflowRulesSchema` — a `crm_correlation_property` is set, at least one mandatory assertion exists, and the assertion count is within `MAX_ASSERTIONS_PER_WORKFLOW` (10) |
-| Choose the plan and pay | An `OrderStatus` reaches `'active'` via Stripe Checkout (`status.ts`); `SubscriptionStatus` mirrors Stripe as `'active'` or `'trialing'`, never set by the browser |
-| Send a signed event | A POST validates against `sourceEventSchema`, returns `eventAcceptedSchema` with a `run_id` and initial `status` of `'PENDING'` |
-| Receive a result | The run's `RunStatus` moves from `'PENDING'` to one of `'VERIFIED'`, `'FAILED'`, `'UNVERIFIED'` within the workflow's `deadline_seconds`, each mandatory assertion carrying a `ReasonCode` the UI can render in plain language |
-| Ongoing running | Successive signed events (distinct `event_id`s) each produce their own run; a duplicate `event_id` returns the existing run's result rather than creating a second one (idempotency, brief rule 4) |
-| Cancel | `SubscriptionStatus` moves to `'canceled'` via the Stripe Billing Portal; no further runs are accepted once the workspace is off-plan |
+| Journey phase                  | Observable definition of "working"                                                                                                                                                                                                          |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Sign-up and workspace creation | A `workspace_admin` (owner) session exists; a workspace row exists scoped by `workspace_id` (brief rule 1)                                                                                                                                  |
+| Connect HubSpot                | `ConnectionStatus` for the HubSpot connection reaches `'ready'` (`status.ts`); anything short of that (`'authorising'`, `'testing'`, `'degraded'`, `'expired'`, `'revoked'`, `'unsupported'`) is shown as not yet usable, in plain language |
+| Connect Resend                 | Same connection lifecycle, `ConnectionStatus` reaches `'ready'` for the Resend connection                                                                                                                                                   |
+| Define the workflow rules      | A `WorkflowRules` object validates against `workflowRulesSchema` — a `crm_correlation_property` is set, at least one mandatory assertion exists, and the assertion count is within `MAX_ASSERTIONS_PER_WORKFLOW` (10)                       |
+| Choose the plan and pay        | An `OrderStatus` reaches `'active'` via Stripe Checkout (`status.ts`); `SubscriptionStatus` mirrors Stripe as `'active'` or `'trialing'`, never set by the browser                                                                          |
+| Send a signed event            | A POST validates against `sourceEventSchema`, returns `eventAcceptedSchema` with a `run_id` and initial `status` of `'PENDING'`                                                                                                             |
+| Receive a result               | The run's `RunStatus` moves from `'PENDING'` to one of `'VERIFIED'`, `'FAILED'`, `'UNVERIFIED'` within the workflow's `deadline_seconds`, each mandatory assertion carrying a `ReasonCode` the UI can render in plain language              |
+| Ongoing running                | Successive signed events (distinct `event_id`s) each produce their own run; a duplicate `event_id` returns the existing run's result rather than creating a second one (idempotency, brief rule 4)                                          |
+| Cancel                         | `SubscriptionStatus` moves to `'canceled'` via the Stripe Billing Portal; no further runs are accepted once the workspace is off-plan                                                                                                       |
 
 ## 8. Open items for other agents
 
@@ -261,28 +261,28 @@ https://verify.itisyou.app. Three lists, as asked for.
 
 ### 9.1 Claims that became true (promoted from §3's "cut" or "conditional" rows)
 
-| Claim | What now makes it true |
-| --- | --- |
-| "We read your CRM record back from HubSpot ourselves" | `packages/connectors/src/hubspot.ts`, `HUBSPOT_OPERATIONS` (three read-only endpoints), `docs/connectors.md`. Real code path — see the hard caveat in §9.3 about what has *not* been exercised. |
-| "We check the record matches what your automation expected" | `packages/domain/src/evaluate.ts` and `decide.ts`, exercised by `VERIFY-*` unit tests |
-| "Accepted by the sending service" vs "delivered to the receiving server" are kept distinct | `docs/connectors.md`'s Resend event-mapping table maps `email.sent` → `accepted` and `email.delivered` → `delivered` as the only delivery-proving status; never merged |
-| "An email being opened is never treated as proof anyone read it" | Same table: `email.opened`/`email.clicked` carry no delivery weight; confirmed in code, not just prose |
-| "Absence of evidence is never VERIFIED" | `packages/domain/src/decide.ts` — no branch of the decision table returns `VERIFIED` without every mandatory assertion `SUPPORTED` |
-| "A missed deadline only counts as FAILED if evidence access was actually working" | `decide.ts`'s `FAILED_ABSENT` branch requires an *authoritative* absence (a provider `NOT_FOUND`, per `docs/connectors.md`'s "Absence versus silence" table); anything else resolves `UNVERIFIED`. Held by `CONN-141`/`CONN-142`. |
-| "We never modify your CRM or resend your emails" | `HUBSPOT_OPERATIONS` and `RESEND_OPERATIONS` are frozen tables of read-only calls; there is no code path that could construct a write request (`docs/connectors.md` §"The rules every connector obeys") |
-| "No customer-supplied URL is ever fetched by us" | `packages/connectors/src/url-guard.ts` — compile-time allowlist of exactly three hosts, private/loopback/metadata addresses refused, redirects re-checked per hop |
-| "Your token never appears in a log line, an error message or an exported report" | Redaction is registered before any request is issued (`docs/connectors.md`); export code confirms no stored credential is ever serialised (`docs/privacy-retention.md` §5) |
-| "Card details never touch us" | Stripe hosted Checkout + Billing Portal, `docs/billing.md` §2 — no card data path exists in this codebase |
-| "£29/month, one workflow, 500 runs" and the allowance/overage behaviour | `docs/billing.md` §3 — reservation/consumption accounting, `BILL-*` tests, no automatic overage charge |
-| "Evidence kept 30 days" | `apps/app/src/privacy/retention.ts`, generated into `docs/privacy-retention.md`, checked against the sweep by `API-330` |
-| "We never let a model decide pass/fail or your bill" | `apps/app/src/assistant/` exists with `ASSISTANT_MODES` defaulting to `'off'`; the assistant is a separate subsystem from `packages/domain`'s decision table, which never imports it |
-| Tenant scoping ("your data is scoped to your workspace") | 14 files under `apps/app/src/db/` reference `workspace_id`-scoped queries; no longer merely a brief rule, an actual pattern in the data-access layer |
+| Claim                                                                                      | What now makes it true                                                                                                                                                                                                            |
+| ------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| "We read your CRM record back from HubSpot ourselves"                                      | `packages/connectors/src/hubspot.ts`, `HUBSPOT_OPERATIONS` (three read-only endpoints), `docs/connectors.md`. Real code path — see the hard caveat in §9.3 about what has _not_ been exercised.                                   |
+| "We check the record matches what your automation expected"                                | `packages/domain/src/evaluate.ts` and `decide.ts`, exercised by `VERIFY-*` unit tests                                                                                                                                             |
+| "Accepted by the sending service" vs "delivered to the receiving server" are kept distinct | `docs/connectors.md`'s Resend event-mapping table maps `email.sent` → `accepted` and `email.delivered` → `delivered` as the only delivery-proving status; never merged                                                            |
+| "An email being opened is never treated as proof anyone read it"                           | Same table: `email.opened`/`email.clicked` carry no delivery weight; confirmed in code, not just prose                                                                                                                            |
+| "Absence of evidence is never VERIFIED"                                                    | `packages/domain/src/decide.ts` — no branch of the decision table returns `VERIFIED` without every mandatory assertion `SUPPORTED`                                                                                                |
+| "A missed deadline only counts as FAILED if evidence access was actually working"          | `decide.ts`'s `FAILED_ABSENT` branch requires an _authoritative_ absence (a provider `NOT_FOUND`, per `docs/connectors.md`'s "Absence versus silence" table); anything else resolves `UNVERIFIED`. Held by `CONN-141`/`CONN-142`. |
+| "We never modify your CRM or resend your emails"                                           | `HUBSPOT_OPERATIONS` and `RESEND_OPERATIONS` are frozen tables of read-only calls; there is no code path that could construct a write request (`docs/connectors.md` §"The rules every connector obeys")                           |
+| "No customer-supplied URL is ever fetched by us"                                           | `packages/connectors/src/url-guard.ts` — compile-time allowlist of exactly three hosts, private/loopback/metadata addresses refused, redirects re-checked per hop                                                                 |
+| "Your token never appears in a log line, an error message or an exported report"           | Redaction is registered before any request is issued (`docs/connectors.md`); export code confirms no stored credential is ever serialised (`docs/privacy-retention.md` §5)                                                        |
+| "Card details never touch us"                                                              | Stripe hosted Checkout + Billing Portal, `docs/billing.md` §2 — no card data path exists in this codebase                                                                                                                         |
+| "£29/month, one workflow, 500 runs" and the allowance/overage behaviour                    | `docs/billing.md` §3 — reservation/consumption accounting, `BILL-*` tests, no automatic overage charge                                                                                                                            |
+| "Evidence kept 30 days"                                                                    | `apps/app/src/privacy/retention.ts`, generated into `docs/privacy-retention.md`, checked against the sweep by `API-330`                                                                                                           |
+| "We never let a model decide pass/fail or your bill"                                       | `apps/app/src/assistant/` exists with `ASSISTANT_MODES` defaulting to `'off'`; the assistant is a separate subsystem from `packages/domain`'s decision table, which never imports it                                              |
+| Tenant scoping ("your data is scoped to your workspace")                                   | 14 files under `apps/app/src/db/` reference `workspace_id`-scoped queries; no longer merely a brief rule, an actual pattern in the data-access layer                                                                              |
 
 ### 9.2 Claims that quietly became false, or need rewording (caught and already fixed)
 
 - **`PLAN_CANCELLATION_WORDING` inside the payment-failure email.** A09 removed it from
   `payment_problem` because "you keep access for the rest of the period you already paid
-  for" describes a *voluntary* cancellation, not a *failed renewal* — the period being
+  for" describes a _voluntary_ cancellation, not a _failed renewal_ — the period being
   billed for has already ended when that email goes out, so the sentence would tell a
   customer they still have something they no longer have. **I agree with this reading.**
   The constant itself is still correct where it actually applies: the pricing page and the
@@ -331,7 +331,7 @@ https://verify.itisyou.app. Three lists, as asked for.
    selects this mode today is told a capability exists that the system cannot deliver.**
    This is precisely the class of claim this whole audit exists to catch, and it is a
    product/engineering gap, not a copy gap — my own `faq.ts` (`what-is-coverage-mode`,
-   `run-never-started`) and `home.ts` correctly describe the *intended* design and I have
+   `run-never-started`) and `home.ts` correctly describe the _intended_ design and I have
    not found a sentence of mine that overstates it beyond what `coverage.ts` itself claims,
    but that intended design is not yet real. Recommend one of: (a) hide the
    `independently_sourced` option in onboarding until a real listing connector exists, or
@@ -374,3 +374,146 @@ verifies one workflow shape...": accurate against §2–3 of this document and a
 shape without overclaiming exercised provider use, and it sits directly above
 `StandingLimitations()`, so the caveats are not separated from the claim. **Blessed as
 written — no change requested.**
+
+## 10. Re-audit against reachability — 2026-09-19, second pass, urgent
+
+An independent auditor found the dominant defect on this project is **correct code,
+thoroughly tested, reached by nothing**: a function exists, is unit-tested, and nothing
+on a real HTTP entry point or cron tick ever calls it. §9 asked "is this implemented".
+This section asks the harder question the lead posed: **does a real request reach it.**
+Every entry below was checked by reading `apps/app/src/index.ts` (the only place routes
+are actually mounted) and `apps/app/src/scheduler/tick.ts`
+(`IMPLEMENTED_SCHEDULER_PASSES`), then grepping for callers, not by reading a doc comment
+that claims wiring.
+
+### 10.1 Claims that are true and wired (entry point given, not just the module)
+
+| Claim | Entry point |
+| --- | --- |
+| Stripe billing events (checkout completion, subscription/invoice changes, refunds) are processed | `app.all('/api/v1/webhooks/stripe/*', ...)` in `apps/app/src/index.ts`, mounted and calling `createStripeWebhookRoute` |
+| Due verification runs are observed against HubSpot/Resend, retried within budget, and decided | `handleScheduled` → `runSchedulerTick` → the `due_job` pass, in `IMPLEMENTED_SCHEDULER_PASSES` (`apps/app/src/scheduler/tick.ts`) |
+| Outbox events (e.g. notification dispatch on a run decision) are delivered | The `outbox` pass, same `IMPLEMENTED_SCHEDULER_PASSES` list |
+| Evidence/source-events/etc. are swept on their retention schedule | The `retention` pass, same list, backed by `apps/app/src/privacy/retention.ts` and checked against the doc by `API-330` |
+| Sign-in, onboarding pages, run/connection/usage dashboards, support form, cancellation | `app.route('/app', createAppRoutes(...))`, mounted against real D1 (`createCustomerDataPort`) |
+| Owner dashboard, once A02's session/TOTP wiring lands (explicitly gated to 404 for everyone until then, per the comment at the mount site) | `app.route('/owner/*', ...)` etc. — correctly **not** claiming to work yet; the code comment says so and the content on `/owner` is not customer-facing, so no public claim rests on it |
+| The health check | `app.get('/health', ...)`, genuinely probes D1 |
+
+### 10.2 Claims that must be qualified now (exact replacement wording given)
+
+All of the following are addressed by one new, prominent, honest notice — see
+`SERVICE_ACTIVATION_NOTICE` in `packages/ui/src/content/site.ts` — rather than a patch to
+every sentence that touches them, because the root cause is one and the same across all
+of them: the parts of the system that connect a real workspace to the real, tested
+checking logic are not yet live.
+
+> **We are not yet accepting live verification traffic.**
+> Everything on this site describes how ITISYOU Verify is built to work, and the
+> underlying checking logic is real and tested. But the parts that connect a real
+> workspace to that logic are not finished: the endpoint that receives your automation's
+> signed events is not live yet, a completed Resend connection cannot yet reach "ready",
+> and the checks that pause verification at your plan allowance or after a failed payment
+> do not yet run automatically. Because of that, we are not taking payment or activating
+> new workspaces right now. Read on for how it will work — this notice will come down
+> once it actually does.
+
+A05: render this on `/`, `/pricing`, and the entry point of the onboarding flow, above the
+fold, not in a footnote.
+
+Specific content already corrected in this pass:
+
+- `packages/ui/src/content/onboarding.ts` — the intro now points at this notice; step 3's
+  (Resend) caveat now states plainly that our side of the webhook is not yet reachable, so
+  the connection cannot currently finish reaching `ready`; step 4's (signed event) caveat
+  now states the intake endpoint is not yet live; `ONBOARDING_DONE_MEANS` now says "once
+  live traffic is switched on" rather than describing it as available today.
+- `packages/ui/src/content/faq.ts` — added `is-verification-live-today`, answering the
+  question plainly rather than leaving a stranger to infer it from silence.
+
+Not yet corrected, and not mine to correct — flagged for the owning agent, with the exact
+finding so nobody has to re-derive it:
+
+- **The resume-on-confirmed-payment promise** (`apps/app/src/billing/policy.ts`,
+  `PAYMENT_RECOVERY_POLICY.resumeRequires` and the `payment_problem` email in
+  `apps/app/src/notifications/templates.ts`, which says "Checking starts again when a
+  payment is actually confirmed by our payment provider"). `reconcileSubscriptions()` is
+  correct but has **zero callers** anywhere in `apps/app/src`
+  (confirmed by grep: only `apps/app/src/billing/index.ts` re-exports it, and
+  `apps/app/src/billing/scheduled.ts`'s `runBillingMaintenance` — the function whose own
+  doc comment says "A03's tick calls `runBillingMaintenance(runtime, { now })`" — is
+  **itself never imported or called anywhere in `apps/app/src`**, including
+  `apps/app/src/scheduler/tick.ts`, whose `IMPLEMENTED_SCHEDULER_PASSES` list is exactly
+  `['due_job', 'outbox', 'retention']`). Recommended replacement wording for A09's email,
+  until wired: replace "Checking starts again when a payment is actually confirmed by our
+  payment provider" with *"Checking starts again once a confirmed payment reaches us — we
+  are still finishing the automatic check for this, so if it feels slow after you have
+  paid, contact us and we will resolve it by hand."* This is honest without frightening a
+  customer who has genuinely paid.
+- **The pre-checkout disclosure** (`PRE_CHECKOUT_DISCLOSURE` /
+  `preCheckoutPanel()` in `apps/app/src/billing/disclosure.ts`) has zero callers in
+  `apps/app/src/routes`. The founder required this to be shown before checkout, not
+  discovered after. Until a route renders it, **checkout must not be reachable at all**
+  (§10.3) — there is no safe qualified wording for "we will show you the policy before you
+  pay" when nothing shows it.
+- **No route consults an entitlement.** I found no caller of the run-admission/allowance
+  logic (`apps/app/src/billing/admission.ts`, `apps/app/src/db/entitlements.ts`) from any
+  route in `apps/app/src/routes`. This is subsumed by the larger finding in §10.3: there is
+  currently no route at all that creates a run from a real request, so there is nothing yet
+  for an entitlement check to guard.
+- **Day 8 never arrives.** Same root cause as the resume promise — `runBillingMaintenance`
+  has no caller, so `expirePaymentRecoveryWindows()` never runs on a schedule.
+- **The Resend webhook route is not mounted.** `createResendWebhookRoute` (in
+  `apps/app/src/routes/webhooks/resend.ts`) has no caller in `apps/app/src/index.ts`. Only
+  the Stripe webhook is mounted (`app.all('/api/v1/webhooks/stripe/*', ...)`); there is no
+  equivalent line for Resend. `packages/ui/src/content/onboarding.ts` step 3 now says this
+  plainly (see above).
+
+### 10.3 Claims that must be removed — purchase/activation paths, err toward removal
+
+This is larger than the four items the lead named. Checking `apps/app/src/index.ts`
+directly (the only place any route is mounted) against
+`packages/contracts/src/events.ts` and every place my own content describes "send us a
+signed event":
+
+**There is no mounted route, anywhere, that accepts a customer's signed event.** Grepped
+for `api/v1/events` (the path named in `packages/contracts/src/events.ts`'s own comments,
+in `packages/security/src/signatures.ts`, and shown to customers as their event endpoint
+by `apps/app/src/db/customerPort.ts`) across every route file and `apps/app/src/index.ts`:
+it appears only as a *string constant displayed to the customer* — never as a mounted
+path. `apps/app/src/scheduler/observe.ts` parses a `sourceEventSchema` payload once one
+already exists as a stored run, and `apps/app/src/db/runs.ts` can create one, but nothing
+in the routing layer turns an inbound HTTP request into that call. The single mechanism
+this entire product is named for — an automation's signed event starting a verified run —
+**has no live entry point today.**
+
+This is not a wording problem. No replacement sentence makes "send us a signed event"
+true while the endpoint does not exist. Per the founder's instruction — informational
+site stays, purchase and activation paths come down — the concrete actions are:
+
+1. **Disable the checkout/"go live" step of onboarding** (the button labelled "Start
+   setting this up" on the pricing page and "Finish setting up" in the welcome email, both
+   of which lead into `apps/app/src/routes/app/onboardingPages.ts`'s checkout step) until
+   the event-intake route exists, the Resend webhook is mounted, entitlement is consulted,
+   and `runBillingMaintenance` has a caller. This is a routing change for A05/A06, not a
+   content change — flagging it here because it is the direct consequence of what this
+   audit found, not because it is mine to make.
+2. **Leave the descriptive "how it works" content in place** (`home.ts`,
+   `onboarding.ts`), now qualified by `SERVICE_ACTIVATION_NOTICE` and the corrected
+   caveats above, because the design itself is real, tested, and not what is in question.
+3. **Do not remove the demo page.** It runs the real `evaluate`/`decide`/`explain` code
+   over synthetic fixtures, touches no database, and has never claimed to be live traffic —
+   it remains an accurate demonstration of the checking logic regardless of whether the
+   intake route exists yet.
+
+### 10.4 The two items to verify rather than assume — checked directly
+
+- **Nothing states the provider integration has run against a live HubSpot or Resend
+  account.** Re-checked `/`, `/how-it-works`, `/pricing`, `/security`, `/demo`, the FAQ,
+  and `docs/connectors.md`/`docs/billing.md` for exactly this after §9's first pass; found
+  nothing new. `CONN-900`/`CONN-901` were not previously in this document — noting here
+  that they, not `CONN-050`/`CONN-051`, are the lead's current identifiers for the
+  provider-backed cases; either way, no public page claims they have run, and none should
+  until they have.
+- **The founder's sole-trader details remain `TODO_OWNER_INPUT`.** Unchanged in
+  `packages/ui/src/content/legal.ts` (`OWNER_LEGAL_IDENTITY`) and
+  `docs/privacy-retention.md`. Confirmed still visibly marked, not invented.
+

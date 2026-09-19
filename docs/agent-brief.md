@@ -16,37 +16,37 @@ repairs their automation.
 
 ### The four statuses — never invent a fifth
 
-| Status | Meaning |
-| --- | --- |
-| `VERIFIED` | Every mandatory assertion has sufficient supporting evidence. |
-| `FAILED` | Evidence contradicts a mandatory rule, or a deadline failure is supported by *working* evidence access. |
-| `UNVERIFIED` | Access, correlation or evidence is missing or ambiguous. Not a failure, not a pass. |
-| `PENDING` | Still inside the agreed completion window. |
+| Status       | Meaning                                                                                                 |
+| ------------ | ------------------------------------------------------------------------------------------------------- |
+| `VERIFIED`   | Every mandatory assertion has sufficient supporting evidence.                                           |
+| `FAILED`     | Evidence contradicts a mandatory rule, or a deadline failure is supported by _working_ evidence access. |
+| `UNVERIFIED` | Access, correlation or evidence is missing or ambiguous. Not a failure, not a pass.                     |
+| `PENDING`    | Still inside the agreed completion window.                                                              |
 
 Absence of evidence is `UNVERIFIED`, never `VERIFIED` and never silently `FAILED`.
 A workflow's own "success" webhook is a trigger, not proof.
 
 ## Stack decisions (settled — do not re-litigate)
 
-| Concern | Decision | Why |
-| --- | --- | --- |
-| Runtime | One Cloudflare Worker, `apps/app` | Free within the existing account plan; no second deployment to keep in sync in v1 |
-| Routing / SSR | Hono + `hono/jsx` server rendering | Tiny bundle, no client framework, accessible by default, progressive enhancement |
-| Data | Cloudflare D1 (SQLite), `migrations/` | Already entitled; relational integrity for tenant scoping |
-| Background work | D1 due-job table + a one-minute cron trigger | Deterministic, testable, no Queues dependency, £0 incremental |
-| Money | Stripe hosted Checkout + hosted Billing Portal | No card data ever touches us |
-| Email | Resend | Also our first email-evidence connector |
-| Identity | Email magic link (opaque server-side sessions) + TOTP for the owner | No hand-written password cryptography; sessions are revocable |
-| Validation | Zod at every external boundary | One schema, one error shape |
-| Tests | Vitest (unit + integration), Playwright (browser) | Already installed |
-| Language | TypeScript strict, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes` | Catches the class of bug this product cannot afford |
+| Concern         | Decision                                                                    | Why                                                                               |
+| --------------- | --------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| Runtime         | One Cloudflare Worker, `apps/app`                                           | Free within the existing account plan; no second deployment to keep in sync in v1 |
+| Routing / SSR   | Hono + `hono/jsx` server rendering                                          | Tiny bundle, no client framework, accessible by default, progressive enhancement  |
+| Data            | Cloudflare D1 (SQLite), `migrations/`                                       | Already entitled; relational integrity for tenant scoping                         |
+| Background work | D1 due-job table + a one-minute cron trigger                                | Deterministic, testable, no Queues dependency, £0 incremental                     |
+| Money           | Stripe hosted Checkout + hosted Billing Portal                              | No card data ever touches us                                                      |
+| Email           | Resend                                                                      | Also our first email-evidence connector                                           |
+| Identity        | Email magic link (opaque server-side sessions) + TOTP for the owner         | No hand-written password cryptography; sessions are revocable                     |
+| Validation      | Zod at every external boundary                                              | One schema, one error shape                                                       |
+| Tests           | Vitest (unit + integration), Playwright (browser)                           | Already installed                                                                 |
+| Language        | TypeScript strict, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes` | Catches the class of bug this product cannot afford                               |
 
 ## Non-negotiable engineering rules
 
 1. **Tenant scope is application-enforced.** Every query that touches a customer-scoped
    table takes `workspace_id` and includes it in the `WHERE` clause. Never assume the
    database protects you. Composite lookups must prove the child belongs to the parent
-   *within the same workspace*.
+   _within the same workspace_.
 2. **Money is integer minor units.** No floating point anywhere near a cap or a price.
    Use `@verify/contracts`'s `Money` helpers.
 3. **Time is ISO-8601 UTC strings** in storage, `Date` in memory. No local time, ever.
@@ -67,27 +67,27 @@ A workflow's own "success" webhook is a trigger, not proof.
 
 ## Repository layout and ownership
 
-| Path | Owner | Contents |
-| --- | --- | --- |
-| `packages/contracts/` | lead (frozen) | Zod schemas, shared types, status vocabularies, money. **Read-only for agents.** |
-| `packages/domain/` | A03 | Pure rule evaluation, decision table, run state machine, retry scheduling |
-| `packages/security/` | A02 | AES-GCM credential envelopes, HMAC signatures, hashing, redaction, CSRF |
-| `packages/connectors/` | A04 | HubSpot, Resend, Stripe adapters behind one interface |
-| `packages/ui/` | A05 | Design tokens, layout, accessible components, shared page chrome |
-| `apps/app/src/db/` | A02 | Tenant-scoped data access; the only place raw SQL lives |
-| `apps/app/src/lib/` | A02 | ids, time, request context, error handler, rate limiting |
-| `apps/app/src/routes/public/` | A05 | Marketing, demo, legal, development story |
-| `apps/app/src/routes/app/` | A05 | Customer dashboard, onboarding, reports |
-| `apps/app/src/routes/api/` | A02 + owning agent | Versioned JSON API |
-| `apps/app/src/routes/owner/` | A07 | Owner dashboard |
-| `apps/app/src/routes/webhooks/` | A06 / A04 | Signed provider callbacks |
-| `apps/app/src/scheduler/` | A03 | Cron entry point, due-job dispatcher, outbox |
-| `apps/app/src/assistant/` | A08 | Optional AI, typed tools, maintenance runner API |
-| `apps/app/src/support/` | A09 | Support queue, notifications, export/deletion |
-| `apps/app/src/growth/` | A12 | Campaign packets, ad adapter, visit analytics |
-| `migrations/` | lead only | Additive migrations. **Never edit `0001_init.sql`.** |
-| `tests/` | every agent writes its own; A11 owns the ledger | See test ID rules below |
-| `docs/` | shared | Public documentation |
+| Path                            | Owner                                           | Contents                                                                         |
+| ------------------------------- | ----------------------------------------------- | -------------------------------------------------------------------------------- |
+| `packages/contracts/`           | lead (frozen)                                   | Zod schemas, shared types, status vocabularies, money. **Read-only for agents.** |
+| `packages/domain/`              | A03                                             | Pure rule evaluation, decision table, run state machine, retry scheduling        |
+| `packages/security/`            | A02                                             | AES-GCM credential envelopes, HMAC signatures, hashing, redaction, CSRF          |
+| `packages/connectors/`          | A04                                             | HubSpot, Resend, Stripe adapters behind one interface                            |
+| `packages/ui/`                  | A05                                             | Design tokens, layout, accessible components, shared page chrome                 |
+| `apps/app/src/db/`              | A02                                             | Tenant-scoped data access; the only place raw SQL lives                          |
+| `apps/app/src/lib/`             | A02                                             | ids, time, request context, error handler, rate limiting                         |
+| `apps/app/src/routes/public/`   | A05                                             | Marketing, demo, legal, development story                                        |
+| `apps/app/src/routes/app/`      | A05                                             | Customer dashboard, onboarding, reports                                          |
+| `apps/app/src/routes/api/`      | A02 + owning agent                              | Versioned JSON API                                                               |
+| `apps/app/src/routes/owner/`    | A07                                             | Owner dashboard                                                                  |
+| `apps/app/src/routes/webhooks/` | A06 / A04                                       | Signed provider callbacks                                                        |
+| `apps/app/src/scheduler/`       | A03                                             | Cron entry point, due-job dispatcher, outbox                                     |
+| `apps/app/src/assistant/`       | A08                                             | Optional AI, typed tools, maintenance runner API                                 |
+| `apps/app/src/support/`         | A09                                             | Support queue, notifications, export/deletion                                    |
+| `apps/app/src/growth/`          | A12                                             | Campaign packets, ad adapter, visit analytics                                    |
+| `migrations/`                   | lead only                                       | Additive migrations. **Never edit `0001_init.sql`.**                             |
+| `tests/`                        | every agent writes its own; A11 owns the ledger | See test ID rules below                                                          |
+| `docs/`                         | shared                                          | Public documentation                                                             |
 
 Stay inside your owned paths. If you need a change in someone else's file, describe it in
 your handoff. Never delete, revert or reformat another agent's work.
@@ -137,7 +137,7 @@ const TOKEN = ['pat', 'na1', '00000000-0000-4000-8000-000000000001'].join('-');
 const SECRET = 'whsec' + '_' + 'A'.repeat(32);
 ```
 
-The `secret-scan:allow` marker exists only for a case where the credential *shape itself*
+The `secret-scan:allow` marker exists only for a case where the credential _shape itself_
 is the thing under test — a URL with embedded credentials being rejected by the URL guard,
 for instance. Reach for it almost never. Allowlisting a warning is how a team teaches
 itself to dismiss the one that is eventually real.

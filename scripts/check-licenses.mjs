@@ -20,7 +20,15 @@
  * Uses only Node built-ins. Do not add a dependency to the tool that audits
  * dependencies.
  */
-import { readFileSync, readdirSync, lstatSync, realpathSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import {
+  readFileSync,
+  readdirSync,
+  lstatSync,
+  realpathSync,
+  existsSync,
+  mkdirSync,
+  writeFileSync,
+} from 'node:fs';
 import { join, resolve, sep } from 'node:path';
 
 const ROOT = resolve(process.cwd());
@@ -371,7 +379,10 @@ function candidatePaths(fromDir, depName) {
   if (!fromIsWorkspace) {
     // fromDir is .../node_modules/<name> or .../node_modules/@scope/<name>
     const nm = fromDir.split(sep).includes('node_modules')
-      ? fromDir.slice(0, fromDir.lastIndexOf(`${sep}node_modules${sep}`) + `${sep}node_modules`.length)
+      ? fromDir.slice(
+          0,
+          fromDir.lastIndexOf(`${sep}node_modules${sep}`) + `${sep}node_modules`.length,
+        )
       : null;
     if (nm) out.push(join(nm, depName));
   }
@@ -382,7 +393,10 @@ function candidatePaths(fromDir, depName) {
 
 function walkProduction(fromDir, deps, optionalNames, label) {
   for (const depName of Object.keys(deps)) {
-    if (deps[depName]?.startsWith?.('workspace:') && !existsSync(join(fromDir, 'node_modules', depName))) {
+    if (
+      deps[depName]?.startsWith?.('workspace:') &&
+      !existsSync(join(fromDir, 'node_modules', depName))
+    ) {
       // Workspace link not installed; resolve by name among workspace dirs.
       const target = workspaceDirs.find((d) => {
         try {
@@ -457,16 +471,24 @@ const productionDetermination = unresolved.length === 0 ? 'complete' : 'incomple
 // 3. Summarise, write the report, decide the exit code.
 // ---------------------------------------------------------------------------
 
-const all = [...packages.values()].sort((a, b) => a.name.localeCompare(b.name) || a.version.localeCompare(b.version));
+const all = [...packages.values()].sort(
+  (a, b) => a.name.localeCompare(b.name) || a.version.localeCompare(b.version),
+);
 const counts = Object.fromEntries(CLASSES.map((c) => [c, 0]));
 for (const p of all) counts[p.classification]++;
 
 const nonPermissive = all.filter((p) => p.classification !== 'permissive');
 const blocking = nonPermissive.filter(
-  (p) => p.scope === 'production' && (p.classification === 'strong_copyleft' || p.classification === 'unknown'),
+  (p) =>
+    p.scope === 'production' &&
+    (p.classification === 'strong_copyleft' || p.classification === 'unknown'),
 );
-const productionWeak = nonPermissive.filter((p) => p.scope === 'production' && p.classification === 'weak_copyleft');
-const productionCustom = nonPermissive.filter((p) => p.scope === 'production' && p.classification === 'custom');
+const productionWeak = nonPermissive.filter(
+  (p) => p.scope === 'production' && p.classification === 'weak_copyleft',
+);
+const productionCustom = nonPermissive.filter(
+  (p) => p.scope === 'production' && p.classification === 'custom',
+);
 
 mkdirSync(REPORT_DIR, { recursive: true });
 writeFileSync(
@@ -530,7 +552,8 @@ if (nonPermissive.length > 0) {
   console.log(fmt(head));
   console.log(fmt(widths.map((w) => '-'.repeat(w))));
   for (const r of rows) console.log(fmt(r));
-  for (const p of nonPermissive) if (p.note) console.log(`\n  note  ${p.name}@${p.version}: ${p.note}`);
+  for (const p of nonPermissive)
+    if (p.note) console.log(`\n  note  ${p.name}@${p.version}: ${p.note}`);
 } else {
   console.log('\nEvery installed package declares a permissive licence.');
 }
@@ -542,7 +565,9 @@ if (blocking.length > 0) {
     `\ncheck:licenses — ${blocking.length} PRODUCTION package(s) carry a strong-copyleft or unknown licence. DO NOT RELEASE until a human has read the terms:`,
   );
   for (const p of blocking)
-    console.error(`  ${p.name}@${p.version}  ${p.declared ?? '(none declared)'}  [${p.classification}]`);
+    console.error(
+      `  ${p.name}@${p.version}  ${p.declared ?? '(none declared)'}  [${p.classification}]`,
+    );
   console.error(
     "\nEither replace the package, or record the owner's explicit acceptance of the obligation in docs/ and add the SPDX identifier to the classification table in this script.",
   );

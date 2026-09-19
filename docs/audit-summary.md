@@ -32,33 +32,33 @@ here than let a green dashboard imply otherwise.
 Each of these was checked by running the command or fetching the live URL, not by reading
 another agent's summary.
 
-| Claim | Verified how | Result |
-| --- | --- | --- |
-| The site is live over TLS with strict security headers | Fetched the production origin and read the response headers | **Confirmed.** `default-src 'none'`, hash-only scripts and styles, no inline style or script attributes, HSTS set |
-| The health check really probes the database | Fetched `/health` | **Confirmed** — it reports actual database reachability, not a hard-coded "ok" |
-| Owner and admin surfaces are not reachable anonymously | Fetched them from outside with no session | **Confirmed** — they return 404 and the response body leaks nothing |
-| The verification meter cannot show a partial result as a pass | Fetched the live demo page and read the rendered markup | **Confirmed** — 33% renders a 30% bar. It rounds **down** |
-| The test suite is real and nothing is quietly hidden in a skip | Ran the full suite twice and parsed the runner's own output | **Confirmed** — 1,951 distinct cases. Exactly **two** are skipped, both deliberately: the only two tests permitted to contact a real provider, which skip because no provider credential exists. They must not be counted toward the release gate, and this audit has said so |
-| Repeated or cross-browser runs are not counted as new cases | Read the browser test configuration | **Confirmed** — a single browser project, by explicit design |
-| No test ever contacts a real third-party provider | Read the test setup and every connector test | **Confirmed** — an empty network allow-list blocks all outbound calls, and a dedicated case fails the suite if one is ever attempted |
-| No page claims a provider integration has been tested live | Searched all public copy and the deployed pages | **Confirmed** — no such claim exists |
-| No visitor or revenue figure is overstated | Searched every deployed public page for a traffic or signup number | **Confirmed** — **none is published.** The honest count today is zero |
+| Claim                                                          | Verified how                                                       | Result                                                                                                                                                                                                                                                                        |
+| -------------------------------------------------------------- | ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The site is live over TLS with strict security headers         | Fetched the production origin and read the response headers        | **Confirmed.** `default-src 'none'`, hash-only scripts and styles, no inline style or script attributes, HSTS set                                                                                                                                                             |
+| The health check really probes the database                    | Fetched `/health`                                                  | **Confirmed** — it reports actual database reachability, not a hard-coded "ok"                                                                                                                                                                                                |
+| Owner and admin surfaces are not reachable anonymously         | Fetched them from outside with no session                          | **Confirmed** — they return 404 and the response body leaks nothing                                                                                                                                                                                                           |
+| The verification meter cannot show a partial result as a pass  | Fetched the live demo page and read the rendered markup            | **Confirmed** — 33% renders a 30% bar. It rounds **down**                                                                                                                                                                                                                     |
+| The test suite is real and nothing is quietly hidden in a skip | Ran the full suite twice and parsed the runner's own output        | **Confirmed** — 1,951 distinct cases. Exactly **two** are skipped, both deliberately: the only two tests permitted to contact a real provider, which skip because no provider credential exists. They must not be counted toward the release gate, and this audit has said so |
+| Repeated or cross-browser runs are not counted as new cases    | Read the browser test configuration                                | **Confirmed** — a single browser project, by explicit design                                                                                                                                                                                                                  |
+| No test ever contacts a real third-party provider              | Read the test setup and every connector test                       | **Confirmed** — an empty network allow-list blocks all outbound calls, and a dedicated case fails the suite if one is ever attempted                                                                                                                                          |
+| No page claims a provider integration has been tested live     | Searched all public copy and the deployed pages                    | **Confirmed** — no such claim exists                                                                                                                                                                                                                                          |
+| No visitor or revenue figure is overstated                     | Searched every deployed public page for a traffic or signup number | **Confirmed** — **none is published.** The honest count today is zero                                                                                                                                                                                                         |
 
 ## What the audit found wrong
 
 Reported here because a defect found and named is worth more than a clean-looking summary.
 
-| Finding | Severity | State |
-| --- | --- | --- |
-| The automated release gate is **not met** — five failing cases, and the current commit does not compile | High | Open, blocking |
-| Two incompatible date formats are used as the key for the same billing-period record, so a usage allowance could fail to settle correctly | High | Open, blocking. Not reachable today — the scheduler and payment paths are not switched on |
-| The production deployment is several commits behind the tested code, and the public admin entry point is missing from it | High | Open |
-| A test fixture was written in the shape of a real secret. Caught by our own checks, removed from the code — but it had already been committed, so it remains in the repository's published history along with two similar values | High | Open. All three are synthetic; none is a working credential |
-| Our published development story reports spend as £0.00 without also reporting a small estimated model-usage figure alongside it | Medium | Open |
-| The payment-failure policy is written, tested and correct — but is not yet shown on the page before checkout | Medium | Open |
-| The customer notification for a paused subscription is written and correct — but is not yet wired to send | Medium | Open |
-| Several owner-dashboard controls that cannot yet act are honest about it, but one reports a queued action that is not queued, and one returns a success status code | Medium | Open |
-| One internal document says payment processing has been exercised with real test cards. It has not — no payment provider has ever been contacted from this repository | Low | Open |
+| Finding                                                                                                                                                                                                                          | Severity | State                                                                                     |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ----------------------------------------------------------------------------------------- |
+| The automated release gate is **not met** — five failing cases, and the current commit does not compile                                                                                                                          | High     | Open, blocking                                                                            |
+| Two incompatible date formats are used as the key for the same billing-period record, so a usage allowance could fail to settle correctly                                                                                        | High     | Open, blocking. Not reachable today — the scheduler and payment paths are not switched on |
+| The production deployment is several commits behind the tested code, and the public admin entry point is missing from it                                                                                                         | High     | Open                                                                                      |
+| A test fixture was written in the shape of a real secret. Caught by our own checks, removed from the code — but it had already been committed, so it remains in the repository's published history along with two similar values | High     | Open. All three are synthetic; none is a working credential                               |
+| Our published development story reports spend as £0.00 without also reporting a small estimated model-usage figure alongside it                                                                                                  | Medium   | Open                                                                                      |
+| The payment-failure policy is written, tested and correct — but is not yet shown on the page before checkout                                                                                                                     | Medium   | Open                                                                                      |
+| The customer notification for a paused subscription is written and correct — but is not yet wired to send                                                                                                                        | Medium   | Open                                                                                      |
+| Several owner-dashboard controls that cannot yet act are honest about it, but one reports a queued action that is not queued, and one returns a success status code                                                              | Medium   | Open                                                                                      |
+| One internal document says payment processing has been exercised with real test cards. It has not — no payment provider has ever been contacted from this repository                                                             | Low      | Open                                                                                      |
 
 Twenty-three findings were raised in total. Each was returned to the responsible agent with
 the specific retest that will close it. **Nothing is closed without the auditor re-running
@@ -119,12 +119,12 @@ problem.
 A project like this is tempting to describe as "launched". It is not, and these four things
 are not the same thing:
 
-| Milestone | State today |
-| --- | --- |
-| Build complete | **No** — the test suite is red and the release commit does not compile |
-| Live payments ready | **No** — payment routes are not switched on |
-| Advertising live | **No** — by deliberate decision; nothing has been spent |
-| Ten external visits observed | **No** — the observed count is zero |
+| Milestone                    | State today                                                            |
+| ---------------------------- | ---------------------------------------------------------------------- |
+| Build complete               | **No** — the test suite is red and the release commit does not compile |
+| Live payments ready          | **No** — payment routes are not switched on                            |
+| Advertising live             | **No** — by deliberate decision; nothing has been spent                |
+| Ten external visits observed | **No** — the observed count is zero                                    |
 
 They will be reported separately until each is separately true.
 
@@ -160,7 +160,7 @@ audit result means anything.
   development story. The accepted release commit will have to.
 
 **The payment-failure policy was assessed in full.** The founder's specification has nine
-parts. One — *nothing of yours is deleted because of a missed payment* — is **fully met**,
+parts. One — _nothing of yours is deleted because of a missed payment_ — is **fully met**,
 and met in the most reliable way possible: the data-retention process has no knowledge of
 payment status at all, so it cannot act on it. The other eight have correct, well-tested
 logic that **nothing currently calls**. The policy text itself is accurate and well written;
@@ -176,5 +176,5 @@ other `2026-09`, and the project's own validator rejects the second. It stays op
 
 ---
 
-*Findings are raised against named agents and retested independently before being closed.
-Security issues should be reported through the process in [SECURITY.md](../SECURITY.md).*
+_Findings are raised against named agents and retested independently before being closed.
+Security issues should be reported through the process in [SECURITY.md](../SECURITY.md)._

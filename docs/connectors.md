@@ -24,7 +24,7 @@ than recalled.
    schemes, non-443 ports and credentials embedded in a URL. Redirects are never followed
    automatically; each hop is re-checked against the same allowlist with a limit of three.
 3. **"We could not reach the provider" is never reported as "it did not happen."** This is
-   the single most important line in the codebase. See *Absence versus silence* below.
+   the single most important line in the codebase. See _Absence versus silence_ below.
 4. **Your token never appears in a log line, an error message or an exported report.**
    Every credential is registered with a redactor before any request is made, and anything
    that escapes the fetch layer is scrubbed.
@@ -41,19 +41,19 @@ when a connector reported `NOT_FOUND` — meaning the provider answered, success
 the thing does not exist. Everything else resolves to **UNVERIFIED**, which is "we could
 not tell", not "your automation failed".
 
-| What happened | Code we emit | What your report says |
-| --- | --- | --- |
-| A successful search matched zero records | `NOT_FOUND` | Can become FAILED at the deadline |
-| HubSpot's documented object-not-found 404 for a known id | `NOT_FOUND` | Can become FAILED at the deadline |
-| Request timed out | `PROVIDER_UNAVAILABLE` | UNVERIFIED |
-| 429 rate limited | `RATE_LIMITED` | UNVERIFIED |
-| 500/502/503/504 | `PROVIDER_UNAVAILABLE` | UNVERIFIED |
-| 200 with an unparseable or error body | `PROVIDER_UNAVAILABLE` | UNVERIFIED |
-| A 404 that is *not* the provider's documented not-found envelope | `PROVIDER_UNAVAILABLE` | UNVERIFIED |
-| Search reported matches but returned none | `PROVIDER_UNAVAILABLE` | UNVERIFIED |
-| Two or more records carry the same reference | `AMBIGUOUS_MATCH` | UNVERIFIED |
-| Token rejected | `AUTH_EXPIRED` | UNVERIFIED, connection needs attention |
-| Scope or permission missing | `PERMISSION_MISSING` | UNVERIFIED, connection needs attention |
+| What happened                                                    | Code we emit           | What your report says                  |
+| ---------------------------------------------------------------- | ---------------------- | -------------------------------------- |
+| A successful search matched zero records                         | `NOT_FOUND`            | Can become FAILED at the deadline      |
+| HubSpot's documented object-not-found 404 for a known id         | `NOT_FOUND`            | Can become FAILED at the deadline      |
+| Request timed out                                                | `PROVIDER_UNAVAILABLE` | UNVERIFIED                             |
+| 429 rate limited                                                 | `RATE_LIMITED`         | UNVERIFIED                             |
+| 500/502/503/504                                                  | `PROVIDER_UNAVAILABLE` | UNVERIFIED                             |
+| 200 with an unparseable or error body                            | `PROVIDER_UNAVAILABLE` | UNVERIFIED                             |
+| A 404 that is _not_ the provider's documented not-found envelope | `PROVIDER_UNAVAILABLE` | UNVERIFIED                             |
+| Search reported matches but returned none                        | `PROVIDER_UNAVAILABLE` | UNVERIFIED                             |
+| Two or more records carry the same reference                     | `AMBIGUOUS_MATCH`      | UNVERIFIED                             |
+| Token rejected                                                   | `AUTH_EXPIRED`         | UNVERIFIED, connection needs attention |
+| Scope or permission missing                                      | `PERMISSION_MISSING`   | UNVERIFIED, connection needs attention |
 
 `tests/integration/connectors/observation.test.ts` CONN-141 and CONN-142 hold this line:
 the same workflow, the same deadline, the same missing record — an answering provider gives
@@ -71,7 +71,7 @@ Resend key into the HubSpot box we say so by name. This costs no external call, 
 mistyped paste never spends a request against your rate limit.
 
 **2. We ask the provider.** One read-only call: HubSpot's token-info endpoint, or Resend's
-domain list. It proves the credential works *and* tells us which account it belongs to. A
+domain list. It proves the credential works _and_ tells us which account it belongs to. A
 typo, a revoked key, a missing scope or a send-only Resend key all fail here - at paste
 time, in front of you, with a sentence naming what is wrong.
 
@@ -82,13 +82,13 @@ code path that stores an unvalidated token - not a discouraged one, not one behi
 
 ### What "connected" means, and what it does not
 
-| Status | What it actually means |
-| --- | --- |
-| `not_connected` | Nothing is stored. Either you have not connected, or a validation failed and we threw the credential away. |
-| `testing` | The credential works, but something is still outstanding. For Resend this is the normal first state: we have your signing secret but have never seen a message signed with it. |
-| `ready` | The credential works and nothing is outstanding. For Resend this requires a correctly signed callback to have actually arrived and been understood. |
-| `degraded` | It worked, but something is wrong - a missing scope, or the credential now belonging to a different account than the one this connection was set up with. |
-| `expired` | The provider rejected the credential. |
+| Status          | What it actually means                                                                                                                                                         |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `not_connected` | Nothing is stored. Either you have not connected, or a validation failed and we threw the credential away.                                                                     |
+| `testing`       | The credential works, but something is still outstanding. For Resend this is the normal first state: we have your signing secret but have never seen a message signed with it. |
+| `ready`         | The credential works and nothing is outstanding. For Resend this requires a correctly signed callback to have actually arrived and been understood.                            |
+| `degraded`      | It worked, but something is wrong - a missing scope, or the credential now belonging to a different account than the one this connection was set up with.                      |
+| `expired`       | The provider rejected the credential.                                                                                                                                          |
 
 **A Resend connection never reaches `ready` on our say-so.** A stored signing secret is a
 promise that a webhook will work; it is not evidence that one did. The only thing that
@@ -98,7 +98,7 @@ the connection card says, truthfully, that we have not seen it work yet.
 
 ### Re-checking, and the swapped-token problem
 
-Evidence is attributed to the account the *token* belongs to - a HubSpot token cannot read
+Evidence is attributed to the account the _token_ belongs to - a HubSpot token cannot read
 another portal, so that attribution is sound. But it means a token quietly swapped for one
 pointing at a different portal would silently re-attribute every future run, and nothing in
 the evidence path can notice that on its own.
@@ -156,7 +156,7 @@ has ever run**: `CONN-900` (a real HubSpot read) and `CONN-901` (a real Resend r
 are written, they skip, and they say why they skipped.
 
 That is why every public claim about reading records back is currently marked **DESIGNED,
-NOT OBSERVED**. A stub proves our code handles the payload we *believe* the provider sends.
+NOT OBSERVED**. A stub proves our code handles the payload we _believe_ the provider sends.
 It cannot prove the provider sends it.
 
 When a HubSpot developer test account and a Resend test account exist:
@@ -182,7 +182,7 @@ They are capped and guarded:
 - **They refuse to run in production.** `NODE_ENV=production`, `STRIPE_MODE=live` or an
   environment marked production blocks them outright.
 - **HubSpot is pinned to a named portal.** The test asserts the token's live `hubId`
-  matches `VERIFY_HUBSPOT_TEST_PORTAL_ID` *before* reading a contact. Point it at a
+  matches `VERIFY_HUBSPOT_TEST_PORTAL_ID` _before_ reading a contact. Point it at a
   production token by mistake and it fails without reading anything.
 - **They skip, never fail, when the credential is absent** - a public CI run on a fork must
   not go red because it has no secret.
@@ -229,13 +229,13 @@ the decision to revisit.
 
 Only these properties, by name, never the whole contact record:
 
-| Property | Why |
-| --- | --- |
-| `hs_object_id` | The record id, to reference the evidence |
-| `email` | To check the record is about the right person |
-| `createdate` | To tell "a record exists" from "a record was created for this enquiry" |
-| your correlation property | To match the record to this specific enquiry |
-| any property your rules name | Because you asked us to check it |
+| Property                     | Why                                                                    |
+| ---------------------------- | ---------------------------------------------------------------------- |
+| `hs_object_id`               | The record id, to reference the evidence                               |
+| `email`                      | To check the record is about the right person                          |
+| `createdate`                 | To tell "a record exists" from "a record was created for this enquiry" |
+| your correlation property    | To match the record to this specific enquiry                           |
+| any property your rules name | Because you asked us to check it                                       |
 
 Capped at 25 properties. A contact record can hold a phone number, an address, a decade of
 notes and a deal history; none of that is needed to answer "does this record exist and does
@@ -244,11 +244,11 @@ control.
 
 ### Endpoints we call
 
-| Purpose | Method and path |
-| --- | --- |
-| Confirm which portal the token belongs to | `POST /oauth/v2/private-apps/get/access-token-info`, body `{"tokenKey": "<token>"}`, returns `{userId, hubId, appId, scopes}` |
-| Retrieve a contact by id | `GET /crm/v3/objects/contacts/{recordId}?properties=…&archived=false` |
-| Find a contact by your correlation property | `POST /crm/v3/objects/contacts/search` |
+| Purpose                                     | Method and path                                                                                                               |
+| ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Confirm which portal the token belongs to   | `POST /oauth/v2/private-apps/get/access-token-info`, body `{"tokenKey": "<token>"}`, returns `{userId, hubId, appId, scopes}` |
+| Retrieve a contact by id                    | `GET /crm/v3/objects/contacts/{recordId}?properties=…&archived=false`                                                         |
+| Find a contact by your correlation property | `POST /crm/v3/objects/contacts/search`                                                                                        |
 
 Sources: the contacts guide above; the search API at
 <https://developers.hubspot.com/docs/api-reference/legacy/crm/search-the-crm>; and, for the
@@ -261,17 +261,17 @@ or "more than one". Asking for more would read records we have no business readi
 
 ### API version and limits we confirmed
 
-| Fact | Value | Source, checked 2026-09-19 |
-| --- | --- | --- |
-| API version | CRM **v3** (`/crm/v3/objects/contacts`) | [contacts guide](https://developers.hubspot.com/docs/api-reference/crm-contacts-v3/guide) |
-| Private app rate limit, Free & Starter | 100 requests / 10 seconds per app | [usage guidelines](https://developers.hubspot.com/docs/developer-tooling/platform/usage-guidelines) |
-| Private app rate limit, Professional & Enterprise | 190 requests / 10 seconds per app | same |
-| With the API Limit Increase add-on | 250 requests / 10 seconds per app | same |
-| Daily limit per account | 250,000 / 625,000 / 1,000,000 by tier | same |
-| Search endpoint limit | **5 requests per second per account** | [search API](https://developers.hubspot.com/docs/api-reference/legacy/crm/search-the-crm) |
-| Search page maximum | 200 per page, 10,000 results total | same |
-| Rate-limit headers | `X-HubSpot-RateLimit-Max`, `-Remaining`, `-Interval-Milliseconds`, `-Daily`, `-Daily-Remaining` | usage guidelines |
-| 429 body | `{"status":"error","message":…,"errorType":"RATE_LIMIT","correlationId":…,"policyName":…}` | usage guidelines |
+| Fact                                              | Value                                                                                           | Source, checked 2026-09-19                                                                          |
+| ------------------------------------------------- | ----------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| API version                                       | CRM **v3** (`/crm/v3/objects/contacts`)                                                         | [contacts guide](https://developers.hubspot.com/docs/api-reference/crm-contacts-v3/guide)           |
+| Private app rate limit, Free & Starter            | 100 requests / 10 seconds per app                                                               | [usage guidelines](https://developers.hubspot.com/docs/developer-tooling/platform/usage-guidelines) |
+| Private app rate limit, Professional & Enterprise | 190 requests / 10 seconds per app                                                               | same                                                                                                |
+| With the API Limit Increase add-on                | 250 requests / 10 seconds per app                                                               | same                                                                                                |
+| Daily limit per account                           | 250,000 / 625,000 / 1,000,000 by tier                                                           | same                                                                                                |
+| Search endpoint limit                             | **5 requests per second per account**                                                           | [search API](https://developers.hubspot.com/docs/api-reference/legacy/crm/search-the-crm)           |
+| Search page maximum                               | 200 per page, 10,000 results total                                                              | same                                                                                                |
+| Rate-limit headers                                | `X-HubSpot-RateLimit-Max`, `-Remaining`, `-Interval-Milliseconds`, `-Daily`, `-Daily-Remaining` | usage guidelines                                                                                    |
+| 429 body                                          | `{"status":"error","message":…,"errorType":"RATE_LIMIT","correlationId":…,"policyName":…}`      | usage guidelines                                                                                    |
 
 **Where the documentation is ambiguous, and what we assumed:**
 
@@ -283,7 +283,7 @@ or "more than one". Asking for more would read records we have no business readi
 - The usage guidelines note that **search responses carry no rate-limit headers at all**,
   so after a search 429 we have nothing to read and rely on backoff.
 - HubSpot does not publish the portal id on a contact object. We therefore attribute a
-  contact to the portal the *token* belongs to, established from
+  contact to the portal the _token_ belongs to, established from
   `access-token-info`. This is sound — a token scoped to portal A cannot read portal B's
   records — but it means the attribution is about the credential, not the record.
 
@@ -353,10 +353,10 @@ Documentation: <https://resend.com/docs/dashboard/webhooks/introduction>
 
 ### Endpoints we call
 
-| Purpose | Method and path |
-| --- | --- |
-| Retrieve one message | `GET /emails/{id}` |
-| Liveness and permission probe at setup only | `GET /domains` |
+| Purpose                                     | Method and path    |
+| ------------------------------------------- | ------------------ |
+| Retrieve one message                        | `GET /emails/{id}` |
+| Liveness and permission probe at setup only | `GET /domains`     |
 
 Sources: <https://resend.com/docs/api-reference/emails/retrieve-email> and
 <https://resend.com/docs/api-reference/domains/list-domains>, checked 2026-09-19.
@@ -372,8 +372,8 @@ Resend signs with **Svix**. Confirmed 2026-09-19 against
 
 - Headers `svix-id`, `svix-timestamp`, `svix-signature`.
 - Secret is `whsec_` + base64; the base64 part is decoded to raw key bytes.
-- Signed content is `` `${id}.${timestamp}.${body}` `` where *body is the raw request
-  bytes*.
+- Signed content is `` `${id}.${timestamp}.${body}` `` where _body is the raw request
+  bytes_.
 - Signature is HMAC-SHA-256, base64, compared in constant time.
 - The header holds space-delimited `v1,<signature>` entries; non-`v1` versions are ignored.
 - Timestamp tolerance: **300 seconds** either side. Svix recommends a tolerance but does
@@ -419,16 +419,16 @@ What the route does, in this order, every time:
 4. Claims the delivery id, so a redelivery is acknowledged and has no second effect.
 5. Records the evidence, and only then marks the connection working.
 
-| What happened | What we return |
-| --- | --- |
-| Correctly signed, first delivery | `200`, evidence stored |
-| Correctly signed, already seen | `200`, nothing happens twice |
-| Correctly signed, event type we do not map | `200`, recorded as seen, **not** treated as delivery evidence |
-| Bad or missing signature | `400` - never `200` |
-| Endpoint id we did not issue | `400`, identical to the above |
-| Connection you revoked | `400`, identical to the above |
-| Body larger than 256 KB | `413` |
-| Our own storage failed | `500`, and the delivery is released so Resend's retry is a fresh attempt |
+| What happened                              | What we return                                                           |
+| ------------------------------------------ | ------------------------------------------------------------------------ |
+| Correctly signed, first delivery           | `200`, evidence stored                                                   |
+| Correctly signed, already seen             | `200`, nothing happens twice                                             |
+| Correctly signed, event type we do not map | `200`, recorded as seen, **not** treated as delivery evidence            |
+| Bad or missing signature                   | `400` - never `200`                                                      |
+| Endpoint id we did not issue               | `400`, identical to the above                                            |
+| Connection you revoked                     | `400`, identical to the above                                            |
+| Body larger than 256 KB                    | `413`                                                                    |
+| Our own storage failed                     | `500`, and the delivery is released so Resend's retry is a fresh attempt |
 
 **A revoked connection accepts nothing.** If you disconnect Resend, a callback still in
 flight - or one captured earlier and replayed - cannot quietly bring the connection back to
@@ -440,19 +440,19 @@ a second time either.
 Confirmed against <https://resend.com/docs/dashboard/webhooks/event-types> and the
 individual payload pages, 2026-09-19.
 
-| Resend event | Our status | Meaning |
-| --- | --- | --- |
-| `email.sent` | `accepted` | Resend took the message. **Not delivery.** |
-| `email.scheduled` | `queued` | Accepted for later sending |
-| `email.delivered` | `delivered` | The receiving mail server took it. The only delivery-proving status. |
-| `email.delivery_delayed` | `deferred` | Temporary problem, not yet a contradiction |
-| `email.bounced` | `bounced` | Permanently rejected — contradicts delivery |
-| `email.complained` | `complained` | Marked as spam — contradicts delivery |
-| `email.failed` | `failed` | Never sent — contradicts delivery |
-| `email.suppressed` | `failed` | Resend refused to send it; the recipient never saw it |
-| `email.opened` | `opened` | A tracking pixel loaded. Proves nothing about a person. |
-| `email.clicked` | `clicked` | A tracked link was followed. Proves nothing about a person. |
-| anything else | *no status* | Recorded as an unsupported-event gap. Never silently `delivered`. |
+| Resend event             | Our status   | Meaning                                                              |
+| ------------------------ | ------------ | -------------------------------------------------------------------- |
+| `email.sent`             | `accepted`   | Resend took the message. **Not delivery.**                           |
+| `email.scheduled`        | `queued`     | Accepted for later sending                                           |
+| `email.delivered`        | `delivered`  | The receiving mail server took it. The only delivery-proving status. |
+| `email.delivery_delayed` | `deferred`   | Temporary problem, not yet a contradiction                           |
+| `email.bounced`          | `bounced`    | Permanently rejected — contradicts delivery                          |
+| `email.complained`       | `complained` | Marked as spam — contradicts delivery                                |
+| `email.failed`           | `failed`     | Never sent — contradicts delivery                                    |
+| `email.suppressed`       | `failed`     | Resend refused to send it; the recipient never saw it                |
+| `email.opened`           | `opened`     | A tracking pixel loaded. Proves nothing about a person.              |
+| `email.clicked`          | `clicked`    | A tracked link was followed. Proves nothing about a person.          |
+| anything else            | _no status_  | Recorded as an unsupported-event gap. Never silently `delivered`.    |
 
 `email.received` (inbound mail) and the `domain.*`, `contact.*` and `suppression.*`
 families are outside this ladder on purpose: they are not outbound-delivery evidence, and
@@ -460,13 +460,13 @@ forcing them onto it would invent a fact.
 
 ### API version and limits we confirmed
 
-| Fact | Value | Source, checked 2026-09-19 |
-| --- | --- | --- |
-| Base URL | `https://api.resend.com` | [API reference](https://resend.com/docs/api-reference/introduction) |
-| Auth | `Authorization: Bearer re_…` | same |
-| Rate limit | **10 requests per second per team** (default) | same |
-| Missing `User-Agent` | error `1010`, HTTP 403 | same |
-| Error codes | `missing_api_key` 401, `restricted_api_key` 401/403, `invalid_permission` 403, `not_found` 404, `rate_limit_exceeded` 429, `application_error` 500, `service_unavailable` 503 | [errors](https://resend.com/docs/api-reference/errors) |
+| Fact                 | Value                                                                                                                                                                         | Source, checked 2026-09-19                                          |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| Base URL             | `https://api.resend.com`                                                                                                                                                      | [API reference](https://resend.com/docs/api-reference/introduction) |
+| Auth                 | `Authorization: Bearer re_…`                                                                                                                                                  | same                                                                |
+| Rate limit           | **10 requests per second per team** (default)                                                                                                                                 | same                                                                |
+| Missing `User-Agent` | error `1010`, HTTP 403                                                                                                                                                        | same                                                                |
+| Error codes          | `missing_api_key` 401, `restricted_api_key` 401/403, `invalid_permission` 403, `not_found` 404, `rate_limit_exceeded` 429, `application_error` 500, `service_unavailable` 503 | [errors](https://resend.com/docs/api-reference/errors)              |
 
 Resend does not version its API in the path; there is no version string to record beyond
 the documentation date above.

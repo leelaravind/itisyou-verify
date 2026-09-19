@@ -10,7 +10,14 @@
 import { readFileSync, existsSync } from 'node:fs';
 
 const PATH = 'docs/development-story-events.json';
-const STATUSES = ['planned', 'attempted', 'implemented', 'tested', 'deployed', 'externally_confirmed'];
+const STATUSES = [
+  'planned',
+  'attempted',
+  'implemented',
+  'tested',
+  'deployed',
+  'externally_confirmed',
+];
 const REQUIRED = [
   'event_id',
   'timestamp',
@@ -30,7 +37,10 @@ const REQUIRED = [
 
 /** Values that must never appear in a public record. */
 const FORBIDDEN = [
-  { id: 'token-shaped', re: /\b(?:sk|rk|pat|whsec|re|xox[abprs]|ghp|gho|github_pat)[_-][A-Za-z0-9_-]{12,}/ },
+  {
+    id: 'token-shaped',
+    re: /\b(?:sk|rk|pat|whsec|re|xox[abprs]|ghp|gho|github_pat)[_-][A-Za-z0-9_-]{12,}/,
+  },
   { id: 'private-key', re: /-----BEGIN [A-Z ]*PRIVATE KEY-----/ },
   { id: 'jwt', re: /\beyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\./ },
   { id: 'email-address', re: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/ },
@@ -52,7 +62,8 @@ try {
   process.exit(1);
 }
 
-if (doc.schema_version !== 1) problems.push(`schema_version must be 1, found ${doc.schema_version}`);
+if (doc.schema_version !== 1)
+  problems.push(`schema_version must be 1, found ${doc.schema_version}`);
 if (!Array.isArray(doc.events) || doc.events.length === 0) {
   console.error('verify-story — events must be a non-empty array.');
   process.exit(1);
@@ -63,7 +74,8 @@ const raw = readFileSync(PATH, 'utf8');
 
 for (const rule of FORBIDDEN) {
   const m = rule.re.exec(raw);
-  if (m) problems.push(`forbidden content [${rule.id}] in the public record: ${m[0].slice(0, 12)}…`);
+  if (m)
+    problems.push(`forbidden content [${rule.id}] in the public record: ${m[0].slice(0, 12)}…`);
 }
 
 for (const [i, e] of doc.events.entries()) {
@@ -107,7 +119,9 @@ for (const [i, e] of doc.events.entries()) {
 
   for (const field of ['goal', 'decision_summary', 'decision_reason', 'limitations', 'next_step']) {
     if (typeof e[field] === 'string' && e[field].trim() === '') {
-      problems.push(`${at}: "${field}" is present but empty — say "none" rather than leaving it blank`);
+      problems.push(
+        `${at}: "${field}" is present but empty — say "none" rather than leaving it blank`,
+      );
     }
   }
 }

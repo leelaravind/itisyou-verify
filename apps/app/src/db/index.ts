@@ -128,3 +128,11 @@ export {
   seedAutomationIdentity,
 } from './automationSeed';
 export type { AutomationSeed, AutomationSeedRequest } from './automationSeed';
+
+export {
+  D1ResendWebhookDataPort,
+  assignWebhookPathId,
+  createResendEndpointResolver,
+  createResendWebhookData,
+  newWebhookPathId,
+} from './resendWebhookPort';

@@ -8,7 +8,7 @@ counts, quotes or pricing are stated here unless they came from the vendor's own
 The consistent finding across every category below: existing tools either (a) trust the
 automation platform's own report that it succeeded, or (b) probe a generic, vendor-defined
 synthetic transaction on a schedule, or (c) audit CRM data in bulk after the fact. None of
-them independently reads back a *specific* downstream CRM record and a *specific*
+them independently reads back a _specific_ downstream CRM record and a _specific_
 downstream email-delivery event and ties both to the one business event that was supposed
 to produce them. That is the gap ITISYOU Verify fills, and only for the one workflow shape
 it supports (enquiry → CRM record → acknowledgement email, via HubSpot and Resend).
@@ -16,6 +16,7 @@ it supports (enquiry → CRM record → acknowledgement email, via HubSpot and R
 ## 1. Automation platforms' own error handling
 
 ### n8n — Error Trigger / error workflows
+
 - What it is: a special trigger node that fires a separate "error workflow" when a linked
   workflow throws an execution error.
 - Source: https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.errortrigger
@@ -30,6 +31,7 @@ it supports (enquiry → CRM record → acknowledgement email, via HubSpot and R
   in HubSpot or Resend.
 
 ### Make (Integromat) — error handler routes and scenario notifications
+
 - What it is: per-module error handler directives (Break, Ignore, Resume, Commit,
   Rollback) plus scenario-level notifications (Warnings, Errors, Stopped) including
   automatic deactivation after repeated consecutive errors.
@@ -42,6 +44,7 @@ it supports (enquiry → CRM record → acknowledgement email, via HubSpot and R
   raises no error Make can react to.
 
 ### Zapier — Zapier Manager
+
 - What it is: a meta-Zap app exposing triggers such as "New Zap Error" and "Zap Turned
   Off", used to build failure-alert Zaps.
 - Source: https://help.zapier.com/hc/en-us/articles/8496200014477-Troubleshoot-Zapier-Manager
@@ -54,6 +57,7 @@ it supports (enquiry → CRM record → acknowledgement email, via HubSpot and R
 ## 2. Dedicated workflow-observability add-ons
 
 ### SigNoz for n8n
+
 - What it is: an OpenTelemetry-based observability layer that ingests n8n's own traces,
   logs and metrics into dashboards.
 - Source: https://signoz.io/docs/n8n-monitoring/ and
@@ -67,6 +71,7 @@ it supports (enquiry → CRM record → acknowledgement email, via HubSpot and R
   n8n's own execution looked healthy.
 
 ### Community consensus (n8n)
+
 - A user thread — https://community.n8n.io/t/a-tool-for-workflow-observability-and-monitoring-for-workflows/303372
   (accessed 2026-09-19) — confirms there is no widely-known dedicated product that verifies
   the real-world downstream effect of an n8n workflow; the common answer is to bolt on
@@ -79,6 +84,7 @@ it supports (enquiry → CRM record → acknowledgement email, via HubSpot and R
 ## 3. Uptime / synthetic monitoring
 
 ### Checkly
+
 - What it is: API and browser synthetic monitoring on a schedule.
 - Source: https://www.checklyhq.com/docs/detect/synthetic-monitoring/overview/ and
   https://www.checklyhq.com/pricing/ (accessed 2026-09-19). Search results suggested
@@ -90,6 +96,7 @@ it supports (enquiry → CRM record → acknowledgement email, via HubSpot and R
   scheduled run.
 
 ### Better Stack (Better Uptime)
+
 - What it is: HTTP/uptime monitoring with status pages and incident alerting.
 - Source: https://betterstack.com/docs/uptime/uptime-monitor/ and
   https://betterstack.com/community/guides/monitoring/what-is-api-monitoring/ (accessed
@@ -98,6 +105,7 @@ it supports (enquiry → CRM record → acknowledgement email, via HubSpot and R
   optionally a keyword match in the response body, on a polling interval.
 
 ### The gap for both
+
 Synthetic monitors test a generic, vendor-scripted probe against an endpoint on a
 schedule. They have no concept of a specific customer's enquiry. They cannot say "enquiry
 #4821 produced contact record X in HubSpot and the acknowledgement email for that specific
@@ -107,12 +115,14 @@ one particular business transaction.
 ## 4. CRM data-quality / hygiene tools
 
 ### Insycle
+
 - What it is: bulk CRM data-cleaning — duplicate detection/merging, field formatting,
   standardisation, aggregation, run in bulk or on a schedule.
 - Source: https://www.insycle.com/hubspot/ and
   https://blog.insycle.com/hubspot-data-quality-automation (accessed 2026-09-19).
 
 ### HubSpot's own Data Quality tools
+
 - What it is: native duplicate-detection tooling that surfaces likely duplicate
   contact/company pairs for manual or bulk merge.
 - Source: https://knowledge.hubspot.com/data-management/use-data-quality-tools and
@@ -123,6 +133,7 @@ one particular business transaction.
   so no specific numbers are stated here.
 
 ### The gap for both
+
 These tools work retrospectively and in bulk, across the whole database, on their own
 schedule. They do not check, at the moment one specific enquiry comes in, that the correct
 single record was created with the right correlation value, or that the acknowledgement
@@ -150,6 +161,6 @@ Every category above answers some version of "did the automation report an error
 them answers "does the CRM record actually exist, correctly correlated, and did the email
 land." That is the one narrow claim ITISYOU Verify makes for the one workflow shape it
 supports — see `docs/product-scope.md` for exactly which fields and rules back that claim,
-and where the claim stops (it does not diagnose *why* an automation failed, and by default
+and where the claim stops (it does not diagnose _why_ an automation failed, and by default
 it cannot detect a run that never started at all — see the coverage-mode caveat in that
 document).

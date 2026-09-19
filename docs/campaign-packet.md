@@ -22,39 +22,39 @@ approval automatically — including changing the budget by one penny.
 
 **The recommendation is to not spend this money yet**, and to get the first ten visits from
 one honest post in r/n8n / r/msp / Indie Hackers instead, at £0. This packet exists so that
-*if* the owner decides to run the paid experiment anyway, it runs under a real ceiling with
+_if_ the owner decides to run the paid experiment anyway, it runs under a real ceiling with
 honest copy and an automatic stop — not so that it gets run.
 
 **Two blocking checks. Both must pass before this packet can be approved:**
 
-| # | Check | Why it blocks |
-| --- | --- | --- |
-| **B1** | Open Reddit's campaign creation flow and **read the minimum total (lifetime) budget on screen**. | Our figure is **$25** and is *secondary and unverified*. $25 is more than the whole £15 allocation. If $25 is correct, this campaign cannot be created and the packet is void. |
+| #      | Check                                                                                                                  | Why it blocks                                                                                                                                                                    |
+| ------ | ---------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **B1** | Open Reddit's campaign creation flow and **read the minimum total (lifetime) budget on screen**.                       | Our figure is **$25** and is *secondary and unverified*. $25 is more than the whole £15 allocation. If $25 is correct, this campaign cannot be created and the packet is void.   |
 | **B2** | Confirm **which currency** Reddit will bill this account in, and the card's non-sterling transaction fee if it is USD. | The cap in this repository is integer pence. If billing is USD, the gross GBP exposure moves with the exchange rate and §5's arithmetic has to be redone at the rate on the day. |
 
 ---
 
 ## 1. Platform and account
 
-| Field | Value |
-| --- | --- |
-| Platform | **Reddit Ads** (self-serve, `ads.reddit.com`) |
-| Account | **Does not exist.** The owner creates it. No agent creates accounts. |
-| Account owner | The founder, personally |
-| MFA | **Must be enrolled before a payment method is added.** Non-negotiable. |
-| Business verification | Unknown — Reddit's requirement and timeline were not established. Budget time for it. |
-| API access | **None.** Campaign is operated by hand through the Reddit UI; we record what the owner did and what the platform said. See `packages/connectors/src/ads/manual.ts`. |
-| Why one platform | The £15 is not split. Splitting it across two platforms halves an already-insufficient budget and doubles the number of things that can silently overspend. |
+| Field                 | Value                                                                                                                                                               |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Platform              | **Reddit Ads** (self-serve, `ads.reddit.com`)                                                                                                                       |
+| Account               | **Does not exist.** The owner creates it. No agent creates accounts.                                                                                                |
+| Account owner         | The founder, personally                                                                                                                                             |
+| MFA                   | **Must be enrolled before a payment method is added.** Non-negotiable.                                                                                              |
+| Business verification | Unknown — Reddit's requirement and timeline were not established. Budget time for it.                                                                               |
+| API access            | **None.** Campaign is operated by hand through the Reddit UI; we record what the owner did and what the platform said. See `packages/connectors/src/ads/manual.ts`. |
+| Why one platform      | The £15 is not split. Splitting it across two platforms halves an already-insufficient budget and doubles the number of things that can silently overspend.         |
 
 ---
 
 ## 2. Objective and conversion definition
 
-| Field | Value |
-| --- | --- |
-| Platform objective | **Traffic** (clicks to the site). Not Conversions — we have nothing like the volume an optimiser needs, and a conversion objective on four clicks is noise. |
-| Optimisation goal | Clicks |
-| **What we count as success** | See below. Three separate numbers. None is derived from another. |
+| Field                        | Value                                                                                                                                                       |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Platform objective           | **Traffic** (clicks to the site). Not Conversions — we have nothing like the volume an optimiser needs, and a conversion objective on four clicks is noise. |
+| Optimisation goal            | Clicks                                                                                                                                                      |
+| **What we count as success** | See below. Three separate numbers. None is derived from another.                                                                                            |
 
 **The conversion definition, precisely:**
 
@@ -120,12 +120,12 @@ cannot be a button, so it is the last line of the body).
 
 ### Why the copy says what it says
 
-| Line | What makes it true |
-| --- | --- |
-| "Check CRM records and email outcomes against your rules" | `assertionSpecSchema` operators against `CRM_FIELD` / `EMAIL_FIELD` (`packages/contracts/src/rules.ts`) |
-| "See evidence when a run passes, fails or cannot be verified" | `RUN_STATUS` is exactly `PENDING`/`VERIFIED`/`FAILED`/`UNVERIFIED` — the three named outcomes, no fifth state |
-| "We read the CRM record and the email event back ourselves" | `EvidenceOrigin: 'provider_readback'`; the HubSpot and Resend connectors exist (`packages/connectors/src/hubspot.ts`, `resend.ts`) |
-| "HubSpot and Resend only, one workflow shape" | `docs/product-scope.md` §4 — stated in the ad rather than hidden on the landing page, because it qualifies the click |
+| Line                                                          | What makes it true                                                                                                                 |
+| ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| "Check CRM records and email outcomes against your rules"     | `assertionSpecSchema` operators against `CRM_FIELD` / `EMAIL_FIELD` (`packages/contracts/src/rules.ts`)                            |
+| "See evidence when a run passes, fails or cannot be verified" | `RUN_STATUS` is exactly `PENDING`/`VERIFIED`/`FAILED`/`UNVERIFIED` — the three named outcomes, no fifth state                      |
+| "We read the CRM record and the email event back ourselves"   | `EvidenceOrigin: 'provider_readback'`; the HubSpot and Resend connectors exist (`packages/connectors/src/hubspot.ts`, `resend.ts`) |
+| "HubSpot and Resend only, one workflow shape"                 | `docs/product-scope.md` §4 — stated in the ad rather than hidden on the landing page, because it qualifies the click               |
 
 ### Forbidden in this or any ad
 
@@ -150,17 +150,17 @@ claim, and it would invalidate the approval hash the moment it changed the creat
 
 ## 4. Audience, geography and language
 
-| Field | Value |
-| --- | --- |
-| Audience description | People who build and maintain automations for their own clients — small agencies and freelance automation builders |
-| **Targets (communities)** | `r/n8n`, `r/Zapier`, `r/automate`, `r/msp` |
-| Reserve communities (NOT approved; would need re-approval) | `r/sysadmin`, `r/nocode`, `r/smallbusiness` |
-| Interest targeting | **Off.** Community targeting only — it is the one signal on this platform that means what it says. |
-| **Negative / exclusion keywords** | `job`, `jobs`, `hiring`, `career`, `salary`, `course`, `tutorial`, `certification`, `free`, `crack`, `download`, `student`, `homework`, `giveaway` |
-| Geography | **United Kingdom (`GB`) only.** Not because the product is UK-only, but because the budget cannot survive a global auction and UK traffic is the only traffic we can follow up on in the owner's timezone. |
-| Language | English (`en`) |
-| Device | All. No exclusion — excluding mobile would shrink an already thin delivery. |
-| Frequency cap | 1 impression per user per day, if the platform offers it. Ten impressions to one person is a waste of a four-click budget. |
+| Field                                                      | Value                                                                                                                                                                                                      |
+| ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Audience description                                       | People who build and maintain automations for their own clients — small agencies and freelance automation builders                                                                                         |
+| **Targets (communities)**                                  | `r/n8n`, `r/Zapier`, `r/automate`, `r/msp`                                                                                                                                                                 |
+| Reserve communities (NOT approved; would need re-approval) | `r/sysadmin`, `r/nocode`, `r/smallbusiness`                                                                                                                                                                |
+| Interest targeting                                         | **Off.** Community targeting only — it is the one signal on this platform that means what it says.                                                                                                         |
+| **Negative / exclusion keywords**                          | `job`, `jobs`, `hiring`, `career`, `salary`, `course`, `tutorial`, `certification`, `free`, `crack`, `download`, `student`, `homework`, `giveaway`                                                         |
+| Geography                                                  | **United Kingdom (`GB`) only.** Not because the product is UK-only, but because the budget cannot survive a global auction and UK traffic is the only traffic we can follow up on in the owner's timezone. |
+| Language                                                   | English (`en`)                                                                                                                                                                                             |
+| Device                                                     | All. No exclusion — excluding mobile would shrink an already thin delivery.                                                                                                                                |
+| Frequency cap                                              | 1 impression per user per day, if the platform offers it. Ten impressions to one person is a waste of a four-click budget.                                                                                 |
 
 **Honest note on the audience:** these communities dislike advertising. The ad will be
 downvoted and may be reported. That is a cost of this channel, not a surprise, and it is
@@ -172,13 +172,13 @@ another reason §7 of `docs/advertising.md` recommends the organic route first.
 
 Every figure is an integer number of minor units. Nothing here is computed as a float.
 
-| Field | Value |
-| --- | --- |
-| Allocation (`BUDGET.ALLOC_ADVERTISING_PENCE`) | **1500 pence (£15.00)** — treated as a **gross** ceiling, the maximum that may leave the founder's account |
-| Budget type | **Total / lifetime budget.** Not a daily budget. If Reddit will not accept a total budget at this level (check **B1**), the packet is void. |
-| Proposed total budget | **$13.00 USD** (or **1150 pence** if Reddit bills in GBP) |
-| VAT | **20%**, assumed charged — the founder is assumed **not** VAT-registered. If registered, the reverse charge applies, 20% disappears, and this packet must be re-costed and re-approved. |
-| Card non-sterling fee | **~3%**, assumed, if billed in USD. Confirm with the issuer (check **B2**). |
+| Field                                         | Value                                                                                                                                                                                   |
+| --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Allocation (`BUDGET.ALLOC_ADVERTISING_PENCE`) | **1500 pence (£15.00)** — treated as a **gross** ceiling, the maximum that may leave the founder's account                                                                              |
+| Budget type                                   | **Total / lifetime budget.** Not a daily budget. If Reddit will not accept a total budget at this level (check **B1**), the packet is void.                                             |
+| Proposed total budget                         | **$13.00 USD** (or **1150 pence** if Reddit bills in GBP)                                                                                                                               |
+| VAT                                           | **20%**, assumed charged — the founder is assumed **not** VAT-registered. If registered, the reverse charge applies, 20% disappears, and this packet must be re-costed and re-approved. |
+| Card non-sterling fee                         | **~3%**, assumed, if billed in USD. Confirm with the issuer (check **B2**).                                                                                                             |
 
 **Gross maximum exposure, including VAT:**
 
@@ -200,12 +200,12 @@ this campaign and is not assumed anywhere in this packet.
 
 ### Bidding constraints
 
-| Field | Value |
-| --- | --- |
-| Bid strategy | **Manual CPC** — an automatic strategy on a four-click budget optimises nothing and removes our only control |
-| Maximum CPC | **$2.00**. Above this the budget buys fewer than seven clicks and the experiment stops being informative. |
-| Bid changes permitted without re-approval | **Reducing** the max CPC, and pausing. Both shrink exposure. |
-| Bid changes requiring fresh approval | **Raising** the max CPC, raising the budget, adding a community, widening geography, extending the end date, or changing a word of the creative. Enforced by `classifyChange()` in `apps/app/src/growth/approval.ts` (`ADS-037`, `ADS-038`, `ADS-039`). |
+| Field                                     | Value                                                                                                                                                                                                                                                   |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Bid strategy                              | **Manual CPC** — an automatic strategy on a four-click budget optimises nothing and removes our only control                                                                                                                                            |
+| Maximum CPC                               | **$2.00**. Above this the budget buys fewer than seven clicks and the experiment stops being informative.                                                                                                                                               |
+| Bid changes permitted without re-approval | **Reducing** the max CPC, and pausing. Both shrink exposure.                                                                                                                                                                                            |
+| Bid changes requiring fresh approval      | **Raising** the max CPC, raising the budget, adding a community, widening geography, extending the end date, or changing a word of the creative. Enforced by `classifyChange()` in `apps/app/src/growth/approval.ts` (`ADS-037`, `ADS-038`, `ADS-039`). |
 
 ---
 
@@ -220,33 +220,33 @@ lead on 2026-09-19 — it is not a placeholder, so the URL above is the URL that
 pasted into the platform. Changing it later changes `destination` and therefore requires a
 fresh approval; it cannot be slipped in after signing.)
 
-| Field | Value |
-| --- | --- |
-| `utm_source` | `reddit` |
-| `utm_medium` | `cpc` |
-| `utm_campaign` | `verify_first_test` |
-| `utm_content` | `ad_a` / `ad_b` |
-| Landing page | The public marketing page. It must state the exclusions from `docs/product-scope.md` §4 above the fold. Paying to send someone to a page that oversells is worse than not advertising. |
-| Redirects | **None.** The URL pasted into the platform is the URL that serves. A redirect chain loses UTMs and breaks attribution. |
-| Scheme | HTTPS only |
+| Field          | Value                                                                                                                                                                                  |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `utm_source`   | `reddit`                                                                                                                                                                               |
+| `utm_medium`   | `cpc`                                                                                                                                                                                  |
+| `utm_campaign` | `verify_first_test`                                                                                                                                                                    |
+| `utm_content`  | `ad_a` / `ad_b`                                                                                                                                                                        |
+| Landing page   | The public marketing page. It must state the exclusions from `docs/product-scope.md` §4 above the fold. Paying to send someone to a page that oversells is worse than not advertising. |
+| Redirects      | **None.** The URL pasted into the platform is the URL that serves. A redirect chain loses UTMs and breaks attribution.                                                                 |
+| Scheme         | HTTPS only                                                                                                                                                                             |
 
 UTM values arriving back at the Worker are attacker-controlled and are validated against
 `/^[A-Za-z0-9_.\-]{1,64}$/`; anything else is dropped rather than stored (`ADS-012`). A
 session arriving with no UTM at all still counts as a visit, but is reported as
-*unattributed*, never as ad-attributed (`ADS-104`).
+_unattributed_, never as ad-attributed (`ADS-104`).
 
 ---
 
 ## 7. Schedule
 
-| Field | Value |
-| --- | --- |
-| Start | **2026-10-05, 09:00** |
-| End | **2026-10-11, 23:59** |
-| Timezone | **Europe/London**, set explicitly in the platform's schedule field |
-| Duration | 7 days |
+| Field          | Value                                                                                                                                                                                                                                                         |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Start          | **2026-10-05, 09:00**                                                                                                                                                                                                                                         |
+| End            | **2026-10-11, 23:59**                                                                                                                                                                                                                                         |
+| Timezone       | **Europe/London**, set explicitly in the platform's schedule field                                                                                                                                                                                            |
+| Duration       | 7 days                                                                                                                                                                                                                                                        |
 | Calendar month | Entirely within October. **Deliberate.** A campaign that crosses a month boundary gets a fresh monthly allowance on platforms whose only ceiling is monthly; keeping inside one month is a standing discipline even here, where a total budget makes it moot. |
-| Dayparting | None. The budget is too small for dayparting to mean anything. |
+| Dayparting     | None. The budget is too small for dayparting to mean anything.                                                                                                                                                                                                |
 
 The dates move if Reddit's account verification takes longer than expected. **Moving them
 changes `duration` and invalidates the approval** — that is intended, and re-approving a
@@ -262,7 +262,7 @@ told. Stored in code at `packages/connectors/src/ads/facts.ts`.
 > "Your ad group will try to deliver your average daily spend each day until you hit your
 > total budget. After that, your ad will turn off."
 
-Source: Reddit Ads Help Centre, *How much do Reddit Ads cost?*, as indexed on 2026-09-19.
+Source: Reddit Ads Help Centre, _How much do Reddit Ads cost?_, as indexed on 2026-09-19.
 **`primary_source: false`** — the page is JavaScript-rendered and returned HTTP 401 to an
 unauthenticated fetch, so this wording was not read at the source. **The owner must confirm
 the equivalent sentence on screen** when creating the campaign.
@@ -283,17 +283,17 @@ For contrast, the two platforms this packet rejects:
 Implemented in `apps/app/src/growth/stops.ts`. Each returns a typed reason code. Severity
 `halt` means stop now; `warn` means tell the owner.
 
-| Reason code | Trigger | Severity |
-| --- | --- | --- |
-| `allocated_exposure_reached` | observed spend ≥ 1150 pence net | halt |
-| `allocated_exposure_approaching` | observed spend ≥ 850 pence (allocation minus the 300-pence buffer) | warn |
-| `spend_unknown_too_long` | we have not known what was spent for more than 24 hours | halt |
-| `billing_anomaly` | spend is negative, non-integer, in an unexpected currency, or a charge we did not authorise | halt |
-| `landing_page_broken` | the landing page is not serving | halt |
-| `checkout_broken` | checkout is not completing | halt |
-| `approval_revoked` | the approval is revoked or expired | halt |
-| `owner_command` | the owner said stop | halt |
-| `critical_incident` | any critical incident anywhere in the product | halt |
+| Reason code                      | Trigger                                                                                     | Severity |
+| -------------------------------- | ------------------------------------------------------------------------------------------- | -------- |
+| `allocated_exposure_reached`     | observed spend ≥ 1150 pence net                                                             | halt     |
+| `allocated_exposure_approaching` | observed spend ≥ 850 pence (allocation minus the 300-pence buffer)                          | warn     |
+| `spend_unknown_too_long`         | we have not known what was spent for more than 24 hours                                     | halt     |
+| `billing_anomaly`                | spend is negative, non-integer, in an unexpected currency, or a charge we did not authorise | halt     |
+| `landing_page_broken`            | the landing page is not serving                                                             | halt     |
+| `checkout_broken`                | checkout is not completing                                                                  | halt     |
+| `approval_revoked`               | the approval is revoked or expired                                                          | halt     |
+| `owner_command`                  | the owner said stop                                                                         | halt     |
+| `critical_incident`              | any critical incident anywhere in the product                                               | halt     |
 
 Two properties that matter more than the list:
 
@@ -313,18 +313,18 @@ and neither is spend that happens to look flat.
 
 `verifyPause()` (`apps/app/src/growth/stops.ts`) returns one of three answers:
 
-| Verdict | When |
-| --- | --- |
-| `paused` | a **fresh reconciled provider read** shows paused or ended, **or** the owner explicitly confirms they looked and it was paused |
-| `pause_pending` | we asked, and nothing has confirmed it — including the case where the last provider read still shows `active` |
-| `unknown` | we have not even asked, or we have no external campaign id to ask about |
+| Verdict         | When                                                                                                                           |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `paused`        | a **fresh reconciled provider read** shows paused or ended, **or** the owner explicitly confirms they looked and it was paused |
+| `pause_pending` | we asked, and nothing has confirmed it — including the case where the last provider read still shows `active`                  |
+| `unknown`       | we have not even asked, or we have no external campaign id to ask about                                                        |
 
 The owner's verification procedure, which the manual adapter emits as ordered steps
 (`packages/connectors/src/ads/manual.ts`):
 
 1. Set the campaign to paused in the Reddit ads manager.
-2. Reload after at least one minute and confirm it still shows Paused. *One read is a
-   screenshot; two are evidence.*
+2. Reload after at least one minute and confirm it still shows Paused. _One read is a
+   screenshot; two are evidence._
 3. Confirm spend has not moved across the next reporting interval — **two consecutive equal
    spend readings**.
 4. Record the confirmation here with the time it was actually observed. **Only that recorded
@@ -359,15 +359,15 @@ Approving this packet binds a SHA-256 hash over the canonical form of
 `{ budget_minor, audience, creative, destination, duration }`. Reordering the JSON keys does
 not change it; changing the budget by one penny does (`ADS-032`, `ADS-033`).
 
-| Field | Value |
-| --- | --- |
-| `action_type` | `campaign_launch` |
-| `platform` | `reddit` |
-| `budget_minor` | `1150` |
-| `currency` | `GBP` |
-| `maximum_amount_minor` (gross, incl. VAT and card fee) | `1422` |
-| `expires_at` | 14 days from approval. An approval that outlives the plan is a liability. |
-| Canonical payload hash | *computed at approval time by `bindApproval()` — not pre-filled here, because a hash written into a document by hand is not a hash* |
+| Field                                                  | Value                                                                                                                               |
+| ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `action_type`                                          | `campaign_launch`                                                                                                                   |
+| `platform`                                             | `reddit`                                                                                                                            |
+| `budget_minor`                                         | `1150`                                                                                                                              |
+| `currency`                                             | `GBP`                                                                                                                               |
+| `maximum_amount_minor` (gross, incl. VAT and card fee) | `1422`                                                                                                                              |
+| `expires_at`                                           | 14 days from approval. An approval that outlives the plan is a liability.                                                           |
+| Canonical payload hash                                 | _computed at approval time by `bindApproval()` — not pre-filled here, because a hash written into a document by hand is not a hash_ |
 
 ---
 
@@ -381,7 +381,7 @@ not change it; changing the budget by one penny does (`ADS-032`, `ADS-033`).
 - [ ] I approve the creative in §3 verbatim, and I will not let the platform rewrite it.
 - [ ] I understand that the gated £30 contingency is not available to this campaign.
 
-**Signed:** ______________________  **Date:** ______________
+**Signed:** ______________________ **Date:** ______________
 
-*Until every box above is ticked and this is signed, no campaign is created, submitted or
-funded. Nothing in this repository will do it for you.*
+_Until every box above is ticked and this is signed, no campaign is created, submitted or
+funded. Nothing in this repository will do it for you._

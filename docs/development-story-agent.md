@@ -47,13 +47,13 @@ tests/               unit | integration | security | e2e
 
 ## 3. Interfaces an agent must not break
 
-| Interface | Location | Why it is load-bearing |
-| --- | --- | --- |
-| `WorkflowRules` / `AssertionSpec` | `packages/contracts/src/rules.ts` | The customer-facing rule language. Typed operators only — no arbitrary JavaScript, SQL, unbounded regex or customer-defined network requests. |
-| `EvidenceBundle` / `EvidenceOrigin` | `packages/contracts/src/evidence.ts` | The seam between connectors and the evaluator. `origin` decides whether evidence is independent. |
-| `AUTHORITATIVE_ABSENCE_REASONS` | `packages/domain` | Only `RECORD_NOT_FOUND` and `EVENT_NOT_OBSERVED` can turn a mandatory unknown into `FAILED` at the deadline. A timeout must never map here. |
-| `Money` / `budgetAvailableMinor` | `packages/contracts/src/money.ts` | Integer minor units. Floating point must never enforce a cap. |
-| `Db` structural interface | `apps/app/src/db/d1.ts` | Lets the test harness substitute SQLite while the repository code under test stays byte-identical. |
+| Interface                           | Location                             | Why it is load-bearing                                                                                                                        |
+| ----------------------------------- | ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `WorkflowRules` / `AssertionSpec`   | `packages/contracts/src/rules.ts`    | The customer-facing rule language. Typed operators only — no arbitrary JavaScript, SQL, unbounded regex or customer-defined network requests. |
+| `EvidenceBundle` / `EvidenceOrigin` | `packages/contracts/src/evidence.ts` | The seam between connectors and the evaluator. `origin` decides whether evidence is independent.                                              |
+| `AUTHORITATIVE_ABSENCE_REASONS`     | `packages/domain`                    | Only `RECORD_NOT_FOUND` and `EVENT_NOT_OBSERVED` can turn a mandatory unknown into `FAILED` at the deadline. A timeout must never map here.   |
+| `Money` / `budgetAvailableMinor`    | `packages/contracts/src/money.ts`    | Integer minor units. Floating point must never enforce a cap.                                                                                 |
+| `Db` structural interface           | `apps/app/src/db/d1.ts`              | Lets the test harness substitute SQLite while the repository code under test stays byte-identical.                                            |
 
 ## 4. Invariants
 
@@ -85,14 +85,14 @@ human story is generated from the same source.
 
 ## 6. How to navigate the evidence
 
-| Question | Where the answer is |
-| --- | --- |
-| What was decided and why | `decision_summary` / `decision_reason` on each event |
-| What was actually tested | `test_evidence_refs`, and `docs/test-cases.json` for the ledger |
-| Whether the ledger is honest | `node scripts/verify-test-cases.mjs --strict` |
-| What is known to be broken | `limitations` on each event, plus `docs/security-acceptance.md` |
-| What the threat model covers | `docs/threat-model.md`, with an honest per-control status |
-| Which model did which work | `docs/model-routing.md` and `model_id` on each event |
+| Question                     | Where the answer is                                             |
+| ---------------------------- | --------------------------------------------------------------- |
+| What was decided and why     | `decision_summary` / `decision_reason` on each event            |
+| What was actually tested     | `test_evidence_refs`, and `docs/test-cases.json` for the ledger |
+| Whether the ledger is honest | `node scripts/verify-test-cases.mjs --strict`                   |
+| What is known to be broken   | `limitations` on each event, plus `docs/security-acceptance.md` |
+| What the threat model covers | `docs/threat-model.md`, with an honest per-control status       |
+| Which model did which work   | `docs/model-routing.md` and `model_id` on each event            |
 
 ## 7. What this record deliberately excludes
 

@@ -12,14 +12,14 @@ Last updated: 2026-09-19.
 Recorded from the delegation tooling this session can genuinely reach. A catalogue entry
 is not proof an account can call it, so anything unconfirmed is marked `unknown`.
 
-| Model | Access route | Confirmed callable | Used for |
-| --- | --- | --- | --- |
-| Opus 5 (1M context) | Claude Code session model | yes — this session | Lead: architecture, contracts, schema, integration, release decisions |
-| Opus (subagent) | `Agent` tool, `model: opus` | yes — A02, A03, A04, A05, A10, A11 returned real work | Verification engine, data/security layer, connectors, payments, security review, test gate |
-| Sonnet (subagent) | `Agent` tool, `model: sonnet` | yes — A01 returned real work | Product scope, factual copy, competitor research, documentation |
-| Haiku (subagent) | `Agent` tool, `model: haiku` | **yes** — produced CONTRIBUTING.md, issue forms and the PR template | Bounded documentation and repository scaffolding |
-| Fable (subagent) | `Agent` tool, `model: fable` | **yes** — launched for the dependency licence auditor | Bounded deterministic scripting |
-| OpenRouter free catalogue | Product feature, not a build tool | not configured | The optional in-product assistant only; requires an owner-supplied key |
+| Model                     | Access route                      | Confirmed callable                                                  | Used for                                                                                   |
+| ------------------------- | --------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Opus 5 (1M context)       | Claude Code session model         | yes — this session                                                  | Lead: architecture, contracts, schema, integration, release decisions                      |
+| Opus (subagent)           | `Agent` tool, `model: opus`       | yes — A02, A03, A04, A05, A10, A11 returned real work               | Verification engine, data/security layer, connectors, payments, security review, test gate |
+| Sonnet (subagent)         | `Agent` tool, `model: sonnet`     | yes — A01 returned real work                                        | Product scope, factual copy, competitor research, documentation                            |
+| Haiku (subagent)          | `Agent` tool, `model: haiku`      | **yes** — produced CONTRIBUTING.md, issue forms and the PR template | Bounded documentation and repository scaffolding                                           |
+| Fable (subagent)          | `Agent` tool, `model: fable`      | **yes** — launched for the dependency licence auditor               | Bounded deterministic scripting                                                            |
+| OpenRouter free catalogue | Product feature, not a build tool | not configured                                                      | The optional in-product assistant only; requires an owner-supplied key                     |
 
 No model was purchased. No additional account was created. Claude Code subscription access
 is used only through its supported delegation interface — it is never transformed into a
@@ -27,15 +27,15 @@ general hosted inference API.
 
 ## Routing table in force
 
-| Task class | Route | Escalate when |
-| --- | --- | --- |
-| File listing, exact search, schema validation, formatting, counting | Deterministic tools only — `grep`, `tsc`, `vitest`, a Node script. No model call. | Facts conflict in a way that changes a decision |
-| Reading routine files, extracting fields, simple copy edits | Cheapest eligible model, short bounded context | Missing context or repeated concrete errors |
-| Bounded component, fixture, isolated bug, documentation | Economical capable coding model | Acceptance criteria still failing after a bounded diagnosis |
-| Normal multi-file feature, connector adapter, UI flow | Balanced coding model | Architectural, security or payment implications appear |
-| Architecture, tenant isolation, auth, money semantics, budgets under concurrency, public-release review | Strongest suitable reasoning model | Escalate to the founder only for a consequential unresolved decision — never for model preference |
-| Complex debugging with an uncertain root cause | Balanced diagnosis first, strong model with focused evidence if unresolved | A specific remaining uncertainty, with traces |
-| Repetitive validation and report generation | Code and templates — `scripts/verify-test-cases.mjs`, the JUnit reporter. No model call. | A genuinely novel exception needs interpretation |
+| Task class                                                                                              | Route                                                                                    | Escalate when                                                                                     |
+| ------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| File listing, exact search, schema validation, formatting, counting                                     | Deterministic tools only — `grep`, `tsc`, `vitest`, a Node script. No model call.        | Facts conflict in a way that changes a decision                                                   |
+| Reading routine files, extracting fields, simple copy edits                                             | Cheapest eligible model, short bounded context                                           | Missing context or repeated concrete errors                                                       |
+| Bounded component, fixture, isolated bug, documentation                                                 | Economical capable coding model                                                          | Acceptance criteria still failing after a bounded diagnosis                                       |
+| Normal multi-file feature, connector adapter, UI flow                                                   | Balanced coding model                                                                    | Architectural, security or payment implications appear                                            |
+| Architecture, tenant isolation, auth, money semantics, budgets under concurrency, public-release review | Strongest suitable reasoning model                                                       | Escalate to the founder only for a consequential unresolved decision — never for model preference |
+| Complex debugging with an uncertain root cause                                                          | Balanced diagnosis first, strong model with focused evidence if unresolved               | A specific remaining uncertainty, with traces                                                     |
+| Repetitive validation and report generation                                                             | Code and templates — `scripts/verify-test-cases.mjs`, the JUnit reporter. No model call. | A genuinely novel exception needs interpretation                                                  |
 
 **Risk overrides size.** A ten-line change to signature verification deserves a strong
 reviewer; a thousand-line routine log does not.

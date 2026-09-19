@@ -26,7 +26,10 @@ const RULES = [
   // worse than no scanner, because it is trusted.
   { id: 'stripe-webhook-secret', re: /\bwhsec_[A-Za-z0-9_-]{24,}/ },
   { id: 'resend-key', re: /\bre_[A-Za-z0-9]{8}_[A-Za-z0-9]{20,}\b/ },
-  { id: 'hubspot-token', re: /\bpat-(?:na|eu)[0-9]?-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/ },
+  {
+    id: 'hubspot-token',
+    re: /\bpat-(?:na|eu)[0-9]?-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/,
+  },
   { id: 'openai-key', re: /\bsk-(?:proj-)?[A-Za-z0-9_-]{32,}\b/ },
   { id: 'anthropic-key', re: /\bsk-ant-[A-Za-z0-9_-]{24,}\b/ },
   { id: 'openrouter-key', re: /\bsk-or-v1-[0-9a-f]{40,}\b/ },
@@ -34,9 +37,15 @@ const RULES = [
   { id: 'google-api-key', re: /\bAIza[0-9A-Za-z_-]{35}\b/ },
   { id: 'cloudflare-token', re: /\b(?:CLOUDFLARE|CF)_API_TOKEN\s*[:=]\s*["']?[A-Za-z0-9_-]{30,}/ },
   { id: 'private-key-block', re: /-----BEGIN (?:RSA |EC |OPENSSH |PGP )?PRIVATE KEY-----/ },
-  { id: 'jwt-with-payload', re: /\beyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/ },
+  {
+    id: 'jwt-with-payload',
+    re: /\beyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/,
+  },
   { id: 'basic-auth-url', re: /\b[a-z][a-z0-9+.-]*:\/\/[^\s/:@]+:[^\s/@]{6,}@/ },
-  { id: 'assigned-secret-literal', re: /\b(?:api[_-]?key|secret|password|passwd|token|private[_-]?key)\s*[:=]\s*["'][A-Za-z0-9/+_=-]{24,}["']/i },
+  {
+    id: 'assigned-secret-literal',
+    re: /\b(?:api[_-]?key|secret|password|passwd|token|private[_-]?key)\s*[:=]\s*["'][A-Za-z0-9/+_=-]{24,}["']/i,
+  },
 ];
 
 /** Lines carrying this marker are intentional fixtures and are exempt. */
@@ -63,25 +72,71 @@ const ALLOW_MARKER = 'secret-scan:allow';
  * this shape can be created.
  */
 const ALLOWED_HISTORY_BLOBS = new Map([
-  ['7ef9fb239981c51cfab0497ab3abd54caaa7cdd3', 'syntheticPort.ts — demo signing-key hint, never a real secret'],
-  ['720b3586c5ebf6681c087f8188f7124f227178d2', 'webhook-route.test.ts — wrong-secret fixture for a rejection case'],
-  ['ef02dcd65deb70ed9263067e0fb1df78753a75ec', 'stripe.ts — the removed DECOY_SECRET constant (finding F13)'],
+  [
+    '7ef9fb239981c51cfab0497ab3abd54caaa7cdd3',
+    'syntheticPort.ts — demo signing-key hint, never a real secret',
+  ],
+  [
+    '720b3586c5ebf6681c087f8188f7124f227178d2',
+    'webhook-route.test.ts — wrong-secret fixture for a rejection case',
+  ],
+  [
+    'ef02dcd65deb70ed9263067e0fb1df78753a75ec',
+    'stripe.ts — the removed DECOY_SECRET constant (finding F13)',
+  ],
   ['b649bc0c6ce7340eac043c1407360985b1e0e5ae', 'billing/harness.ts — test webhook secret'],
   ['fec29ff953f114ec6479c8a9d6359ceb7861962d', 'billing/webhooks.test.ts — wrong-secret fixture'],
-  ['966d4b11d18203124eecdc2464233c671cd7214c', 'webhook-route.test.ts — earlier revision of the same fixture'],
+  [
+    '966d4b11d18203124eecdc2464233c671cd7214c',
+    'webhook-route.test.ts — earlier revision of the same fixture',
+  ],
   // Added after the first six, and the reason is worth recording: these are fixtures that
   // were committed and then FIXED. The tree is clean; only history still carries them.
   // `SEC-633` now fails the build on any NEW fixture shaped like a provider secret, which
   // is what stops this list growing — without that, a blob allowlist is just a slower way
   // of turning the control off.
-  ['5b7c53defc3da05bbae681fe25d06c619ba43ca8', 'test-cases.json — two literals harvested verbatim from test sources, since sanitised'],
-  ['59ef934ef13e8d1ee7fb610a9d87bf179825ddbe', 'telegram.test.ts — a key-shaped fixture proving the content guard REFUSES that shape'],
+  [
+    '5b7c53defc3da05bbae681fe25d06c619ba43ca8',
+    'test-cases.json — two literals harvested verbatim from test sources, since sanitised',
+  ],
+  [
+    '59ef934ef13e8d1ee7fb610a9d87bf179825ddbe',
+    'telegram.test.ts — a key-shaped fixture proving the content guard REFUSES that shape',
+  ],
 ]);
 
-const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', 'build', 'coverage', '.wrangler', '.turbo']);
+const SKIP_DIRS = new Set([
+  'node_modules',
+  '.git',
+  'dist',
+  'build',
+  'coverage',
+  '.wrangler',
+  '.turbo',
+]);
 const BINARY_EXT = new Set([
-  '.png', '.jpg', '.jpeg', '.gif', '.webp', '.ico', '.pdf', '.zip', '.gz', '.woff', '.woff2',
-  '.ttf', '.otf', '.mp4', '.webm', '.wasm', '.exe', '.dll', '.so', '.dylib', '.sqlite', '.db',
+  '.png',
+  '.jpg',
+  '.jpeg',
+  '.gif',
+  '.webp',
+  '.ico',
+  '.pdf',
+  '.zip',
+  '.gz',
+  '.woff',
+  '.woff2',
+  '.ttf',
+  '.otf',
+  '.mp4',
+  '.webm',
+  '.wasm',
+  '.exe',
+  '.dll',
+  '.so',
+  '.dylib',
+  '.sqlite',
+  '.db',
 ]);
 
 const args = process.argv.slice(2);
@@ -113,7 +168,13 @@ function scanText(label, text) {
   if (lines.some((l) => l.length > 4000)) {
     for (const rule of RULES.slice(0, 13)) {
       const m = rule.re.exec(text);
-      if (m) findings.push({ label: `${label} (minified)`, line: 0, rule: rule.id, excerpt: mask(m[0]) });
+      if (m)
+        findings.push({
+          label: `${label} (minified)`,
+          line: 0,
+          rule: rule.id,
+          excerpt: mask(m[0]),
+        });
     }
   }
 }

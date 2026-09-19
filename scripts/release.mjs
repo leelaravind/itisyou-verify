@@ -91,14 +91,15 @@ try {
   step('test ledger integrity', () => run('node', ['scripts/verify-test-cases.mjs']));
   step('development story integrity', () => run('node', ['scripts/verify-story.mjs']));
   step('secret scan — tracked tree and full history', () =>
-    run('node', ['scripts/scan-secrets.mjs', '--history']));
+    run('node', ['scripts/scan-secrets.mjs', '--history']),
+  );
 
-  step('build the worker bundle', () =>
-    run('pnpm', ['--filter', '@verify/app', 'build']));
+  step('build the worker bundle', () => run('pnpm', ['--filter', '@verify/app', 'build']));
 
   step('secret scan — built bundle', () => {
     const dist = `${APP}/dist`;
-    if (!existsSync(dist)) throw new Error(`${dist} does not exist; the build produced nothing to scan`);
+    if (!existsSync(dist))
+      throw new Error(`${dist} does not exist; the build produced nothing to scan`);
     run('node', ['scripts/scan-secrets.mjs', '--paths', dist]);
   });
 
@@ -108,7 +109,9 @@ try {
       console.log(`  would run: wrangler d1 migrations apply ${dbName} --env ${env} --remote`);
       return;
     }
-    run('npx', ['wrangler', 'd1', 'migrations', 'apply', dbName, '--env', env, '--remote'], { cwd: APP });
+    run('npx', ['wrangler', 'd1', 'migrations', 'apply', dbName, '--env', env, '--remote'], {
+      cwd: APP,
+    });
   });
 
   step('deploy', () => {

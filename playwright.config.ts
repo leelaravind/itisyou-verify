@@ -21,7 +21,9 @@ export default defineConfig({
   workers: 1,
   forbidOnly: Boolean(process.env['CI']),
   retries: process.env['CI'] ? 1 : 0,
-  reporter: process.env['CI'] ? [['list'], ['junit', { outputFile: 'reports/playwright-junit.xml' }]] : [['list']],
+  reporter: process.env['CI']
+    ? [['list'], ['junit', { outputFile: 'reports/playwright-junit.xml' }]]
+    : [['list']],
   outputDir: 'reports/playwright',
   timeout: 30_000,
   expect: { timeout: 5_000 },
@@ -32,7 +34,12 @@ export default defineConfig({
     // A tiny bit of tolerance: the Worker is cold on the first request.
     actionTimeout: 10_000,
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } } }],
+  projects: [
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } },
+    },
+  ],
   webServer: {
     command: `npx wrangler dev --port ${PORT} --ip 127.0.0.1`,
     cwd: 'apps/app',
