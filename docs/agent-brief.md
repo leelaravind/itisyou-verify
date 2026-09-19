@@ -125,6 +125,23 @@ ID prefixes by category: `VERIFY` (rules/evidence), `CONN` (connectors), `PERSIS
 A case counts once. Repeated runs, viewport copies and snapshots without assertions do
 not count. Never weaken a test to make a bug pass.
 
+### Never commit a credential-shaped literal, even a synthetic one
+
+A fixture like `'pat-na1-0000…'`, `'sk_live_…'`, `'whsec_…'` or `'re_…'` is rejected by
+our secret scanner **and** by GitHub push protection, which blocks the push outright.
+This has already cost two rounds of rework. Assemble the value at runtime instead — the
+fixture keeps exactly the same value and stops looking like a credential:
+
+```ts
+const TOKEN = ['pat', 'na1', '00000000-0000-4000-8000-000000000001'].join('-');
+const SECRET = 'whsec' + '_' + 'A'.repeat(32);
+```
+
+The `secret-scan:allow` marker exists only for a case where the credential *shape itself*
+is the thing under test — a URL with embedded credentials being rejected by the URL guard,
+for instance. Reach for it almost never. Allowlisting a warning is how a team teaches
+itself to dismiss the one that is eventually real.
+
 Run with `pnpm test`. Outbound `fetch` is blocked in tests — stub it.
 
 ## What you must never do
