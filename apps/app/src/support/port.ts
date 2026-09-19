@@ -197,6 +197,24 @@ export const RETENTION_TARGET = [
 ] as const;
 export type RetentionTarget = (typeof RETENTION_TARGET)[number];
 
+/**
+ * Tables that are never swept on a timer, but are emptied when a workspace is deleted.
+ *
+ * Kept separate from `RETENTION_TARGET` deliberately: the retention policy table in
+ * `privacy/retention.ts` must list only things that actually expire, or the published
+ * document grows rows that describe nothing.
+ *
+ * Each of these takes children with it through `ON DELETE CASCADE` in
+ * `migrations/0001_init.sql`: `workflows` takes `workflow_versions`, and `connections`
+ * takes `credential_versions` — which is what makes "the credentials you gave us are
+ * destroyed" a true sentence rather than a hopeful one.
+ */
+export const PURGE_ONLY_TARGET = ['workflows', 'connections', 'memberships'] as const;
+export type PurgeOnlyTarget = (typeof PURGE_ONLY_TARGET)[number];
+
+/** Anything `purgeWorkspaceRows` may be asked to empty for one workspace. */
+export type PurgeTarget = RetentionTarget | PurgeOnlyTarget;
+
 export interface ExpiredRowRef {
   readonly id: string;
   readonly workspaceId: string | null;
@@ -319,7 +337,7 @@ export interface SupportDataPort {
    * deletion is resumable and never a full-table rewrite. Returns rows actually removed;
    * zero means the table is empty for this workspace and the caller stops.
    */
-  purgeWorkspaceRows(workspaceId: string, target: RetentionTarget, limit: number): Promise<number>;
+  purgeWorkspaceRows(workspaceId: string, target: PurgeTarget, limit: number): Promise<number>;
 
   /** Sweep checkpoint, stored in `settings`. Makes an interrupted sweep resumable. */
   readCheckpoint(key: string): Promise<string | null>;

@@ -21,7 +21,10 @@
  * inserted literally on the text side.
  */
 import { LIMITS } from '@verify/contracts';
-import { PLAN_AT_ALLOWANCE, PLAN_CANCELLATION_WORDING, PRODUCT_NAME } from '@verify/ui';
+import { PLAN_AT_ALLOWANCE, PRODUCT_NAME } from '@verify/ui';
+// A06 owns the number. Importing it is what stops this file stating a window length that
+// has drifted from the approved policy.
+import { PAYMENT_FAILURE_GRACE_DAYS } from '../billing/config';
 
 /** Every template this product can send. Adding a case here is a deliberate act. */
 export const NOTIFICATION_TEMPLATE = [
@@ -93,12 +96,42 @@ export interface TemplateVariablesByTemplate {
   payment_problem: {
     readonly workspaceName: string;
     readonly billingPortalUrl: string;
-    /** Stripe's own reason, passed through without embellishment. */
+    /**
+     * A06's situation sentence: Stripe's own reason, passed through without
+     * embellishment, followed by `recoveryStatement(window)`. It says which phase of the
+     * recovery window this workspace is in. The paragraphs around it state the policy and
+     * must not restate the phase, so the two read as one voice.
+     */
     readonly reasonSentence: string;
+    /**
+     * Whole days left in the recovery window, from A06's `paymentRecoveryWindow()`.
+     *
+     * Optional so that a caller which does not yet compute it cannot be broken, and so a
+     * missing address or a missing window can never stop a suspension happening
+     * correctly. When it is absent the message states the window length instead of a
+     * countdown — always true, never a number that can drift.
+     */
+    readonly daysRemaining?: number;
+    /**
+     * The approved window length. Pass A06's `PAYMENT_RECOVERY_DAYS`; never a literal.
+     * Defaults to `PAYMENT_FAILURE_GRACE_DAYS`, which is the one place the number lives.
+     */
+    readonly graceDays?: number;
   };
   cancellation_confirmed: {
     readonly workspaceName: string;
+    /**
+     * When access actually ends. For `period_end` this is the end of the period already
+     * paid for; for `immediately` it is now.
+     */
     readonly accessEndsAt: string;
+    /**
+     * A06 supports a support-led `immediately` cancellation as well as the default
+     * `period_end`. The message must not promise a paid-for period to someone whose
+     * access has already stopped, so the timing is a required variable rather than an
+     * assumption.
+     */
+    readonly timing: 'period_end' | 'immediately';
   };
   data_export_ready: {
     readonly workspaceName: string;
@@ -286,13 +319,54 @@ const allowanceReached: Renderer<'allowance_reached'> = (vars) =>
     reason: `You are receiving this because you are the owner of ${vars.workspaceName} and we have stopped accepting its events for the rest of this period.`,
   });
 
+/**
+ * The recovery-window sentence.
+ *
+ * `daysRemaining` is A06's, computed from the window anchor. When it is not supplied the
+ * message states the window length instead of a countdown — still true, and read from
+ * `PAYMENT_FAILURE_GRACE_DAYS` so it cannot drift from the approved policy.
+ */
+function recoveryWindowSentence(vars: {
+  readonly daysRemaining?: number;
+  readonly graceDays?: number;
+}): string {
+  const grace = vars.graceDays ?? PAYMENT_FAILURE_GRACE_DAYS;
+  const window = `${String(grace)}-day recovery window that started when the renewal failed`;
+  if (vars.daysRemaining === undefined) {
+    return `You have a ${window} to sort this out.`;
+  }
+  if (vars.daysRemaining <= 0) {
+    return `The ${window} has now run out.`;
+  }
+  const days = Math.trunc(vars.daysRemaining);
+  return `You have ${String(days)} day${days === 1 ? '' : 's'} left of the ${window}.`;
+}
+
+/**
+ * NEW WORDING (A09), rewritten 2026-09-19 after the founder approved the payment-recovery
+ * policy in `apps/app/src/billing/policy.ts`.
+ *
+ * The paragraph this replaced said "We have not suspended anything yet", which was true
+ * when it was written and is false under the approved policy — new runs pause from the
+ * first failed renewal. It would have contradicted A06's own sentence inside the same
+ * email, and the false half was the reassuring one.
+ *
+ * Division of labour with A06, so the message reads as one voice: `reasonSentence` is the
+ * *situation* (Stripe's reason, and which phase of the window this workspace is in). The
+ * paragraphs here are the *policy* — what stopped, what did not, how long, what day 8
+ * means, and what resuming takes. Neither restates the other.
+ */
 const paymentProblem: Renderer<'payment_problem'> = (vars) =>
   assemble('payment_problem', {
-    subject: `${vars.workspaceName}: a payment did not go through`,
+    subject: `${vars.workspaceName}: new runs are paused after a failed payment`,
     paragraphs: [
-      `Our payment provider could not take this month's payment. ${vars.reasonSentence}`,
-      'We have not suspended anything yet. Card details are handled entirely by the payment provider — we never see them, and we cannot update them for you.',
-      PLAN_CANCELLATION_WORDING,
+      `Our payment provider could not take this month's payment for ${vars.workspaceName}, so we have paused checking new verification runs. New enquiries are not being verified until the payment goes through.`,
+      vars.reasonSentence,
+      'Nothing else has stopped. You can still sign in, read your full run history and every past result, see evidence that is still inside its retention period, export your data, update your payment method, and cancel. All of that stays available throughout.',
+      recoveryWindowSentence(vars),
+      'If the window runs out, verification stays suspended and the subscription is marked unpaid. It is not cancelled — we will not end your subscription for you — and nothing of yours is deleted. A missed payment is not a deletion trigger; your data is kept exactly as our published retention policy says and nothing else.',
+      'Checking starts again when a payment is actually confirmed by our payment provider. Not on a retry, and not on a promise to pay — we will not tell you it is working again until it is.',
+      'Card details are handled entirely by the payment provider. We never see them, and we cannot update them for you.',
     ],
     action: { url: vars.billingPortalUrl, label: 'Open the billing portal' },
     reason: `You are receiving this because you are the billing contact for ${vars.workspaceName}.`,
@@ -302,8 +376,10 @@ const cancellationConfirmed: Renderer<'cancellation_confirmed'> = (vars) =>
   assemble('cancellation_confirmed', {
     subject: `${vars.workspaceName}: your subscription is cancelled`,
     paragraphs: [
-      `Your subscription is cancelled. It will not renew, and you will not be charged again.`,
-      `You keep access until ${vars.accessEndsAt}, which is the end of the period you have already paid for.`,
+      'Your subscription is cancelled. It will not renew, and you will not be charged again.',
+      vars.timing === 'period_end'
+        ? `You keep access until ${vars.accessEndsAt}, which is the end of the period you have already paid for.`
+        : `Access ended at ${vars.accessEndsAt}, because this cancellation was made to take effect immediately rather than at the end of the period.`,
       'You do not need to speak to anyone to make this stick, and there is nothing further to cancel. If you would also like your data removed, ask and we will tell you exactly what goes and what we are required to keep.',
     ],
     reason: `You are receiving this because a cancellation was recorded for ${vars.workspaceName}.`,
@@ -326,7 +402,7 @@ const deletionScheduled: Renderer<'deletion_scheduled'> = (vars) =>
     subject: `${vars.workspaceName}: deletion scheduled for ${vars.deletionAt}`,
     paragraphs: [
       `We have scheduled the deletion of "${vars.workspaceName}" for ${vars.deletionAt}. Nothing has been removed yet.`,
-      'When it runs, we revoke your sign-in sessions and stored provider credentials, stop all scheduled checks, and remove your evidence, runs and workflow configuration.',
+      'When it runs, we revoke your sign-in sessions, stop all scheduled checks and expire shareable links, then remove your evidence, runs and results, workflow configuration and rules, provider connections and the credentials stored against them, support messages, notification records and every membership of the workspace.',
       'We keep billing and tax records, and a record that the deletion happened, because we are required to. We will send you a plain statement of exactly what remains.',
       'Our database backups are not rewritten. Data already captured in a backup stays there until that backup expires on its own schedule. We would rather tell you that than claim an erasure we cannot perform.',
     ],

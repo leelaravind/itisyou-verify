@@ -9,7 +9,8 @@
 import { Hono } from 'hono';
 import { CSS, THEME_SCRIPT, render } from '@verify/ui';
 import { publicRoutes, notFoundPage } from './routes/public/index.js';
-import { appRoutes } from './routes/app/index.js';
+import { createAppRoutes } from './routes/app/index.js';
+import { createCustomerDataPort } from './db/index.js';
 import { createOwnerRoutes } from './routes/owner/index.js';
 import { MemoryOwnerDataPort } from './owner/memory.js';
 import { ANONYMOUS_PRINCIPAL } from './owner/access.js';
@@ -176,7 +177,15 @@ app.get('/health', async (c) => {
  * ------------------------------------------------------------------ */
 
 // `/app` first so the customer application cannot be shadowed by a public route.
-app.route('/app', appRoutes);
+//
+// Wired to real D1 rather than the synthetic port. A synthetic workspace served at a
+// URL that implies it is YOURS is the same family of mistake as the owner panel's
+// fail-open default: it shows data where authentication belongs. The demonstration
+// lives at /demo, which is labelled as synthetic and says so on every row.
+//
+// With no email transport configured, sign-in honestly refuses and every page says
+// why. An empty, truthful application beats a populated, misleading one.
+app.route('/app', createAppRoutes(async (c) => createCustomerDataPort(c)));
 
 // Owns two prefixes, `/admin` and `/owner`, so it mounts at the root. `/admin/login`
 // is deliberately reachable by anyone on the internet; what is protected is every

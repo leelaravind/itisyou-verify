@@ -8,7 +8,9 @@
  */
 import { describe, expect, it } from 'vitest';
 import { LIMITS } from '@verify/contracts';
-import { PLAN_CANCELLATION_WORDING } from '@verify/ui';
+import { PLAN_AT_ALLOWANCE } from '@verify/ui';
+import { PAYMENT_FAILURE_GRACE_DAYS } from '@app/billing/config';
+import { PAYMENT_RECOVERY_DAYS, PAYMENT_RECOVERY_POLICY } from '@app/billing/policy';
 import {
   NOTIFICATION_TEMPLATE,
   OPTIONAL_TEMPLATES,
@@ -56,10 +58,13 @@ const VARS: { [T in NotificationTemplate]: TemplateVariablesByTemplate[T] } = {
     workspaceName: 'Acme',
     billingPortalUrl: 'https://verify.example/billing',
     reasonSentence: 'The card was declined.',
+    daysRemaining: 5,
+    graceDays: PAYMENT_RECOVERY_DAYS,
   },
   cancellation_confirmed: {
     workspaceName: 'Acme',
     accessEndsAt: '2026-10-01T00:00:00.000Z',
+    timing: 'period_end',
   },
   data_export_ready: {
     workspaceName: 'Acme',
@@ -128,9 +133,9 @@ describe('notification templates', () => {
     expect(approaching.subject).toContain(String(LIMITS.PLAN_RUNS_PER_PERIOD));
   });
 
-  it("CUST-205 the payment-problem message reuses A01's cancellation wording verbatim", () => {
-    const rendered = renderNotification('payment_problem', VARS.payment_problem);
-    expect(rendered.text).toContain(PLAN_CANCELLATION_WORDING);
+  it("CUST-205 the allowance notice reuses A01's at-allowance wording verbatim", () => {
+    const rendered = renderNotification('allowance_approaching', VARS.allowance_approaching);
+    expect(rendered.text).toContain(PLAN_AT_ALLOWANCE);
   });
 
   it('CUST-206 operational and legal messages are not switchable off', () => {
@@ -143,5 +148,104 @@ describe('notification templates', () => {
 
   it('CUST-207 escapeHtml neutralises every character that can break out of a text node', () => {
     expect(escapeHtml(`<&>"'`)).toBe('&lt;&amp;&gt;&quot;&#39;');
+  });
+
+  it('CUST-208 the payment-problem message never says nothing has been suspended', () => {
+    // The sentence this replaces was true when written and false under the approved
+    // policy. It is the exact regression this case exists to prevent.
+    const base = {
+      workspaceName: 'Acme',
+      billingPortalUrl: 'https://verify.example/billing',
+      reasonSentence: 'The card was declined.',
+    };
+    for (const days of [undefined, 0, 1, 5]) {
+      const rendered = renderNotification('payment_problem', {
+        ...base,
+        ...(days === undefined ? {} : { daysRemaining: days }),
+      });
+      const body = rendered.text.toLowerCase();
+      expect(body, String(days)).not.toContain('we have not suspended anything');
+      expect(body, String(days)).not.toContain('nothing has been suspended');
+      expect(body, String(days)).not.toMatch(/nothing has stopped/);
+    }
+  });
+
+  it('CUST-209 the payment-problem message leads with the pause, not with "a billing issue"', () => {
+    const rendered = renderNotification('payment_problem', VARS.payment_problem);
+    expect(rendered.subject.toLowerCase()).toContain('new runs are paused');
+    const firstParagraph = rendered.text.split('\n\n')[0] ?? '';
+    expect(firstParagraph.toLowerCase()).toContain('paused checking new verification runs');
+  });
+
+  it('CUST-285 the payment-problem message lists everything the policy says stays available', () => {
+    const rendered = renderNotification('payment_problem', VARS.payment_problem);
+    const body = rendered.text.toLowerCase();
+    for (const phrase of [
+      'sign in',
+      'run history',
+      'retention period',
+      'export your data',
+      'update your payment method',
+      'cancel',
+    ]) {
+      expect(body, phrase).toContain(phrase);
+    }
+    // And the policy's own list has not grown a line this message does not cover.
+    expect(PAYMENT_RECOVERY_POLICY.whatStaysAvailable).toHaveLength(6);
+  });
+
+  it('CUST-286 the recovery window is read from the approved constant, never hard-coded', () => {
+    const withCount = renderNotification('payment_problem', {
+      ...VARS.payment_problem,
+      daysRemaining: 3,
+    });
+    expect(withCount.text).toContain('3 days left');
+    expect(withCount.text).toContain(`${String(PAYMENT_RECOVERY_DAYS)}-day recovery window`);
+
+    // No `daysRemaining` — the window length is still stated, from the constant.
+    const withoutCount = renderNotification('payment_problem', {
+      workspaceName: 'Acme',
+      billingPortalUrl: 'https://verify.example/billing',
+      reasonSentence: 'The card was declined.',
+    });
+    expect(withoutCount.text).toContain(
+      `${String(PAYMENT_FAILURE_GRACE_DAYS)}-day recovery window`,
+    );
+    expect(PAYMENT_RECOVERY_DAYS).toBe(PAYMENT_FAILURE_GRACE_DAYS);
+
+    const singular = renderNotification('payment_problem', {
+      ...VARS.payment_problem,
+      daysRemaining: 1,
+    });
+    expect(singular.text).toContain('1 day left');
+  });
+
+  it('CUST-287 day eight is stated as suspended and unpaid, never as cancelled or deleted', () => {
+    const rendered = renderNotification('payment_problem', VARS.payment_problem);
+    const body = rendered.text.toLowerCase();
+    expect(body).toContain('marked unpaid');
+    expect(body).toContain('it is not cancelled');
+    expect(body).toContain('nothing of yours is deleted');
+    expect(body).toContain('published retention policy');
+    // Resumption takes a confirmed payment, not a retry and not a promise.
+    expect(body).toContain('confirmed by our payment provider');
+    expect(body).toContain('not on a retry');
+  });
+
+  it('CUST-288 an immediate cancellation is not told it keeps a period it has already lost', () => {
+    const atPeriodEnd = renderNotification('cancellation_confirmed', {
+      workspaceName: 'Acme',
+      accessEndsAt: '2026-10-01T00:00:00.000Z',
+      timing: 'period_end',
+    });
+    expect(atPeriodEnd.text).toContain('the end of the period you have already paid for');
+
+    const immediate = renderNotification('cancellation_confirmed', {
+      workspaceName: 'Acme',
+      accessEndsAt: '2026-09-19T12:00:00.000Z',
+      timing: 'immediately',
+    });
+    expect(immediate.text).not.toContain('the end of the period you have already paid for');
+    expect(immediate.text).toContain('take effect immediately');
   });
 });

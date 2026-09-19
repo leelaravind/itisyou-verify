@@ -139,6 +139,51 @@ export class OfflineRunner implements MaintenanceRunnerPort {
 }
 
 // ---------------------------------------------------------------------------
+// Pairing a runner device
+// ---------------------------------------------------------------------------
+
+export interface PairingCode {
+  readonly deviceId: string;
+  /**
+   * Shown to the owner **exactly once** and never stored on our side in a re-displayable
+   * form. A page that could show it again is a page that could show it to the next person
+   * who opens the laptop.
+   */
+  readonly code: string;
+  readonly expiresAt: string;
+}
+
+export type PairingOutcome =
+  | { readonly ok: true; readonly invitation: PairingCode }
+  | { readonly ok: false; readonly dependency: string };
+
+/**
+ * Opening a pairing is a consequential action: the code it returns lets a machine claim and
+ * run maintenance jobs. A08's `openPairing` deliberately implements no access control of its
+ * own, so the gate lives at the call site — `/owner/operations/runner/pair`, behind
+ * `maintenance.dispatch`, which `isConsequential()` puts behind a recent MFA check.
+ */
+export interface RunnerPairingPort {
+  openPairing(input: {
+    readonly label: string;
+    readonly ownerId: string;
+    readonly now: Date;
+  }): Promise<PairingOutcome>;
+}
+
+/** The default: no database is bound, so no code is minted and the page says so. */
+export class PairingUnavailable implements RunnerPairingPort {
+  async openPairing(): Promise<PairingOutcome> {
+    return {
+      ok: false,
+      dependency:
+        'Pairing needs the maintenance connector bound to this deployment, and it is not. No pairing code has been ' +
+        'created — there is nothing to type into a runner.',
+    };
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Assistant
 // ---------------------------------------------------------------------------
 

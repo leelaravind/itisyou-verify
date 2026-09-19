@@ -29,13 +29,42 @@ export interface WebhookReceiptRow {
 const RECEIPT_COLUMNS =
   'id, provider, connection_id, workspace_id, event_id, payload_hash, received_at, processing_status';
 
+/**
+ * What a claim attempt found.
+ *
+ * `fresh` — first sight, go ahead.
+ * `in_flight` — a receipt exists and is still `received`: another delivery claimed it and
+ *   has not finished. Acknowledge 200 and do nothing.
+ * `already_processed` — a receipt exists in a terminal state. Acknowledge 200; the work
+ *   is done.
+ *
+ * The distinction between the last two is load-bearing (A06). Collapsing them means a
+ * handler that claimed a receipt and then crashed leaves a row that looks exactly like a
+ * completed one, so the provider's retry is deduplicated into a no-op and a paid invoice
+ * is swallowed permanently. `abandon()` is the other half of that pair.
+ */
+export type WebhookAdmissionOutcome = 'fresh' | 'in_flight' | 'already_processed';
+
+export interface WebhookAdmission {
+  readonly outcome: WebhookAdmissionOutcome;
+  readonly receiptId: string;
+}
+
+/** Statuses that mean the handler finished. Anything else is still in flight. */
+const TERMINAL_RECEIPT_STATUSES: readonly WebhookProcessingStatus[] = [
+  'processed',
+  'ignored',
+  'invalid',
+  'duplicate',
+];
+
 export const webhookReceipts = {
   /**
-   * Record a receipt, once. Returns `{ fresh: false }` when this provider event id has
-   * already been seen — the caller must then acknowledge with 200 and do nothing else.
+   * Claim this provider event for processing, once.
    *
    * `ON CONFLICT DO NOTHING` plus `meta.changes` is the whole test: no read-then-write,
-   * so two concurrent deliveries of the same event cannot both be fresh.
+   * so two concurrent deliveries of the same event cannot both be fresh. Only when the
+   * insert loses do we read, and then only to say which kind of duplicate it is.
    */
   async recordOnce(
     db: Db,
@@ -48,7 +77,7 @@ export const webhookReceipts = {
       workspaceId?: string | null;
       connectionId?: string | null;
     },
-  ): Promise<{ fresh: boolean; receiptId: string }> {
+  ): Promise<WebhookAdmission & { fresh: boolean }> {
     const result = await db
       .prepare(
         `INSERT INTO webhook_receipts (id, provider, connection_id, workspace_id, event_id, payload_hash, received_at, processing_status)
@@ -65,13 +94,74 @@ export const webhookReceipts = {
         params.receivedAt,
       )
       .run();
-    if (result.meta.changes === 1) return { fresh: true, receiptId: params.id };
+    if (result.meta.changes === 1) {
+      return { outcome: 'fresh', receiptId: params.id, fresh: true };
+    }
 
     const existing = await db
-      .prepare('SELECT id FROM webhook_receipts WHERE provider = ? AND event_id = ?')
+      .prepare(
+        'SELECT id, processing_status FROM webhook_receipts WHERE provider = ? AND event_id = ?',
+      )
       .bind(params.provider, params.eventId)
-      .first<{ id: string }>();
-    return { fresh: false, receiptId: existing?.id ?? params.id };
+      .first<{ id: string; processing_status: WebhookProcessingStatus }>();
+    if (existing === null) {
+      // The row vanished between the failed insert and this read — `abandon()` ran
+      // concurrently. Treat it as in flight rather than claiming it is done.
+      return { outcome: 'in_flight', receiptId: params.id, fresh: false };
+    }
+    const done = TERMINAL_RECEIPT_STATUSES.includes(existing.processing_status);
+    return {
+      outcome: done ? 'already_processed' : 'in_flight',
+      receiptId: existing.id,
+      fresh: false,
+    };
+  },
+
+  /**
+   * Give the event back.
+   *
+   * Called when a handler threw after the receipt was claimed. Deleting the receipt is
+   * what makes the provider's retry a fresh attempt instead of a deduplicated no-op;
+   * without it, one internal error swallows a paid invoice forever.
+   *
+   * Deliberately keyed on `(provider, event_id)` rather than the receipt id, because the
+   * caller that needs to abandon is the one holding the provider's event id — and often
+   * nothing else, because the thing that threw is why it has nothing else.
+   */
+  async abandon(db: Db, provider: string, eventId: string): Promise<boolean> {
+    const result = await db
+      .prepare('DELETE FROM webhook_receipts WHERE provider = ? AND event_id = ?')
+      .bind(provider, eventId)
+      .run();
+    return result.meta.changes === 1;
+  },
+
+  async getByEventId(
+    db: Db,
+    provider: string,
+    eventId: string,
+  ): Promise<WebhookReceiptRow | null> {
+    return db
+      .prepare(`SELECT ${RECEIPT_COLUMNS} FROM webhook_receipts WHERE provider = ? AND event_id = ?`)
+      .bind(provider, eventId)
+      .first<WebhookReceiptRow>();
+  },
+
+  /**
+   * Attach the workspace once the handler has worked out whose event this is.
+   *
+   * Only ever fills a NULL: a receipt that already names a workspace is not re-pointed at
+   * another one, because that is how one tenant's billing event ends up filed under
+   * another tenant.
+   */
+  async attachWorkspace(db: Db, receiptId: string, workspaceId: string): Promise<boolean> {
+    const result = await db
+      .prepare(
+        'UPDATE webhook_receipts SET workspace_id = ? WHERE id = ? AND workspace_id IS NULL',
+      )
+      .bind(workspaceId, receiptId)
+      .run();
+    return result.meta.changes === 1;
   },
 
   async setStatus(

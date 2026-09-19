@@ -309,7 +309,7 @@ export const CUSTOMER_REQUESTS: readonly CustomerRequest[] = [
     request: 'Delete my workspace and its data',
     howToAsk: 'From the account page while signed in, or by sending us a support message.',
     whatHappens:
-      'We schedule the deletion with a short grace period so it can be undone, then revoke your sessions and stored credentials, stop scheduled checks, and remove your evidence, runs, configuration, support messages and notification records. We send you a statement of exactly what remains and why.',
+      'We schedule the deletion with a short grace period so it can be undone, then revoke your sessions, stop scheduled checks and expire shareable links, and remove your evidence, runs, workflow configuration and rules, provider connections and their stored credentials, support messages, notification records and every membership of the workspace. Your sign-in identity is not removed automatically, because it can belong to another workspace — ask and we will remove that too. We send you a statement of exactly what remains and why.',
   },
   {
     id: 'stop_optional_processing',

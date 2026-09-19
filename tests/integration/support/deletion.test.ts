@@ -38,8 +38,11 @@ function seeded(): InMemorySupportData {
   });
   port.seedTable('evidence', [...rows('evd', 5, 'ws_1'), ...rows('evdx', 2, 'ws_2')]);
   port.seedTable('source_events', rows('sev', 4, 'ws_1'));
+  port.seedTable('workflows', rows('wf', 1, 'ws_1'));
+  port.seedTable('connections', [...rows('conn', 2, 'ws_1'), ...rows('connx', 1, 'ws_2')]);
   port.seedTable('support_cases', rows('sup', 2, 'ws_1'));
   port.seedTable('notification_deliveries', rows('ntf', 3, 'ws_1'));
+  port.seedTable('memberships', rows('mem', 2, 'ws_1'));
   port.retained = { billingRecords: 2, auditEvents: 7 };
   return port;
 }
@@ -105,10 +108,45 @@ describe('workspace deletion', () => {
     expect(port.rowsIn('source_events')).toHaveLength(0);
     expect(port.rowsIn('support_cases')).toHaveLength(0);
     expect(port.rowsIn('notification_deliveries')).toHaveLength(0);
+    // The workflow configuration the `deletion_scheduled` email promises to remove.
+    expect(port.rowsIn('workflows')).toHaveLength(0);
+    // Connections go, taking `credential_versions` with them by cascade.
+    expect(port.rowsIn('connections').map((r) => r.workspaceId)).toEqual(['ws_2']);
+    // Nobody is still a member of a deleted workspace.
+    expect(port.rowsIn('memberships')).toHaveLength(0);
     // ws_2's evidence is untouched.
     expect(port.rowsIn('evidence').map((r) => r.workspaceId)).toEqual(['ws_2', 'ws_2']);
     expect(port.effects.expiredReportLinks).toBe(1);
     expect(port.workspaces.get('ws_1')?.status).toBe('deleted');
+  });
+
+  it('API-370 the runs are gone before the workflow versions they point at', () => {
+    // `runs.workflow_version_id` has no cascade, so purging `workflows` before
+    // `source_events` would fail on a constraint halfway through a deletion.
+    const steps = [...DELETION_STEP];
+    expect(steps.indexOf('purge_source_events')).toBeLessThan(steps.indexOf('purge_workflows'));
+    expect(steps.indexOf('purge_workflows')).toBeLessThan(steps.indexOf('mark_workspace_deleted'));
+  });
+
+  it('API-371 every claim the deletion statement makes is one a step actually performs', async () => {
+    const port = seeded();
+    const report = await deleteWorkspace(port, {
+      workspaceId: 'ws_1',
+      requestedBy: 'usr_1',
+      now: NOW,
+    });
+
+    expect(report.statement).toMatch(/workflow configuration and rules/i);
+    expect(port.rowsIn('workflows')).toHaveLength(0);
+    expect(report.statement).toMatch(
+      /provider connections and the credentials you gave us are deleted/i,
+    );
+    expect(port.rowsIn('connections').every((r) => r.workspaceId !== 'ws_1')).toBe(true);
+    expect(port.effects.revokedCredentials).toBe(1);
+    expect(report.statement).toMatch(/everyone's membership of it/i);
+    expect(port.rowsIn('memberships')).toHaveLength(0);
+    // And the one thing deletion does NOT do is stated rather than glossed over.
+    expect(report.statement).toMatch(/sign-in identity .* is a separate record/i);
   });
 
   it('API-363 an interrupted deletion resumes without double-deleting and without claiming success', async () => {

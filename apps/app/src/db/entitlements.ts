@@ -83,6 +83,36 @@ export const entitlements = {
   },
 
   /**
+   * Take one unit of allowance, atomically.
+   *
+   * One conditional statement: the availability test is in the `WHERE`, so two concurrent
+   * callers asking for the last unit cannot both succeed. Returns false when there is
+   * none left — which is the "at allowance" signal, not an error.
+   *
+   * This is a DIFFERENT call site from `sourceEvents.admitOnce`, which reserves inside its
+   * own batch so the reservation commits with the run and the outbox row. Billing calls
+   * this one when it needs a unit without an admission (a replayed provider event, an
+   * owner-initiated run). Merging them would make one of the two lose its atomicity with
+   * the thing it is paired to.
+   */
+  async reserve(
+    db: Db,
+    workspaceId: string,
+    billingPeriod: string,
+    at: string,
+  ): Promise<boolean> {
+    const result = await db
+      .prepare(
+        `UPDATE entitlements SET reserved = reserved + 1, updated_at = ?
+          WHERE workspace_id = ? AND billing_period = ?
+            AND (run_limit - consumed - reserved) >= 1`,
+      )
+      .bind(at, workspaceId, billingPeriod)
+      .run();
+    return result.meta.changes === 1;
+  },
+
+  /**
    * A run reached a terminal state: the reservation becomes a consumption. Conditional on
    * a reservation actually being held, so a duplicate completion cannot over-count.
    */

@@ -25,7 +25,7 @@ import { AppError } from '@verify/contracts';
 import { addSecondsIso, toIso } from '../lib/time';
 import type {
   RetainedCounts,
-  RetentionTarget,
+  PurgeTarget,
   SupportDataPort,
   WorkspaceSummary,
 } from '../support/port';
@@ -51,20 +51,40 @@ export const DELETION_STEP = [
   'schedule_evidence_removal',
   'purge_evidence',
   'purge_source_events',
+  'purge_workflows',
+  'purge_connections',
   'purge_support_cases',
   'purge_notifications',
+  'purge_memberships',
   'mark_workspace_deleted',
 ] as const;
 export type DeletionStep = (typeof DELETION_STEP)[number];
 
-/** Tables emptied for the workspace, and the step that empties each. */
-const PURGE_TARGETS: Readonly<Partial<Record<DeletionStep, RetentionTarget>>> = {
+/**
+ * Tables emptied for the workspace, and the step that empties each.
+ *
+ * The order in `DELETION_STEP` is a foreign-key order, not a preference. `runs` points at
+ * `workflow_versions` without a cascade, so the runs have to go — which they do when
+ * `source_events` goes — before `workflows` can be removed. Getting this backwards fails
+ * on a constraint halfway through a deletion, which is the worst possible moment.
+ */
+const PURGE_TARGETS: Readonly<Partial<Record<DeletionStep, PurgeTarget>>> = {
   purge_evidence: 'evidence',
   // Runs, run attempts and assertions hang off `source_events` by a cascading foreign
   // key, so emptying this table takes the whole result history with it.
   purge_source_events: 'source_events',
+  // Takes `workflow_versions` — the customer's rules — with it.
+  purge_workflows: 'workflows',
+  // Takes `credential_versions` with it. This is what makes "the provider credentials you
+  // gave us are destroyed" true rather than hopeful: `revokeCredentials` retires the
+  // envelopes, and this removes the rows.
+  purge_connections: 'connections',
   purge_support_cases: 'support_cases',
   purge_notifications: 'notification_deliveries',
+  // Detaches every user from the workspace. The `users` rows themselves are not touched:
+  // a person may still belong to another workspace, and deleting their sign-in identity
+  // out from under that one would be a different, worse bug. See `retainedStatement`.
+  purge_memberships: 'memberships',
 };
 
 export interface StepResult {
@@ -275,8 +295,11 @@ async function runSingleShotStep(
       return (await port.markWorkspaceDeleted(context.workspaceId, toIso(context.now))) ? 1 : 0;
     case 'purge_evidence':
     case 'purge_source_events':
+    case 'purge_workflows':
+    case 'purge_connections':
     case 'purge_support_cases':
     case 'purge_notifications':
+    case 'purge_memberships':
       // Handled by the batched purge path in `runStep`.
       return 0;
     default: {
@@ -314,8 +337,9 @@ export function retainedStatement(workspace: WorkspaceSummary, retained: Retaine
   ).map((rule) => rule.label.toLowerCase());
 
   const parts: string[] = [
-    `We have removed the workspace "${workspace.name}", its workflow configuration, its runs and results, the evidence we had retrieved, its support messages and its notification records.`,
-    'Your sign-in sessions are revoked and the provider credentials you gave us are destroyed, so we can no longer read anything from HubSpot or Resend on your behalf.',
+    `We have removed the workspace "${workspace.name}", its workflow configuration and rules, its runs and results, the evidence we had retrieved, its support messages, its notification records and everyone's membership of it.`,
+    'Your sign-in sessions are revoked, and the provider connections and the credentials you gave us are deleted, so we can no longer read anything from HubSpot or Resend on your behalf.',
+    'Your sign-in identity — the email address you use to log in — is a separate record, because it can belong to more than one workspace and removing it here could lock you out of another. Ask us and we will remove it too.',
   ];
 
   if (retained.billingRecords > 0) {

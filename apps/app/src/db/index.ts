@@ -88,3 +88,31 @@ export type {
 
 export { auditEvents, settings } from './audit';
 export type { AuditEventRow, ActorKind, SettingRow } from './audit';
+
+// ---------------------------------------------------------------------------
+// Commerce, support and the three port implementations
+// ---------------------------------------------------------------------------
+
+export { billingCustomers, orders, subscriptions, refunds } from './commerce';
+export type {
+  BillingCustomerRow,
+  OrderRow,
+  SubscriptionRow,
+  RefundRow,
+  Environment,
+  RefundState,
+} from './commerce';
+
+export { supportCases, notifications, retention, exportPages, EXPORT_PAGE_COLUMNS } from './supportData';
+export type {
+  SupportCaseRow,
+  NotificationRow,
+  RetentionTarget,
+  ExportSection,
+  ExpiredRowRef,
+} from './supportData';
+
+export { D1BillingDataPort, createBillingContactLookup } from './billingPort';
+export { D1SupportDataPort, D1RateLimiter } from './supportPort';
+export { D1CustomerDataPort, createCustomerDataPort, billingPeriodFor } from './customerPort';
+export type { CustomerPortInput } from './customerPort';

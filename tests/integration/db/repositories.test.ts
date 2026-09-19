@@ -488,24 +488,58 @@ describe('webhook receipts', () => {
     h.close();
   });
 
-  it('PERSIST-190 the first delivery is fresh and every retry is not', async () => {
-    const first = await webhookReceipts.recordOnce(h.db, {
-      id: 'whr_1',
-      provider: 'stripe',
-      eventId: 'evt_123',
-      payloadHash: 'hash',
-      receivedAt: T0,
+  it('PERSIST-190 a retry while the first delivery is still working is in flight, not done', async () => {
+    const claim = (id: string, at: string) =>
+      webhookReceipts.recordOnce(h.db, {
+        id,
+        provider: 'stripe',
+        eventId: 'evt_123',
+        payloadHash: 'hash',
+        receivedAt: at,
+      });
+
+    expect(await claim('whr_1', T0)).toEqual({
+      outcome: 'fresh',
+      receiptId: 'whr_1',
+      fresh: true,
     });
-    expect(first).toEqual({ fresh: true, receiptId: 'whr_1' });
-    const retry = await webhookReceipts.recordOnce(h.db, {
-      id: 'whr_2',
-      provider: 'stripe',
-      eventId: 'evt_123',
-      payloadHash: 'hash',
-      receivedAt: LATER,
+
+    // The distinction this test exists to pin: the first handler has claimed the receipt
+    // and has not finished, so the retry is 'in_flight' — "we started and died" — and not
+    // 'already_processed'. Collapsing the two is how a crash permanently swallows a paid
+    // invoice, because the provider's retry looks like a duplicate.
+    expect(await claim('whr_2', LATER)).toEqual({
+      outcome: 'in_flight',
+      receiptId: 'whr_1',
+      fresh: false,
     });
-    expect(retry).toEqual({ fresh: false, receiptId: 'whr_1' });
+
+    await webhookReceipts.setStatus(h.db, 'whr_1', 'processed');
+    expect(await claim('whr_3', LATER)).toEqual({
+      outcome: 'already_processed',
+      receiptId: 'whr_1',
+      fresh: false,
+    });
+
     expect(countRows(h, 'webhook_receipts')).toBe(1);
+  });
+
+  it('PERSIST-193 abandoning a claimed receipt makes the provider retry a fresh attempt', async () => {
+    const claim = (id: string) =>
+      webhookReceipts.recordOnce(h.db, {
+        id,
+        provider: 'stripe',
+        eventId: 'evt_crash',
+        payloadHash: 'hash',
+        receivedAt: T0,
+      });
+    expect((await claim('whr_1')).outcome).toBe('fresh');
+    // The handler threw after claiming. Without the abandon, this event is gone forever.
+    expect(await webhookReceipts.abandon(h.db, 'stripe', 'evt_crash')).toBe(true);
+    expect(countRows(h, 'webhook_receipts')).toBe(0);
+    expect((await claim('whr_2')).outcome).toBe('fresh');
+    // Abandoning something that is not there is not an error, so a retry of the retry is safe.
+    expect(await webhookReceipts.abandon(h.db, 'stripe', 'never_existed')).toBe(false);
   });
 
   it('PERSIST-191 concurrent deliveries of one event yield exactly one fresh receipt', async () => {

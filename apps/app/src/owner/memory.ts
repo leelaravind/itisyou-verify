@@ -19,7 +19,7 @@
 import { explainAssertion, explainRunStatus } from '@verify/domain';
 import type { AssertionResult } from '@verify/domain';
 import type { JobState } from '@verify/contracts';
-import { capabilitiesFor, type OwnerPrincipal } from './access.js';
+import { ANONYMOUS_PRINCIPAL, capabilitiesFor, type OwnerPrincipal } from './access.js';
 import {
   approvalStanding,
   grantOwnerApproval,
@@ -75,7 +75,13 @@ import {
   type ServiceHealthView,
 } from './port.js';
 
-/** A synthetic owner principal with recent strong auth. Only ever used by this module. */
+/**
+ * A synthetic owner principal with recent strong auth.
+ *
+ * **Opt in deliberately.** This is never a default anywhere: a caller that wants the panel
+ * populated has to pass it, so no unconfigured mount can hand out ownership. See the note on
+ * `MemoryOwnerDataPort`'s constructor.
+ */
 export function syntheticOwnerPrincipal(now: Date = new Date()): OwnerPrincipal {
   return {
     kind: 'owner',
@@ -146,7 +152,16 @@ export class MemoryOwnerDataPort implements OwnerDataPort {
 
   constructor(options: MemoryOwnerPortOptions = {}) {
     this.#now = options.now ?? (() => new Date());
-    this.#principal = options.principal ?? syntheticOwnerPrincipal(this.#now());
+    // OWNER-003 — the default is ANONYMOUS, and this line is the whole reason that case
+    // exists. It used to default to `syntheticOwnerPrincipal()`, which meant a caller who
+    // mounted `createOwnerRoutes()` with no options served the entire panel — overview,
+    // customers, approvals, settings — to anybody who guessed the path, with no session and
+    // no MFA. The access rules were correct throughout and every test passed, because every
+    // test constructed its principal explicitly. The composition was what was wrong.
+    //
+    // Granting ownership is now something a caller has to type:
+    //   new MemoryOwnerDataPort({ principal: syntheticOwnerPrincipal() })
+    this.#principal = options.principal ?? ANONYMOUS_PRINCIPAL;
     this.#runner = options.runner ?? new OfflineRunner();
     this.#assistant = options.assistant ?? new AssistantOff();
     this.#executor = options.executor ?? {

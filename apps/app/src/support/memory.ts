@@ -31,6 +31,7 @@ import type {
   NotificationHistoryQuery,
   ReadExportPageParams,
   RetainedCounts,
+  PurgeTarget,
   RetentionTarget,
   SettleNotificationParams,
   SupportCaseListQuery,
@@ -59,7 +60,7 @@ export class InMemorySupportData implements SupportDataPort {
   /** Keyed by `notification_key`, mirroring the `UNIQUE` constraint. */
   readonly notifications = new Map<string, NotificationDeliveryRecord>();
   readonly checkpoints = new Map<string, string>();
-  readonly tables = new Map<RetentionTarget, MemoryRow[]>();
+  readonly tables = new Map<PurgeTarget, MemoryRow[]>();
   readonly exportSections = new Map<ExportSection, MemoryExportSection>();
   readonly workspaces = new Map<string, WorkspaceSummary>();
 
@@ -195,12 +196,12 @@ export class InMemorySupportData implements SupportDataPort {
   /* ---------------------------------------------------------------------- */
 
   /** Seed a sweepable table. Rows are stored sorted by id, as an index would keep them. */
-  seedTable(target: RetentionTarget, rows: readonly MemoryRow[]): void {
+  seedTable(target: PurgeTarget, rows: readonly MemoryRow[]): void {
     const sorted = [...rows].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
     this.tables.set(target, sorted);
   }
 
-  rowsIn(target: RetentionTarget): readonly MemoryRow[] {
+  rowsIn(target: PurgeTarget): readonly MemoryRow[] {
     return this.tables.get(target) ?? [];
   }
 
@@ -230,7 +231,7 @@ export class InMemorySupportData implements SupportDataPort {
     return Promise.resolve(rows.length - kept.length);
   }
 
-  purgeWorkspaceRows(workspaceId: string, target: RetentionTarget, limit: number): Promise<number> {
+  purgeWorkspaceRows(workspaceId: string, target: PurgeTarget, limit: number): Promise<number> {
     if (this.failNextDelete !== null) {
       const message = this.failNextDelete;
       this.failNextDelete = null;
