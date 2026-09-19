@@ -54,6 +54,7 @@ export function TimelineSvg(entries: readonly TimelineEntry[], id: string, dayLa
     id,
     width: WIDTH,
     height,
+    body,
     title: `Timeline of ${entries.length} recorded events on ${dayLabel}`,
     desc:
       'Events in the order they were recorded, each with its time, id, task and the status the record gives it. ' +

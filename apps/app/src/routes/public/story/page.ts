@@ -16,7 +16,7 @@
  * engine over the shared synthetic fixtures, via the demo page's `DEMO_RUNS`, so this page
  * cannot show a verdict the engine would not reach.
  */
-import { Callout, StatusBadge, Table, attrs, html, type Html, type StatusKey } from '@verify/ui';
+import { Callout, StatusBadge, Table, html, type Html, type StatusKey } from '@verify/ui';
 import {
   DecisionCard,
   Disclosure,

@@ -525,7 +525,7 @@ export const METRIC_GROUPS: readonly MetricGroup[] = [
     id: 'audit',
     title: 'Independent audit, public summary',
     intro:
-      'A separate agent whose only job is to check whether the others’ claims are true. These are its published figures, relayed here without re-verification.',
+      'A separate agent whose only job is to check whether the others’ claims are true. These are its published figures, relayed here as published; this page has not checked them again.',
     metrics: [
       { label: 'Distinct test cases counted from the runner’s own output', value: '1,951', source: 'docs/audit-summary.md' },
       {

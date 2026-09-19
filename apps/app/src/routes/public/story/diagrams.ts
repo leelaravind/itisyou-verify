@@ -94,6 +94,7 @@ export function JourneyDiagram(): Html {
     id: 'journey',
     width: 360,
     height: lastBottom + 8,
+    body,
     title: 'The customer journey from enquiry to verdict',
     desc:
       'An enquiry arrives; the customer’s automation runs and reports success, which counts as a trigger and not as proof. ' +
@@ -207,6 +208,7 @@ export function SystemDiagram(): Html {
     id: 'system',
     width: 360,
     height: 472,
+    body,
     title: 'The system and who owned each part',
     desc:
       'A visitor’s browser talks to one Cloudflare Worker running Hono. Inside it, routers for the public site, the customer app, the owner dashboard, ' +

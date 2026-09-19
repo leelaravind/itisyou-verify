@@ -22,6 +22,7 @@ import { newId } from './lib/ids.js';
 import { handleScheduled } from './scheduler/index.js';
 import { createRetentionSweeper } from './scheduler/retention.js';
 import { D1SupportDataPort } from './db/supportPort.js';
+import { D1QualityArtifactStore } from './owner/quality.js';
 
 export interface Env {
   readonly ASSETS: Fetcher;
@@ -347,6 +348,10 @@ async function ownerRoute(c: Context<Bindings>): Promise<Response> {
     // was what failed, and only a live request showed it.
     environment: c.env.ENVIRONMENT,
     resolvePort: async (ctx) => createOwnerDataPort(ctx),
+    // The evidence pack lives in D1, not in the asset directory. apps/app/public is
+    // served to anyone, and these reports name failing case ids and internal paths —
+    // publishing them there would make "authenticated download" a fiction.
+    resolveArtifacts: async (ctx) => new D1QualityArtifactStore((ctx.env as Env).DB),
     auth: createOwnerAuth(c),
   });
   return ownerApp.fetch(c.req.raw, c.env, c.executionCtx);
