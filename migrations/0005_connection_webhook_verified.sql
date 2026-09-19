@@ -1,0 +1,13 @@
+-- A connection becomes `ready` only once a correctly signed provider callback has actually
+-- arrived. That fact needs somewhere to live.
+--
+-- Before this migration it had nowhere. `resendWebhookPort` substituted `last_check_at`,
+-- which is written at connect time and so is never NULL, which made the promotion branch
+-- in `routes/webhooks/resend.ts` (`webhookVerifiedAt === null`) permanently unreachable.
+-- The promotion code was correct and covered by tests; nothing could reach it. A Resend
+-- connection therefore stayed `testing` forever, however many valid signed deliveries it
+-- handled -- which is precisely the failure the customer-facing copy promises not to have.
+--
+-- NULL means "no signed callback has ever been verified for this connection", which is the
+-- right value for every row that exists today: none of them has one recorded.
+ALTER TABLE connections ADD COLUMN webhook_verified_at TEXT;

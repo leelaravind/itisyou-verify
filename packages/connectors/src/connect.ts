@@ -209,6 +209,13 @@ export interface EstablishConnectionInput {
   readonly webhookSecret?: string | undefined;
   /** The CRM property carrying our correlation id, when the customer has chosen one. */
   readonly correlationProperty?: string | undefined;
+  /**
+   * When a correctly signed callback has already been verified for this connection, the
+   * instant it was. Carried in so that re-submitting credentials on a proven connection
+   * does not silently demote it to `testing`: the webhook was proven once and re-pasting a
+   * key is no reason to disbelieve it. NULL or absent means no callback has been verified.
+   */
+  readonly webhookVerifiedAt?: string | null | undefined;
   readonly wrappingKey: WrappingKey;
   readonly now: Date;
   /** Injected for tests. */
@@ -376,6 +383,9 @@ export async function establishConnection(
     ...(input.correlationProperty === undefined
       ? {}
       : { correlation_property: input.correlationProperty }),
+    ...(input.webhookVerifiedAt === undefined || input.webhookVerifiedAt === null
+      ? {}
+      : { webhook_verified_at: input.webhookVerifiedAt }),
   };
 
   let validation: ConnectionValidation;

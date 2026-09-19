@@ -202,6 +202,40 @@ describe('the endpoint resolver', () => {
     expect((await unconfigured(pathId))?.signingSecret).toBe('');
   });
 
+  /**
+   * The regression this pair exists for.
+   *
+   * The resolver used to report `last_check_at` as `webhookVerifiedAt`. Every test seeded a
+   * connection without `last_check_at`, so it read NULL and the substitution looked right.
+   * Every *real* connection has `last_check_at` written the moment its credentials validate,
+   * so in production it was never NULL — and the route's promotion test, `webhookVerifiedAt
+   * === null`, could never be true. A Resend connection stayed `testing` for ever no matter
+   * how many correctly signed deliveries it handled.
+   *
+   * So the first of these sets `last_check_at` the way a real connect does. That single line
+   * is the whole difference between a test that catches this and one that does not.
+   */
+  it('CONN-315 a connection that has been checked but never called back is still unverified', async () => {
+    h.raw.prepare('UPDATE connections SET last_check_at = ? WHERE id = ?').run(NOW, 'conn_a');
+    const resolve = createResendEndpointResolver(h.db, env());
+    const endpoint = await resolve(pathId);
+    expect(endpoint).not.toBeNull();
+    // Validating a token says the key works. It says nothing about the webhook.
+    expect(endpoint?.webhookVerifiedAt).toBeNull();
+  });
+
+  it('CONN-316 once a callback has been verified the resolver reports that instant, so the promotion is not repeated', async () => {
+    const port = new D1ResendWebhookDataPort(h.db);
+    await port.markConnectionWebhookVerified({
+      workspaceId: ws.workspaceId,
+      connectionId: 'conn_a',
+      verifiedAt: NOW,
+    });
+    const endpoint = await createResendEndpointResolver(h.db, env())(pathId);
+    expect(endpoint?.webhookVerifiedAt).toBe(NOW);
+    expect(endpoint?.status).toBe('ready');
+  });
+
   it('AUTH-461 a secret sealed for one workspace does not open under another', async () => {
     const other = seedWorkspace(h, 'beta');
     seedConnection(h, other, 'conn_b');

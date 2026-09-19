@@ -104,7 +104,7 @@ export function createResendEndpointResolver(
     // tenant-scope:exempt resolves the workspace FROM a provider-posted opaque id.
     const row = await db
       .prepare(
-        `SELECT id, workspace_id, status, external_account_id, last_check_at, webhook_path_id
+        `SELECT id, workspace_id, status, external_account_id, webhook_verified_at, webhook_path_id
            FROM connections
           WHERE webhook_path_id = ? AND provider = 'resend'`,
       )
@@ -114,7 +114,7 @@ export function createResendEndpointResolver(
         workspace_id: string;
         status: ResendEndpoint['status'];
         external_account_id: string | null;
-        last_check_at: string | null;
+        webhook_verified_at: string | null;
       }>();
     if (row === null) return null;
 
@@ -124,7 +124,10 @@ export function createResendEndpointResolver(
       signingSecret: await openWebhookSecret(db, env, row.workspace_id, row.id),
       status: row.status,
       externalAccountId: row.external_account_id,
-      webhookVerifiedAt: row.last_check_at,
+      // The real column, not `last_check_at`. `last_check_at` is written when credentials
+      // are validated, so it is never NULL once a connection exists -- substituting it here
+      // made the route's `webhookVerifiedAt === null` promotion test permanently false.
+      webhookVerifiedAt: row.webhook_verified_at,
     };
   };
 }
@@ -279,10 +282,13 @@ export class D1ResendWebhookDataPort implements ResendWebhookDataPort {
     const result = await this.db
       .prepare(
         `UPDATE connections
-            SET status = 'ready', last_check_at = ?, last_error_code = NULL
+            SET status = 'ready',
+                last_check_at = ?,
+                webhook_verified_at = ?,
+                last_error_code = NULL
           WHERE workspace_id = ? AND id = ? AND status != 'revoked' AND revoked_at IS NULL`,
       )
-      .bind(params.verifiedAt, params.workspaceId, params.connectionId)
+      .bind(params.verifiedAt, params.verifiedAt, params.workspaceId, params.connectionId)
       .run();
     return result.meta.changes === 1;
   }

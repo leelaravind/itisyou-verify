@@ -413,10 +413,24 @@ export class D1CustomerDataPort implements CustomerDataPort {
       );
     }
 
+    // A webhook that has already been proven stays proven. Without carrying this in, a
+    // customer who re-pastes their API key -- to rotate it, or after being told the old one
+    // leaked -- would silently drop a `ready` Resend connection back to `testing`, and
+    // would then have to arrange a fresh signed delivery to climb back out.
+    const priorWebhookVerifiedAt = await this.#db
+      .prepare(
+        `SELECT webhook_verified_at FROM connections WHERE workspace_id = ? AND provider = ?`,
+      )
+      .bind(scope.workspaceId, provider)
+      .first<{ webhook_verified_at: string | null }>();
+
     const established = await establishConnection({
       provider,
       workspaceId: scope.workspaceId,
       accessToken: input.accessToken,
+      ...(priorWebhookVerifiedAt?.webhook_verified_at == null
+        ? {}
+        : { webhookVerifiedAt: priorWebhookVerifiedAt.webhook_verified_at }),
       ...(input.webhookSecret === undefined ? {} : { webhookSecret: input.webhookSecret }),
       wrappingKey: { keyBase64, keyVersion: CREDENTIAL_KEY_VERSION },
       now: this.#now,
