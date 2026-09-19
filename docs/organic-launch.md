@@ -409,16 +409,21 @@ future paid campaign on Reddit.
 > unverified, or pending. Your workflow's own "success" is a trigger to go and look, never
 > proof on its own.
 >
-> **Where it actually is, honestly:** the HubSpot and Resend adapters have not been run
-> against a live account. I have no provider credentials yet, and every connector test
-> injects a fake HTTP layer with synthetic responses shaped from the vendors' API docs. The
-> part that _is_ properly exercised is the evaluator and the decision table, over synthetic
-> evidence — which assertion outcomes produce which of the four statuses, what happens when
-> evidence is missing rather than contradictory, and when a blown deadline is allowed to
-> count as a failure at all. I would rather say that plainly than let "reads it back from
-> HubSpot" imply I have pointed it at a real portal and watched it work, because the thing
-> this is supposed to catch is software reporting on its own success with no independent
-> evidence. Doing that in the post introducing it would be quite the own goal.
+> **Where it actually is, honestly:** Resend is connected for real now — a dedicated key,
+> a registered webhook, and genuinely signed delivery events arriving and being stored as
+> evidence. HubSpot has a real credential against a real portal, but I have not yet watched
+> a live record readback, so treat that half as connected rather than proven. And no
+> deployment has produced a verified-or-failed verdict from real evidence yet: the
+> scheduled step that turns evidence into a verdict has only ever run in tests. The
+> evaluator and decision table themselves are properly exercised over synthetic evidence —
+> which outcomes produce which of the four statuses, what happens when evidence is missing
+> rather than contradictory, when a blown deadline may count as a failure — and that is
+> coverage of the logic, not proof of the pipeline.
+>
+> I would rather spell that out than let "reads it back from HubSpot" imply more than I
+> have watched happen, because the thing this is supposed to catch is software reporting on
+> its own success with no independent evidence. Doing that in the post introducing it would
+> be quite the own goal.
 >
 > The part I care about most is "unverified". The design is that missing or ambiguous
 > evidence — connection down, correlation value absent, two candidate records — is reported
@@ -587,12 +592,14 @@ what happened → what I learned, with the ask at the end:
 > rules you wrote, and return verified / failed / unverified / pending. "Unverified" is a
 > real answer — missing or ambiguous evidence is never rounded to a pass.
 >
-> **What I have actually run, as opposed to written.** The HubSpot and Resend adapters have
-> never touched a live account — no credentials yet, and every connector test injects a fake
-> HTTP layer with synthetic responses built from the vendors' API docs. The evaluator and
-> decision table are properly exercised over synthetic evidence. I am flagging it because
-> the product's entire pitch is that a system reporting on its own success is not evidence,
-> and I would rather not make that mistake in the post that introduces it.
+> **What I have actually run, as opposed to written.** Resend is live: real key, real
+> webhook, real signed delivery events stored as evidence. HubSpot is connected with a real
+> credential but no live readback has been demonstrated. No deployment has yet produced a
+> verdict from real evidence — that step has only run in tests. The evaluator and decision
+> table are properly exercised over synthetic evidence, which is coverage of the logic
+> rather than proof of the whole chain. I am flagging the distinction because the product's
+> entire pitch is that a system reporting on its own success is not evidence, and I would
+> rather not make that mistake in the post that introduces it.
 >
 > **What I learned, and where I want a second opinion.** Onboarding is heavy. You need a
 > correlation value written into a named HubSpot property on every enquiry, a signing key,
@@ -703,12 +710,19 @@ the second is worded as design, not as something we have watched happen.
 | Every limitation in the "what it cannot do" lists                                   | **Observed**               | True by absence — there is no code path that could do those things                                                                                                                                         |
 | **Querying HubSpot and Resend for the record and the message event**                | **DESIGNED, NOT OBSERVED** | `packages/connectors/src/hubspot.ts` / `resend.ts` exist and are tested, but against an injected fake HTTP layer. The connector tests state it outright: "No real portal, no real contact, no real token." |
 
-**The claim was softened in all four posts, on the lead's instruction, and the reason is
-recorded here because it is the right reason:** a reader in r/n8n hears "reads the record
-back from HubSpot" as _this has been pointed at a real portal and it worked_. It has not. We
-hold no provider credentials, every connector test stubs the transport, and the only two
-provider-backed cases in the ledger — `CONN-050` (a real HubSpot sandbox read) and
-`CONN-051` (a real Resend test-mode event read) — are both still `planned`, never run.
+**The claim was softened in all four posts, on the lead's instruction, and then revised
+again on 19 September when part of it stopped being true.** A reader in r/n8n hears "reads
+the record back from HubSpot" as _this has been pointed at a real portal and it worked_.
+
+As of 19 September the Resend half of that is now genuinely true: a real key, a registered
+webhook, and signed delivery events received and stored as evidence with their origin
+recorded as independent. The HubSpot half is not — a real credential exists and validates,
+and no live record readback has been demonstrated. And no deployment has yet produced a
+verdict from real evidence.
+
+The posts were updated to say exactly that. Leaving the old wording would have been false
+modesty, which is still inaccuracy: a reader who later saw real provider evidence would
+reasonably wonder what else was off.
 
 The gap between "the code does this" and "we have observed it doing this" is precisely the
 gap this product exists to complain about: a system reporting on its own success without
@@ -799,8 +813,10 @@ discover that fact in production.
 - [ ] I will perform the §9 pre-flight, including reading each community's rules on screen.
 - [ ] I understand r/msp is dropped and why.
 - [ ] I have completed the §0 pre-flight gate for the destination I am about to post to.
-- [ ] I accept that the posts say the HubSpot and Resend adapters have never run against a
-      live account, and I will not remove that line to make the post read better.
+- [ ] I accept that the posts distinguish what has been observed from what is written:
+      Resend proven against a live account, HubSpot connected but its readback unproven, and
+      no deployed verdict from real evidence yet. I will not remove those lines to make the
+      posts read better, and I will not add claims they do not make.
 - [ ] I will publish these myself. Nothing here is posted on my behalf.
 
 **Signed:** ______________________ **Date:** ______________
