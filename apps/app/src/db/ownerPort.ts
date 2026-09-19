@@ -126,8 +126,6 @@ import { runs } from './runs';
 /** A dependency sentence, used wherever a real source does not exist yet. */
 const NO_ADS =
   'No advertising provider is connected to this deployment, so there is no campaign to act on.';
-const NO_REFUND_PATH =
-  'Refunds are issued through Stripe, which is not configured on this deployment.';
 
 /**
  * What is true after an activation has been authorised and nothing else can happen.
@@ -639,6 +637,26 @@ export class D1OwnerDataPort implements OwnerDataPort {
     return out;
   }
 
+  /**
+   * The billing runtime for this port, assembled in one place.
+   *
+   * `null` when no `STRIPE_SECRET_KEY` is set, so a caller must decide what to say rather
+   * than being handed a client that will throw on first use.
+   */
+  async #billingRuntime(): Promise<import('../billing/runtime').BillingRuntime | null> {
+    const secretKey = this.#env.STRIPE_SECRET_KEY ?? '';
+    if (secretKey.length === 0) return null;
+    const { createBillingRuntime } = await import('../billing/index');
+    const { D1BillingDataPort } = await import('./billingPort');
+    const { createStripeClient } = await import('@verify/connectors/stripe');
+    return createBillingRuntime(this.#env as never, {
+      data: new D1BillingDataPort(this.#db),
+      gateway: createStripeClient({ secretKey }),
+      now: () => new Date().toISOString(),
+      newId: (prefix: string) => newId(prefix, Date.now()),
+    });
+  }
+
   async cancelSubscription(ctx: ActionContext, workspaceId: string): Promise<OwnerWriteResult> {
     const existing = await subscriptions.getForWorkspace(
       this.#db,
@@ -650,11 +668,32 @@ export class D1OwnerDataPort implements OwnerDataPort {
     }
     // Cancelling at Stripe is the act that matters; writing `canceled` here without it
     // would tell the owner the customer had stopped paying while the card kept being
-    // charged. Refused rather than faked.
-    await this.#audit(ctx, 'owner.subscription.cancel_blocked', workspaceId);
-    return writeBlocked(
-      'Stripe is not configured on this deployment, so the subscription cannot be cancelled at the provider. Nothing has been changed.',
-    );
+    // charged. So the provider call is the operation, and a failure is reported as one.
+    const runtime = await this.#billingRuntime();
+    if (runtime === null) {
+      await this.#audit(ctx, 'owner.subscription.cancel_blocked', workspaceId);
+      return writeBlocked(
+        'This deployment has no STRIPE_SECRET_KEY, so the subscription cannot be cancelled at the provider. Nothing has been changed.',
+      );
+    }
+
+    try {
+      const { cancelSubscription } = await import('../billing/index');
+      const result = await cancelSubscription(runtime, { workspaceId });
+      await this.#audit(ctx, 'owner.subscription.cancelled', workspaceId);
+      return writeOk(
+        result.requested === 'immediately'
+          ? 'The subscription is cancelled at the provider. Nothing further will be charged.'
+          : 'The subscription will end at the close of the paid period. Nothing further will be charged after that.',
+      );
+    } catch (error) {
+      await this.#audit(ctx, 'owner.subscription.cancel_failed', workspaceId);
+      return writeFailed(
+        `The subscription was not cancelled at the provider, so nothing has been changed. ${
+          error instanceof AppError ? error.message : 'The provider did not complete the request.'
+        }`,
+      );
+    }
   }
 
   async rejectBeforeCheckout(
@@ -694,8 +733,13 @@ export class D1OwnerDataPort implements OwnerDataPort {
    * before anything could reach a provider, so a crash leaves an approval that is visibly
    * spent rather than one that still looks spendable beside money that has moved.
    *
-   * Stripe is not configured on this deployment, so what follows the claim today is an
-   * honest dependency — and the sentence says the approval has been spent, because it has.
+   * The approval is now spent inside `decideRefund`, through `consumeApproval`, which calls
+   * it strictly before the Stripe request. That keeps the A-20 ordering exactly where it
+   * matters and consumes once rather than twice.
+   *
+   * And it is not spent at all when there is no provider to submit to. The previous version
+   * claimed the approval first and then reported that Stripe was unconfigured, which burned
+   * the owner's single-use authorisation for a refund that could never have been made.
    */
   async issueRefund(ctx: ActionContext, input: RefundRequestInput): Promise<OwnerWriteResult> {
     const approval = await this.approval(input.approvalId);
@@ -715,19 +759,70 @@ export class D1OwnerDataPort implements OwnerDataPort {
       },
     };
 
-    // Spending the approval IS the authorisation. Nothing below this line can run twice on
-    // one approval: the loser of the compare-and-set gets `false` and stops here.
-    const claim = await claimApproval(approval, payload, { store: this.#claims, now: ctx.now });
-    if (!claim.ok) {
-      await this.#audit(ctx, 'owner.refund.refused', input.orderId);
-      return writeFailed(explainApprovalRejection(claim.reason));
+    // `policyRule` arrives as a plain string. It is checked against the published list
+    // rather than cast: the rule is part of the hashed approval payload, so accepting an
+    // unrecognised one would let an approval be bound to a rule nobody published.
+    const { isRefundPolicyRule } = await import('../billing/index');
+    if (!isRefundPolicyRule(input.policyRule)) {
+      return writeFailed('That is not a published refund policy rule.', {
+        policyRule: 'Choose one of the published rules.',
+      });
     }
-    await this.#audit(ctx, 'owner.approval.consumed', approval.id);
-    await this.#audit(ctx, 'owner.refund.blocked', input.orderId);
-    return writeBlocked(
-      `${NO_REFUND_PATH} The approval has been spent, so nothing can use it a second time; grant another when the ` +
-        'payment provider is configured and you still want this refund.',
-    );
+    const policyRule = input.policyRule;
+
+    const runtime = await this.#billingRuntime();
+    if (runtime === null) {
+      // Nothing is claimed. Spending a single-use approval against a provider we cannot
+      // reach would burn the owner's authorisation for no refund -- the previous version
+      // did exactly that, then told them so.
+      await this.#audit(ctx, 'owner.refund.blocked', input.orderId);
+      return writeBlocked(
+        'This deployment has no STRIPE_SECRET_KEY, so no refund can be submitted to the provider. The approval has NOT been spent and can still be used once this is configured.',
+      );
+    }
+
+    try {
+      const { requestRefund, decideRefund } = await import('../billing/index');
+      const requested = await requestRefund(runtime, {
+        workspaceId: input.workspaceId,
+        orderId: input.orderId,
+        amountMinor: input.amountMinor,
+        currency: 'GBP',
+        ...(input.reason === undefined ? {} : { reason: input.reason }),
+      });
+
+      // The approval is spent INSIDE `decideRefund`, which calls this strictly before it
+      // reaches Stripe -- A10's A-20 sequencing. Claiming here as well would consume one
+      // approval twice. Consuming before means the worst case is a spent approval and no
+      // refund, which is the direction to fail when the alternative is money out twice.
+      const decided = await decideRefund(runtime, {
+        workspaceId: input.workspaceId,
+        refundId: requested.refund.id,
+        decision: 'approve',
+        approval,
+        policyRule,
+        consumeApproval: async ({ approval: granted }) => {
+          const claim = await claimApproval(granted, payload, {
+            store: this.#claims,
+            now: ctx.now,
+          });
+          if (claim.ok) await this.#audit(ctx, 'owner.approval.consumed', granted.id);
+          return claim.ok;
+        },
+      });
+
+      await this.#audit(ctx, 'owner.refund.issued', input.orderId);
+      return writeOk(
+        `The refund was submitted to the payment provider and is ${decided.state}. The approval has been spent and cannot be used again.`,
+      );
+    } catch (error) {
+      await this.#audit(ctx, 'owner.refund.failed', input.orderId);
+      return writeFailed(
+        `No refund was submitted. ${
+          error instanceof AppError ? error.message : 'The provider did not complete the request.'
+        }`,
+      );
+    }
   }
 
   /* --------------------------------------------------------------- verification */

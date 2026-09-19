@@ -602,8 +602,18 @@ async function seedRefundApproval(): Promise<string> {
   return 'apr_refund_1';
 }
 
-describe("the owner panel's own refund button spends the approval", () => {
-  it('OWNER-367 a refund through the live port moves the approval row to consumed', async () => {
+describe("the owner panel's own refund button and the approval it spends", () => {
+  /**
+   * These used to assert that a refund on a deployment with NO Stripe key still consumed
+   * the approval. That was the behaviour, and it was wrong: it destroyed the owner's
+   * single-use authorisation for a refund that could not be submitted to anyone, then told
+   * them so. The approval is now spent inside `decideRefund`, strictly before the provider
+   * call -- the A-20 sequencing property is kept exactly where it matters -- and not at all
+   * when there is no provider to call.
+   *
+   * This harness configures no STRIPE_SECRET_KEY, so it exercises that path.
+   */
+  it('OWNER-367 with no payment provider configured the approval is left unspent, not burned', async () => {
     const app = await mount();
     const id = await seedRefundApproval();
 
@@ -613,21 +623,29 @@ describe("the owner panel's own refund button spends the approval", () => {
       'SELECT status, consumed_at FROM approvals WHERE id = ?',
       id,
     );
-    expect(after?.status).toBe('consumed');
-    expect(after?.consumed_at).toBe(ISO);
+    // Still usable: the owner can grant once and spend it when Stripe is configured.
+    expect(after?.status).toBe('granted');
+    expect(after?.consumed_at).toBeNull();
   });
 
-  it('OWNER-368 a replayed refund is refused and there is still exactly one consumption', async () => {
+  it('OWNER-368 a repeated attempt with no provider still spends nothing, and says why', async () => {
     const app = await mount();
     const id = await seedRefundApproval();
     await app.post('/owner/refunds', { ...REFUND_FORM, approval_id: id });
 
     const replay = await app.post('/owner/refunds', { ...REFUND_FORM, approval_id: id });
-    expect(await replay.text()).toMatch(/already been used/i);
+
+    // It names the missing secret rather than claiming the approval was used up.
+    expect(await replay.text()).toMatch(/STRIPE_SECRET_KEY/);
     expect(
-      one<{ consumed_at: string }>('SELECT consumed_at FROM approvals WHERE id = ?', id)
+      one<{ consumed_at: string | null }>('SELECT consumed_at FROM approvals WHERE id = ?', id)
         ?.consumed_at,
-    ).toBe(ISO);
+    ).toBeNull();
+
+    // The property this case used to carry -- one approval can authorise at most one
+    // submission -- now lives where a provider exists to submit to: BILL-141 asserts
+    // `createRefund` is called exactly once across a retry, and `decideRefund` consumes
+    // through `consumeApproval` strictly before that call.
   });
 
   it('OWNER-369 a refund a penny different from the approved one consumes nothing', async () => {
@@ -656,13 +674,15 @@ describe("the owner panel's own refund button spends the approval", () => {
     const id = one<{ id: string }>('SELECT id FROM approvals ORDER BY created_at DESC')?.id ?? '';
     expect(id).not.toBe('');
 
-    await app.post('/owner/refunds', { ...REFUND_FORM, approval_id: id });
+    const response = await app.post('/owner/refunds', { ...REFUND_FORM, approval_id: id });
 
-    // If the grant path and the consumption path hash differently, this stays `granted`
-    // and every approval the owner grants in the panel is unusable.
-    expect(one<{ status: string }>('SELECT status FROM approvals WHERE id = ?', id)?.status).toBe(
-      'consumed',
-    );
+    // The property is COMPATIBILITY: an approval granted through the panel must be one the
+    // refund action recognises. If the grant path and the refund path hashed the payload
+    // differently, the action would refuse it as not matching -- so the assertion is that
+    // it is NOT rejected on those grounds, and stops only on the missing provider.
+    const body = await response.text();
+    expect(body).not.toMatch(/not usable|does not match|already been used/i);
+    expect(body).toMatch(/STRIPE_SECRET_KEY/);
   });
 });
 
