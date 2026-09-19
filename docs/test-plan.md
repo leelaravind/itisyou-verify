@@ -157,6 +157,61 @@ change(s)` above the table and repeats it under the verdict.
 the Markdown, the readiness note and the HTML. The word "gate" is reserved for the
 artefact.
 
+### 2c. Evidence transport — the number that says when stage (c) is safe
+
+`packages/contracts/src/evidence.ts` (`6509969`) added `transport: 'live' | 'simulated' |
+'unknown'`, recording whether a piece of evidence actually left the process — independent
+of `origin`, which only records the channel it claims to have arrived through. An
+independent review found that a fixture and a genuine provider read-back were
+byte-identical: the connector stamped `origin: 'provider_readback'` whenever its HTTP layer
+returned a 200, and that layer's `fetchImpl` is exactly what every test replaces with a
+stub. `transport` closes that: it is derived once, in `guardedFetch`
+(`packages/connectors/src/http.ts`), as `fetchImpl === undefined ? 'live' : 'simulated'` —
+a fact about whether the caller intercepted the call, never about what the response
+contains — so no test, fixture or careless connector edit can produce `'live'` from a stub.
+Proven in `tests/unit/connectors/hubspot.test.ts` (`CONN-500`–`504`) and `resend.test.ts`
+(`CONN-505`–`507`), including one test where the stub tries to put `transport: 'live'`
+directly in the response body and it is still `'simulated'`.
+
+**This is a three-stage migration, not a flag.** Requiring `transport === 'live'` for a
+mandatory assertion is the correct end state — accepting less is the defect the field
+exists to catch, one layer up — but every piece of evidence produced before `6509969` has
+no `transport` at all. Flipping the requirement today would take every existing
+`provider_readback` assertion to non-qualifying and move the citable gate number for a
+reason invisible to anyone reading it, which is how a gate teaches people to stop trusting
+it.
+
+1. **(a) Done.** The field is produced by both connectors, unforgeable from test wiring.
+2. **(b) Done, this section.** The pending count is made visible before anything is
+   punished by it — see below and `scripts/build-gate-artefact.mjs`'s `evidence_transport`
+   block, reported in the same run as the twelve floors, not folded into any of them.
+3. **(c) Not started, and not this agent's to start.** `packages/domain/src/evaluate.ts`
+   starts requiring `transport === 'live'` for a `provider_readback` assertion to support a
+   mandatory check. Timed against a release, owned by the lead.
+
+**The stage (c) trigger condition, written down so it does not depend on this exchange
+being read:** the evaluator may begin requiring `transport === 'live'` once **every
+confirmable mandatory-capable evidence path has actually been confirmed live** — concretely,
+once `CONN-900` (a real HubSpot read) and `CONN-901` (a real Resend read) in
+`tests/integration/connectors/live-smoke.test.ts` have both **run against a real, authorised
+credential and passed**, rather than skipping for want of one. Today both skip: `node
+scripts/build-gate-artefact.mjs` reports `confirmed live 0 / 2` and names both as pending.
+
+**One path is permanently excluded from this trigger, by design, and the trigger must not
+be written to depend on it:** Resend's `provider_webhook` origin. A valid Svix signature
+proves the bytes match the shared secret and are fresh; it does not prove the request that
+carried them was ever really received by the platform, and every webhook unit test computes
+a genuinely valid signature over a synthetic event (`CONN-117` now asserts this: `transport`
+is absent on that evidence, reading as `unknown`, never `live`). Asserting `live` there
+would reproduce, inside the fix, the exact defect the field exists to catch. Whether
+`provider_webhook` should ever be allowed to support a mandatory assertion, and under what
+rule, is a separate question for whoever owns `apps/app/src/routes/webhooks/resend.ts` —
+routed there, not decided here.
+
+`'unknown'` is read the same way an absent `origin` always was: not a free pass. A record
+with no confirmed transport supports nothing more today than it did before this field
+existed, and stage (c) is what makes that explicit in the decision logic itself.
+
 ---
 
 ## 3. How the numbers are counted — reproduce without reading the script
