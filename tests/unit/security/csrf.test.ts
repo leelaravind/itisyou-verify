@@ -48,7 +48,7 @@ describe('CSRF double submit', () => {
     expect(cookie).not.toContain('Domain=');
   });
 
-  it('API-110 never emits a __Host- cookie without Secure (A10 AUTH-137)', () => {
+  it('API-110 never emits a __Host- cookie without Secure (A10 AUTH-018)', () => {
     // Browsers discard a __Host- cookie that is not Secure, so an insecure origin would
     // get no CSRF cookie at all — and the tempting "fix" is to switch CSRF off.
     const insecure = csrfCookie('abc', { secure: false });

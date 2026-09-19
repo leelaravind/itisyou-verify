@@ -82,30 +82,44 @@ async function offenders(page: Page): Promise<string[]> {
   });
 }
 
+/**
+ * Spelled out rather than computed, for the same reason as `responsive.spec.ts`: a title
+ * built as `OWNER-34${i}` reads as the malformed id `OWNER-34` to anything scanning the
+ * source, including the ledger checker.
+ */
 test.describe('owner panel layout', () => {
   test.beforeEach(async ({ context }) => {
     test.skip(!(await signedIn(context)), SEED_MISSING);
   });
 
-  for (const viewport of WIDTHS) {
-    test(`OWNER-34${WIDTHS.indexOf(viewport)} no administrative page scrolls horizontally at ${viewport.width}px`, async ({
-      page,
-    }) => {
-      await page.setViewportSize({ width: viewport.width, height: viewport.height });
-      for (const path of OWNER_PAGES) {
-        const response = await page.goto(path);
-        // Without this, a 404 or a 500 would sail through: an error page has almost no
-        // content and never overflows, so a broken route would make this case pass while
-        // measuring nothing. That failure mode is why these were unmeasured for so long.
-        expect(response?.status(), `${path} did not render; its layout was not measured`).toBe(200);
-        const overflow = await horizontalOverflow(page);
-        expect(
-          overflow,
-          `${path} at ${viewport.width}px overflows by ${overflow}px: ${(await offenders(page)).join(', ')}`,
-        ).toBeLessThanOrEqual(1);
-      }
-    });
+  /**
+   * Spelled out one per width. A title built as `${ids[i]} …` names the case at run time
+   * and names nothing in the source, and the ledger reads the source.
+   */
+  async function assertNoOwnerOverflow(page: Page, viewport: (typeof WIDTHS)[number]) {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    for (const path of OWNER_PAGES) {
+      const response = await page.goto(path);
+      // Without this, a 404 or a 500 would sail through: an error page has almost no
+      // content and never overflows, so a broken route would make this case pass while
+      // measuring nothing. That failure mode is why these were unmeasured for so long.
+      expect(response?.status(), `${path} did not render; its layout was not measured`).toBe(200);
+      const overflow = await horizontalOverflow(page);
+      expect(
+        overflow,
+        `${path} at ${viewport.width}px overflows by ${overflow}px: ${(await offenders(page)).join(', ')}`,
+      ).toBeLessThanOrEqual(1);
+    }
   }
+
+  test('OWNER-340 no administrative page scrolls horizontally at 390px', async ({ page }) =>
+    assertNoOwnerOverflow(page, WIDTHS[0]));
+
+  test('OWNER-341 no administrative page scrolls horizontally at 834px', async ({ page }) =>
+    assertNoOwnerOverflow(page, WIDTHS[1]));
+
+  test('OWNER-342 no administrative page scrolls horizontally at 1440px', async ({ page }) =>
+    assertNoOwnerOverflow(page, WIDTHS[2]));
 
   test('OWNER-343 every administrative page is reachable and operable from the keyboard alone', async ({
     page,

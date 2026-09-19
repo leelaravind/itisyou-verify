@@ -121,7 +121,7 @@ describe('the opaque webhook path id', () => {
     expect(rotated).not.toBe(first);
   });
 
-  it('AUTH-460 cannot be issued for another workspace’s connection', async () => {
+  it('AUTH-019 cannot be issued for another workspace’s connection', async () => {
     const other = seedWorkspace(h, 'beta');
     expect(
       await assignWebhookPathId(h.db, {
@@ -690,7 +690,7 @@ describe('the webhook data port', () => {
     ).toBeNull();
   });
 
-  it('CONN-320 a decided run is not reopened by a late delivery event', async () => {
+  it('CONN-050 a decided run is not reopened by a late delivery event', async () => {
     seedRun(h, ws, 'run_done', {
       nextCheckAt: null,
       status: 'VERIFIED',
@@ -708,7 +708,7 @@ describe('the webhook data port', () => {
     expect(countRows(h, 'evidence')).toBe(0);
   });
 
-  it('CONN-321 a run in another workspace never receives this workspace’s evidence', async () => {
+  it('CONN-051 a run in another workspace never receives this workspace’s evidence', async () => {
     const other = seedWorkspace(h, 'beta');
     seedRun(h, other, 'run_theirs', { nextCheckAt: null, emailRecipient: 'ada@example.com' });
 

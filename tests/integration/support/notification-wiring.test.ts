@@ -226,7 +226,7 @@ function paidRenewal(eventId: string): Record<string, unknown> {
 /* -------------------------------------------------------------------------- */
 
 describe('a real Stripe delivery reaches a real customer', () => {
-  it('CUST-360 a signed invoice.payment_failed sends the payment_problem notification', async () => {
+  it('CUST-134 a signed invoice.payment_failed sends the payment_problem notification', async () => {
     const s = await scene();
 
     const response = await s.deliver(failedRenewal('evt_failed_1'));
@@ -253,7 +253,7 @@ describe('a real Stripe delivery reaches a real customer', () => {
     expect(s.sent[0]?.subject).toContain('new runs are paused after a failed payment');
   });
 
-  it('CUST-361 the renewal failure pauses new runs and marks the subscription past_due', async () => {
+  it('CUST-135 the renewal failure pauses new runs and marks the subscription past_due', async () => {
     const s = await scene();
     await s.deliver(failedRenewal('evt_failed_2'));
 
@@ -267,7 +267,7 @@ describe('a real Stripe delivery reaches a real customer', () => {
     ).toEqual({ status: 'active' });
   });
 
-  it('CUST-362 a duplicate delivery sends no second notification and grants no second allowance', async () => {
+  it('CUST-136 a duplicate delivery sends no second notification and grants no second allowance', async () => {
     const s = await scene();
 
     // Two deliveries of the SAME event. Stripe retries; duplicates are normal.
@@ -313,7 +313,7 @@ describe('a real Stripe delivery reaches a real customer', () => {
     expect(afterReplay[0]?.['run_limit']).toBe(500);
   });
 
-  it('CUST-363 a second, distinct failure event for the same window still sends only one email', async () => {
+  it('CUST-137 a second, distinct failure event for the same window still sends only one email', async () => {
     const s = await scene();
 
     // Stripe retries a card several times inside one unpaid period, and each attempt is a

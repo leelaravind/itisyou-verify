@@ -576,7 +576,7 @@ describe('the approval is bound to the exact payload', () => {
   });
 });
 
-describe('A-20 the approval is spent, and spent before the money moves', () => {
+describe('gate A20 the approval is spent, and spent before the money moves', () => {
   async function queuedRefund(harness: BillingHarness) {
     await seedOrder(harness);
     const result = await requestRefund(harness, {
