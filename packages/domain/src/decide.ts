@@ -41,7 +41,8 @@ export const DECISION_REASON = {
   FAILED_ABSENT:
     'The deadline passed and the connected systems confirmed the expected record or message does not exist.',
   PENDING_WINDOW: 'The agreed completion window is still open, so we are still looking.',
-  PENDING_ACCESS: 'We could not reach a connected system yet. We will try again inside the completion window.',
+  PENDING_ACCESS:
+    'We could not reach a connected system yet. We will try again inside the completion window.',
   UNVERIFIED_ACCESS:
     'We could not retrieve the evidence needed to judge this run, so it is unverified rather than failed.',
   UNVERIFIED_INCOMPLETE:
@@ -59,7 +60,10 @@ const UNRESOLVED: ReadonlySet<AssertionResult['status']> = new Set(['UNKNOWN', '
  * set is a configuration error, and answering VERIFIED to "did anything have to be true?"
  * would be the single worst bug this product could ship.
  */
-export function decideRunStatus(results: readonly AssertionResult[], ctx: DecisionContext): RunDecision {
+export function decideRunStatus(
+  results: readonly AssertionResult[],
+  ctx: DecisionContext,
+): RunDecision {
   const mandatory = results.filter((r) => r.mandatory);
   if (mandatory.length === 0) {
     throw new AppError(
@@ -89,7 +93,9 @@ export function decideRunStatus(results: readonly AssertionResult[], ctx: Decisi
   if (beforeDeadline && canLookAgain) {
     return {
       status: 'PENDING',
-      reason: ctx.hasWorkingEvidenceAccess ? DECISION_REASON.PENDING_WINDOW : DECISION_REASON.PENDING_ACCESS,
+      reason: ctx.hasWorkingEvidenceAccess
+        ? DECISION_REASON.PENDING_WINDOW
+        : DECISION_REASON.PENDING_ACCESS,
     };
   }
 

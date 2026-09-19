@@ -26,8 +26,7 @@ export const PLAN_ALLOWANCE: readonly PricingAllowanceLine[] = [
 ];
 
 /** What happens once the monthly run allowance is used. No surprise overage. */
-export const PLAN_AT_ALLOWANCE =
-  `Once you reach ${LIMITS.PLAN_RUNS_PER_PERIOD} runs in a billing period, we stop accepting new events for that workflow until your next period starts. We do not charge you for going over, and we do not silently keep running and bill you afterwards — you get a plain notice that the period's allowance is used.`;
+export const PLAN_AT_ALLOWANCE = `Once you reach ${LIMITS.PLAN_RUNS_PER_PERIOD} runs in a billing period, we stop accepting new events for that workflow until your next period starts. We do not charge you for going over, and we do not silently keep running and bill you afterwards — you get a plain notice that the period's allowance is used.`;
 
 export const PLAN_RENEWAL_WORDING =
   'Your plan renews automatically each month at the same price, on the date you first subscribed, until you cancel.';
@@ -35,5 +34,4 @@ export const PLAN_RENEWAL_WORDING =
 export const PLAN_CANCELLATION_WORDING =
   'You can cancel at any time from the billing portal. Cancelling stops the next renewal; you keep access for the rest of the period you already paid for. We do not offer partial refunds for the unused part of a period unless required by law.';
 
-export const PLAN_TAXES_NOTE =
-  `${PLAN_PRICE_DISPLAY} is the price shown at checkout; any tax required by law (for example VAT) is calculated and added by our payment provider based on your billing details, so the amount charged may be higher than the headline price.`;
+export const PLAN_TAXES_NOTE = `${PLAN_PRICE_DISPLAY} is the price shown at checkout; any tax required by law (for example VAT) is calculated and added by our payment provider based on your billing details, so the amount charged may be higher than the headline price.`;

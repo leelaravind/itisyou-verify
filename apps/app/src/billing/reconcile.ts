@@ -292,10 +292,19 @@ export async function reconcileSubscriptions(
  * Apply a confirmed payment, through the same guards a webhook goes through.
  *
  * Returns the saved record, or `null` when the guards refused — which happens when the
- * stored subscription is terminally cancelled. `providerEventCreated` is stamped with the
- * read time, because a direct read of the provider's records is newer truth than any event
- * generated before it; a webhook generated earlier but delivered later is then correctly
- * treated as stale.
+ * stored subscription is terminally cancelled.
+ *
+ * `providerEventCreated` is stamped with `max(readTime, storedValue)`, and the `max` is
+ * load-bearing. The monotonic guard exists to stop *out-of-order events* overwriting newer
+ * state; a direct read of the provider's records is not an event but a point-in-time query
+ * of current truth, so letting a stale-event rule veto it is a category error. Without the
+ * `max`, any clock skew that left a stored event timestamp ahead of our own clock — Stripe
+ * stamps `created` on its clock, we read on ours — would make a workspace permanently
+ * unrecoverable by reconciliation, silently. With it, the value never goes backwards, so
+ * monotonicity still holds for real events, and current truth still gets through.
+ *
+ * The terminal-cancellation guard is unaffected: `reconcileSubscription` checks it first
+ * and this cannot reach past it.
  */
 async function applyConfirmedPayment(
   deps: BillingRuntime,
@@ -315,7 +324,10 @@ async function applyConfirmedPayment(
     priceId: next.priceId ?? stored.priceId,
     currentPeriodEnd: next.currentPeriodEnd ?? stored.currentPeriodEnd,
     cancelAtPeriodEnd: next.cancelAtPeriodEnd,
-    providerEventCreated: Math.floor(Date.parse(next.at) / 1000),
+    providerEventCreated: Math.max(
+      Math.floor(Date.parse(next.at) / 1000),
+      stored.providerEventCreated,
+    ),
   });
   if (decision.action !== 'apply' && decision.action !== 'insert') return null;
 

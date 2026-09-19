@@ -95,7 +95,10 @@ export interface SealedCredential {
  * token that passes this check has proven nothing at all yet.
  */
 const TOKEN_SHAPE: Readonly<
-  Record<ProviderId, { readonly prefixes: readonly string[]; readonly example: string; readonly where: string }>
+  Record<
+    ProviderId,
+    { readonly prefixes: readonly string[]; readonly example: string; readonly where: string }
+  >
 > = Object.freeze({
   hubspot: Object.freeze({
     prefixes: Object.freeze(['pat-']),
@@ -129,13 +132,24 @@ export function checkTokenShape(provider: ProviderId, raw: unknown): TokenShapeP
   const token = cleanPastedSecret(raw);
   const shape = TOKEN_SHAPE[provider];
   if (token === '') {
-    return { field: 'access_token', message: `Paste your ${provider === 'hubspot' ? 'HubSpot private app' : 'Resend API'} token. You will find it under ${shape.where}.` };
+    return {
+      field: 'access_token',
+      message: `Paste your ${provider === 'hubspot' ? 'HubSpot private app' : 'Resend API'} token. You will find it under ${shape.where}.`,
+    };
   }
   if (/\s/.test(token)) {
-    return { field: 'access_token', message: 'That value contains a space or a line break, so it is not a token. Copy it again from the provider.' };
+    return {
+      field: 'access_token',
+      message:
+        'That value contains a space or a line break, so it is not a token. Copy it again from the provider.',
+    };
   }
   if (token.length > 512) {
-    return { field: 'access_token', message: 'That value is far longer than any provider token. Check you pasted the token and not a whole page.' };
+    return {
+      field: 'access_token',
+      message:
+        'That value is far longer than any provider token. Check you pasted the token and not a whole page.',
+    };
   }
   if (!shape.prefixes.some((prefix) => token.startsWith(prefix))) {
     if (token.startsWith(WEBHOOK_SECRET_PREFIX)) {
@@ -144,7 +158,10 @@ export function checkTokenShape(provider: ProviderId, raw: unknown): TokenShapeP
         message: `That is a webhook signing secret, not an API token. The token goes in this box and starts ${shape.example}.`,
       };
     }
-    for (const [other, otherShape] of Object.entries(TOKEN_SHAPE) as [ProviderId, (typeof TOKEN_SHAPE)[ProviderId]][]) {
+    for (const [other, otherShape] of Object.entries(TOKEN_SHAPE) as [
+      ProviderId,
+      (typeof TOKEN_SHAPE)[ProviderId],
+    ][]) {
       if (other !== provider && otherShape.prefixes.some((prefix) => token.startsWith(prefix))) {
         return {
           field: 'access_token',
@@ -166,11 +183,15 @@ export function checkWebhookSecretShape(raw: unknown): TokenShapeProblem | null 
   if (!secret.startsWith(WEBHOOK_SECRET_PREFIX)) {
     return {
       field: 'webhook_secret',
-      message: 'A Resend signing secret starts whsec_. You will find it beside the webhook endpoint in the Resend dashboard.',
+      message:
+        'A Resend signing secret starts whsec_. You will find it beside the webhook endpoint in the Resend dashboard.',
     };
   }
   if (/\s/.test(secret) || secret.length > 512) {
-    return { field: 'webhook_secret', message: 'That value is not a signing secret. Copy it again from Resend.' };
+    return {
+      field: 'webhook_secret',
+      message: 'That value is not a signing secret. Copy it again from Resend.',
+    };
   }
   return null;
 }
@@ -321,11 +342,24 @@ export async function establishConnection(
   // --- step 1: shape. Free, and it catches the common mistakes. ------------
   const shapeProblem = checkTokenShape(provider, input.accessToken);
   if (shapeProblem !== null) {
-    return refusal(provider, input.now, { [shapeProblem.field]: shapeProblem.message }, `Nothing has been saved.`, 0);
+    return refusal(
+      provider,
+      input.now,
+      { [shapeProblem.field]: shapeProblem.message },
+      `Nothing has been saved.`,
+      0,
+    );
   }
-  const secretProblem = provider === RESEND_PROVIDER ? checkWebhookSecretShape(input.webhookSecret) : null;
+  const secretProblem =
+    provider === RESEND_PROVIDER ? checkWebhookSecretShape(input.webhookSecret) : null;
   if (secretProblem !== null) {
-    return refusal(provider, input.now, { [secretProblem.field]: secretProblem.message }, `Nothing has been saved.`, 0);
+    return refusal(
+      provider,
+      input.now,
+      { [secretProblem.field]: secretProblem.message },
+      `Nothing has been saved.`,
+      0,
+    );
   }
 
   // --- step 2: ask the provider. ------------------------------------------
@@ -339,7 +373,9 @@ export async function establishConnection(
   const connection: ConnectionConfig = {
     provider,
     account_id: null,
-    ...(input.correlationProperty === undefined ? {} : { correlation_property: input.correlationProperty }),
+    ...(input.correlationProperty === undefined
+      ? {}
+      : { correlation_property: input.correlationProperty }),
   };
 
   let validation: ConnectionValidation;
@@ -650,7 +686,10 @@ export async function openConnectionCredentials(
  * every page of their UI — and never from the credential. Rule 7 forbids serialising a
  * stored credential back out even masked, so this never touches one.
  */
-export function accountLabel(provider: ProviderId, externalAccountId: string | null): string | null {
+export function accountLabel(
+  provider: ProviderId,
+  externalAccountId: string | null,
+): string | null {
   if (externalAccountId === null || externalAccountId === '') return null;
   if (provider === 'hubspot') return `HubSpot account ${externalAccountId}`;
   // The Resend identifier is a fingerprint of the key, not a name Resend publishes, so it

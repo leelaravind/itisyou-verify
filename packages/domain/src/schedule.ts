@@ -15,7 +15,12 @@
  * counters, so the same inputs always produce the same schedule. No `Math.random()`, ever —
  * a scheduler you cannot replay is a scheduler you cannot debug.
  */
-import { LIMITS, TERMINAL_CONNECTOR_ERRORS, type ConnectorErrorCode, type EvidenceGap } from '@verify/contracts';
+import {
+  LIMITS,
+  TERMINAL_CONNECTOR_ERRORS,
+  type ConnectorErrorCode,
+  type EvidenceGap,
+} from '@verify/contracts';
 
 /** First backoff step, in seconds. Doubles per completed observation. */
 export const BASE_BACKOFF_SECONDS = 30;
@@ -62,16 +67,20 @@ export interface ObservationPlan {
 
 export const SCHEDULE_REASON = {
   DECIDED: 'This run already has a final result, so no further checks are scheduled.',
-  BUDGET_EXHAUSTED: 'This run has used every check it is allowed, so it will now be resolved with what we know.',
-  TERMINAL_GAP: 'This connection needs attention before another check could succeed, so retrying would not help.',
+  BUDGET_EXHAUSTED:
+    'This run has used every check it is allowed, so it will now be resolved with what we know.',
+  TERMINAL_GAP:
+    'This connection needs attention before another check could succeed, so retrying would not help.',
   PAST_DEADLINE: 'The completion window has closed, so this run will now be resolved.',
-  WOULD_EXCEED_DEADLINE: 'The next check would fall after the completion window, so this run will be resolved instead.',
+  WOULD_EXCEED_DEADLINE:
+    'The next check would fall after the completion window, so this run will be resolved instead.',
   SCHEDULED: 'Another check is scheduled inside the completion window.',
   RETRY_AFTER: 'The provider asked us to wait, so the next check honours the delay it requested.',
 } as const;
 
 export const RETRY_REASON = {
-  BUDGET_EXHAUSTED: 'This attempt has used its transport retries; the run will fall back to its next scheduled check.',
+  BUDGET_EXHAUSTED:
+    'This attempt has used its transport retries; the run will fall back to its next scheduled check.',
   TERMINAL: 'This failure cannot be fixed by retrying.',
   SCHEDULED: 'A bounded transport retry is scheduled.',
 } as const;
@@ -140,7 +149,9 @@ export function planNextObservation(input: ObservationPlanInput): ObservationPla
     return { nextCheckAt: null, reason: SCHEDULE_REASON.PAST_DEADLINE };
   }
 
-  const jitter = clampFraction(input.jitterSeed ?? derivedJitter(input.observationCount, input.attemptsUsed));
+  const jitter = clampFraction(
+    input.jitterSeed ?? derivedJitter(input.observationCount, input.attemptsUsed),
+  );
   const backoff = backoffSeconds(input.observationCount, jitter);
   const retryAfter =
     typeof input.retryAfterSeconds === 'number' && Number.isFinite(input.retryAfterSeconds)
@@ -157,7 +168,10 @@ export function planNextObservation(input: ObservationPlanInput): ObservationPla
 
   return {
     nextCheckAt: new Date(candidateMs),
-    reason: retryAfter !== null && retryAfter >= backoff ? SCHEDULE_REASON.RETRY_AFTER : SCHEDULE_REASON.SCHEDULED,
+    reason:
+      retryAfter !== null && retryAfter >= backoff
+        ? SCHEDULE_REASON.RETRY_AFTER
+        : SCHEDULE_REASON.SCHEDULED,
   };
 }
 
@@ -196,7 +210,10 @@ export function planNextRetry(input: RetryPlanInput): RetryPlan {
       : null;
   const jittered = Math.max(1, Math.round(base * (1 - JITTER_SPREAD / 2 + JITTER_SPREAD * jitter)));
   const delaySeconds = retryAfter === null ? jittered : Math.max(retryAfter, jittered);
-  return { nextAttemptAt: new Date(input.now.getTime() + delaySeconds * 1000), reason: RETRY_REASON.SCHEDULED };
+  return {
+    nextAttemptAt: new Date(input.now.getTime() + delaySeconds * 1000),
+    reason: RETRY_REASON.SCHEDULED,
+  };
 }
 
 /**

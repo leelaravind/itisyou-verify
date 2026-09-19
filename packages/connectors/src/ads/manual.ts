@@ -225,7 +225,9 @@ export interface ManualAdapterOptions {
  * because "we have not looked" and "it is a draft" are different claims.
  */
 function latestObservation(record: ManualCampaignRecord): ManualObservation | null {
-  return record.observations.length === 0 ? null : (record.observations[record.observations.length - 1] ?? null);
+  return record.observations.length === 0
+    ? null
+    : (record.observations[record.observations.length - 1] ?? null);
 }
 
 export function createManualAdsAdapter(options: ManualAdapterOptions): AdCampaignAdapter {
@@ -249,16 +251,28 @@ export function createManualAdsAdapter(options: ManualAdapterOptions): AdCampaig
       };
     },
 
-    async createDraft(request: CreateDraftRequest, now = new Date()): Promise<DraftResult | AdsFailure> {
+    async createDraft(
+      request: CreateDraftRequest,
+      now = new Date(),
+    ): Promise<DraftResult | AdsFailure> {
       const bad = assertMinor(request.budget_minor, 'budget_minor');
       if (bad !== null) return bad;
       if (request.ref.platform !== platform) {
-        return fail('REQUIRES_HUMAN', `ref.platform ${request.ref.platform} does not match adapter ${platform}`);
+        return fail(
+          'REQUIRES_HUMAN',
+          `ref.platform ${request.ref.platform} does not match adapter ${platform}`,
+        );
       }
 
       const existing = await store.get(request.ref.local_id);
       const record: ManualCampaignRecord = {
-        ...(existing ?? emptyManualRecord(request.ref.local_id, platform, request.budget_minor, request.currency)),
+        ...(existing ??
+          emptyManualRecord(
+            request.ref.local_id,
+            platform,
+            request.budget_minor,
+            request.currency,
+          )),
         approved_payload_hash: request.approved_payload_hash,
         budget_minor: request.budget_minor,
         currency: request.currency,
@@ -277,13 +291,19 @@ export function createManualAdsAdapter(options: ManualAdapterOptions): AdCampaig
       };
     },
 
-    async publishApproved(request: PublishRequest, now = new Date()): Promise<PublishResult | AdsFailure> {
+    async publishApproved(
+      request: PublishRequest,
+      now = new Date(),
+    ): Promise<PublishResult | AdsFailure> {
       const bad = assertMinor(request.budget_minor, 'budget_minor');
       if (bad !== null) return bad;
       const badMax = assertMinor(request.approved_maximum_minor, 'approved_maximum_minor');
       if (badMax !== null) return badMax;
       if (request.approval_id.length === 0) {
-        return fail('NOT_APPROVED', 'no approval id supplied; refusing to produce publish instructions');
+        return fail(
+          'NOT_APPROVED',
+          'no approval id supplied; refusing to produce publish instructions',
+        );
       }
       // Integer comparison only. No division, no percentage, no float.
       if (request.budget_minor > request.approved_maximum_minor) {
@@ -299,7 +319,13 @@ export function createManualAdsAdapter(options: ManualAdapterOptions): AdCampaig
       const alreadyAsked = attempts.includes(request.idempotency_key);
 
       const record: ManualCampaignRecord = {
-        ...(existing ?? emptyManualRecord(request.ref.local_id, platform, request.budget_minor, request.currency)),
+        ...(existing ??
+          emptyManualRecord(
+            request.ref.local_id,
+            platform,
+            request.budget_minor,
+            request.currency,
+          )),
         approval_id: request.approval_id,
         approved_payload_hash: request.approved_payload_hash,
         budget_minor: request.budget_minor,
@@ -343,7 +369,8 @@ export function createManualAdsAdapter(options: ManualAdapterOptions): AdCampaig
       }
       // A pause we asked for but the observation does not yet show is pause_pending —
       // we downgrade the observation rather than reporting what we hoped for.
-      const pausePending = record.pause_requested && observation.state !== 'paused' && observation.state !== 'ended';
+      const pausePending =
+        record.pause_requested && observation.state !== 'paused' && observation.state !== 'ended';
       const state: CampaignState = pausePending ? 'pause_pending' : observation.state;
       const source: StatusSource = observation.source;
       return {
@@ -364,7 +391,8 @@ export function createManualAdsAdapter(options: ManualAdapterOptions): AdCampaig
       if (record === null) {
         return fail('EXTERNAL_ID_UNKNOWN', `no local record for ${ref.local_id}`);
       }
-      const withSpend = [...record.observations].reverse().find((o) => o.spend_minor !== null) ?? null;
+      const withSpend =
+        [...record.observations].reverse().find((o) => o.spend_minor !== null) ?? null;
       if (withSpend === null) {
         // Unknown is not zero. Reporting £0.00 here would be a fabricated success.
         return {
@@ -397,7 +425,10 @@ export function createManualAdsAdapter(options: ManualAdapterOptions): AdCampaig
 
       const observation = latestObservation(record);
       // Only an observation can say `paused`. Our own request cannot.
-      if (observation !== null && (observation.state === 'paused' || observation.state === 'ended')) {
+      if (
+        observation !== null &&
+        (observation.state === 'paused' || observation.state === 'ended')
+      ) {
         return {
           ok: true,
           ref: { ...ref, external_id: record.external_id },

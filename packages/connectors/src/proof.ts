@@ -159,7 +159,9 @@ function reportFor(source: ProofSource, result: ConnectorFetchResult): ProofSour
     connected: true,
     accountId: result.provider_account_id,
     accountMatchedConnection:
-      stored === null || result.provider_account_id === null ? null : stored === result.provider_account_id,
+      stored === null || result.provider_account_id === null
+        ? null
+        : stored === result.provider_account_id,
     evidenceCount: result.evidence.length,
     origins,
     gaps: result.gaps,
@@ -274,7 +276,12 @@ export async function runProof(input: ProofRunInput): Promise<ProofRunResult> {
   // `decideRunStatus` resolve an unproven check as UNVERIFIED rather than FAILED. A
   // contradiction still fails, because a contradiction is a fact and does not need a
   // deadline to become one.
-  const deadlineAt = new Date(Math.max(input.occurredAt.getTime() + rules.deadline_seconds * 1000, input.now.getTime() + 1000));
+  const deadlineAt = new Date(
+    Math.max(
+      input.occurredAt.getTime() + rules.deadline_seconds * 1000,
+      input.now.getTime() + 1000,
+    ),
+  );
   const hasWorkingEvidenceAccess = bundle.gaps.every((gap) => gap.code === 'NOT_FOUND');
   const decision = decideRunStatus(results, {
     deadlineAt,

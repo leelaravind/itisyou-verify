@@ -179,7 +179,8 @@ export interface PublishResult {
  * only `reconciled_provider_read` and `owner_confirmation` are permitted to carry
  * `active`. `local_intent` means "we asked for this", which proves nothing.
  */
-export type StatusSource = 'reconciled_provider_read' | 'owner_confirmation' | 'local_intent' | 'none';
+export type StatusSource =
+  'reconciled_provider_read' | 'owner_confirmation' | 'local_intent' | 'none';
 
 export interface StatusResult {
   readonly ok: true;
@@ -245,7 +246,9 @@ export function fail(code: AdsFailureCode, message: string): AdsFailure {
 }
 
 export function isAdsFailure(value: unknown): value is AdsFailure {
-  return typeof value === 'object' && value !== null && (value as { readonly ok?: unknown }).ok === false;
+  return (
+    typeof value === 'object' && value !== null && (value as { readonly ok?: unknown }).ok === false
+  );
 }
 
 /**
@@ -265,7 +268,11 @@ export function assertMinor(amount: number, field: string): AdsFailure | null {
 /** Freshness: an observation older than this is reported `stale`, never silently reused. */
 export const STATUS_FRESHNESS_SECONDS = 900;
 
-export function isStale(observedAt: string | null, now: Date, maxAgeSeconds = STATUS_FRESHNESS_SECONDS): boolean {
+export function isStale(
+  observedAt: string | null,
+  now: Date,
+  maxAgeSeconds = STATUS_FRESHNESS_SECONDS,
+): boolean {
   if (observedAt === null) return true;
   const observed = Date.parse(observedAt);
   if (Number.isNaN(observed)) return true;

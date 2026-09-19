@@ -121,7 +121,10 @@ export function normaliseEmailAddress(raw: string): string {
   let s = raw.trim();
   const angled = /<([^<>]*)>\s*$/.exec(s);
   if (angled && angled[1] !== undefined) s = angled[1];
-  s = s.trim().replace(/^"+|"+$/g, '').trim();
+  s = s
+    .trim()
+    .replace(/^"+|"+$/g, '')
+    .trim();
   const at = s.lastIndexOf('@');
   if (at <= 0 || at === s.length - 1) return s.toLowerCase();
   const local = s.slice(0, at);
@@ -240,7 +243,8 @@ function specProblem(spec: AssertionSpec): string | null {
       if (!Array.isArray(spec.expected) || spec.expected.length === 0) {
         return 'provider_status_in expects a non-empty array of statuses';
       }
-      if (spec.field !== 'message.status') return 'provider_status_in only addresses message.status';
+      if (spec.field !== 'message.status')
+        return 'provider_status_in only addresses message.status';
       const unknownStatus = spec.expected.find((s) => !EMAIL_STATUS_SET.has(s));
       if (unknownStatus !== undefined) return `unknown email status: ${unknownStatus}`;
       return null;
@@ -269,7 +273,9 @@ export function describeExpected(spec: AssertionSpec): string {
         : String(spec.expected);
     case 'one_of':
     case 'provider_status_in':
-      return Array.isArray(spec.expected) ? `one of: ${spec.expected.join(', ')}` : String(spec.expected);
+      return Array.isArray(spec.expected)
+        ? `one of: ${spec.expected.join(', ')}`
+        : String(spec.expected);
     case 'not_equals':
       return `anything other than ${String(spec.expected)}`;
     default:
@@ -303,10 +309,16 @@ function compareStrings(field: string, a: string, b: string): boolean {
  * field out. `EVIDENCE_UNAVAILABLE` means we could not reach the provider at all. Those are
  * two very different conversations to have with a customer, so they are two different codes.
  */
-function applyOperator(spec: AssertionSpec, value: string | null | undefined, occurredAt: Date): Verdict {
+function applyOperator(
+  spec: AssertionSpec,
+  value: string | null | undefined,
+  occurredAt: Date,
+): Verdict {
   if (spec.operator === 'exists') {
     if (present(value)) return SUPPORTED;
-    return contradicted(spec.field === 'record.correlation_id' ? 'CORRELATION_MISSING' : 'VALUE_MISMATCH');
+    return contradicted(
+      spec.field === 'record.correlation_id' ? 'CORRELATION_MISSING' : 'VALUE_MISMATCH',
+    );
   }
 
   // The provider answered but left this field out of its response.
@@ -315,12 +327,16 @@ function applyOperator(spec: AssertionSpec, value: string | null | undefined, oc
   switch (spec.operator) {
     case 'equals': {
       if (!present(value)) return contradicted('VALUE_MISMATCH');
-      return compareStrings(spec.field, value, String(spec.expected)) ? SUPPORTED : contradicted('VALUE_MISMATCH');
+      return compareStrings(spec.field, value, String(spec.expected))
+        ? SUPPORTED
+        : contradicted('VALUE_MISMATCH');
     }
     case 'not_equals': {
       // An empty value is not proof that the value is not the forbidden one.
       if (!present(value)) return unknown('EVIDENCE_NOT_RETURNED');
-      return compareStrings(spec.field, value, String(spec.expected)) ? contradicted('VALUE_MISMATCH') : SUPPORTED;
+      return compareStrings(spec.field, value, String(spec.expected))
+        ? contradicted('VALUE_MISMATCH')
+        : SUPPORTED;
     }
     case 'normalised_email_equals': {
       if (!present(value)) return contradicted('VALUE_MISMATCH');
@@ -384,7 +400,10 @@ function mapGapToReason(gap: EvidenceGap): ReasonCode {
   }
 }
 
-function connectedAccountFor(spec: AssertionSpec, ctx: EvaluationContext): string | null | undefined {
+function connectedAccountFor(
+  spec: AssertionSpec,
+  ctx: EvaluationContext,
+): string | null | undefined {
   return spec.source === 'crm_record' ? ctx.connectedCrmAccountId : ctx.connectedEmailAccountId;
 }
 
@@ -441,7 +460,10 @@ function emailCandidates(events: readonly EmailEventEvidence[], spec: AssertionS
  *     are engagement signals. None of them proves delivery, and a later `delivered` event
  *     may still arrive, so this is "we do not know yet", not "it failed".
  */
-function evaluateStatusLadder(spec: AssertionSpec, candidates: readonly Candidate[]): {
+function evaluateStatusLadder(
+  spec: AssertionSpec,
+  candidates: readonly Candidate[],
+): {
   verdict: Verdict;
   chosen: Candidate | null;
 } {
@@ -449,16 +471,21 @@ function evaluateStatusLadder(spec: AssertionSpec, candidates: readonly Candidat
   const match = candidates.find((c) => typeof c.value === 'string' && allowed.has(c.value));
   if (match) return { verdict: SUPPORTED, chosen: match };
 
-  const requiresDelivery = [...allowed].some((s) => DELIVERY_PROVING_STATUSES.has(s as EmailStatus));
+  const requiresDelivery = [...allowed].some((s) =>
+    DELIVERY_PROVING_STATUSES.has(s as EmailStatus),
+  );
   if (requiresDelivery) {
     const contradicting = candidates.find(
-      (c) => typeof c.value === 'string' && DELIVERY_CONTRADICTING_STATUSES.has(c.value as EmailStatus),
+      (c) =>
+        typeof c.value === 'string' && DELIVERY_CONTRADICTING_STATUSES.has(c.value as EmailStatus),
     );
-    if (contradicting) return { verdict: contradicted('STATUS_NOT_REACHED'), chosen: contradicting };
+    if (contradicting)
+      return { verdict: contradicted('STATUS_NOT_REACHED'), chosen: contradicting };
   }
 
   const anyContradicting = candidates.find(
-    (c) => typeof c.value === 'string' && DELIVERY_CONTRADICTING_STATUSES.has(c.value as EmailStatus),
+    (c) =>
+      typeof c.value === 'string' && DELIVERY_CONTRADICTING_STATUSES.has(c.value as EmailStatus),
   );
   if (!requiresDelivery && anyContradicting && !allowed.has(String(anyContradicting.value))) {
     // The rule wants some non-delivery status; a hard failure event still contradicts it.
@@ -469,7 +496,11 @@ function evaluateStatusLadder(spec: AssertionSpec, candidates: readonly Candidat
   return { verdict: unknown('STATUS_NOT_REACHED'), chosen: last ?? null };
 }
 
-function evaluateOne(spec: AssertionSpec, bundle: EvidenceBundle, ctx: EvaluationContext): AssertionResult {
+function evaluateOne(
+  spec: AssertionSpec,
+  bundle: EvidenceBundle,
+  ctx: EvaluationContext,
+): AssertionResult {
   // 1. A spec we cannot honestly act on never guesses.
   const problem = specProblem(spec);
   if (problem !== null) return buildResult(spec, unknown('RULE_UNSUPPORTED'), null, null, null);
@@ -483,7 +514,9 @@ function evaluateOne(spec: AssertionSpec, bundle: EvidenceBundle, ctx: Evaluatio
   }
 
   let candidates =
-    spec.source === 'crm_record' ? crmCandidates(bundle.crm, spec) : emailCandidates(bundle.email_events, spec);
+    spec.source === 'crm_record'
+      ? crmCandidates(bundle.crm, spec)
+      : emailCandidates(bundle.email_events, spec);
 
   // 3. Nothing to look at.
   if (candidates.length === 0) {
@@ -535,7 +568,13 @@ function evaluateOne(spec: AssertionSpec, bundle: EvidenceBundle, ctx: Evaluatio
       .map((c) => (typeof c.value === 'string' ? c.value : null))
       .filter((v): v is string => v !== null)
       .join(', ');
-    return buildResult(spec, verdict, observed === '' ? null : observed, chosen?.at ?? null, chosen?.ref ?? null);
+    return buildResult(
+      spec,
+      verdict,
+      observed === '' ? null : observed,
+      chosen?.at ?? null,
+      chosen?.ref ?? null,
+    );
   }
 
   let best: { verdict: Verdict; candidate: Candidate } | null = null;
@@ -564,7 +603,11 @@ function evaluateOne(spec: AssertionSpec, bundle: EvidenceBundle, ctx: Evaluatio
  */
 export function assertEvaluableRules(rules: WorkflowRules): void {
   if (rules.assertions.length === 0) {
-    throw new AppError(422, 'WORKFLOW_RULES_INVALID', 'This workflow has no checks, so there is nothing to verify.');
+    throw new AppError(
+      422,
+      'WORKFLOW_RULES_INVALID',
+      'This workflow has no checks, so there is nothing to verify.',
+    );
   }
   if (rules.assertions.length > LIMITS.MAX_ASSERTIONS_PER_WORKFLOW) {
     throw new AppError(
@@ -576,7 +619,11 @@ export function assertEvaluableRules(rules: WorkflowRules): void {
   const seen = new Set<string>();
   for (const a of rules.assertions) {
     if (seen.has(a.rule_id)) {
-      throw new AppError(422, 'WORKFLOW_RULES_INVALID', 'Two checks in this workflow share the same identifier.');
+      throw new AppError(
+        422,
+        'WORKFLOW_RULES_INVALID',
+        'Two checks in this workflow share the same identifier.',
+      );
     }
     seen.add(a.rule_id);
   }

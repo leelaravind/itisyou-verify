@@ -72,7 +72,8 @@ export function planCampaignCreation(request: CreateDraftRequest): RedditPlan {
       {
         method: 'POST',
         path: '/api/v3/ad_accounts/{ad_account_id}/ad_groups',
-        purpose: 'attach the total (lifetime) budget and the schedule — the only real ceiling we have',
+        purpose:
+          'attach the total (lifetime) budget and the schedule — the only real ceiling we have',
         body: {
           campaign_id: '{campaign_id}',
           goal_type: 'LIFETIME_SPEND',

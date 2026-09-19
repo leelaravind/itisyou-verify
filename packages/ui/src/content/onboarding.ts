@@ -24,7 +24,7 @@ export interface OnboardingGuideStep {
 }
 
 export const ONBOARDING_INTRO =
-  'This is not a one-click connection. You need an existing enquiry automation that already creates a HubSpot contact and sends an acknowledgement email through Resend — we verify that automation, we do not build it for you. Four things have to be true before we can check a single enquiry. Budget a real afternoon for this if you built the automation yourself; longer if you need someone else\'s help to change it.';
+  "This is not a one-click connection. You need an existing enquiry automation that already creates a HubSpot contact and sends an acknowledgement email through Resend — we verify that automation, we do not build it for you. Four things have to be true before we can check a single enquiry. Budget a real afternoon for this if you built the automation yourself; longer if you need someone else's help to change it.";
 
 export const ONBOARDING_GUIDE_STEPS: readonly OnboardingGuideStep[] = [
   {
@@ -57,7 +57,7 @@ export const ONBOARDING_GUIDE_STEPS: readonly OnboardingGuideStep[] = [
       'Confirm your automation writes a stable, unique value to that property for every enquiry it handles, before you send us the first signed event referencing it.',
     ],
     honestCaveat:
-      'We match a HubSpot record to your enquiry only by this property\'s value. If your automation is not reliably writing it, we cannot find the right record, and the run will come back unverified rather than a guess.',
+      "We match a HubSpot record to your enquiry only by this property's value. If your automation is not reliably writing it, we cannot find the right record, and the run will come back unverified rather than a guess.",
   },
   {
     id: 'connect-resend',
@@ -66,7 +66,7 @@ export const ONBOARDING_GUIDE_STEPS: readonly OnboardingGuideStep[] = [
     whatYouNeed: [
       'A Resend account that sends the acknowledgement email your automation triggers.',
       'A Resend API key (starts re_) from the Resend dashboard.',
-      'A webhook signing secret (starts whsec_) from the Resend dashboard\'s Webhooks section.',
+      "A webhook signing secret (starts whsec_) from the Resend dashboard's Webhooks section.",
     ],
     whatToDo: [
       'Create or copy an existing API key and paste it into your workspace.',

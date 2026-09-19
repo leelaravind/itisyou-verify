@@ -72,12 +72,7 @@ export function validateCsrfToken(
  * `__Host-` cookie without `Secure` is silently discarded by the browser.
  */
 export function csrfCookie(token: string, { secure = true }: { secure?: boolean } = {}): string {
-  const parts = [
-    `${csrfCookieName(secure)}=${token}`,
-    'Path=/',
-    'SameSite=Lax',
-    'Max-Age=43200',
-  ];
+  const parts = [`${csrfCookieName(secure)}=${token}`, 'Path=/', 'SameSite=Lax', 'Max-Age=43200'];
   if (secure) parts.push('Secure');
   return parts.join('; ');
 }

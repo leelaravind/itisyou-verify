@@ -39,18 +39,31 @@ const CLAIMS = 'apps/app/src/db/approvalClaims.ts';
 const ROUTER = 'apps/app/src/routes/owner/index.ts';
 const ENTRY = 'apps/app/src/index.ts';
 
-/** The body of one `async name(...)` method, to the matching closing brace at method depth. */
+/**
+ * The body of one `async name(...)` method, to its matching closing brace.
+ *
+ * It opens on the first brace that *ends a line*. That detail matters: a return type like
+ * `Promise<{ ok: true; … } | { ok: false; … }>` contains braces too, and taking the first
+ * `{` after the method name picks up the **type** rather than the body. The first run of
+ * OWNER-326 did exactly that and reported `cleanupPreview` as a silent success because it
+ * read `ok: true` out of the signature.
+ *
+ * That was a defect in this helper, not a finding, and it is recorded here rather than
+ * quietly fixed: a detector that cries wolf once is how a real finding gets dismissed the
+ * second time.
+ */
 function methodBody(src: string, name: string): string | null {
   const start = src.search(new RegExp(`\\n  async ${name}\\s*\\(`));
   if (start === -1) return null;
-  const open = src.indexOf('{', start);
-  if (open === -1) return null;
+  const offset = src.slice(start).search(/\{\r?\n/);
+  if (offset === -1) return null;
+  const bodyStart = start + offset;
   let depth = 0;
-  for (let i = open; i < src.length; i += 1) {
+  for (let i = bodyStart; i < src.length; i += 1) {
     if (src[i] === '{') depth += 1;
     else if (src[i] === '}') {
       depth -= 1;
-      if (depth === 0) return src.slice(open + 1, i);
+      if (depth === 0) return src.slice(bodyStart + 1, i);
     }
   }
   return null;

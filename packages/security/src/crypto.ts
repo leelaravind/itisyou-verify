@@ -164,10 +164,7 @@ export async function sealCredential(
  * an edited `key_version` — fails and throws. The thrown error never carries the
  * ciphertext, the key or the reason, because the reason is itself an oracle.
  */
-export function openCredential(
-  envelope: CredentialEnvelope,
-  options: OpenOptions,
-): Promise<string>;
+export function openCredential(envelope: CredentialEnvelope, options: OpenOptions): Promise<string>;
 /**
  * @deprecated There is no safe way to open a credential without the AAD you expect.
  * This overload exists only so the mistake fails loudly; it always rejects.

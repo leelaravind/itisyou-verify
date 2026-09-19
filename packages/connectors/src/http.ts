@@ -141,7 +141,10 @@ function isAbort(error: unknown): boolean {
 async function readBounded(response: Response, maxBytes: number): Promise<string> {
   const declared = response.headers.get('content-length');
   if (declared !== null && /^\d+$/.test(declared) && Number(declared) > maxBytes) {
-    throw new ConnectorTransportError('response_too_large', `content-length ${declared} > ${maxBytes}`);
+    throw new ConnectorTransportError(
+      'response_too_large',
+      `content-length ${declared} > ${maxBytes}`,
+    );
   }
   const body = response.body;
   if (body === null || typeof body.getReader !== 'function') {
@@ -236,7 +239,8 @@ export async function guardedFetch(request: GuardedRequest): Promise<GuardedResp
       response = await doFetch(current.href, init);
     } catch (error) {
       if (error instanceof ConnectorTransportError) throw error;
-      if (isAbort(error)) throw new ConnectorTransportError('timeout', `no response within ${timeoutMs}ms`);
+      if (isAbort(error))
+        throw new ConnectorTransportError('timeout', `no response within ${timeoutMs}ms`);
       // The thrown value may be anything, including something a provider library built
       // from a request that contained the token. Scrub before it becomes a message.
       const text = error instanceof Error ? error.message : String(error);
@@ -249,7 +253,8 @@ export async function guardedFetch(request: GuardedRequest): Promise<GuardedResp
         bodyText = await readBounded(response, maxBytes);
       } catch (error) {
         if (error instanceof ConnectorTransportError) throw error;
-        if (isAbort(error)) throw new ConnectorTransportError('timeout', `body not read within ${timeoutMs}ms`);
+        if (isAbort(error))
+          throw new ConnectorTransportError('timeout', `body not read within ${timeoutMs}ms`);
         throw new ConnectorTransportError('invalid_response', scrub(String(error)).slice(0, 200));
       }
       return {
@@ -263,15 +268,24 @@ export async function guardedFetch(request: GuardedRequest): Promise<GuardedResp
 
     const location = response.headers.get('location');
     if (location === null || location.trim() === '') {
-      throw new ConnectorTransportError('missing_location', `status ${response.status} without a Location`);
+      throw new ConnectorTransportError(
+        'missing_location',
+        `status ${response.status} without a Location`,
+      );
     }
     redirects += 1;
     if (redirects > MAX_REDIRECT_HOPS) {
-      throw new ConnectorTransportError('too_many_redirects', `stopped after ${MAX_REDIRECT_HOPS} hops`);
+      throw new ConnectorTransportError(
+        'too_many_redirects',
+        `stopped after ${MAX_REDIRECT_HOPS} hops`,
+      );
     }
     const next = checkRedirect(current, location, CONNECTOR_URL_GUARD_OPTIONS, redirects);
     if (!next.ok) {
-      throw new ConnectorTransportError('blocked_redirect', scrub(`${next.reason}: ${next.detail}`));
+      throw new ConnectorTransportError(
+        'blocked_redirect',
+        scrub(`${next.reason}: ${next.detail}`),
+      );
     }
     current = next.url;
   }
@@ -290,7 +304,8 @@ export function providerUrl(
   path: string,
   query?: Readonly<Record<string, string | number | undefined>>,
 ): string {
-  if (!path.startsWith('/')) throw new ConnectorTransportError('blocked_url', 'path must start with /');
+  if (!path.startsWith('/'))
+    throw new ConnectorTransportError('blocked_url', 'path must start with /');
   const url = new URL(PROVIDER_BASE_URL[provider] + path);
   if (query !== undefined) {
     for (const [key, value] of Object.entries(query)) {
@@ -313,7 +328,9 @@ export function pathSegment(value: string): string {
  * with something that is not JSON" is a provider-semantics problem the connector has to
  * classify, not a transport failure.
  */
-export function parseJsonBody(text: string): { ok: true; value: unknown } | { ok: false; detail: string } {
+export function parseJsonBody(
+  text: string,
+): { ok: true; value: unknown } | { ok: false; detail: string } {
   if (text.trim() === '') return { ok: false, detail: 'empty body' };
   try {
     return { ok: true, value: JSON.parse(text) as unknown };
@@ -330,7 +347,10 @@ export function parseJsonBody(text: string): { ok: true; value: unknown } | { ok
  * is accepted as a fallback — it is the provider telling us the length of the window we
  * just exhausted, which is the right thing to wait out.
  */
-export function readRetryAfterSeconds(headers: Headers | null | undefined, now: Date): number | null {
+export function readRetryAfterSeconds(
+  headers: Headers | null | undefined,
+  now: Date,
+): number | null {
   if (!headers) return null;
   const raw = headers.get('retry-after');
   if (raw !== null && raw.trim() !== '') {

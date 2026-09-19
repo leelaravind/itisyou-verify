@@ -98,12 +98,16 @@ export const COVERAGE_MODE_SUPPORT: Readonly<Record<CoverageMode, CoverageModeSu
 };
 
 /** The modes onboarding may offer. A05 reads this instead of listing the enum. */
-export const SELECTABLE_COVERAGE_MODES: readonly CoverageMode[] = Object.values(COVERAGE_MODE_SUPPORT)
+export const SELECTABLE_COVERAGE_MODES: readonly CoverageMode[] = Object.values(
+  COVERAGE_MODE_SUPPORT,
+)
   .filter((support) => support.selectable)
   .map((support) => support.mode);
 
 /** The modes anything in the system can actually deliver. */
-export const SUPPORTED_COVERAGE_MODES: readonly CoverageMode[] = Object.values(COVERAGE_MODE_SUPPORT)
+export const SUPPORTED_COVERAGE_MODES: readonly CoverageMode[] = Object.values(
+  COVERAGE_MODE_SUPPORT,
+)
   .filter((support) => support.supported)
   .map((support) => support.mode);
 
@@ -174,7 +178,9 @@ export interface CoverageDescription {
  * unsupported there is no argument to this function that produces the sentence "We find the
  * enquiries ourselves."
  */
-export function describeCoverage(workflow: { readonly coverage_mode: CoverageMode }): CoverageDescription {
+export function describeCoverage(workflow: {
+  readonly coverage_mode: CoverageMode;
+}): CoverageDescription {
   const requested = workflow.coverage_mode;
   const warning = coverageWarningFor(requested);
 
@@ -250,7 +256,10 @@ export function detectInactivity(input: InactivityInput): InactivityReport {
     };
   }
 
-  const elapsedSeconds = Math.max(0, Math.floor((now.getTime() - input.lastEventAt.getTime()) / 1000));
+  const elapsedSeconds = Math.max(
+    0,
+    Math.floor((now.getTime() - input.lastEventAt.getTime()) / 1000),
+  );
 
   if (elapsedSeconds > expectedActivity.window_seconds) {
     return {
@@ -265,7 +274,10 @@ export function detectInactivity(input: InactivityInput): InactivityReport {
     };
   }
 
-  if (input.eventsInWindow !== undefined && input.eventsInWindow < expectedActivity.minimum_events) {
+  if (
+    input.eventsInWindow !== undefined &&
+    input.eventsInWindow < expectedActivity.minimum_events
+  ) {
     return {
       inactive: true,
       severity: 'warning',
@@ -295,11 +307,7 @@ export interface RunCounts {
 }
 
 export type WorkflowHealthState =
-  | 'no_runs_received'
-  | 'awaiting_first_result'
-  | 'healthy'
-  | 'attention'
-  | 'degraded';
+  'no_runs_received' | 'awaiting_first_result' | 'healthy' | 'attention' | 'degraded';
 
 export interface WorkflowHealth {
   readonly state: WorkflowHealthState;

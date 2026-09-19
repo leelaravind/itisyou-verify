@@ -111,11 +111,15 @@ export interface LateEvidenceContext {
 
 export const LATE_EVIDENCE_REASON = {
   UNCHANGED: 'Later evidence did not change this result, so the original decision still stands.',
-  SUPERSEDED: 'Later evidence changed this result, so a new revision was recorded alongside the original.',
+  SUPERSEDED:
+    'Later evidence changed this result, so a new revision was recorded alongside the original.',
 } as const;
 
 /** True when any result's own provider timestamp falls after the deadline. */
-export function detectLateCompletion(results: readonly AssertionResult[], deadlineAt: Date): boolean {
+export function detectLateCompletion(
+  results: readonly AssertionResult[],
+  deadlineAt: Date,
+): boolean {
   const deadlineMs = deadlineAt.getTime();
   return results.some((r) => {
     if (r.observed_at === null) return false;

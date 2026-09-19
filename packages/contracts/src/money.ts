@@ -13,7 +13,9 @@ export interface Money {
 
 export function money(amount_minor: number, currency: Currency = 'GBP'): Money {
   if (!Number.isSafeInteger(amount_minor)) {
-    throw new TypeError(`money amount must be a safe integer minor unit, received: ${amount_minor}`);
+    throw new TypeError(
+      `money amount must be a safe integer minor unit, received: ${amount_minor}`,
+    );
   }
   return { amount_minor, currency };
 }
@@ -56,7 +58,11 @@ export interface BudgetAccountState {
 
 export function budgetAvailableMinor(s: BudgetAccountState): number {
   return (
-    s.authorised_limit_minor - s.spent_minor - s.reserved_minor - s.committed_minor - s.safety_buffer_minor
+    s.authorised_limit_minor -
+    s.spent_minor -
+    s.reserved_minor -
+    s.committed_minor -
+    s.safety_buffer_minor
   );
 }
 

@@ -40,7 +40,12 @@
  *     source that can support a rule about *when* delivery happened.
  */
 import { readSvixHeaders, sha256Hex, verifySvixSignature } from '@verify/security';
-import type { ConnectorErrorCode, EmailEventEvidence, EmailStatus, EvidenceGap } from '@verify/contracts';
+import type {
+  ConnectorErrorCode,
+  EmailEventEvidence,
+  EmailStatus,
+  EvidenceGap,
+} from '@verify/contracts';
 import {
   ConnectorTransportError,
   guardedFetch,
@@ -187,7 +192,8 @@ function resendCall(
   options: ResendFetchOptions,
 ): Promise<GuardedResponse> {
   const op = RESEND_OPERATIONS[operation];
-  if (op === undefined) throw new ConnectorTransportError('blocked_url', 'unknown resend operation');
+  if (op === undefined)
+    throw new ConnectorTransportError('blocked_url', 'unknown resend operation');
   const path = segment === undefined ? op.path : `${op.path}${pathSegment(segment)}`;
   return guardedFetch({
     url: providerUrl(RESEND_PROVIDER, path),
@@ -244,7 +250,10 @@ export function classifyResendError(input: ProviderErrorInput): ClassifiedError 
         case 'blocked_redirect':
         case 'missing_location':
         case 'too_many_redirects':
-          return classified('PROVIDER_UNAVAILABLE', `refused by the outbound guard: ${cause.reason}`);
+          return classified(
+            'PROVIDER_UNAVAILABLE',
+            `refused by the outbound guard: ${cause.reason}`,
+          );
         case 'network':
         case 'invalid_response':
         default:
@@ -262,7 +271,10 @@ export function classifyResendError(input: ProviderErrorInput): ClassifiedError 
     // `restricted_api_key` at 401 means the key can only send. That is a permission
     // problem the customer must fix, not an expired credential.
     if (name === 'restricted_api_key' || name === 'invalid_permission') {
-      return classified('PERMISSION_MISSING', detail === '' ? 'the API key may only send email' : detail);
+      return classified(
+        'PERMISSION_MISSING',
+        detail === '' ? 'the API key may only send email' : detail,
+      );
     }
     return classified('AUTH_EXPIRED', detail === '' ? 'API key rejected (401)' : detail);
   }
@@ -276,15 +288,25 @@ export function classifyResendError(input: ProviderErrorInput): ClassifiedError 
     return classified('NOT_FOUND', detail === '' ? 'not found (404)' : detail);
   }
   if (input.status === 400 || input.status === 422) {
-    return classified('UNSUPPORTED_CAPABILITY', detail === '' ? `rejected request (${input.status})` : detail);
+    return classified(
+      'UNSUPPORTED_CAPABILITY',
+      detail === '' ? `rejected request (${input.status})` : detail,
+    );
   }
   if (input.status >= 500 || input.status === 408 || input.status === 409) {
-    return classified('PROVIDER_UNAVAILABLE', detail === '' ? `provider error (${input.status})` : detail, retryAfter);
+    return classified(
+      'PROVIDER_UNAVAILABLE',
+      detail === '' ? `provider error (${input.status})` : detail,
+      retryAfter,
+    );
   }
   if (input.status >= 200 && input.status < 300) {
     return classified('PROVIDER_UNAVAILABLE', detail === '' ? 'unusable 200 response' : detail);
   }
-  return classified('PROVIDER_UNAVAILABLE', detail === '' ? `unexpected status ${input.status}` : detail);
+  return classified(
+    'PROVIDER_UNAVAILABLE',
+    detail === '' ? `unexpected status ${input.status}` : detail,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -330,7 +352,10 @@ function isoOrNull(value: unknown): string | null {
   const text =
     typeof value === 'number'
       ? value
-      : value.trim().replace(' ', 'T').replace(/([+-]\d{2})$/, '$1:00');
+      : value
+          .trim()
+          .replace(' ', 'T')
+          .replace(/([+-]\d{2})$/, '$1:00');
   const parsed = new Date(text);
   if (Number.isNaN(parsed.getTime())) return null;
   return parsed.toISOString();
@@ -353,13 +378,21 @@ export interface ResendNormaliseInput {
  * default branch that falls through to `delivered`, and there is no `catch` that swallows
  * a surprise into a pass.
  */
-export function normaliseResendEvent(raw: unknown, ctx: NormaliseContext): NormaliseResult<EmailEventEvidence> {
+export function normaliseResendEvent(
+  raw: unknown,
+  ctx: NormaliseContext,
+): NormaliseResult<EmailEventEvidence> {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
-    return { ok: false, gap: makeGap('email_event', 'INVALID_EVIDENCE', 'email payload was not an object') };
+    return {
+      ok: false,
+      gap: makeGap('email_event', 'INVALID_EVIDENCE', 'email payload was not an object'),
+    };
   }
   const input = raw as Partial<ResendNormaliseInput>;
   const status =
-    input.eventType !== undefined ? mapResendEventType(input.eventType) : mapResendLastEvent(input.lastEvent);
+    input.eventType !== undefined
+      ? mapResendEventType(input.eventType)
+      : mapResendLastEvent(input.lastEvent);
   if (status === null) {
     const label = String(input.eventType ?? input.lastEvent ?? 'missing').slice(0, 64);
     return {
@@ -372,15 +405,23 @@ export function normaliseResendEvent(raw: unknown, ctx: NormaliseContext): Norma
     };
   }
   const messageId =
-    typeof input.messageId === 'string' && input.messageId.trim() !== '' ? input.messageId.trim() : null;
+    typeof input.messageId === 'string' && input.messageId.trim() !== ''
+      ? input.messageId.trim()
+      : null;
   if (messageId === null) {
-    return { ok: false, gap: makeGap('email_event', 'INVALID_EVIDENCE', 'email payload carried no message id') };
+    return {
+      ok: false,
+      gap: makeGap('email_event', 'INVALID_EVIDENCE', 'email payload carried no message id'),
+    };
   }
   const occurredAt = isoOrNull(input.occurredAt);
   if (occurredAt === null) {
     // Without a timestamp we cannot say whether this happened inside the window, and a
     // delivery event outside the window is a different fact from one inside it.
-    return { ok: false, gap: makeGap('email_event', 'INVALID_EVIDENCE', 'email payload carried no usable timestamp') };
+    return {
+      ok: false,
+      gap: makeGap('email_event', 'INVALID_EVIDENCE', 'email payload carried no usable timestamp'),
+    };
   }
   const evidence: EmailEventEvidence = {
     kind: 'email_event',
@@ -499,7 +540,12 @@ export class ResendConnector implements WebhookCapableConnector {
     const accountId = await resendAccountFingerprint(input.credentials.accessToken);
     let response: GuardedResponse;
     try {
-      response = await resendCall('list_domains', input.credentials.accessToken, undefined, this.options);
+      response = await resendCall(
+        'list_domains',
+        input.credentials.accessToken,
+        undefined,
+        this.options,
+      );
     } catch (error) {
       return {
         ok: false,
@@ -544,9 +590,11 @@ export class ResendConnector implements WebhookCapableConnector {
     }
 
     const hasSecret =
-      typeof input.credentials.webhookSecret === 'string' && input.credentials.webhookSecret.startsWith('whsec_');
+      typeof input.credentials.webhookSecret === 'string' &&
+      input.credentials.webhookSecret.startsWith('whsec_');
     const webhookProven =
-      typeof input.connection.webhook_verified_at === 'string' && input.connection.webhook_verified_at !== '';
+      typeof input.connection.webhook_verified_at === 'string' &&
+      input.connection.webhook_verified_at !== '';
 
     // A stored signing secret is a promise that a webhook will work. It is not evidence
     // that one did. Until a correctly signed callback has actually arrived and been
@@ -679,7 +727,11 @@ export class ResendConnector implements WebhookCapableConnector {
       // key: an authoritative absence.
       return {
         kind: 'absent',
-        gap: makeGap('email_event', 'NOT_FOUND', 'Resend holds no message with the supplied id for this account'),
+        gap: makeGap(
+          'email_event',
+          'NOT_FOUND',
+          'Resend holds no message with the supplied id for this account',
+        ),
       };
     }
     if (response.status < 200 || response.status >= 300) {
@@ -694,11 +746,23 @@ export class ResendConnector implements WebhookCapableConnector {
       };
     }
     const parsed = parseJsonBody(response.bodyText);
-    if (!parsed.ok || typeof parsed.value !== 'object' || parsed.value === null || Array.isArray(parsed.value)) {
-      return { kind: 'error', error: classified('PROVIDER_UNAVAILABLE', 'retrieve returned 200 with an unusable body') };
+    if (
+      !parsed.ok ||
+      typeof parsed.value !== 'object' ||
+      parsed.value === null ||
+      Array.isArray(parsed.value)
+    ) {
+      return {
+        kind: 'error',
+        error: classified('PROVIDER_UNAVAILABLE', 'retrieve returned 200 with an unusable body'),
+      };
     }
     const body = parsed.value as Record<string, unknown>;
-    if (typeof body['name'] === 'string' && typeof body['message'] === 'string' && body['id'] === undefined) {
+    if (
+      typeof body['name'] === 'string' &&
+      typeof body['message'] === 'string' &&
+      body['id'] === undefined
+    ) {
       // A 200 carrying Resend's error envelope. Answered, but not with an answer.
       return {
         kind: 'error',
@@ -736,7 +800,12 @@ export class ResendConnector implements WebhookCapableConnector {
 
     const decoded = new TextDecoder().decode(input.rawBody);
     const parsed = parseJsonBody(decoded);
-    if (!parsed.ok || typeof parsed.value !== 'object' || parsed.value === null || Array.isArray(parsed.value)) {
+    if (
+      !parsed.ok ||
+      typeof parsed.value !== 'object' ||
+      parsed.value === null ||
+      Array.isArray(parsed.value)
+    ) {
       return { valid: false, reason: 'body_not_json' };
     }
     const body = parsed.value as Record<string, unknown>;
@@ -765,9 +834,21 @@ export class ResendConnector implements WebhookCapableConnector {
     );
 
     if (!normalised.ok) {
-      return { valid: true, evidence: [], gaps: [normalised.gap], event_id: eventId, event_type: eventType };
+      return {
+        valid: true,
+        evidence: [],
+        gaps: [normalised.gap],
+        event_id: eventId,
+        event_type: eventType,
+      };
     }
-    return { valid: true, evidence: [normalised.evidence], gaps: [], event_id: eventId, event_type: eventType };
+    return {
+      valid: true,
+      evidence: [normalised.evidence],
+      gaps: [],
+      event_id: eventId,
+      event_type: eventType,
+    };
   }
 
   async revokeOrDisconnect(): Promise<RevokeResult> {

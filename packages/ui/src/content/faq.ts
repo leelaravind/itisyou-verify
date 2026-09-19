@@ -27,7 +27,7 @@ export const FAQ_ENTRIES: readonly FaqEntry[] = [
     id: 'run-never-started',
     question: 'Can you tell me when a run never started?',
     answer:
-      "Only if your workflow is set up with an independently sourced trigger, rather than relying on your own automation to call us. By default, we only find out about an enquiry when your automation sends us a signed event — if it never sends one, we have nothing to check, and we show nothing rather than treating silence as a pass. Which coverage mode your workflow uses is always shown next to its results, so you know which kind of blind spot you still have.",
+      'Only if your workflow is set up with an independently sourced trigger, rather than relying on your own automation to call us. By default, we only find out about an enquiry when your automation sends us a signed event — if it never sends one, we have nothing to check, and we show nothing rather than treating silence as a pass. Which coverage mode your workflow uses is always shown next to its results, so you know which kind of blind spot you still have.',
   },
   {
     id: 'store-customer-data',
@@ -73,7 +73,7 @@ export const FAQ_ENTRIES: readonly FaqEntry[] = [
   },
   {
     id: 'accepted-vs-delivered',
-    question: "What's the difference between an email being \"accepted\" and being \"delivered\"?",
+    question: 'What\'s the difference between an email being "accepted" and being "delivered"?',
     answer:
       '"Accepted" means Resend, the sending service, took the message. "Delivered" means the receiving mail server actually took it in. Those are different claims and we never merge them — a rule that requires delivery is not satisfied by acceptance alone. We also never treat an email being opened as proof anyone read it.',
   },
@@ -87,7 +87,7 @@ export const FAQ_ENTRIES: readonly FaqEntry[] = [
     id: 'what-is-coverage-mode',
     question: 'What does "coverage mode" mean?',
     answer:
-      "It tells you how a workflow finds out about a run. \"Customer triggered\" (the default) means we only see an enquiry when your automation tells us about it — so we can't see a run that never started at all. \"Independently sourced\" means the trigger comes from somewhere outside your automation, so a run that never started can itself be shown as a gap. It's always shown next to your results, so you know which kind applies.",
+      'It tells you how a workflow finds out about a run. "Customer triggered" (the default) means we only see an enquiry when your automation tells us about it — so we can\'t see a run that never started at all. "Independently sourced" means the trigger comes from somewhere outside your automation, so a run that never started can itself be shown as a gap. It\'s always shown next to your results, so you know which kind applies.',
   },
   {
     id: 'how-long-evidence-kept',
@@ -104,7 +104,7 @@ export const FAQ_ENTRIES: readonly FaqEntry[] = [
     id: 'connection-expires',
     question: 'What happens if my HubSpot or Resend connection expires or loses access?',
     answer:
-      "Runs waiting on that connection show as unverified with the specific reason, rather than a false pass or fail, until you reconnect. We tell you which connection needs attention rather than leaving you to guess.",
+      'Runs waiting on that connection show as unverified with the specific reason, rather than a false pass or fail, until you reconnect. We tell you which connection needs attention rather than leaving you to guess.',
   },
   {
     id: 'ai-decide-pass-fail',

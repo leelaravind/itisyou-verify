@@ -9,7 +9,11 @@ export const sourceEventSchema = z
   .object({
     schema_version: z.literal(1),
     /** Customer-chosen, stable per business event. Duplicates return the existing run. */
-    event_id: z.string().min(8).max(128).regex(/^[A-Za-z0-9._:-]+$/),
+    event_id: z
+      .string()
+      .min(8)
+      .max(128)
+      .regex(/^[A-Za-z0-9._:-]+$/),
     workflow_id: z.string().min(1).max(64),
     /** ISO-8601 UTC. Bounded freshness is enforced by the handler, not here. */
     occurred_at: z.string().datetime({ offset: true }),

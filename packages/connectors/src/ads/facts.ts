@@ -52,11 +52,13 @@ export const MICROSOFT_ADS_FACTS: PlatformCapFacts = {
   minimum_lifetime_minor: null,
   minimum_monthly_minor: 500,
   currency: 'GBP',
-  source_url: 'https://learn.microsoft.com/en-us/advertising/guides/budget-bid-strategies?view=bingads-13',
+  source_url:
+    'https://learn.microsoft.com/en-us/advertising/guides/budget-bid-strategies?view=bingads-13',
   checked_on: CHECKED,
   primary_source: true,
   minimums_provenance: 'primary',
-  minimums_source_url: 'https://learn.microsoft.com/en-us/advertising/guides/currencies?view=bingads-13',
+  minimums_source_url:
+    'https://learn.microsoft.com/en-us/advertising/guides/currencies?view=bingads-13',
 };
 
 /**
@@ -67,7 +69,8 @@ export const MICROSOFT_ADS_FACTS: PlatformCapFacts = {
 export const LINKEDIN_FACTS: PlatformCapFacts = {
   platform: 'linkedin',
   cap_enforcement: 'total_budget',
-  cap_behaviour: 'Your total spend will never exceed the lifetime budget of your campaign or ad set.',
+  cap_behaviour:
+    'Your total spend will never exceed the lifetime budget of your campaign or ad set.',
   minimum_daily_minor: 1_000,
   minimum_lifetime_minor: 10_000,
   minimum_monthly_minor: null,
@@ -106,7 +109,8 @@ export const META_FACTS: PlatformCapFacts = {
   // be used as a GBP 15 ceiling. On Meta the only usable ceiling is the ad-set lifetime
   // budget. The $1/day floor remains secondary.
   minimums_provenance: 'secondary',
-  minimums_source_url: 'https://developers.facebook.com/docs/marketing-api/reference/ad-campaign-group/',
+  minimums_source_url:
+    'https://developers.facebook.com/docs/marketing-api/reference/ad-campaign-group/',
 };
 
 /**

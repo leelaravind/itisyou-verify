@@ -21,7 +21,12 @@ export {
   type LoadingStateOptions,
 } from './states.js';
 export { Breadcrumb, Pagination, type Crumb, type PaginationOptions } from './navigation.js';
-export { StatusBadge, AssertionBadge, type StatusBadgeOptions, type AssertionBadgeOptions } from './statusBadge.js';
+export {
+  StatusBadge,
+  AssertionBadge,
+  type StatusBadgeOptions,
+  type AssertionBadgeOptions,
+} from './statusBadge.js';
 export {
   iconAlert,
   iconArrow,

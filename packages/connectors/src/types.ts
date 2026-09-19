@@ -260,8 +260,7 @@ export interface NormaliseContext {
 }
 
 export type NormaliseResult<E extends Evidence = Evidence> =
-  | { readonly ok: true; readonly evidence: E }
-  | { readonly ok: false; readonly gap: EvidenceGap };
+  { readonly ok: true; readonly evidence: E } | { readonly ok: false; readonly gap: EvidenceGap };
 
 // ---------------------------------------------------------------------------
 // Webhooks
@@ -390,7 +389,11 @@ export function makeAuthoritativeAbsenceGap(
   if (proof.status < 200 || proof.status >= 300) {
     // A non-2xx response is not an authoritative answer about existence. Refuse, loudly,
     // rather than downgrade to something that might read as a failure at the deadline.
-    return makeGap(source, 'PROVIDER_UNAVAILABLE', `absence claimed from status ${proof.status}; refused`);
+    return makeGap(
+      source,
+      'PROVIDER_UNAVAILABLE',
+      `absence claimed from status ${proof.status}; refused`,
+    );
   }
   return makeGap(source, 'NOT_FOUND', proof.detail);
 }
@@ -412,7 +415,9 @@ export function toEvidenceBundle(results: readonly ConnectorFetchResult[]): Evid
     }
     gaps.push(...result.gaps);
   }
-  emailEvents.sort((a, b) => (a.occurred_at < b.occurred_at ? -1 : a.occurred_at > b.occurred_at ? 1 : 0));
+  emailEvents.sort((a, b) =>
+    a.occurred_at < b.occurred_at ? -1 : a.occurred_at > b.occurred_at ? 1 : 0,
+  );
   return { crm, email_events: emailEvents, gaps };
 }
 

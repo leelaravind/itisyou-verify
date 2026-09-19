@@ -112,11 +112,7 @@ export {
   type ResendFetchOptions,
 } from './resend.js';
 
-export {
-  getConnector,
-  isSupportedProvider,
-  type ConnectorRuntimeOptions,
-} from './registry.js';
+export { getConnector, isSupportedProvider, type ConnectorRuntimeOptions } from './registry.js';
 
 export {
   CREDENTIAL_PURPOSE,

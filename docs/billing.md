@@ -593,11 +593,37 @@ guards, both in `apps/app/src/billing/state.ts`:
 
 ### Reconciliation
 
-`reconcile.ts` runs on a schedule, compares each stored subscription against Stripe's own
-record, and produces a **typed list of discrepancies for the owner**. It does not repair
-anything. A reconciliation that silently fixes state hides the webhook bug that caused the
-drift, and for a cancelled subscription would be exactly the resurrection the design
-exists to prevent (`BILL-151`, `BILL-152`).
+`reconcile.ts` compares each stored subscription against Stripe's own record and produces a
+**typed list of discrepancies for the owner**. It reports, and repairs exactly one thing.
+
+Reporting is the rule: a reconciliation that silently fixes state hides the webhook bug
+that caused the drift, and for a cancelled subscription would be the resurrection the whole
+design exists to prevent (`BILL-151`, `BILL-152`, `BILL-274`).
+
+**The one exception is payment recovery**, because the founder's requirement 4 names two
+ways verification may resume — a signature-verified webhook, *or* a scheduled read against
+Stripe's own records — and `PAYMENT_RECOVERY_POLICY.resumeRequires` promises the customer
+exactly that. A reconciliation that could only detect would make that a published promise
+with nothing behind it. So when we hold a payment-paused status and Stripe says the
+subscription is served, we apply it (`BILL-271`). The repair is deliberately narrow:
+
+- **One direction only.** `past_due`/`unpaid`/`paused` → `active`/`trialing`. Drift the
+  other way is reported and never applied (`BILL-273`), because "Stripe says cancelled" is
+  exactly where our own bug should stay visible.
+- **Through the same guards.** It goes through `reconcileSubscription()`, so a cancelled
+  subscription is never resurrected however Stripe answers (`BILL-274`).
+- **Reported, not silent.** Every recovery appears in the report's `recovered` list; a state
+  change made by a background job must be accountable to a person afterwards.
+- **Dry-runnable.** `applyPaymentRecovery: false` reports without applying (`BILL-275`).
+
+One subtlety worth knowing about: the recovery stamps `provider_event_created` with
+`max(readTime, storedValue)`. The monotonic guard exists to stop out-of-order *events*
+overwriting newer state; a direct read is not an event but a point-in-time query of current
+truth, so letting a stale-event rule veto it is a category error. Without the `max`, clock
+skew between Stripe's `created` and our own clock would make a workspace permanently
+unrecoverable by reconciliation, silently. My own test caught this — and a neighbouring case
+had been passing vacuously because it asserted counters without first asserting that the
+recovery happened at all.
 
 Discrepancy kinds: `status_mismatch`, `price_mismatch`, `period_end_mismatch`,
 `cancel_at_period_end_mismatch`, `missing_at_provider`, `environment_mismatch`,
@@ -606,7 +632,83 @@ act on.
 
 ---
 
-## 9. Turning it on
+## 9. What runs it — the wiring
+
+Correct logic with no caller is not a working feature. Everything below exists because an
+audit found the payment-recovery logic fully tested and completely unreachable.
+
+### The scheduler: one call per tick
+
+A03's tick calls one function and does nothing else. The cadence lives here because it is a
+money decision, not a scheduling one:
+
+```ts
+import { runBillingMaintenance, maintenanceNotifications } from './billing/scheduled.js';
+
+const report = await runBillingMaintenance(billingRuntime);
+for (const notification of maintenanceNotifications(report)) {
+  await sendNotification(notification, notificationDeps);
+}
+```
+
+| Job | Cadence | Why |
+| --- | --- | --- |
+| Payment-recovery expiry (day 8) | hourly, at minute `RECOVERY_SWEEP_MINUTE` (7) | The window is seven *days*. Running it every minute is 60× the scans for at most an hour's less latency on a boundary measured in days. Idempotent, so cadence only affects latency. |
+| Subscription reconciliation | every `RECONCILE_EVERY_MINUTES` (15) | One provider call per subscription, so it is the expensive one — but it is also the safety net for a missed webhook and the second route by which a payment resumes, so hours of latency would be felt by a paying customer. |
+
+`runBillingMaintenance` **never throws**: a cron tick that throws takes every other job in
+the same tick with it, so each job is isolated and its failure is reported in `failures`
+(`BILL-279`). It returns notifications rather than sending them, so the scheduler keeps one
+place where outbound mail happens (`BILL-280`).
+
+### The admission gate: one call per event
+
+`checkAdmission()` in `apps/app/src/billing/admission.ts` answers the whole money question
+for an arriving event and returns a verdict the route acts on without knowing any billing
+rules.
+
+```ts
+const verdict = await checkAdmission(billingRuntime, { workspaceId });
+if (!verdict.admit) return c.json({ error: { code: verdict.refusal, message: verdict.customerMessage } }, verdict.httpStatus);
+await sourceEvents.admitOnce(db, { ...params, billingPeriod: verdict.billingPeriod });
+```
+
+**It belongs at the events route, before `admitOnce` — not inside it.** Three reasons:
+
+1. `admitOnce` answers a different question. Its conditional `UPDATE` is the atomic gate on
+   the *allowance*, which is what stops two simultaneous events sharing the last unit.
+   Entitlement is the prior question of whether we should be doing work for this workspace
+   at all, and answering it inside the reservation would mean taking a unit from a workspace
+   we have already decided not to serve.
+2. The refusals differ and the customer needs to know which. "At your allowance" is a
+   429 about this period; "your payment failed" is a 402 about the account (`BILL-263`,
+   `BILL-266`).
+3. `admitOnce` needs the period key as an argument, and `checkAdmission` returns it from
+   `period.ts`. That is the other half of the A13-010 fix: the admission side can no longer
+   derive its own spelling (`BILL-262`).
+
+The gate reserves nothing (`BILL-270`). `admitOnce` may still refuse if the last unit went
+to someone else in between; that race is correct — the gate is the policy answer, the
+reservation is the arbiter.
+
+Retries, provider callbacks and internal recovery are admitted **even while new work is
+paused** (`BILL-265`). They belong to a unit already paid for, and refusing them would
+strand work the customer was charged for.
+
+### The pre-checkout page
+
+A05's review-and-price page calls `preCheckoutPanel()` and renders:
+
+- `panel.facts` as a definition list.
+- `panel.sections` in order, respecting each `style` (`list` → bullets, `prose` →
+  paragraphs). The ids are `allowance`, `payment-recovery`, `payment-recovery-pauses`,
+  `payment-recovery-preserved`, `payment-recovery-after`, `cancellation`, `refunds`.
+- `panel.mustBeVisible` **not** behind a disclosure control — the founder's requirement is
+  that the policy is displayed, not discovered afterwards.
+
+Nothing is retyped: the lines are the policy arrays by identity (`BILL-240`).
+
+## 10. Turning it on
 
 ### Mounting the webhook route
 
@@ -723,7 +825,7 @@ change to the policy cannot leave the page saying something the code no longer d
 control: the price, the allowance, the recovery window and that cancellation is always
 available (`BILL-239`).
 
-## 10. What is not proven
+## 11. What is not proven
 
 - **No call has ever been made to Stripe from this repository.** There is no key here, and
   a test-mode call would still create real objects in the owner's account. Every test
@@ -772,3 +874,15 @@ available (`BILL-239`).
 - **Nothing is mounted yet.** `apps/app/src/index.ts` does not route the webhook or the
   provisioning endpoint. Mounting is the lead's, and the moment to confirm
   `STRIPE_WEBHOOK_UNKNOWN_KEY` is provisioned in both environments.
+- **Three wirings are specified but not yet connected**, and until they are, the feature
+  they enable is not working however well it is tested:
+  - `runBillingMaintenance()` needs a call from A03's tick, or day 8 never arrives and
+    reconciliation never resumes anyone (§9).
+  - `checkAdmission()` needs a call from the events route, or a failed payment pauses
+    nothing (§9).
+  - `preCheckoutPanel()` needs a call from A05's review-and-price page, or the policy is
+    discovered after payment rather than displayed before it (§9).
+- **A13-010 is not closed.** `period.ts` is the single key function, but two call sites still
+  use the old calendar-month one — `scheduler/observe.ts:502` (A03) and
+  `db/customerPort.ts:641` (A02). Until both call `period.ts`, allowances still never settle
+  and a workspace at its limit still reports itself clear.

@@ -101,13 +101,26 @@ export interface ProviderSetupGuide {
 const HUBSPOT_GUIDE: ProviderSetupGuide = Object.freeze({
   provider: 'hubspot',
   displayName: 'HubSpot',
-  purpose: 'So we can read the CRM record your automation is supposed to create, directly from HubSpot.',
+  purpose:
+    'So we can read the CRM record your automation is supposed to create, directly from HubSpot.',
   instructions: Object.freeze([
     { step: 1, text: 'In HubSpot, go to Settings, then Integrations, then Private Apps.' },
-    { step: 2, text: 'Create a private app. Call it something you will recognise later, such as "ITISYOU Verify".' },
-    { step: 3, text: `On the Scopes tab, tick exactly one scope: ${HUBSPOT_READ_SCOPE}. Do not tick any write scope — we have no use for one.` },
-    { step: 4, text: 'Create the app, then copy the access token from the Auth tab. It starts pat-.' },
-    { step: 5, text: 'Paste it below. We will check it against HubSpot straight away and tell you what we found.' },
+    {
+      step: 2,
+      text: 'Create a private app. Call it something you will recognise later, such as "ITISYOU Verify".',
+    },
+    {
+      step: 3,
+      text: `On the Scopes tab, tick exactly one scope: ${HUBSPOT_READ_SCOPE}. Do not tick any write scope — we have no use for one.`,
+    },
+    {
+      step: 4,
+      text: 'Create the app, then copy the access token from the Auth tab. It starts pat-.',
+    },
+    {
+      step: 5,
+      text: 'Paste it below. We will check it against HubSpot straight away and tell you what we found.',
+    },
   ]),
   fields: Object.freeze([
     {
@@ -149,9 +162,13 @@ const HUBSPOT_GUIDE: ProviderSetupGuide = Object.freeze({
 const RESEND_GUIDE: ProviderSetupGuide = Object.freeze({
   provider: 'resend',
   displayName: 'Resend',
-  purpose: 'So we can see whether the acknowledgement email actually reached the recipient, from Resend rather than from your automation.',
+  purpose:
+    'So we can see whether the acknowledgement email actually reached the recipient, from Resend rather than from your automation.',
   instructions: Object.freeze([
-    { step: 1, text: 'In Resend, open API Keys and create a key with Full access. Read the note above first — Resend has no read-only option.' },
+    {
+      step: 1,
+      text: 'In Resend, open API Keys and create a key with Full access. Read the note above first — Resend has no read-only option.',
+    },
     { step: 2, text: 'Copy the key. It starts re_.' },
     {
       step: 3,
@@ -162,7 +179,10 @@ const RESEND_GUIDE: ProviderSetupGuide = Object.freeze({
       text: 'Subscribe that endpoint to email.sent, email.delivered, email.delivery_delayed, email.bounced, email.complained and email.failed.',
     },
     { step: 5, text: 'Copy the signing secret for that endpoint. It starts whsec_.' },
-    { step: 6, text: 'Paste both below. The connection stays unfinished until a correctly signed message actually arrives — we will not mark it working on our own say-so.' },
+    {
+      step: 6,
+      text: 'Paste both below. The connection stays unfinished until a correctly signed message actually arrives — we will not mark it working on our own say-so.',
+    },
   ]),
   fields: Object.freeze([
     {

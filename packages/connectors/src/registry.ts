@@ -57,6 +57,8 @@ export function getConnector(provider: ProviderId, options?: ConnectorRuntimeOpt
     ...(options.jitterSeed === undefined ? {} : { jitterSeed: options.jitterSeed }),
     ...(options.timeoutMs === undefined ? {} : { timeoutMs: options.timeoutMs }),
     ...(options.maxBytes === undefined ? {} : { maxBytes: options.maxBytes }),
-    ...(options.toleranceSeconds === undefined ? {} : { toleranceSeconds: options.toleranceSeconds }),
+    ...(options.toleranceSeconds === undefined
+      ? {}
+      : { toleranceSeconds: options.toleranceSeconds }),
   });
 }

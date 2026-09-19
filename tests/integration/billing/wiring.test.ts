@@ -210,7 +210,12 @@ describe('PR-4 reconciliation can actually resume', () => {
     await openAllowance(harness, { consumed: 12, reserved: 1 });
     providerSays(harness, 'active');
 
-    await reconcileSubscriptions(harness);
+    const report = await reconcileSubscriptions(harness);
+    // Assert the recovery actually happened first — otherwise this case passes vacuously
+    // when nothing is recovered, which is exactly how it passed while BILL-271 failed.
+    expect(report.recovered).toHaveLength(1);
+    expect((await harness.data.findSubscriptionForWorkspace(WS, 'test'))?.status).toBe('active');
+
     const allowances = harness.data.debug.allowances();
     expect(allowances).toHaveLength(1);
     // Resumed on the allowance they already had, with what they had used still used.

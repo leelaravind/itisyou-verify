@@ -24,9 +24,11 @@ export function Breadcrumb(items: readonly Crumb[]): Html {
         // text. A breadcrumb is navigation, so losing one link costs the reader nothing.
         const target = isLast ? null : safeHref(item.href);
         return html`<li>
-          ${target === null
-            ? html`<span ${attrs({ 'aria-current': isLast ? 'page' : null })}>${item.label}</span>`
-            : html`<a ${attrs({ href: target })}>${item.label}</a>`}
+          ${
+            target === null
+              ? html`<span ${attrs({ 'aria-current': isLast ? 'page' : null })}>${item.label}</span>`
+              : html`<a ${attrs({ href: target })}>${item.label}</a>`
+          }
         </li>`;
       })}
     </ol>
@@ -54,12 +56,16 @@ export function Pagination(options: PaginationOptions): Html {
     return html`<p class="pager__status">${options.shown} ${options.noun} — this is all of them</p>`;
   }
   return html`<nav class="pager" aria-label="${options.label ?? 'Pagination'}">
-    ${newer === null
-      ? html`<span class="btn" aria-disabled="true">Newer</span>`
-      : html`<a ${attrs({ class: 'btn', href: newer, rel: 'prev' })}>Newer</a>`}
+    ${
+      newer === null
+        ? html`<span class="btn" aria-disabled="true">Newer</span>`
+        : html`<a ${attrs({ class: 'btn', href: newer, rel: 'prev' })}>Newer</a>`
+    }
     <p class="pager__status">Showing ${options.shown} ${options.noun}</p>
-    ${older === null
-      ? html`<span class="btn" aria-disabled="true">Older</span>`
-      : html`<a ${attrs({ class: 'btn', href: older, rel: 'next' })}>Older</a>`}
+    ${
+      older === null
+        ? html`<span class="btn" aria-disabled="true">Older</span>`
+        : html`<a ${attrs({ class: 'btn', href: older, rel: 'next' })}>Older</a>`
+    }
   </nav>`;
 }

@@ -664,9 +664,7 @@ export function createStripeClient(options: StripeClientOptions): StripeClient {
       if (!Number.isSafeInteger(params.amountMinor) || params.amountMinor <= 0) {
         throw new StripeError('configuration', 'Refund amount must be a positive integer.');
       }
-      if (
-        (params.paymentIntentId === undefined) === (params.chargeId === undefined)
-      ) {
+      if ((params.paymentIntentId === undefined) === (params.chargeId === undefined)) {
         throw new StripeError(
           'configuration',
           'A refund needs exactly one of paymentIntentId or chargeId.',

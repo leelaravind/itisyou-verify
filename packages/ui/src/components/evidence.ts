@@ -91,14 +91,18 @@ export function AssertionRow(options: AssertionRowOptions): Html {
       <p class="small muted">${explanation.sentence}</p>
       ${explanation.detail === null ? null : html`<p class="small mono">${explanation.detail}</p>`}
       ${NextStep(explanation.next_step)}
-      ${options.reasonCode === undefined && options.observedAt === undefined
-        ? null
-        : html`<p class="micro mono">
+      ${
+        options.reasonCode === undefined && options.observedAt === undefined
+          ? null
+          : html`<p class="micro mono">
             ${options.reasonCode === undefined ? null : html`reason ${options.reasonCode}`}
-            ${options.observedAt === undefined || options.observedAt === null
-              ? null
-              : html` · observed ${options.observedAt}`}
-          </p>`}
+            ${
+              options.observedAt === undefined || options.observedAt === null
+                ? null
+                : html` · observed ${options.observedAt}`
+            }
+          </p>`
+      }
     </div>
   </div>`;
 }
@@ -143,14 +147,16 @@ export interface WorkflowHealthLike {
 export function HealthReadout(health: WorkflowHealthLike): Html {
   const hasScore = health.verified_percentage !== null;
   return html`<div ${attrs({ class: 'stack-sm', 'data-health-state': health.state })}>
-    ${hasScore
-      ? html`<p class="score" data-score="${String(health.verified_percentage)}">
+    ${
+      hasScore
+        ? html`<p class="score" data-score="${String(health.verified_percentage)}">
             ${String(health.verified_percentage)}<span class="faint">%</span>
           </p>
           <div class="meter" role="img" aria-label="${String(health.verified_percentage)}% of ${health.decided_runs} decided runs were verified">
             <div class="${meterFillClass(health.verified_percentage)}"></div>
           </div>`
-      : html`<p class="score score--none" data-score="none">${health.headline}</p>`}
+        : html`<p class="score score--none" data-score="none">${health.headline}</p>`
+    }
     ${hasScore ? html`<p class="small"><strong>${health.headline}</strong></p>` : null}
     <p class="small muted">${health.detail}</p>
     <p class="micro mono">${health.total_runs} runs received · ${health.decided_runs} decided</p>
@@ -199,13 +205,15 @@ export function CoverageNotice(coverage: CoverageLike): Html {
     <p class="eyebrow">Coverage — ${coverage.mode.replace(/_/g, ' ')}</p>
     <p class="small"><strong>${coverage.headline}</strong></p>
     <p class="small muted">${coverage.detail}</p>
-    ${coverage.limitation === null
-      ? null
-      : Callout({
-          tone: 'limit',
-          title: 'What this cannot see',
-          body: html`<p data-coverage-limitation>${coverage.limitation}</p>`,
-        })}
+    ${
+      coverage.limitation === null
+        ? null
+        : Callout({
+            tone: 'limit',
+            title: 'What this cannot see',
+            body: html`<p data-coverage-limitation>${coverage.limitation}</p>`,
+          })
+    }
   </div>`;
 }
 

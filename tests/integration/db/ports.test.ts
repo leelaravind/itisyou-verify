@@ -31,6 +31,8 @@ import {
 } from './harness';
 
 const NOW = new Date('2026-09-19T10:00:00.000Z');
+/** A paid period that ends on the 19th. Never a calendar month — see A13-010. */
+const ALLOWANCE_PERIOD = '2026-10-19';
 const LATER = '2026-09-19T11:00:00.000Z';
 
 function fakeEnv(db: unknown): Env {
@@ -245,8 +247,10 @@ describe('BillingDataPort against D1', () => {
 
   beforeEach(() => {
     h = createTestDb();
-    a = seedWorkspace(h, 'alpha', { runLimit: 2 });
-    b = seedWorkspace(h, 'beta', { runLimit: 2 });
+    // An allowance period key is the paid period END (`YYYY-MM-DD`), never a calendar
+    // month. The port now throws on a `YYYY-MM`, which is the A13-010 guard doing its job.
+    a = seedWorkspace(h, 'alpha', { runLimit: 2, billingPeriod: ALLOWANCE_PERIOD });
+    b = seedWorkspace(h, 'beta', { runLimit: 2, billingPeriod: ALLOWANCE_PERIOD });
     port = new D1BillingDataPort(h.db);
   });
   afterEach(() => {
@@ -262,7 +266,7 @@ describe('BillingDataPort against D1', () => {
   });
 
   it('PERSIST-241 two concurrent reserveRun calls for the last unit: exactly one wins', async () => {
-    const tight = seedWorkspace(h, 'tight', { runLimit: 1 });
+    const tight = seedWorkspace(h, 'tight', { runLimit: 1, billingPeriod: ALLOWANCE_PERIOD });
     const [first, second] = await Promise.all([
       port.reserveRun(tight.workspaceId, tight.billingPeriod, T0),
       port.reserveRun(tight.workspaceId, tight.billingPeriod, T0),

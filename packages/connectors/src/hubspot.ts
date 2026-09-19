@@ -34,11 +34,7 @@
  * archive or batch-write path to disable, because none was written. A reviewer can verify
  * that by reading one twenty-line table.
  */
-import type {
-  ConnectorErrorCode,
-  CrmRecordEvidence,
-  EvidenceGap,
-} from '@verify/contracts';
+import type { ConnectorErrorCode, CrmRecordEvidence, EvidenceGap } from '@verify/contracts';
 import {
   ConnectorTransportError,
   guardedFetch,
@@ -83,9 +79,15 @@ export const MAX_REQUESTED_PROPERTIES = 25;
  * cannot construct a request that is not in this table.
  */
 const HUBSPOT_OPERATIONS = Object.freeze({
-  token_info: Object.freeze({ method: 'POST' as SafeMethod, path: '/oauth/v2/private-apps/get/access-token-info' }),
+  token_info: Object.freeze({
+    method: 'POST' as SafeMethod,
+    path: '/oauth/v2/private-apps/get/access-token-info',
+  }),
   contact_by_id: Object.freeze({ method: 'GET' as SafeMethod, path: '/crm/v3/objects/contacts/' }),
-  contact_search: Object.freeze({ method: 'POST' as SafeMethod, path: '/crm/v3/objects/contacts/search' }),
+  contact_search: Object.freeze({
+    method: 'POST' as SafeMethod,
+    path: '/crm/v3/objects/contacts/search',
+  }),
 });
 export type HubSpotOperation = keyof typeof HUBSPOT_OPERATIONS;
 
@@ -207,7 +209,10 @@ export function classifyHubSpotError(input: ProviderErrorInput): ClassifiedError
         case 'blocked_redirect':
         case 'missing_location':
         case 'too_many_redirects':
-          return classified('PROVIDER_UNAVAILABLE', `refused by the outbound guard: ${cause.reason}`);
+          return classified(
+            'PROVIDER_UNAVAILABLE',
+            `refused by the outbound guard: ${cause.reason}`,
+          );
         case 'invalid_response':
         case 'network':
         default:
@@ -237,16 +242,26 @@ export function classifyHubSpotError(input: ProviderErrorInput): ClassifiedError
   if (input.status === 400 || input.status === 422) {
     // Almost always a correlation property that does not exist in this portal: a
     // configuration problem the customer must fix, not something a retry can cure.
-    return classified('UNSUPPORTED_CAPABILITY', summary === '' ? `rejected request (${input.status})` : summary);
+    return classified(
+      'UNSUPPORTED_CAPABILITY',
+      summary === '' ? `rejected request (${input.status})` : summary,
+    );
   }
   if (input.status >= 500 || input.status === 408 || input.status === 409 || input.status === 423) {
-    return classified('PROVIDER_UNAVAILABLE', summary === '' ? `provider error (${input.status})` : summary, retryAfter);
+    return classified(
+      'PROVIDER_UNAVAILABLE',
+      summary === '' ? `provider error (${input.status})` : summary,
+      retryAfter,
+    );
   }
   if (input.status >= 200 && input.status < 300) {
     // A 200 carrying an error envelope. We were answered, but not with an answer.
     return classified('PROVIDER_UNAVAILABLE', summary === '' ? 'unusable 200 response' : summary);
   }
-  return classified('PROVIDER_UNAVAILABLE', summary === '' ? `unexpected status ${input.status}` : summary);
+  return classified(
+    'PROVIDER_UNAVAILABLE',
+    summary === '' ? `unexpected status ${input.status}` : summary,
+  );
 }
 
 /**
@@ -334,7 +349,10 @@ function readContactShape(raw: unknown): HubSpotContact | null {
   const id = typeof rawId === 'string' ? rawId : typeof rawId === 'number' ? String(rawId) : null;
   if (id === null || id === '') return null;
   const rawProps = record['properties'];
-  if (rawProps !== undefined && (typeof rawProps !== 'object' || rawProps === null || Array.isArray(rawProps))) {
+  if (
+    rawProps !== undefined &&
+    (typeof rawProps !== 'object' || rawProps === null || Array.isArray(rawProps))
+  ) {
     return null;
   }
   const properties: Record<string, string | null> = {};
@@ -356,10 +374,20 @@ function readContactShape(raw: unknown): HubSpotContact | null {
  * put the portal id on a contact, so the only honest source is the identity of the
  * credential that retrieved it.
  */
-export function normaliseHubSpotContact(raw: unknown, ctx: NormaliseContext): NormaliseResult<CrmRecordEvidence> {
+export function normaliseHubSpotContact(
+  raw: unknown,
+  ctx: NormaliseContext,
+): NormaliseResult<CrmRecordEvidence> {
   const contact = readContactShape(raw);
   if (contact === null) {
-    return { ok: false, gap: makeGap('crm_record', 'INVALID_EVIDENCE', 'contact payload did not match the expected shape') };
+    return {
+      ok: false,
+      gap: makeGap(
+        'crm_record',
+        'INVALID_EVIDENCE',
+        'contact payload did not match the expected shape',
+      ),
+    };
   }
   const correlationProperty = ctx.correlationProperty;
   const correlationValue =
@@ -429,16 +457,29 @@ export async function resolveHubSpotAccount(
   }
   const parsed = parseJsonBody(response.bodyText);
   if (!parsed.ok || typeof parsed.value !== 'object' || parsed.value === null) {
-    return { ok: false, error: classified('PROVIDER_UNAVAILABLE', 'token info was not usable JSON') };
+    return {
+      ok: false,
+      error: classified('PROVIDER_UNAVAILABLE', 'token info was not usable JSON'),
+    };
   }
   const body = parsed.value as Record<string, unknown>;
   const hubId = body['hubId'];
-  const accountId = typeof hubId === 'number' && Number.isFinite(hubId) ? String(hubId) : typeof hubId === 'string' && hubId !== '' ? hubId : null;
+  const accountId =
+    typeof hubId === 'number' && Number.isFinite(hubId)
+      ? String(hubId)
+      : typeof hubId === 'string' && hubId !== ''
+        ? hubId
+        : null;
   if (accountId === null) {
-    return { ok: false, error: classified('PROVIDER_UNAVAILABLE', 'token info did not include hubId') };
+    return {
+      ok: false,
+      error: classified('PROVIDER_UNAVAILABLE', 'token info did not include hubId'),
+    };
   }
   const rawScopes = body['scopes'];
-  const scopes = Array.isArray(rawScopes) ? rawScopes.filter((s): s is string => typeof s === 'string') : [];
+  const scopes = Array.isArray(rawScopes)
+    ? rawScopes.filter((s): s is string => typeof s === 'string')
+    : [];
   return { ok: true, identity: { account_id: accountId, scopes } };
 }
 
@@ -485,24 +526,41 @@ async function readContactById(
     // routing problem must never read as "the customer's automation did nothing".
     return {
       kind: 'error',
-      error: classified('PROVIDER_UNAVAILABLE', 'a 404 that is not the documented object-not-found response'),
+      error: classified(
+        'PROVIDER_UNAVAILABLE',
+        'a 404 that is not the documented object-not-found response',
+      ),
     };
   }
 
   if (response.status < 200 || response.status >= 300) {
     return {
       kind: 'error',
-      error: classifyHubSpotError({ status: response.status, headers: response.headers, bodyText: response.bodyText }),
+      error: classifyHubSpotError({
+        status: response.status,
+        headers: response.headers,
+        bodyText: response.bodyText,
+      }),
     };
   }
 
   const parsed = parseJsonBody(response.bodyText);
   if (!parsed.ok) {
-    return { kind: 'error', error: classified('PROVIDER_UNAVAILABLE', `unparseable 200: ${parsed.detail}`) };
+    return {
+      kind: 'error',
+      error: classified('PROVIDER_UNAVAILABLE', `unparseable 200: ${parsed.detail}`),
+    };
   }
   const body = parsed.value;
-  if (typeof body === 'object' && body !== null && (body as Record<string, unknown>)['status'] === 'error') {
-    return { kind: 'error', error: classifyHubSpotError({ status: response.status, bodyText: response.bodyText }) };
+  if (
+    typeof body === 'object' &&
+    body !== null &&
+    (body as Record<string, unknown>)['status'] === 'error'
+  ) {
+    return {
+      kind: 'error',
+      error: classifyHubSpotError({ status: response.status, bodyText: response.bodyText }),
+    };
   }
   return { kind: 'found', contact: body };
 }
@@ -517,7 +575,10 @@ async function searchContactByCorrelation(
   if (!HUBSPOT_PROPERTY_NAME.test(correlationProperty)) {
     return {
       kind: 'error',
-      error: classified('UNSUPPORTED_CAPABILITY', 'the configured correlation property is not a valid HubSpot property name'),
+      error: classified(
+        'UNSUPPORTED_CAPABILITY',
+        'the configured correlation property is not a valid HubSpot property name',
+      ),
     };
   }
   let response: GuardedResponse;
@@ -527,7 +588,11 @@ async function searchContactByCorrelation(
       token,
       body: {
         filterGroups: [
-          { filters: [{ propertyName: correlationProperty, operator: 'EQ', value: correlationValue }] },
+          {
+            filters: [
+              { propertyName: correlationProperty, operator: 'EQ', value: correlationValue },
+            ],
+          },
         ],
         properties: [...properties],
         // Two is enough to tell zero from one from many, and asking for more would read
@@ -545,25 +610,41 @@ async function searchContactByCorrelation(
     // existence, so it can never become an absence.
     return {
       kind: 'error',
-      error: classifyHubSpotError({ status: response.status, headers: response.headers, bodyText: response.bodyText }),
+      error: classifyHubSpotError({
+        status: response.status,
+        headers: response.headers,
+        bodyText: response.bodyText,
+      }),
     };
   }
 
   const parsed = parseJsonBody(response.bodyText);
   if (!parsed.ok || typeof parsed.value !== 'object' || parsed.value === null) {
-    return { kind: 'error', error: classified('PROVIDER_UNAVAILABLE', 'search returned 200 with an unusable body') };
+    return {
+      kind: 'error',
+      error: classified('PROVIDER_UNAVAILABLE', 'search returned 200 with an unusable body'),
+    };
   }
   const body = parsed.value as Record<string, unknown>;
   if (body['status'] === 'error') {
-    return { kind: 'error', error: classifyHubSpotError({ status: response.status, bodyText: response.bodyText }) };
+    return {
+      kind: 'error',
+      error: classifyHubSpotError({ status: response.status, bodyText: response.bodyText }),
+    };
   }
   const results = body['results'];
   if (!Array.isArray(results)) {
     // Without a results array we do not know whether the search matched. "We do not know"
     // is PROVIDER_UNAVAILABLE, never absence.
-    return { kind: 'error', error: classified('PROVIDER_UNAVAILABLE', 'search response had no results array') };
+    return {
+      kind: 'error',
+      error: classified('PROVIDER_UNAVAILABLE', 'search response had no results array'),
+    };
   }
-  const total = typeof body['total'] === 'number' && Number.isFinite(body['total']) ? body['total'] : results.length;
+  const total =
+    typeof body['total'] === 'number' && Number.isFinite(body['total'])
+      ? body['total']
+      : results.length;
 
   if (results.length >= 2 || total >= 2) {
     // Two records carrying the same correlation id is a real, reportable condition. Picking
@@ -581,7 +662,10 @@ async function searchContactByCorrelation(
   if (results.length === 0) {
     if (total > 0) {
       // The provider contradicted itself. Do not resolve it in either direction.
-      return { kind: 'error', error: classified('PROVIDER_UNAVAILABLE', 'search reported matches but returned none') };
+      return {
+        kind: 'error',
+        error: classified('PROVIDER_UNAVAILABLE', 'search reported matches but returned none'),
+      };
     }
     // A *successful* search that matched nothing. This is the authoritative absence the
     // evaluator is allowed to act on at the deadline.
@@ -695,7 +779,9 @@ export class HubSpotConnector implements Connector {
               verifiable_by_us: true,
             },
           ],
-      error: hasRead ? null : classified('PERMISSION_MISSING', `missing scope ${HUBSPOT_READ_SCOPE}`),
+      error: hasRead
+        ? null
+        : classified('PERMISSION_MISSING', `missing scope ${HUBSPOT_READ_SCOPE}`),
       checked_at: input.now.toISOString(),
       calls_made: 1,
     };
@@ -737,23 +823,43 @@ export class HubSpotConnector implements Connector {
         provider: HUBSPOT_PROVIDER,
         provider_account_id: null,
         evidence: [],
-        gaps: [makeGap('crm_record', 'PROVIDER_UNAVAILABLE', 'could not establish which HubSpot account this connection belongs to')],
+        gaps: [
+          makeGap(
+            'crm_record',
+            'PROVIDER_UNAVAILABLE',
+            'could not establish which HubSpot account this connection belongs to',
+          ),
+        ],
         calls_made: calls,
       };
     }
 
     // --- locator ------------------------------------------------------------
-    const properties = selectProperties(input.requiredProperties, input.connection.correlation_property);
+    const properties = selectProperties(
+      input.requiredProperties,
+      input.connection.correlation_property,
+    );
     const recordId = input.locator.record_id;
     const correlationValue = input.locator.correlation_value;
     const correlationProperty = input.connection.correlation_property;
 
-    if ((recordId === undefined || recordId === '') && (correlationValue === undefined || correlationValue === '' || correlationProperty === undefined)) {
+    if (
+      (recordId === undefined || recordId === '') &&
+      (correlationValue === undefined ||
+        correlationValue === '' ||
+        correlationProperty === undefined)
+    ) {
       return {
         provider: HUBSPOT_PROVIDER,
         provider_account_id: accountId,
         evidence: [],
-        gaps: [makeGap('crm_record', 'INVALID_EVIDENCE', 'no record id and no correlation value were supplied, so there is nothing to look up')],
+        gaps: [
+          makeGap(
+            'crm_record',
+            'INVALID_EVIDENCE',
+            'no record id and no correlation value were supplied, so there is nothing to look up',
+          ),
+        ],
         calls_made: calls,
       };
     }
@@ -792,11 +898,23 @@ export class HubSpotConnector implements Connector {
     const outcome = retried.value;
     if (outcome.kind === 'error') {
       gaps.push(makeGap('crm_record', outcome.error.code, outcome.error.detail));
-      return { provider: HUBSPOT_PROVIDER, provider_account_id: accountId, evidence: [], gaps, calls_made: calls };
+      return {
+        provider: HUBSPOT_PROVIDER,
+        provider_account_id: accountId,
+        evidence: [],
+        gaps,
+        calls_made: calls,
+      };
     }
     if (outcome.kind === 'absent') {
       gaps.push(outcome.gap);
-      return { provider: HUBSPOT_PROVIDER, provider_account_id: accountId, evidence: [], gaps, calls_made: calls };
+      return {
+        provider: HUBSPOT_PROVIDER,
+        provider_account_id: accountId,
+        evidence: [],
+        gaps,
+        calls_made: calls,
+      };
     }
 
     const normalised = this.normaliseEvidence(outcome.contact, {
@@ -808,7 +926,13 @@ export class HubSpotConnector implements Connector {
     });
     if (!normalised.ok) {
       gaps.push(normalised.gap);
-      return { provider: HUBSPOT_PROVIDER, provider_account_id: accountId, evidence: [], gaps, calls_made: calls };
+      return {
+        provider: HUBSPOT_PROVIDER,
+        provider_account_id: accountId,
+        evidence: [],
+        gaps,
+        calls_made: calls,
+      };
     }
     return {
       provider: HUBSPOT_PROVIDER,

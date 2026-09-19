@@ -3,3 +3,5 @@ reports/
 docs/screenshots/
 dist/
 .wrangler/
+# Generated test ledger (see its generated_at); reformatting it would fight the generator.
+docs/test-cases.json

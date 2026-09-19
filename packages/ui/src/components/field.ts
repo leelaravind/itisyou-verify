@@ -8,7 +8,8 @@
  */
 import { attrs, cx, html, type Html } from '../html.js';
 
-export type FieldControl = 'text' | 'email' | 'url' | 'password' | 'number' | 'tel' | 'textarea' | 'select';
+export type FieldControl =
+  'text' | 'email' | 'url' | 'password' | 'number' | 'tel' | 'textarea' | 'select';
 
 export interface SelectOption {
   readonly value: string;
@@ -99,9 +100,11 @@ ${options.value ?? ''}</textarea
 
   return html`<div class="field">
     <label class="field__label" for="${id}"
-      >${options.label}${options.required === true
-        ? html` <span class="field__req">required</span>`
-        : html` <span class="field__req">optional</span>`}</label
+      >${options.label}${
+        options.required === true
+          ? html` <span class="field__req">required</span>`
+          : html` <span class="field__req">optional</span>`
+      }</label
     >
     ${options.hint === undefined ? null : html`<p class="field__hint" id="${hintId}">${options.hint}</p>`}
     ${field}

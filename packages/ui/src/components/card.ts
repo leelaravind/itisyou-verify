@@ -27,13 +27,15 @@ export function Card(options: CardOptions): Html {
     options.title === undefined && options.aside === undefined
       ? null
       : html`<div class="card__head">
-          ${options.title === undefined
-            ? html`<span></span>`
-            : level === 2
-              ? html`<h2 class="card__title">${options.title}</h2>`
-              : level === 4
-                ? html`<h4 class="card__title">${options.title}</h4>`
-                : html`<h3 class="card__title">${options.title}</h3>`}
+          ${
+            options.title === undefined
+              ? html`<span></span>`
+              : level === 2
+                ? html`<h2 class="card__title">${options.title}</h2>`
+                : level === 4
+                  ? html`<h4 class="card__title">${options.title}</h4>`
+                  : html`<h3 class="card__title">${options.title}</h3>`
+          }
           ${options.aside ?? null}
         </div>`;
 
@@ -66,9 +68,11 @@ export function Callout(options: CalloutOptions): Html {
   return html`<aside
     ${attrs({ class: cx('callout', `callout--${tone}`), id: options.id ?? null, 'data-tone': tone })}
   >
-    ${options.title === undefined
-      ? null
-      : html`<p class="callout__title">${titleIcon}${options.title}</p>`}
+    ${
+      options.title === undefined
+        ? null
+        : html`<p class="callout__title">${titleIcon}${options.title}</p>`
+    }
     <div class="callout__body">${options.body}</div>
   </aside>`;
 }

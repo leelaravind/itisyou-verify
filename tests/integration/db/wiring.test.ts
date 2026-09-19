@@ -215,7 +215,7 @@ describe('decideRefund reaches the D1 approval store', () => {
 
   it('BILL-270 the consumer spends the approval and records which refund spent it', async () => {
     seedRefund('ref_1');
-    const consume = createRefundApprovalConsumer(h.db, () => NOW);
+    const consume = createRefundApprovalConsumer(h.db, { workspaceId: ws.workspaceId, now: () => NOW });
     const approval = { id: 'apr_1' } as Parameters<typeof consume>[0]['approval'];
 
     expect(await consume({ approval, refundId: 'ref_1' })).toBe(true);
@@ -234,7 +234,7 @@ describe('decideRefund reaches the D1 approval store', () => {
 
   it('BILL-271 the documented retry for the SAME refund succeeds', async () => {
     seedRefund('ref_1');
-    const consume = createRefundApprovalConsumer(h.db, () => NOW);
+    const consume = createRefundApprovalConsumer(h.db, { workspaceId: ws.workspaceId, now: () => NOW });
     const approval = { id: 'apr_1' } as Parameters<typeof consume>[0]['approval'];
 
     expect(await consume({ approval, refundId: 'ref_1' })).toBe(true);
@@ -247,7 +247,7 @@ describe('decideRefund reaches the D1 approval store', () => {
   it('BILL-272 a DIFFERENT refund reaching for the spent approval is refused', async () => {
     seedRefund('ref_1');
     seedRefund('ref_2');
-    const consume = createRefundApprovalConsumer(h.db, () => NOW);
+    const consume = createRefundApprovalConsumer(h.db, { workspaceId: ws.workspaceId, now: () => NOW });
     const approval = { id: 'apr_1' } as Parameters<typeof consume>[0]['approval'];
 
     expect(await consume({ approval, refundId: 'ref_1' })).toBe(true);
@@ -262,7 +262,7 @@ describe('decideRefund reaches the D1 approval store', () => {
   it('BILL-273 two concurrent refunds racing one approval: exactly one wins', async () => {
     seedRefund('ref_1');
     seedRefund('ref_2');
-    const consume = createRefundApprovalConsumer(h.db, () => NOW);
+    const consume = createRefundApprovalConsumer(h.db, { workspaceId: ws.workspaceId, now: () => NOW });
     const approval = { id: 'apr_1' } as Parameters<typeof consume>[0]['approval'];
     const results = await Promise.all([
       consume({ approval, refundId: 'ref_1' }),
@@ -302,9 +302,10 @@ describe('decideRefund reaches the D1 approval store', () => {
       refundId: string;
     }): Promise<boolean> => {
       order.push('consume');
-      return createRefundApprovalConsumer(h.db, () => NOW)(
-        params as Parameters<ReturnType<typeof createRefundApprovalConsumer>>[0],
-      );
+      return createRefundApprovalConsumer(h.db, {
+        workspaceId: ws.workspaceId,
+        now: () => NOW,
+      })(params as Parameters<ReturnType<typeof createRefundApprovalConsumer>>[0]);
     };
 
     const gateway = {

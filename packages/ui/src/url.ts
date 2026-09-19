@@ -54,7 +54,6 @@ export const SAFE_LINK_SCHEMES: ReadonlySet<string> = new Set(['http:', 'https:'
  */
 export const SAFE_HREF_BASE = 'https://verify.itisyou.app';
 
-
 /**
  * Remove every character a browser ignores before a scheme: C0 controls, space, and DEL.
  * Written as an explicit codepoint filter rather than a character class so the source stays
@@ -80,7 +79,10 @@ function stripBlanks(value: string): string {
  * components in this package render an inert element instead, so a target we cannot vouch
  * for is not offered rather than silently degraded into something clickable.
  */
-export function safeHref(value: string | null | undefined, baseOrigin: string = SAFE_HREF_BASE): string | null {
+export function safeHref(
+  value: string | null | undefined,
+  baseOrigin: string = SAFE_HREF_BASE,
+): string | null {
   if (typeof value !== 'string') return null;
   // Strip everything up to and including the space, plus DEL. A browser tolerates
   // `java\tscript:` and `\njavascript:`; a check that does not strip first will not.
@@ -112,7 +114,10 @@ export function isSafeHref(value: string | null | undefined): boolean {
  * Whether a validated target leaves this site, so a component can add
  * `rel="noopener noreferrer"` without the caller having to remember.
  */
-export function isExternalHref(value: string | null | undefined, baseOrigin: string = SAFE_HREF_BASE): boolean {
+export function isExternalHref(
+  value: string | null | undefined,
+  baseOrigin: string = SAFE_HREF_BASE,
+): boolean {
   const target = safeHref(value, baseOrigin);
   if (target === null) return false;
   if (target.startsWith('/') || target.startsWith('#')) return false;

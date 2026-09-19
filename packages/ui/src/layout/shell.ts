@@ -77,9 +77,11 @@ export function Shell(options: ShellOptions): Html {
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>${options.title} — ${PRODUCT_NAME}</title>
-    ${options.description === undefined
-      ? null
-      : html`<meta name="description" content="${options.description}" />`}
+    ${
+      options.description === undefined
+        ? null
+        : html`<meta name="description" content="${options.description}" />`
+    }
     ${options.noindex === true ? html`<meta name="robots" content="noindex, nofollow" />` : null}
     <meta name="color-scheme" content="light dark" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />

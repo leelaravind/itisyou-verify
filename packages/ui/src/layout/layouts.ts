@@ -48,7 +48,9 @@ function linkList(items: readonly NavItem[]): Html {
     ${items.map((item) => {
       // SEC-1214: through `attrs`, so the scheme guard runs on every footer link too.
       const target = safeHref(item.href);
-      return target === null ? null : html`<li><a ${attrs({ href: target })}>${item.label}</a></li>`;
+      return target === null
+        ? null
+        : html`<li><a ${attrs({ href: target })}>${item.label}</a></li>`;
     })}
   </ul>`;
 }

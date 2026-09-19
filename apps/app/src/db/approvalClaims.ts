@@ -65,30 +65,42 @@ export function createApprovalClaims(db: Db): D1ApprovalClaims {
  *
  * The stamp is `WHERE approval_id IS NULL`, so it can never re-point a refund at a second
  * approval.
+ *
+ * `workspaceId` is required rather than inferred. A06's callback shape carries only the
+ * approval and the refund id, so without it both statements here would be unscoped `WHERE
+ * id = ?` reads on a customer table — safe in practice, because `decideRefund` has already
+ * resolved the refund through a workspace-scoped `findRefund`, but "safe because of what
+ * the caller did three lines ago" is not a tenancy control. The composition root knows the
+ * workspace, so it passes it.
  */
 export function createRefundApprovalConsumer(
   db: Db,
-  now: () => Date = () => new Date(),
+  options: { readonly workspaceId: string; readonly now?: () => Date },
 ): (params: { approval: OwnerApproval; refundId: string }) => Promise<boolean> {
   const store = new D1ApprovalClaims(db);
+  const clock = options.now ?? (() => new Date());
 
   return async ({ approval, refundId }) => {
-    const at = now().toISOString();
+    const at = clock().toISOString();
     const claimed = await store.claim({ approvalId: approval.id, at });
 
     if (claimed) {
       // Record which refund spent it, so a retry of THIS refund can recognise itself.
+      // `approval_id IS NULL` means a refund can never be re-pointed at a second approval.
       await db
-        .prepare('UPDATE refunds SET approval_id = ?, updated_at = ? WHERE id = ? AND approval_id IS NULL')
-        .bind(approval.id, at, refundId)
+        .prepare(
+          `UPDATE refunds SET approval_id = ?, updated_at = ?
+            WHERE workspace_id = ? AND id = ? AND approval_id IS NULL`,
+        )
+        .bind(approval.id, at, options.workspaceId, refundId)
         .run();
       return true;
     }
 
     // Already spent. The only question left is whether it was spent on this refund.
     const existing = await db
-      .prepare('SELECT approval_id FROM refunds WHERE id = ?')
-      .bind(refundId)
+      .prepare('SELECT approval_id FROM refunds WHERE workspace_id = ? AND id = ?')
+      .bind(options.workspaceId, refundId)
       .first<{ approval_id: string | null }>();
     return existing?.approval_id === approval.id;
   };

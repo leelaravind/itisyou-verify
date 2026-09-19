@@ -19,7 +19,8 @@ function glyph(body: string): Html {
 }
 
 /** VERIFIED / SUPPORTED — a closed ring with a tick. */
-export const iconCheck = (): Html => glyph('<circle cx="8" cy="8" r="6.4"/><path d="M5 8.2 7.1 10.3 11 5.9"/>');
+export const iconCheck = (): Html =>
+  glyph('<circle cx="8" cy="8" r="6.4"/><path d="M5 8.2 7.1 10.3 11 5.9"/>');
 
 /** FAILED / CONTRADICTED — a closed ring with a cross. */
 export const iconCross = (): Html =>
@@ -30,7 +31,8 @@ export const iconDash = (): Html =>
   glyph('<circle cx="8" cy="8" r="6.4" stroke-dasharray="2.1 2.1"/><path d="M5.2 8h5.6"/>');
 
 /** PENDING — a clock. The window is still open. */
-export const iconClock = (): Html => glyph('<circle cx="8" cy="8" r="6.4"/><path d="M8 4.3V8l2.7 1.9"/>');
+export const iconClock = (): Html =>
+  glyph('<circle cx="8" cy="8" r="6.4"/><path d="M8 4.3V8l2.7 1.9"/>');
 
 /** A warning triangle, for error states only. */
 export const iconAlert = (): Html =>

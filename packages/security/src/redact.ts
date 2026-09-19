@@ -63,10 +63,7 @@ export function maskValue(value: unknown, depth = 0): unknown {
  * by type. An allowlist, never a denylist: a field nobody thought about is dropped
  * rather than leaked.
  */
-export function redactObject(
-  obj: unknown,
-  allowlist: readonly string[],
-): Record<string, unknown> {
+export function redactObject(obj: unknown, allowlist: readonly string[]): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   if (obj === null || typeof obj !== 'object' || Array.isArray(obj)) return out;
   const source = obj as Record<string, unknown>;
@@ -89,11 +86,7 @@ const CSV_FORMULA_PREFIXES = new Set(['=', '+', '-', '@', '\t', '\r']);
  */
 export function neutraliseCsvField(value: unknown): string {
   const text =
-    value === null || value === undefined
-      ? ''
-      : typeof value === 'string'
-        ? value
-        : String(value);
+    value === null || value === undefined ? '' : typeof value === 'string' ? value : String(value);
   if (text.length === 0) return text;
   const first = text[0];
   if (first !== undefined && CSV_FORMULA_PREFIXES.has(first)) return `'${text}`;

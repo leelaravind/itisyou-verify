@@ -74,7 +74,9 @@ export function Table<Row>(options: TableOptions<Row>): Html {
 /** A definition list for a single record's fields. Keys in mono, values in mono. */
 export function KeyValues(entries: readonly (readonly [string, Html | string])[]): Html {
   return html`<dl class="kv">
-    ${entries.map(([key, value]) => html`<dt>${key}</dt>
-      <dd>${value}</dd>`)}
+    ${entries.map(
+      ([key, value]) => html`<dt>${key}</dt>
+      <dd>${value}</dd>`,
+    )}
   </dl>`;
 }

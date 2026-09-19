@@ -125,11 +125,9 @@ export type Palette = { readonly [K in keyof typeof LIGHT]: string };
  */
 export const FONT = {
   /** Prose. Everything a person at this company wrote. */
-  sans:
-    'ui-sans-serif, system-ui, -apple-system, "Segoe UI Variable Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+  sans: 'ui-sans-serif, system-ui, -apple-system, "Segoe UI Variable Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
   /** Evidence. Everything a machine produced: values, ids, timestamps, status labels. */
-  mono:
-    'ui-monospace, "Cascadia Mono", "Cascadia Code", "SF Mono", "JetBrains Mono", "Roboto Mono", Menlo, Consolas, "Liberation Mono", monospace',
+  mono: 'ui-monospace, "Cascadia Mono", "Cascadia Code", "SF Mono", "JetBrains Mono", "Roboto Mono", Menlo, Consolas, "Liberation Mono", monospace',
 } as const;
 
 /** Type scale. Display sizes are fluid; body sizes are fixed so line length stays honest. */

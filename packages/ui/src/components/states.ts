@@ -23,9 +23,11 @@ export function EmptyState(options: StateOptions): Html {
   return html`<div ${attrs({ class: 'state', id: options.id ?? null })}>
     <p class="state__title">${options.title}</p>
     <p class="state__body">${options.body}</p>
-    ${options.actions === undefined || options.actions.length === 0
-      ? null
-      : html`<div class="state__actions">${options.actions}</div>`}
+    ${
+      options.actions === undefined || options.actions.length === 0
+        ? null
+        : html`<div class="state__actions">${options.actions}</div>`
+    }
   </div>`;
 }
 
@@ -42,12 +44,16 @@ export function ErrorState(options: ErrorStateOptions): Html {
   return html`<div ${attrs({ class: 'state state--error', role: 'alert', id: options.id ?? null })}>
     <p class="state__title">${iconAlert()} ${options.title}</p>
     <p class="state__body">${options.body}</p>
-    ${options.requestId === undefined
-      ? null
-      : html`<p class="micro mono gap-top">Reference: ${options.requestId}</p>`}
-    ${options.actions === undefined || options.actions.length === 0
-      ? null
-      : html`<div class="state__actions align-start">${options.actions}</div>`}
+    ${
+      options.requestId === undefined
+        ? null
+        : html`<p class="micro mono gap-top">Reference: ${options.requestId}</p>`
+    }
+    ${
+      options.actions === undefined || options.actions.length === 0
+        ? null
+        : html`<div class="state__actions align-start">${options.actions}</div>`
+    }
   </div>`;
 }
 

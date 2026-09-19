@@ -56,7 +56,9 @@ export function renderSync(node: Html): string {
  * whole page down with it. Components decide what to render in its place; this is the
  * backstop that holds even for a caller who forgets.
  */
-export function attrs(map: Readonly<Record<string, string | number | boolean | null | undefined>>): Html {
+export function attrs(
+  map: Readonly<Record<string, string | number | boolean | null | undefined>>,
+): Html {
   const parts: string[] = [];
   for (const [name, value] of Object.entries(map)) {
     if (value === null || value === undefined || value === false) continue;
@@ -85,7 +87,10 @@ export function attrs(map: Readonly<Record<string, string | number | boolean | n
  * a URL straight into `href="${…}"` is the pattern SEC-1214 found, and it is not used
  * anywhere in this package any more.
  */
-export function hrefAttr(value: string | null | undefined, extra: Readonly<Record<string, string | number | boolean | null | undefined>> = {}): Html {
+export function hrefAttr(
+  value: string | null | undefined,
+  extra: Readonly<Record<string, string | number | boolean | null | undefined>> = {},
+): Html {
   const target = safeHref(value);
   if (target === null) return attrs(extra);
   return attrs({ href: target, ...extra });
