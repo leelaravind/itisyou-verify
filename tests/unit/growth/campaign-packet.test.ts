@@ -42,7 +42,7 @@ const PACKET: CampaignPacket = {
     call_to_action: 'Explore ITISYOU Verify',
   },
   destination: {
-    url: 'https://verify.itisyou.example/?utm_source=reddit&utm_medium=cpc&utm_campaign=verify_first_test',
+    url: 'https://verify.itisyou.app/?utm_source=reddit&utm_medium=cpc&utm_campaign=verify_first_test',
     conversion_definition: 'a workspace is created and its HubSpot connection reaches ready',
   },
   duration: {
@@ -274,7 +274,7 @@ describe('approval binding', () => {
   it('ADS-043 changing the destination URL is an altered claim', () => {
     const redirected: CampaignPacket = {
       ...PACKET,
-      destination: { ...PACKET.destination, url: 'https://verify.itisyou.example/pricing?utm_campaign=x' },
+      destination: { ...PACKET.destination, url: 'https://verify.itisyou.app/pricing?utm_campaign=x' },
     };
     expect(classifyChange(PACKET, redirected).classification).toBe('alters_claim');
   });

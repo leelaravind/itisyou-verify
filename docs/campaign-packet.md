@@ -212,12 +212,13 @@ this campaign and is not assumed anywhere in this packet.
 ## 6. Destination URL
 
 ```
-https://verify.itisyou.example/?utm_source=reddit&utm_medium=cpc&utm_campaign=verify_first_test&utm_content=ad_a
+https://verify.itisyou.app/?utm_source=reddit&utm_medium=cpc&utm_campaign=verify_first_test&utm_content=ad_a
 ```
 
-(Ad B uses `utm_content=ad_b`. The host is a placeholder until the production hostname is
-confirmed by the lead — **that substitution changes the destination and therefore requires a
-fresh approval**; it cannot be slipped in after signing.)
+(Ad B uses `utm_content=ad_b`. This is the **real production host**, confirmed live by the
+lead on 2026-09-19 — it is not a placeholder, so the URL above is the URL that will be
+pasted into the platform. Changing it later changes `destination` and therefore requires a
+fresh approval; it cannot be slipped in after signing.)
 
 | Field | Value |
 | --- | --- |

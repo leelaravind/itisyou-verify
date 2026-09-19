@@ -10,6 +10,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ATTRIBUTION_WINDOW_DAYS,
   EXTERNAL_VISIT_TARGET,
+  VISIT_RETENTION_DAYS,
   type PlatformMetrics,
   type VisitSession,
   aggregateOnly,
@@ -57,14 +58,16 @@ const report = (
 describe('attribution', () => {
   it('ADS-022 a signup is attributed only inside the documented attribution window', () => {
     const visit = session({ first_seen_at: '2026-10-01T09:00:00.000Z' });
-    const inside = attributeSignup(visit, '2026-10-20T09:00:00.000Z', CAMPAIGN);
+    const inside = attributeSignup(visit, '2026-10-10T09:00:00.000Z', CAMPAIGN);
     expect(inside).toMatchObject({ attributed: true, campaign: CAMPAIGN });
 
-    const outside = attributeSignup(visit, '2026-11-05T09:00:00.000Z', CAMPAIGN);
+    const outside = attributeSignup(visit, '2026-10-20T09:00:00.000Z', CAMPAIGN);
     expect(outside).toMatchObject({ attributed: false, reason: 'outside_window' });
 
-    // The window can never exceed how long we keep the session.
-    expect(ATTRIBUTION_WINDOW_DAYS).toBe(30);
+    // The window can never exceed how long we keep the session, because attribution reads
+    // a row A09's sweep will already have deleted.
+    expect(ATTRIBUTION_WINDOW_DAYS).toBe(14);
+    expect(ATTRIBUTION_WINDOW_DAYS).toBeLessThanOrEqual(VISIT_RETENTION_DAYS);
 
     // A signup that happened before the visit is not caused by it.
     expect(attributeSignup(visit, '2026-09-30T09:00:00.000Z', CAMPAIGN)).toMatchObject({

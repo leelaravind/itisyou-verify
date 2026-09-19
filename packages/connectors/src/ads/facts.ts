@@ -24,10 +24,14 @@ export const GOOGLE_ADS_FACTS: PlatformCapFacts = {
     'On a given day, your campaign might spend up to twice your average daily budget. At the end of the month, you will have spent no more than 30.4 times your average daily budget.',
   minimum_daily_minor: null,
   minimum_lifetime_minor: null,
+  minimum_monthly_minor: null,
   currency: 'GBP',
   source_url: 'https://support.google.com/google-ads/answer/1704443?hl=en',
   checked_on: CHECKED,
   primary_source: true,
+  // Google documents no minimum average daily budget for Search anywhere public.
+  minimums_provenance: 'not_published',
+  minimums_source_url: null,
 };
 
 /**
@@ -41,12 +45,18 @@ export const MICROSOFT_ADS_FACTS: PlatformCapFacts = {
   cap_enforcement: 'monthly_only',
   cap_behaviour:
     'The service calculates the monthly budget limit by multiplying the daily budget by the number of days in the month. If the daily budget amount or calculated monthly budget amount is depleted, the campaign is paused automatically. Microsoft Advertising usually keeps overspend to less than 100% above your daily limit.',
-  minimum_daily_minor: null,
+  // Verified 2026-09-19 from Microsoft's own currency table, UKPound row:
+  // minimum bid GBP 0.05, minimum daily budget GBP 0.05, minimum MONTHLY budget GBP 5.00.
+  // That floor is well inside the advertising allocation, in sterling, with no FX exposure.
+  minimum_daily_minor: 5,
   minimum_lifetime_minor: null,
+  minimum_monthly_minor: 500,
   currency: 'GBP',
   source_url: 'https://learn.microsoft.com/en-us/advertising/guides/budget-bid-strategies?view=bingads-13',
   checked_on: CHECKED,
   primary_source: true,
+  minimums_provenance: 'primary',
+  minimums_source_url: 'https://learn.microsoft.com/en-us/advertising/guides/currencies?view=bingads-13',
 };
 
 /**
@@ -60,10 +70,13 @@ export const LINKEDIN_FACTS: PlatformCapFacts = {
   cap_behaviour: 'Your total spend will never exceed the lifetime budget of your campaign or ad set.',
   minimum_daily_minor: 1_000,
   minimum_lifetime_minor: 10_000,
+  minimum_monthly_minor: null,
   currency: 'USD_ONLY',
   source_url: 'https://www.linkedin.com/help/lms/answer/a422101',
   checked_on: CHECKED,
   primary_source: true,
+  minimums_provenance: 'primary',
+  minimums_source_url: 'https://www.linkedin.com/help/lms/answer/a422101',
 };
 
 /**
@@ -81,10 +94,19 @@ export const META_FACTS: PlatformCapFacts = {
     'A lifetime budget is spent over the ad set schedule and is not exceeded; a daily budget is an average and may be exceeded by up to 75% on a given day.',
   minimum_daily_minor: 100,
   minimum_lifetime_minor: null,
+  minimum_monthly_minor: null,
   currency: 'USD_ONLY',
   source_url: 'https://www.stackmatix.com/blog/meta-ads-minimum-daily-budget-2026',
   checked_on: CHECKED,
   primary_source: false,
+  // Meta's Marketing API reference documents `spend_cap` but NOT a minimum daily or
+  // lifetime budget. Verified 2026-09-19: spend_cap is "defined as integer value of
+  // subunit in your currency with a minimum value of $100 USD (or approximate local
+  // equivalent)" — so the account-level spend cap is FAR above our allocation and cannot
+  // be used as a GBP 15 ceiling. On Meta the only usable ceiling is the ad-set lifetime
+  // budget. The $1/day floor remains secondary.
+  minimums_provenance: 'secondary',
+  minimums_source_url: 'https://developers.facebook.com/docs/marketing-api/reference/ad-campaign-group/',
 };
 
 /**
@@ -101,10 +123,18 @@ export const REDDIT_FACTS: PlatformCapFacts = {
     'Your ad group will try to deliver your average daily spend each day until you hit your total budget. After that, your ad will turn off.',
   minimum_daily_minor: 500,
   minimum_lifetime_minor: 2_500,
+  minimum_monthly_minor: null,
   currency: 'USD_ONLY',
   source_url: 'https://business.reddithelp.com/helpcenter/s/article/How-much-do-Reddit-Ads-cost',
   checked_on: CHECKED,
   primary_source: false,
+  // Established 2026-09-19 after exhausting the public routes: Reddit's help centre is a
+  // fully client-rendered Salesforce site that serves no content to an unauthenticated
+  // fetch, and business.reddit.com, www.reddit.com, old.reddit.com and ads-api.reddit.com
+  // are all unreachable. These figures CANNOT be confirmed without signing in to an
+  // advertising account. That is a step for the owner, not a gap in the research.
+  minimums_provenance: 'requires_account',
+  minimums_source_url: null,
 };
 
 export const PLATFORM_FACTS = {
@@ -173,11 +203,22 @@ export function capVerdict(facts: PlatformCapFacts, allocationMinor: number): Ca
         reason: 'the allocation divided across a month rounds to zero minor units a day',
       };
     }
+    // On a monthly-only platform the real floor is the minimum MONTHLY budget, not the
+    // daily one: the daily figure is multiplied up before it is enforced.
+    const monthlyFloor = facts.minimum_monthly_minor;
+    if (monthlyFloor !== null && monthlyFloor > allocationMinor) {
+      return {
+        platform: facts.platform,
+        enforceable: false,
+        max_average_daily_minor: perDay,
+        reason: `the platform's minimum monthly budget of ${monthlyFloor} minor units is above the ${allocationMinor} allocated`,
+      };
+    }
     return {
       platform: facts.platform,
       enforceable: false,
       max_average_daily_minor: perDay,
-      reason: `no total ceiling exists; the only documented guarantee is per calendar month, which bounds spend at ${perDay} minor units a day and only if the campaign never crosses a month boundary`,
+      reason: `no total ceiling exists; the only documented guarantee is per calendar month, which bounds spend at ${perDay} minor units a day (${perDay * LONGEST_MONTH_DAYS} across a 31-day month) and only if the campaign never crosses a month boundary`,
     };
   }
   return {

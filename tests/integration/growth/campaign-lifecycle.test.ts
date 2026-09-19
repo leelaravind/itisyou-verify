@@ -55,7 +55,7 @@ const PACKET: CampaignPacket = {
     call_to_action: 'Explore ITISYOU Verify',
   },
   destination: {
-    url: 'https://verify.itisyou.example/?utm_campaign=verify_first_test',
+    url: 'https://verify.itisyou.app/?utm_campaign=verify_first_test',
     conversion_definition: 'a workspace is created and its HubSpot connection reaches ready',
   },
   duration: {
@@ -361,9 +361,38 @@ describe('cap enforceability', () => {
     expect(GOOGLE_ADS_FACTS.cap_behaviour).toMatch(/30\.4 times your average daily budget/);
   });
 
-  it('ADS-082 Microsoft Advertising is monthly-only too, despite its automatic pause', () => {
-    expect(capVerdict(MICROSOFT_ADS_FACTS, ALLOCATION).enforceable).toBe(false);
+  it('ADS-082 Microsoft Advertising is monthly-only, but its GBP floor fits inside the allocation', () => {
+    const verdict = capVerdict(MICROSOFT_ADS_FACTS, ALLOCATION);
+    // Still not a *total* ceiling, so `enforceable` stays false — the guarantee is monthly.
+    expect(verdict.enforceable).toBe(false);
     expect(MICROSOFT_ADS_FACTS.cap_behaviour).toMatch(/paused automatically/);
+
+    // But unlike every other candidate, the minimums are primary-sourced and in sterling:
+    // GBP 0.05 minimum daily budget, GBP 5.00 minimum monthly budget.
+    expect(MICROSOFT_ADS_FACTS.minimums_provenance).toBe('primary');
+    expect(MICROSOFT_ADS_FACTS.currency).toBe('GBP');
+    expect(MICROSOFT_ADS_FACTS.minimum_daily_minor).toBe(5);
+    expect(MICROSOFT_ADS_FACTS.minimum_monthly_minor).toBe(500);
+    // The floor fits, so the reason given is about the monthly guarantee, not the minimum.
+    expect(verdict.reason).toMatch(/no total ceiling exists/);
+    expect(verdict.max_average_daily_minor).toBe(48);
+  });
+
+  it('ADS-111 a monthly-only platform whose minimum monthly budget exceeds the allocation is refused on the floor', () => {
+    const pricey = { ...MICROSOFT_ADS_FACTS, minimum_monthly_minor: 2_000 };
+    const verdict = capVerdict(pricey, ALLOCATION);
+    expect(verdict.enforceable).toBe(false);
+    expect(verdict.reason).toMatch(/minimum monthly budget of 2000 minor units is above the 1500 allocated/);
+  });
+
+  it('ADS-112 Reddit’s minimums are recorded as requiring a signed-in account, not as unresearched', () => {
+    // Every public route was tried on 2026-09-19 and none serves the figure. Recording
+    // that as a distinct state stops it being mistaken for a number nobody looked for.
+    expect(REDDIT_FACTS.minimums_provenance).toBe('requires_account');
+    expect(REDDIT_FACTS.minimums_source_url).toBeNull();
+    expect(GOOGLE_ADS_FACTS.minimums_provenance).toBe('not_published');
+    expect(META_FACTS.minimums_provenance).toBe('secondary');
+    expect(LINKEDIN_FACTS.minimums_provenance).toBe('primary');
   });
 
   it('ADS-083 LinkedIn enforces a total budget but its floor is above the whole allocation', () => {

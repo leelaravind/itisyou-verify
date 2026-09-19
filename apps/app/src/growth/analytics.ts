@@ -52,7 +52,7 @@ export interface VisitIdentityInput {
  * user-agent or an Accept-Language header, so two different field splits can never produce
  * the same hash input. Written as an escape so the source file stays plain ASCII.
  */
-const FIELD_SEPARATOR = '';
+const FIELD_SEPARATOR = '\u001f';
 
 export async function visitSessionId(input: VisitIdentityInput, salt: string, now: Date): Promise<string> {
   if (salt.length < 16) {

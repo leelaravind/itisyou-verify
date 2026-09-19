@@ -51,12 +51,29 @@ export interface PlatformCapFacts {
   readonly minimum_daily_minor: number | null;
   /** Minimum lifetime/total budget, in minor units of `currency`. `null` = not offered. */
   readonly minimum_lifetime_minor: number | null;
+  /**
+   * Minimum *monthly* budget, in minor units of `currency`. Only meaningful on a platform
+   * whose enforced ceiling is monthly — on those, this is the real floor, not the daily one.
+   */
+  readonly minimum_monthly_minor: number | null;
   readonly currency: Currency | 'USD_ONLY' | 'UNKNOWN';
-  /** Source URL the two figures above were read from, and when. */
+  /** Source URL `cap_behaviour` was read from, and when. */
   readonly source_url: string;
   readonly checked_on: string;
-  /** False when the figure came from a secondary source we could not confirm. */
+  /** False when `cap_behaviour` came from a secondary source we could not confirm. */
   readonly primary_source: boolean;
+  /**
+   * Where the *minimum budget* figures came from. Tracked separately from
+   * `primary_source` because a platform can document its cap behaviour publicly while
+   * keeping its minimums behind a login.
+   *
+   * `requires_account` is not a failure to research — it is the finding. It means a human
+   * must read the number on screen inside a signed-in advertising account, and no amount
+   * of further public research will produce it.
+   */
+  readonly minimums_provenance: 'primary' | 'secondary' | 'requires_account' | 'not_published';
+  /** Source URL the minimum figures were read from, when there is one. */
+  readonly minimums_source_url: string | null;
 }
 
 // ---------------------------------------------------------------------------

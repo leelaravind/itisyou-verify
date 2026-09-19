@@ -15,7 +15,7 @@ called — we hold no credentials and no approved developer token.
 | Platform | Can it enforce £15 as a true maximum? | Realistic clicks for the money | Verdict |
 | --- | --- | --- | --- |
 | Google Ads (Search) | **No.** No total budget exists for Search; the only documented guarantee is `30.4 x average daily budget per calendar month`. Prepay — the one setting that is a real ceiling — is **not available in the United Kingdom**. | £12.16 at a UK B2B SaaS CPC of £3–£8.72 → **1–4 clicks** | Ruled out on both counts |
-| Microsoft Advertising (Search) | **No.** Lifetime budgets exist only for Audience campaigns, not Search. Daily budget x days in the month, then automatic pause. | Lower CPC than Google, but UK query volume for these terms is close to nil → **0–8 clicks, probably near 0 impressions** | Ruled out |
+| Microsoft Advertising (Search) | **Not a total ceiling, but the best cap story here.** Lifetime budgets exist only for Audience campaigns; a daily budget is multiplied by days in the month and the campaign is **paused automatically** when depleted. Minimums verified in sterling: GBP 0.05/day, GBP 5.00/month. No FX exposure. | Lower CPC than Google, but UK query volume for these terms is close to nil → **0–8 clicks, probably near 0 impressions** | **Ruled out on audience, not on the cap** — see 6.1 |
 | LinkedIn Ads | Yes — a lifetime budget is a hard ceiling — but the **minimum lifetime budget for a new campaign is $100** and the minimum daily is $10. | £15 cannot fund a compliant campaign for two days. At UK B2B CPCs → **1–2 clicks** | Ruled out on the figure |
 | Meta | Yes — an ad-set lifetime budget is a genuine ceiling, and the daily floor is $1. | Cheap clicks, possibly 10–25 — but Meta cannot target "builds automations for clients" with any intent signal | Ruled out on audience: it would buy a number, not ten interested people |
 | **Reddit Ads** | **Yes** — a total (lifetime) budget turns the ad off when reached. | At the documented B2B/tech-subreddit CPC of **$1.50–$3.00**, ≈$14 of net spend buys **5–9 clicks** | **Best paid option, and still short of ten** |
@@ -147,7 +147,7 @@ absence of any mechanism that can stop at £15.
 | Platform | Minimum daily | Minimum lifetime/total | Currency | Source |
 | --- | --- | --- | --- | --- |
 | Google Ads | none documented | n/a (no total budget for Search) | GBP | [help](https://support.google.com/google-ads/answer/6385083?hl=en) |
-| Microsoft Advertising | per-currency range, not published on the API page | n/a for Search | GBP | [Microsoft Learn](https://learn.microsoft.com/en-us/advertising/guides/budget-bid-strategies?view=bingads-13) |
+| Microsoft Advertising | **GBP 0.05** (min monthly **GBP 5.00**, min bid GBP 0.05) | n/a for Search | GBP | [Microsoft Advertising Currencies](https://learn.microsoft.com/en-us/advertising/guides/currencies?view=bingads-13) |
 | LinkedIn | **$10** | **$100** for a new, inactive campaign; after launch, `$10 x days scheduled` | USD | [LinkedIn help](https://www.linkedin.com/help/lms/answer/a422101) |
 | Meta | **$1/day** impression-billed; **$5/day** click/conversion-billed | `daily minimum x scheduled days` | USD | secondary — see §6 |
 | Reddit | **$5/day** | **$25** (standard); $620 for "Max" campaigns | USD | secondary — see §6 |
@@ -249,34 +249,112 @@ Meta would be optimising the metric rather than the outcome**, so it is rejected
 
 ---
 
-## 6. What I could not verify
+## 6. Verification status of every figure
 
-These are not hedges. Each one is a thing the owner must read on screen before funding
-anything, and one of them could cancel the whole experiment.
+Re-checked 2026-09-19 after the founder asked for account-level minimums to be confirmed
+properly. Each figure now carries where it came from. Three states matter:
 
-1. **Reddit's minimum total (lifetime) budget.** Our stored figure is **$25**, from secondary
-   write-ups. Reddit's own help centre (`business.reddithelp.com`) is JavaScript-rendered
-   and returns HTTP 401 to an unauthenticated fetch, so I could not read it directly. **$25
-   is above £15.** If it is correct, a total-budget campaign cannot be created inside the
-   allocation. Check this first; everything else depends on it.
-2. **Reddit's minimum daily budget of $5** — same source problem. Quoted consistently across
-   several write-ups and attributed to Reddit's own help centre, but not read at the source.
-3. **Whether Reddit will bill a UK account in GBP or USD.** Not established. The cap in this
-   repository is in pence; if billing is USD, the GBP figure moves with the exchange rate and
-   with the card's non-sterling transaction fee. §8 assumes USD and prices the risk in.
-4. **Meta's exact minimum budgets** ($1/day impression-billed, $5/day click-billed). Meta's
-   business help centre returned 404 to the article URL; figures are secondary.
-5. **Microsoft Advertising's minimum daily budget for GBP.** The API guide points at a
-   per-currency table I did not retrieve. Moot, since Microsoft is ruled out on the cap.
-6. **Every CPC figure in §5.** All from secondary benchmark aggregators. We have no
-   advertising account, so there is no Keyword Planner and no Reddit forecast tool to check
-   them against. Treat them as the right order of magnitude, not as quotes.
-7. **Whether a new Reddit ad account can run immediately**, or faces a review/verification
-   hold. Not established.
+- **primary** - read from the platform's own documentation.
+- **secondary** - from a third-party write-up; treat as an order of magnitude, not a quote.
+- **requires account** - the figure exists but is only visible from inside a signed-in
+  advertising account. This is a *finding*, not a gap: no further public research will
+  produce it, and the owner reading it on screen is the answer.
 
----
+### Confirmed on this pass
+
+| Figure | Value | Provenance | Source |
+| --- | --- | --- | --- |
+| Microsoft Advertising, **GBP minimum bid** | **GBP 0.05** | primary | [Microsoft Advertising Currencies](https://learn.microsoft.com/en-us/advertising/guides/currencies?view=bingads-13), UKPound row |
+| Microsoft Advertising, **GBP minimum daily budget** | **GBP 0.05** | primary | same |
+| Microsoft Advertising, **GBP minimum monthly budget** | **GBP 5.00** | primary | same |
+| Microsoft Advertising, GBP maximum monthly budget | GBP 3,938,700.00 | primary | same |
+| Meta, account-level `spend_cap` minimum | **$100 USD** - "defined as integer value of subunit in your currency with a minimum value of $100 USD (or approximate local equivalent)" | primary | [Marketing API reference](https://developers.facebook.com/docs/marketing-api/reference/ad-campaign-group/) |
+| Meta, budget placement | Budget is set at campaign level **or** ad-set level, never both | primary | same |
+| LinkedIn minimums ($10/day, $100 lifetime) | unchanged | primary | [LinkedIn help](https://www.linkedin.com/help/lms/answer/a422101) |
+| Google Ads 30.4x monthly rule; UK prepay unavailability | unchanged | primary | sections 2 and 3 |
+
+**Two of these change a conclusion. Both are recorded in 6.1 and 6.2 below.**
+
+### Still unconfirmed, and why
+
+| # | Figure | Status | What it would take |
+| --- | --- | --- | --- |
+| 1 | **Reddit minimum total (lifetime) budget** - our stored figure is **$25** | **requires account** | The owner reads it on screen in the campaign creation flow. See 6.3 for what was tried. |
+| 2 | **Reddit minimum daily budget** - stored as **$5** | **requires account** | Same screen. |
+| 3 | **Reddit billing currency for a UK account** (GBP or USD) | **requires account** | Visible in ad-account billing settings at creation. |
+| 4 | **Reddit account verification requirement and timeline** | **requires account** | Only observable by creating the account. |
+| 5 | **Meta minimum daily budget** ($1 impression-billed / $5 click-billed) | **secondary** | Meta publishes `spend_cap` but not these; they appear only in the ad-set creation UI. |
+| 6 | **Google Ads minimum average daily budget** | **not published** | Google documents no minimum for Search anywhere public. Absence of a published minimum is not the same as there being none. |
+| 7 | **Every CPC figure in section 5** | **secondary** | We hold no advertising account, so there is no Keyword Planner and no Reddit forecast tool to check them against. |
+
+All seven are recorded in code at `packages/connectors/src/ads/facts.ts` as
+`minimums_provenance`, and asserted by `ADS-112`, so an unverified number cannot quietly
+become a fact.
+
+### 6.1 Correction: Microsoft Advertising is ruled out on **audience**, not on the cap
+
+My first pass ruled Microsoft out alongside Google. With the GBP currency table now read,
+that was too blunt, and the distinction matters:
+
+- Microsoft's minimum monthly budget in sterling is **GBP 5.00** - comfortably inside the
+  GBP 15 allocation, unlike LinkedIn's $100 floor.
+- Microsoft **documents an automatic pause**: "If the daily budget amount or calculated
+  monthly budget amount is depleted, the campaign is paused automatically." Google
+  documents only that you will not be *charged* above the limit.
+- The account is **billed in GBP**, so there is no exchange-rate exposure and no
+  non-sterling card fee - unlike Reddit, where both are live risks (section 8).
+- Setting GBP 0.37/day gives a documented monthly ceiling of GBP 11.47 across a 31-day
+  month, inside the allocation, with an automatic pause when it is reached.
+
+So Microsoft has the **strongest cap story of any candidate**, better than Reddit's. It is
+still not recommended, and the reason is now the honest one: **UK search volume on Bing for
+terms like "n8n monitoring" or "zapier error alerting" is close to nil.** A campaign with a
+perfect ceiling and no impressions delivers zero visits. It is ruled out on audience.
+
+The underlying limitation stands: Microsoft offers a lifetime budget **only for Audience
+campaigns, not Search**, so there is still no *total* ceiling - the guarantee is per
+calendar month, and the campaign must not cross a month boundary.
+
+### 6.2 New: Meta's account-level spend cap cannot be used as a GBP 15 ceiling
+
+Meta's `spend_cap` looked like it might be the clean account-wide ceiling. It is not: the
+API reference states a **minimum value of $100 USD**. That is roughly five times the whole
+allocation.
+
+So on Meta the *only* usable ceiling is the ad-set lifetime budget. That is still a real
+ceiling, and Meta remains rejected on audience (section 5), but it is worth recording that
+the belt-and-braces control people assume exists is out of reach at this budget.
+
+### 6.3 What was tried for Reddit, so nobody repeats it
+
+Reddit's help centre is a fully client-rendered Salesforce Experience Cloud site. It serves
+no article content to an unauthenticated fetch. On 2026-09-19 the following were attempted:
+
+| Route | Result |
+| --- | --- |
+| `business.reddithelp.com/helpcenter/s/article/...` | HTTP 401 |
+| `business.reddithelp.com/s/article/max-campaigns` | Renders a "CSS Error" shell, no content |
+| `business.reddithelp.com/s/article/Simple-Create` | Same shell, no content |
+| `business.reddit.com` | Not reachable |
+| `www.reddit.com` / `old.reddit.com` | Not reachable |
+| `ads-api.reddit.com/docs/v3/` | Not reachable |
+| Search-index extraction of the help articles | Returns fragments, not the figures |
+
+One useful fragment did surface from Reddit's own Max Campaigns help article via search
+indexing: Max Campaigns "allow you to optionally set a **campaign spend cap** if your budget
+type is daily, which is the maximum amount your campaign can spend over its lifetime." That
+names a real total-ceiling control distinct from the ad-group budget. It does not help us -
+Max Campaigns are reported (secondary) to require $20/day or $620 lifetime - but if the
+owner sees a "campaign spend cap" field on a standard campaign, that is the control to use.
+
+**Conclusion: items 1-4 cannot be resolved without signing in. They become owner steps
+(section 9), performed before any money is committed.**
 
 ## 7. The cheaper alternative, which is also the better one
+
+> **Decision taken 2026-09-19: organic first, ads afterwards. The GBP 15 stays reserved
+> and untouched.** The posts themselves are in `docs/organic-launch.md`, written and
+> awaiting approval. Nothing has been published.
 
 The brief asked for an honest answer rather than a packet we cannot run. Here it is.
 
@@ -428,6 +506,8 @@ All read 2026-09-19.
 - [Campaign and ad set budgets — LinkedIn Marketing Solutions Help](https://www.linkedin.com/help/lms/answer/a422101)
 - [Get started with the Google Ads API: developer token](https://developers.google.com/google-ads/api/docs/get-started/dev-token)
 - [Get Started With the Bing Ads API — Microsoft Learn](https://learn.microsoft.com/en-us/advertising/guides/get-started?view=bingads-13)
+- [Microsoft Advertising Currencies — GBP minimum bid and budget table](https://learn.microsoft.com/en-us/advertising/guides/currencies?view=bingads-13)
+- [Meta Marketing API — campaign reference, `spend_cap` minimum](https://developers.facebook.com/docs/marketing-api/reference/ad-campaign-group/)
 - [Reddit Ads Cost: CPC, CPM & CPA by Industry (2026)](https://benly.ai/learn/reddit-ads/reddit-ads-cost-benchmarks) — secondary
 - [Reddit B2B Advertising Benchmarks 2026](https://www.abetheagency.com/guide/reddit-b2b-advertising-benchmarks-2026) — secondary
 - [Reddit Ads Minimum Budget Requirements in 2026](https://www.stackmatix.com/blog/reddit-ads-minimum-budget-requirements-2026) — secondary

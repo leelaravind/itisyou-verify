@@ -69,10 +69,34 @@ test.describe('public journey', () => {
     await expect(page.getByText(/all systems operational/i)).toHaveCount(0);
   });
 
-  test('CUST-074 the development story says it is not published rather than rendering an empty page', async ({ page }) => {
+  test('CUST-074 the development story either renders real content or says plainly that it is not published', async ({
+    page,
+  }) => {
     await page.goto('/development-story');
-    await expect(page.getByText('Not yet published')).toBeVisible();
-    await expect(page.getByText('We would rather show an empty page')).toBeVisible();
+
+    // The story is published by copying `docs/development-story.md` into the Worker's
+    // static assets. Both outcomes are correct, and the page must be honest about which
+    // one the reader is looking at — what must never happen is an empty page, or a
+    // heading with nothing underneath it, implying the story exists when it does not.
+    const notPublished = page.getByText('Not yet published');
+    const isUnpublished = (await notPublished.count()) > 0;
+
+    if (isUnpublished) {
+      await expect(notPublished).toBeVisible();
+      await expect(page.getByText('We would rather show an empty page')).toBeVisible();
+      return;
+    }
+
+    // Published: assert it is the real narrative, not a stub. The page supplies its own
+    // h1; what matters is that the body carries the sections recording what went WRONG.
+    // A story that lists only successes is marketing, and this page is not that.
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('How this was built');
+    await expect(
+      page.getByText('The allowance reservation that silently did nothing'),
+    ).toBeVisible();
+    await expect(page.getByText('33% that displayed as 100%')).toBeVisible();
+    const bodyLength = (await page.locator('main').innerText()).length;
+    expect(bodyLength).toBeGreaterThan(2000);
   });
 
   test('CUST-075 an unknown address renders a real 404 page, not a bare string', async ({ page }) => {
