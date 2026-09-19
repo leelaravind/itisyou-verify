@@ -516,3 +516,64 @@ All read 2026-09-19.
 - [B2B SaaS Google Ads Benchmarks 2026](https://www.kampaio.com/blog/b2b-saas-google-ads-benchmarks-2026) — secondary
 - [SaaS Google Ads Benchmarks 2026: CPC, CPL and cost drivers](https://aimers.io/blog/saas-google-ads-benchmarks) — secondary
 - [Is There VAT on Google Ads? VAT guide for UK businesses](https://lanop.co.uk/vat-on-google-ads-uk-guide/) — secondary
+
+---
+
+## Google Ads account baseline — 19 September 2026
+
+Recorded from the live account before any funding, per the brief's A01. Facts read from
+the account, not from documentation or estimates.
+
+| | |
+| --- | --- |
+| Account | `129-611-7160` |
+| Status | Was **cancelled** 26 Sep 2022; reactivated by the owner on 19 Sep 2026 |
+| Currency | **₹ INR** — set at account creation and **not changeable** |
+| Time zone | **(GMT-07:00) Pacific** — also not changeable |
+| Payment setting | **Prepay** (manual funding) |
+| Balance | **₹0.00** |
+| Google Payments profile | `8261-0504-5922-3242`, payer "Usshaa" |
+| Payment methods | **Not visible** — signed-in user lacks permission on the payments profile |
+| Campaigns | **0** (three legacy campaigns removed, below) |
+| Account daily total | **₹0.00/day** |
+
+### Why prepay matters more than any campaign cap
+
+On a prepay account ads run only against funds already added, so **maximum liability is
+the balance**. With ₹0.00 funded, the account cannot spend anything at all today. That is
+a stronger guarantee than a campaign budget, which limits a rate rather than a total, and
+it means the £15 ceiling can be enforced by funding once and never topping up rather than
+by trusting a setting.
+
+### Campaigns removed
+
+Removed on the owner's explicit instruction. All three were dormant with ₹0.00 lifetime
+cost. Removal is irreversible in Google Ads; the owner asked for it directly.
+
+| Campaign | Budget | State when removed |
+| --- | --- | --- |
+| Best Numerologist | **₹300.00/day (₹9,120.00/month)**, no end date | Paused |
+| credit | ₹380.00 total, 25–26 Jun 2021 | Paused, no ads |
+| First Yt ADD | ₹450.00 total, 5–9 Jan 2021 | **Enabled**, ended by date |
+
+"Best Numerologist" was the reason to act rather than leave them paused: a daily budget
+with no end date, on a reactivated account, is roughly **£85/month** of exposure sitting
+one accidental click from live — most of the £100 budget. "First Yt ADD" was still marked
+enabled and was held back only by a 2021 end date.
+
+### Confirmed available, contrary to the earlier blanket claim
+
+Campaign **total budgets with start and end dates** are demonstrably supported in this
+account: both removed video campaigns used them (₹380 and ₹450 totals over fixed dates).
+The brief asked this be verified in the account rather than taken from documentation.
+
+### Not yet established
+
+- The minimum top-up amount. "Add funds" does not open for the signed-in user because of
+  the payments-profile permission gap, so the minimum is **unverified** and is not being
+  guessed at.
+- Taxes and surcharges applicable to an INR account, which count toward the £15 "all in".
+- The GBP/INR rate at funding time, and whether the card issuer adds an FX fee.
+
+Until those three are known the £15 ceiling cannot be converted into a funding figure, so
+nothing is funded and no campaign exists.

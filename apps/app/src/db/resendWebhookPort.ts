@@ -46,6 +46,12 @@ export type EvidenceCorrelation =
   | { readonly outcome: 'unmatched'; readonly reason: string }
   | { readonly outcome: 'ambiguous'; readonly reason: string };
 
+/** Per-workspace cap on parked callbacks. Oldest are evicted first once it is reached. */
+const INBOX_MAX_ROWS_PER_WORKSPACE = 500;
+
+/** How many parked rows one run will claim in a single pass. Bounded work per run. */
+const INBOX_CLAIM_BATCH = 20;
+
 /** How long an email-evidence row is kept. Mirrors `LIMITS.EVIDENCE_RETENTION_DAYS`. */
 const EVIDENCE_RETENTION_SECONDS = 30 * 24 * 60 * 60;
 
@@ -289,6 +295,19 @@ export class D1ResendWebhookDataPort implements ResendWebhookDataPort {
       // The reason is surfaced rather than swallowed: a connection whose customer never
       // sends `expected.email_message_id` will correlate nothing at all, and that should be
       // visible as a configuration problem instead of looking like quiet success.
+      // Parked, not dropped. A delivery event can legitimately arrive before the signed
+      // source event that describes the enquiry -- the provider fires `email.sent` in
+      // milliseconds and the customer's automation reports the enquiry afterwards -- and
+      // this is the only record that the message was ever delivered.
+      await this.#parkUnmatched({
+        workspaceId: params.workspaceId,
+        connectionId: params.connectionId,
+        eventId: params.eventId,
+        reason: correlation.outcome,
+        digest,
+        evidence: params.evidence,
+        receivedAt: params.receivedAt,
+      });
       this.onCorrelationMiss?.({
         workspaceId: params.workspaceId,
         connectionId: params.connectionId,
@@ -398,6 +417,151 @@ export class D1ResendWebhookDataPort implements ResendWebhookDataPort {
     return id === undefined
       ? { outcome: 'unmatched', reason: 'no_run_expects_this_message' }
       : { outcome: 'matched', runId: id };
+  }
+
+  /**
+   * Park an authenticated callback we could not bind, and keep the inbox bounded.
+   *
+   * Three bounds, because an inbox nobody empties fills a disk:
+   *   * `UNIQUE (workspace_id, provider, provider_event_id)` -- a provider replaying the
+   *     same delivery writes one row, so a retry storm cannot inflate it.
+   *   * `expires_at` -- swept on the evidence retention schedule.
+   *   * a per-workspace row cap, oldest evicted first, so one noisy tenant cannot consume
+   *     the table on behalf of the others.
+   *
+   * Nothing here can fail the webhook. A provider callback must not be retried forever
+   * because our inbox was full, so eviction happens before the insert rather than the
+   * insert being refused.
+   */
+  async #parkUnmatched(params: {
+    workspaceId: string;
+    connectionId: string;
+    eventId: string;
+    reason: 'unmatched' | 'ambiguous';
+    digest: string;
+    evidence: EmailEventEvidence;
+    receivedAt: string;
+  }): Promise<void> {
+    const messageId = (params.evidence.message_id ?? '').trim();
+    // Nothing addressable means nothing claimable. Parking it would only grow the table.
+    if (messageId === '') return;
+
+    await this.db
+      .prepare(
+        `DELETE FROM evidence_inbox
+          WHERE workspace_id = ?
+            AND id NOT IN (
+              SELECT id FROM evidence_inbox
+               WHERE workspace_id = ?
+               ORDER BY received_at DESC
+               LIMIT ?
+            )`,
+      )
+      .bind(params.workspaceId, params.workspaceId, INBOX_MAX_ROWS_PER_WORKSPACE - 1)
+      .run();
+
+    await this.db
+      .prepare(
+        `INSERT INTO evidence_inbox
+           (id, workspace_id, connection_id, provider, provider_event_id, message_id,
+            reason, content_digest, redacted_summary, observed_at, received_at, expires_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT (workspace_id, provider, provider_event_id) DO NOTHING`,
+      )
+      .bind(
+        `ebx_${params.digest.slice(0, 32)}`,
+        params.workspaceId,
+        params.connectionId,
+        this.provider,
+        params.eventId,
+        messageId,
+        params.reason,
+        params.digest,
+        // The same masked summary the evidence row would carry. No recipient, no payload.
+        JSON.stringify({
+          kind: params.evidence.kind,
+          status: params.evidence.status,
+          message_id: params.evidence.message_id,
+          provider_account_id: params.evidence.provider_account_id,
+          occurred_at: params.evidence.occurred_at,
+        }),
+        params.evidence.observed_at,
+        params.receivedAt,
+        addSecondsIso(params.receivedAt, EVIDENCE_RETENTION_SECONDS),
+      )
+      .run();
+  }
+
+  /**
+   * Claim parked callbacks for a run that turns out to have been waiting for them.
+   *
+   * This is the recovery path for the out-of-order case, and it applies the same rule the
+   * live path does: only the message id binds, and only an unambiguous match. Rows parked
+   * as `ambiguous` are never claimed -- an ambiguity does not become resolvable later just
+   * because one of its candidates asked.
+   *
+   * Idempotent. The evidence id is derived from the same digest the live path uses, so a
+   * claim that races a live write collides on the primary key and does nothing rather than
+   * writing a second row for one observation.
+   */
+  async claimInboxForRun(params: {
+    workspaceId: string;
+    runId: string;
+    messageId: string;
+    now: string;
+  }): Promise<number> {
+    const messageId = (params.messageId ?? '').trim();
+    if (messageId === '') return 0;
+
+    const parked = await this.db
+      .prepare(
+        `SELECT id, provider, content_digest, redacted_summary, observed_at, expires_at
+           FROM evidence_inbox
+          WHERE workspace_id = ?
+            AND message_id = ?
+            AND reason = 'unmatched'
+            AND claimed_at IS NULL
+            AND expires_at > ?
+          ORDER BY received_at ASC
+          LIMIT ?`,
+      )
+      .bind(params.workspaceId, messageId, params.now, INBOX_CLAIM_BATCH)
+      .all<{
+        id: string;
+        provider: string;
+        content_digest: string;
+        redacted_summary: string;
+        observed_at: string;
+        expires_at: string;
+      }>();
+
+    let claimed = 0;
+    for (const row of parked.results) {
+      const written = await evidence.recordProviderEvent(this.db, {
+        id: `evd_${row.content_digest.slice(0, 32)}`,
+        runId: params.runId,
+        workspaceId: params.workspaceId,
+        provider: row.provider,
+        origin: 'provider_webhook',
+        providerRecordId: messageId,
+        observedAt: row.observed_at,
+        contentDigest: row.content_digest,
+        redactedSummary: row.redacted_summary,
+        expiresAt: row.expires_at,
+      });
+      // Marked claimed either way: a collision means the live path already wrote this
+      // observation, so the parked copy has done its job and must not be retried forever.
+      await this.db
+        .prepare(
+          `UPDATE evidence_inbox
+              SET claimed_at = ?, claimed_run_id = ?
+            WHERE id = ? AND workspace_id = ? AND claimed_at IS NULL`,
+        )
+        .bind(params.now, params.runId, row.id, params.workspaceId)
+        .run();
+      if (written) claimed += 1;
+    }
+    return claimed;
   }
 
   /**

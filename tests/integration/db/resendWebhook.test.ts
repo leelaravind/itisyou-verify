@@ -556,6 +556,140 @@ describe('the webhook data port', () => {
     expect(new Set(misses.map((m) => m.reason)).size).toBe(2);
   });
 
+  /**
+   * The inbox, and the case it exists for.
+   *
+   * A delivery event can legitimately arrive BEFORE the signed source event that describes
+   * the enquiry: the customer's automation sends the mail, the provider fires `email.sent`
+   * within milliseconds, and the event describing the enquiry arrives afterwards. Under the
+   * id-only rule that callback matches nothing, and discarding it throws away the only
+   * record that the message was ever delivered -- which would turn a real delivery into an
+   * UNVERIFIED run for a reason that is entirely our own doing.
+   *
+   * So it is parked, addressed by the provider's message id, and claimed by the run that
+   * turns out to have been waiting for it.
+   */
+  it('CONN-340 a callback that arrives before its run is parked rather than discarded', async () => {
+    await port.recordEmailEvidence({
+      workspaceId: ws.workspaceId,
+      connectionId: 'conn_a',
+      eventId: 'evt_early',
+      evidence: { ...emailEvent('M_EARLY', 'delivered'), recipient: 'a@example.test' },
+      receivedAt: NOW,
+    });
+
+    expect(countRows(h, 'evidence')).toBe(0);
+    const parked = h.raw
+      .prepare('SELECT message_id, reason, claimed_at, redacted_summary FROM evidence_inbox')
+      .all() as { message_id: string; reason: string; claimed_at: string | null; redacted_summary: string }[];
+    expect(parked).toHaveLength(1);
+    expect(parked[0]?.message_id).toBe('M_EARLY');
+    expect(parked[0]?.reason).toBe('unmatched');
+    expect(parked[0]?.claimed_at).toBeNull();
+    // Masked exactly as an evidence row would be: no recipient, no raw payload.
+    expect(parked[0]?.redacted_summary).not.toContain('a@example.test');
+  });
+
+  it('CONN-341 the run it was waiting for claims it, once', async () => {
+    await port.recordEmailEvidence({
+      workspaceId: ws.workspaceId,
+      connectionId: 'conn_a',
+      eventId: 'evt_early',
+      evidence: { ...emailEvent('M_EARLY', 'delivered'), recipient: 'a@example.test' },
+      receivedAt: NOW,
+    });
+    seedRun(h, ws, 'late', { nextCheckAt: null, emailRecipient: 'a@example.test', emailMessageId: 'M_EARLY' });
+
+    const first = await port.claimInboxForRun({
+      workspaceId: ws.workspaceId,
+      runId: 'late',
+      messageId: 'M_EARLY',
+      now: NOW,
+    });
+    expect(first).toBe(1);
+
+    const rows = h.raw.prepare('SELECT run_id FROM evidence').all() as { run_id: string }[];
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.run_id).toBe('late');
+
+    // Claiming again writes nothing: the row is marked claimed and the evidence id is
+    // derived from the same digest, so a second attempt collides rather than duplicating.
+    const second = await port.claimInboxForRun({
+      workspaceId: ws.workspaceId,
+      runId: 'late',
+      messageId: 'M_EARLY',
+      now: NOW,
+    });
+    expect(second).toBe(0);
+    expect(countRows(h, 'evidence')).toBe(1);
+  });
+
+  it('CONN-342 an ambiguous callback is parked but never claimed', async () => {
+    seedRun(h, ws, 'one', { nextCheckAt: null, emailRecipient: 'a@example.test', emailMessageId: 'M_DUP' });
+    seedRun(h, ws, 'two', { nextCheckAt: null, emailRecipient: 'b@example.test', emailMessageId: 'M_DUP' });
+
+    await port.recordEmailEvidence({
+      workspaceId: ws.workspaceId,
+      connectionId: 'conn_a',
+      eventId: 'evt_ambiguous',
+      evidence: { ...emailEvent('M_DUP', 'delivered'), recipient: 'a@example.test' },
+      receivedAt: NOW,
+    });
+
+    const reason = (h.raw.prepare('SELECT reason FROM evidence_inbox').get() as { reason: string }).reason;
+    expect(reason).toBe('ambiguous');
+
+    // An ambiguity does not become resolvable later just because one candidate asks.
+    const claimed = await port.claimInboxForRun({
+      workspaceId: ws.workspaceId,
+      runId: 'one',
+      messageId: 'M_DUP',
+      now: NOW,
+    });
+    expect(claimed).toBe(0);
+    expect(countRows(h, 'evidence')).toBe(0);
+  });
+
+  it('CONN-343 a provider replaying the same callback writes one parked row', async () => {
+    const send = () =>
+      port.recordEmailEvidence({
+        workspaceId: ws.workspaceId,
+        connectionId: 'conn_a',
+        eventId: 'evt_replayed',
+        evidence: { ...emailEvent('M_REPLAY', 'delivered'), recipient: 'a@example.test' },
+        receivedAt: NOW,
+      });
+    await send();
+    await send();
+    await send();
+    expect(countRows(h, 'evidence_inbox')).toBe(1);
+  });
+
+  it('CONN-344 another workspace cannot claim this workspace’s parked callback', async () => {
+    await port.recordEmailEvidence({
+      workspaceId: ws.workspaceId,
+      connectionId: 'conn_a',
+      eventId: 'evt_early',
+      evidence: { ...emailEvent('M_EARLY', 'delivered'), recipient: 'a@example.test' },
+      receivedAt: NOW,
+    });
+    const other = seedWorkspace(h, 'beta');
+    seedRun(h, other, 'theirs', { nextCheckAt: null, emailRecipient: 'a@example.test', emailMessageId: 'M_EARLY' });
+
+    const claimed = await port.claimInboxForRun({
+      workspaceId: other.workspaceId,
+      runId: 'theirs',
+      messageId: 'M_EARLY',
+      now: NOW,
+    });
+    expect(claimed).toBe(0);
+    expect(countRows(h, 'evidence')).toBe(0);
+    expect(
+      (h.raw.prepare('SELECT claimed_at FROM evidence_inbox').get() as { claimed_at: string | null })
+        .claimed_at,
+    ).toBeNull();
+  });
+
   it('CONN-320 a decided run is not reopened by a late delivery event', async () => {
     seedRun(h, ws, 'run_done', {
       nextCheckAt: null,
