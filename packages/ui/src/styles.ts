@@ -377,6 +377,10 @@ a:hover{text-decoration-thickness:2px}
   .steps>li{grid-template-columns:var(--w-step) minmax(0,1fr);gap:var(--s6);align-items:start}
   .steps>li::before{grid-row:span 2}
 }
+/* Terse instruction lists — a provider's numbered setup steps — get a tighter rhythm than
+   the marketing three-step section, which carries a heading and a paragraph per item. */
+.steps--tight{gap:var(--s2)}
+.steps--tight>li{padding-top:var(--s2)}
 .steps h3{margin:0}
 .steps p{margin:var(--s2) 0 0;color:var(--c-muted);font-size:var(--t-small)}
 @media (min-width:46rem){.steps>li>*{grid-column:2}}

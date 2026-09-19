@@ -513,3 +513,118 @@ describe('at-most-once sending makes the owner the retry', () => {
     expect(card).not.toMatch(/[A-Za-z0-9._%-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/);
   });
 });
+
+/**
+ * A-20 / `AUTH-511` at the route level.
+ *
+ * The unit cases (`OWNER-290..297`) prove the compare-and-set. These prove the *ordering*,
+ * which is the half that decides whether the control works: the approval is spent before
+ * anything reaches a provider, so a crash after the provider call can never leave a
+ * spendable approval sitting next to money that already moved.
+ */
+describe('an approval is spent before money can move', () => {
+  async function grantRefundApproval(h: Harness): Promise<string> {
+    await h.post('/owner/approvals', {
+      action_type: 'refund_issue',
+      summary: 'Refund September in full — the connection never worked',
+      maximum_amount: '49.00',
+      payload_json: JSON.stringify({
+        workspace_id: 'ws_1',
+        order_id: 'ord_1',
+        amount_minor: 4900,
+        currency: 'GBP',
+        policy_rule: 'unused_period_within_14_days',
+        reason: 'the connection never worked',
+      }),
+    });
+    return (await h.port.approvals())[0]?.id ?? '';
+  }
+
+  const REFUND = {
+    workspace_id: 'ws_1',
+    order_id: 'ord_1',
+    amount: '49.00',
+    policy_rule: 'unused_period_within_14_days',
+    reason: 'the connection never worked',
+  };
+
+  it('OWNER-298 issuing a refund consumes the approval before the provider is reached', async () => {
+    const h = harness();
+    const approvalId = await grantRefundApproval(h);
+
+    const response = await h.post('/owner/refunds', { ...REFUND, approval_id: approvalId });
+    // The provider is not configured, so the refund itself reports its dependency — and the
+    // approval has still been spent, because spending it is what authorised the attempt.
+    expect(response.status).toBe(422);
+    expect(await response.text()).toMatch(/Payments are not configured/i);
+
+    const after = (await h.port.approvals()).find((a) => a.id === approvalId);
+    expect(after?.status).toBe('consumed');
+    expect(after?.consumed_at).toBe(NOW.toISOString());
+  });
+
+  it('OWNER-299 the same approval cannot be used a second time', async () => {
+    const h = harness();
+    const approvalId = await grantRefundApproval(h);
+    await h.post('/owner/refunds', { ...REFUND, approval_id: approvalId });
+
+    const replay = await h.post('/owner/refunds', { ...REFUND, approval_id: approvalId });
+    expect(replay.status).toBe(422);
+    const body = await replay.text();
+    expect(body).toMatch(/already been used/i);
+    // And nothing pretends the second attempt did anything.
+    expect(body).not.toMatch(/Payments are not configured/i);
+  });
+
+  it('OWNER-238 the approvals page shows when each approval was spent', async () => {
+    const h = harness();
+    const approvalId = await grantRefundApproval(h);
+    const before = await (await h.get('/owner/approvals')).text();
+    expect(before).toContain('data-spent="never"');
+
+    await h.post('/owner/refunds', { ...REFUND, approval_id: approvalId });
+    const after = await (await h.get('/owner/approvals')).text();
+    expect(after).toContain(`data-spent="${NOW.toISOString()}"`);
+    expect(after).toContain('data-standing="used"');
+  });
+
+  it('OWNER-239 activating a campaign spends its approval before anything reaches a platform', async () => {
+    const h = harness();
+    await h.post('/owner/approvals', {
+      action_type: 'cleanup_execute',
+      summary: 'Launch the first Reddit test campaign at fifteen pounds',
+      maximum_amount: '',
+      payload_json: JSON.stringify({ categories: [], inventory_hash: 'cmp_first_test', resource_count: 0, environment: 'development' }),
+    });
+    const approvalId = (await h.port.approvals())[0]?.id ?? '';
+
+    const first = await h.post('/owner/ads/cmp_first_test/activate', {
+      approval_id: approvalId,
+      confirm: 'activate',
+    });
+    expect(first.status).toBe(422);
+    expect(await first.text()).toMatch(/No advertising account is connected/i);
+    expect((await h.port.approvals()).find((a) => a.id === approvalId)?.status).toBe('consumed');
+
+    const replay = await h.post('/owner/ads/cmp_first_test/activate', {
+      approval_id: approvalId,
+      confirm: 'activate',
+    });
+    expect(await replay.text()).toMatch(/used|consumed/i);
+  });
+
+  it('OWNER-244 every consumption is audited with the approval and the instant', async () => {
+    const h = harness();
+    const approvalId = await grantRefundApproval(h);
+    await h.post('/owner/refunds', { ...REFUND, approval_id: approvalId });
+
+    const trail = await h.port.auditTrail(50);
+    const consumption = trail.find((row) => row.action === 'owner.approval.consume');
+    expect(consumption).toBeDefined();
+    expect(consumption?.target).toBe(approvalId);
+    expect(consumption?.redactedMetadata).toContain(NOW.toISOString());
+    // The grant is on the record too, so "what was approved, by whom, when, and when spent"
+    // is answerable from the trail alone.
+    expect(trail.map((row) => row.action)).toContain('owner.approval.grant');
+  });
+});

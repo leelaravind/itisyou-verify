@@ -1,8 +1,8 @@
 # ITISYOU Verify — threat model
 
 **Reviewer:** A10 (security), independent of the implementing agents.
-**Review date:** 2026-09-19 (pass 1 morning, **pass 2 afternoon against the assembled,
-deployed system**). **Scope:** the repository plus the live service at
+**Review date:** 2026-09-19 (pass 1 morning, pass 2 afternoon against the assembled
+deployed system, **pass 3 evening against the release candidate**). **Scope:** the repository plus the live service at
 https://verify.itisyou.app, probed directly.
 **Method:** read the frozen contracts, `migrations/0001_init.sql`, `packages/security/`,
 `apps/app/src/db/`, `apps/app/src/lib/`, `packages/domain/`, `wrangler.jsonc`,
@@ -802,3 +802,66 @@ only the guard can produce, so an unguarded string cannot reach an `href` at all
 | T-CACHE-01 shared-cache poisoning | ABSENT → **IMPLEMENTED** | live `no-store` + `Vary: Cookie` on `/app` |
 | T-XSS-01 stored XSS | reference → **IMPLEMENTED** | `SEC-1210`–`SEC-1213`; live CSP `default-src 'none'` |
 | T-PUB-03 secrets in history | IMPLEMENTED | clean over 362 tracked files |
+
+---
+
+## 13. Pass-three findings (2026-09-19 evening, release candidate)
+
+T-HOOK-06, T-TEN-08 and T-XSS-03 from pass two are all **closed**. Two new entries.
+
+### T-APPROVE-01 — An approval is never consumed · **MEDIUM, blocks commerce** · **OPEN**
+
+**Attack.** `checkOwnerApproval` validates action type, status, expiry, currency, payload
+hash and amount ceiling — correctly, and `AUTH-510`/`AUTH-513` prove it. It then returns
+`{valid: true}` and the caller submits the refund. Nothing in between **claims** the
+approval. `approvals.status` has a `consumed` state in the schema CHECK, `OwnerApproval`
+carries `consumed_at`, and `approvalStanding()` renders `'used'` for it — but no statement
+anywhere in the application writes either. The state is unreachable, so
+`status_not_granted` can never fire for reuse. This is check-then-act where the schema was
+designed for compare-and-set.
+
+**Blast radius, stated precisely.** Smaller than "approval reuse" sounds.
+`refunds.idempotency_key` is `NOT NULL UNIQUE` and the approval's payload hash binds to one
+specific refund, so a replayed approval can only re-submit the *same* refund, which reaches
+Stripe under the same idempotency key and is deduplicated there. What is missing is a
+single-use control that is single-use, and the audit fact: every approval stays `granted`
+forever, so the record cannot answer "was this one used?".
+
+**Control.** Make consumption the act that authorises:
+`UPDATE approvals SET status='consumed', consumed_at=? WHERE id=? AND status='granted' AND
+expires_at > ?`, with `meta.changes === 1` as the permission. Consume **before** the
+provider call, not after — a crash between charge and update otherwise leaves a spendable
+approval. `revokeApproval`, one function above in the same file, already does exactly this.
+
+**Where.** `apps/app/src/owner/approvals.ts` + `apps/app/src/db/ownerPort.ts` (A07),
+called from `apps/app/src/billing/refunds.ts` (A06).
+**Proving test.** `AUTH-511` — FAILING.
+
+### T-TEN-03 (revisited) — `owner_scope` intra-regime collision · **LOW** · ACCEPTED
+
+A02's `migrations/0002_credential_scope_check.sql` constrains the column to
+`connection:?*` or `user:?*` and additionally requires the AAD to carry `kv=`, closing
+pass-one finding F5 at the database rather than by convention. That closes the
+**cross-regime** half of this threat.
+
+The **intra-regime** half remains: `user:usr_abc:recovery` satisfies `user:?*` whether it
+came from `totpScope('usr_abc:recovery')` or `recoveryScope('usr_abc')`. A string CHECK
+cannot separate them; a `scope_kind` discriminator would.
+
+**A10's adjudication: accepted, do not hold the release.** The residual exposure is
+`countRecoveryCodes` returning a wrong figure, and it requires a user id containing a
+colon. Two independent mitigations, both now asserted: ids are Crockford base32 with no
+colon (`SEC-643`), and TOTP and recovery material carry different AAD purposes so nothing
+cross-decrypts (`SEC-644`). `SEC-642` pins that the collision is real at the string level
+so it cannot be quietly forgotten. It becomes a real problem the moment an id is sourced
+from an external system rather than `newId`.
+
+### Controls confirmed in pass three
+
+| Threat | Status now | Evidence |
+| --- | --- | --- |
+| T-OWN-02 session fixation | PARTIAL → **IMPLEMENTED** | `AUTH-501`–`AUTH-505`, behavioural against real SQLite: one atomic batch, identical liveness guard on both statements, dead session mints nothing |
+| T-XSS-03 `javascript:` in an href | OPEN → **CLOSED** | `SEC-1214`, `SEC-1216`–`SEC-1219`; nine URL-bearing attributes guarded; two implementations proved to agree on a 22-value corpus |
+| T-CRED-02 key version outside the AAD | OPEN → **CLOSED at the database** | `SEC-641`: `CHECK (aad LIKE 'v1|kv=%')` |
+| T-TEN-03 cross-regime scope confusion | gap → **CLOSED** | `SEC-641`: `CHECK (owner_scope GLOB 'connection:?*' OR GLOB 'user:?*')` |
+| T-TEN-01/02 raw SQL outside the data layer | regression caught | `SEC-201` went red when auth landed in `lib/`; A02 moved it the same hour |

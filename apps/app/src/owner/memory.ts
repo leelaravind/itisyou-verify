@@ -22,7 +22,11 @@ import type { JobState } from '@verify/contracts';
 import { ANONYMOUS_PRINCIPAL, capabilitiesFor, type OwnerPrincipal } from './access.js';
 import {
   approvalStanding,
+  claimApproval,
+  consumeApproval,
+  explainApprovalRejection,
   grantOwnerApproval,
+  type ApprovalClaimStore,
   type OwnerApproval,
   type OwnerApprovalPayload,
 } from './approvals.js';
@@ -223,6 +227,25 @@ export class MemoryOwnerDataPort implements OwnerDataPort {
     ];
   }
 
+  /**
+   * The in-memory twin of `CLAIM_APPROVAL_SQL`, with the identical guard: it moves
+   * `granted` → `consumed` and reports whether **this call** was the one that moved it.
+   * It never re-reads and compares — that would put the race straight back.
+   */
+  #claimStore(): ApprovalClaimStore {
+    return {
+      claim: async ({ approvalId, at }) => {
+        const index = this.#approvals.findIndex((a) => a.id === approvalId);
+        const existing = index === -1 ? undefined : this.#approvals[index];
+        if (existing === undefined) return false;
+        if (existing.status !== 'granted') return false;
+        if (Date.parse(existing.expires_at) <= Date.parse(at)) return false;
+        this.#approvals[index] = { ...existing, status: 'consumed', consumed_at: at };
+        return true;
+      },
+    };
+  }
+
   #id(prefix: string): string {
     this.#idCounter += 1;
     return `${prefix}_mem${String(this.#idCounter).padStart(4, '0')}`;
@@ -374,11 +397,28 @@ export class MemoryOwnerDataPort implements OwnerDataPort {
     if (approval === null) {
       return writeFailed('That approval does not exist, so there is nothing authorising this refund.');
     }
-    if (approvalStanding(approval, ctx.now) !== 'usable') {
-      return writeFailed(
-        `That approval is ${approvalStanding(approval, ctx.now)}. Approve the refund again if you still want it to happen.`,
-      );
-    }
+    // Spending the approval IS the authorisation. Nothing below this line can run twice on
+    // one approval, because the second caller loses the compare-and-set and stops here.
+    const claim = await claimApproval(
+      approval,
+      {
+        action_type: 'refund_issue',
+        payload: {
+          workspace_id: input.workspaceId,
+          order_id: input.orderId,
+          amount_minor: input.amountMinor,
+          currency: 'GBP',
+          policy_rule: input.policyRule,
+          reason: input.reason,
+        },
+      },
+      { store: this.#claimStore(), now: ctx.now },
+    );
+    if (!claim.ok) return writeFailed(explainApprovalRejection(claim.reason));
+    this.#record(ctx, 'owner.approval.consume', approval.id, {
+      action_type: approval.action_type,
+      consumed_at: claim.consumedAt,
+    });
     this.#record(ctx, 'owner.refund.issue', input.orderId, {
       order_id: input.orderId,
       amount_minor: input.amountMinor,
@@ -474,9 +514,25 @@ export class MemoryOwnerDataPort implements OwnerDataPort {
     const denied = this.#denied(ctx);
     if (denied !== null) return denied;
     const approval = this.#approvals.find((a) => a.id === approvalId) ?? null;
-    if (approval === null || approvalStanding(approval, ctx.now) !== 'usable') {
-      return writeFailed('There is no usable approval for this campaign, so it cannot be activated.');
+    if (approval === null) {
+      return writeFailed('There is no approval with that id, so nothing authorises this activation.');
     }
+    // Spend it before anything reaches a platform. The campaign packet's own binding is
+    // A12's hash rather than mine, so this uses the raw compare-and-set: the guarantee we
+    // need here is single-use, and that is what the statement provides.
+    const spent = await consumeApproval(this.#claimStore(), {
+      approvalId: approval.id,
+      at: ctx.now.toISOString(),
+    });
+    if (!spent) {
+      return writeFailed(
+        `That approval is ${approvalStanding(approval, ctx.now)} and cannot authorise an activation. Approve the campaign again if you still want it to run.`,
+      );
+    }
+    this.#record(ctx, 'owner.approval.consume', approval.id, {
+      action_type: approval.action_type,
+      consumed_at: ctx.now.toISOString(),
+    });
     this.#record(ctx, 'owner.campaign.activate', campaignId, { campaign_id: campaignId, approval_id: approvalId });
     return writeBlocked(AD_PLATFORM_DEPENDENCY);
   }

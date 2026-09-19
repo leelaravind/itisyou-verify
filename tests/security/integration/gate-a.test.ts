@@ -152,11 +152,11 @@ describe('A-20 an approval is consumed exactly once before money moves', () => {
     const payload = {
       action_type: 'refund_issue' as const,
       payload: {
-        refund_id: 'ref_1',
-        order_id: 'ord_1',
         workspace_id: 'ws_a',
+        order_id: 'ord_1',
         amount_minor: 2900,
         currency: 'GBP' as const,
+        policy_rule: 'unused_period',
         reason: 'goodwill',
       },
     };
@@ -252,11 +252,11 @@ describe('A-20 an approval is consumed exactly once before money moves', () => {
     const dearer = {
       action_type: 'refund_issue' as const,
       payload: {
-        refund_id: 'ref_1',
-        order_id: 'ord_1',
         workspace_id: 'ws_a',
+        order_id: 'ord_1',
         amount_minor: 2901,
         currency: 'GBP' as const,
+        policy_rule: 'unused_period',
         reason: 'goodwill',
       },
     };

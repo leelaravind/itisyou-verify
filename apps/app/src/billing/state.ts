@@ -285,21 +285,10 @@ export function billingPeriodKey(instantIso: string): string {
 }
 
 /**
- * The key an allowance period is stored under: the UTC date the paid period **ends**.
- *
- * The end, not the start, and this is load-bearing. Two different events tell us about the
- * same period — `customer.subscription.*` carries `items.data[].current_period_end`, and
- * `invoice.paid` carries its line item's `period.end` — and both give the end *exactly*.
- * Neither carries a start we can trust to agree: deriving one by stepping a month
- * backwards lands on a 30- or 31-day boundary depending on the month, so the two sources
- * would produce two different keys for one period and `UNIQUE (workspace_id,
- * billing_period)` would let both rows exist. That is 1,000 runs sold for £29.
- *
- * Keying on the end makes the two sources agree by construction.
+ * Re-exported from `period.ts`, which is the single place an allowance period key is
+ * computed. Defining it twice is the defect it exists to prevent (A13-010).
  */
-export function allowancePeriodKey(periodEndIso: string): string {
-  return billingPeriodKey(periodEndIso);
-}
+export { allowancePeriodKey } from './period';
 
 /** Unix seconds to an ISO-8601 UTC instant, or `null`. Stripe times are always seconds. */
 export function unixToIso(seconds: number | null | undefined): string | null {

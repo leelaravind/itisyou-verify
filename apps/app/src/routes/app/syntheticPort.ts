@@ -60,6 +60,7 @@ import {
 } from '../../../../../tests/fixtures/index.js';
 import type {
   ActivationView,
+  ConnectionCredentialsInput,
   ConnectionView,
   ConnectorCompatibility,
   CustomerDataPort,
@@ -325,7 +326,9 @@ export class SyntheticCustomerDataPort implements CustomerDataPort {
     return catalogue.map((entry) => {
       const status = state.connections[entry.provider];
       const problem =
-        status === 'expired'
+        status === 'testing'
+          ? 'We have stored what you gave us. This connection is not finished: it becomes ready only once a correctly signed message actually arrives and we can read it.'
+          : status === 'expired'
           ? 'The authorisation for this connection has expired, so we cannot read evidence from it.'
           : status === 'revoked'
             ? 'Access to this connection was revoked at the provider.'
@@ -339,16 +342,59 @@ export class SyntheticCustomerDataPort implements CustomerDataPort {
         accountLabel: status === 'ready' || status === 'expired' ? maskToken(`${entry.provider}-account-000042`) : null,
         lastCheckedAt: status === 'not_connected' ? null : T_AFTER_DEADLINE.toISOString(),
         problem,
-        nextStep: problem === null ? null : `Reconnect ${entry.displayName} to restore read access.`,
+        nextStep:
+          problem === null
+            ? null
+            : status === 'testing'
+              ? `Finish the ${entry.displayName} setup, then wait for the first signed message to arrive.`
+              : `Reconnect ${entry.displayName} to restore read access.`,
       };
     });
   }
 
   async beginConnection(provider: ProviderKey): Promise<WriteResult> {
-    state.connections[provider] = 'testing';
     return fail(
-      `No authorisation was started. This workspace is running on synthetic data, so there is no real ${provider} connection to open. When the connector lands, this button will send you to ${provider} to grant read access.`,
+      `No authorisation was started and nothing about your ${provider} connection has changed. This workspace is running on synthetic data, so there is nowhere to send you.`,
     );
+  }
+
+  /**
+   * Validates the *shape* of a pasted credential and nothing else.
+   *
+   * It deliberately stops short of claiming a connection works. A real implementation hands
+   * the value to A04's `establishConnection`, which asks the provider; this one cannot, so on
+   * a well-shaped value it records `testing` — "we have stored what you gave us" — and says in
+   * so many words that storing is not validating. A stored secret is a promise, not evidence.
+   */
+  async submitConnectionCredentials(input: ConnectionCredentialsInput): Promise<WriteResult> {
+    const token = input.accessToken.trim();
+    const expectedPrefix = input.provider === 'hubspot' ? 'pat-' : 're_';
+    if (token === '') {
+      return fail('Nothing was checked and nothing was stored.', {
+        access_token: 'Paste the token before submitting.',
+      });
+    }
+    if (!token.startsWith(expectedPrefix)) {
+      return fail('Nothing was checked and nothing was stored.', {
+        access_token: `A ${input.provider} token starts ${expectedPrefix}. Check you copied the whole value.`,
+      });
+    }
+    const secret = (input.webhookSecret ?? '').trim();
+    if (secret !== '' && !secret.startsWith('whsec_')) {
+      return fail('Nothing was checked and nothing was stored.', {
+        webhook_secret: 'A signing secret starts whsec_. Leave it blank to connect the webhook later.',
+      });
+    }
+
+    state.connections[input.provider] = 'testing';
+    return {
+      ok: false,
+      fieldErrors: {},
+      message:
+        `That looks like a ${input.provider} credential, but nothing was sent to ${input.provider} and nothing was stored. ` +
+        'This workspace is running on synthetic data, so we cannot check the credential against the provider — and we are not going to mark the connection working on our own say-so.',
+      redirectTo: null,
+    };
   }
 
   async workflow(): Promise<WorkflowDetail> {

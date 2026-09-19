@@ -344,7 +344,9 @@ export async function checkCampaignApproval(
  * A rejection turned into something an owner can act on. Never a bare reason code — the
  * same rule `@verify/domain`'s `explain.ts` follows for verification reasons.
  */
-const REJECTION_TEXT: Record<OwnerApprovalRejection, string> = {
+const REJECTION_TEXT: Record<ClaimRejection, string> = {
+  already_consumed:
+    'This approval has already been used. Each one authorises a single action once; approve it again if you genuinely want it to happen a second time.',
   action_type_mismatch:
     'This approval was granted for a different kind of action, so it does not authorise this one.',
   status_not_granted:
@@ -358,8 +360,130 @@ const REJECTION_TEXT: Record<OwnerApprovalRejection, string> = {
     'The amount is larger than the maximum you approved. Approve the larger amount explicitly if that is what you want.',
 };
 
-export function explainApprovalRejection(reason: OwnerApprovalRejection): string {
+export function explainApprovalRejection(reason: ClaimRejection): string {
   return REJECTION_TEXT[reason];
+}
+
+// ---------------------------------------------------------------------------
+// Consumption — the act that authorises
+// ---------------------------------------------------------------------------
+
+/**
+ * The statement that spends an approval. **The only one.**
+ *
+ * A10 found the gap this closes (`AUTH-511`): `approvals.status` had a `consumed` state
+ * that no code ever wrote, so `checkOwnerApproval` was a check-then-act. Two requests
+ * carrying the same approval both saw `granted`, both passed, and both proceeded. The
+ * exposure was bounded — `refunds.idempotency_key` is `UNIQUE` and the payload hash binds
+ * an approval to one specific refund, so a replay could only re-submit the same refund —
+ * but a single-use control that is not actually single-use is not a control, and the
+ * missing `consumed_at` is a missing audit fact about who spent what and when.
+ *
+ * So consumption *is* the authorisation. The guard is the row count, not a prior read:
+ *
+ *     UPDATE approvals SET status = 'consumed', consumed_at = ?
+ *      WHERE id = ? AND status = 'granted' AND expires_at > ?
+ *
+ * `meta.changes === 1` is the permission. The loser of a race gets zero rows and stops.
+ * Check-then-act becomes compare-and-set — the same shape `sessions.rotate` and the budget
+ * movements already use, for the same reason.
+ *
+ * The literal lives here, beside the rules it enforces, because an approval's single-use
+ * guarantee is an approval rule and not a storage detail. A second spelling of it anywhere
+ * else is a defect.
+ */
+export const CLAIM_APPROVAL_SQL =
+  `UPDATE approvals SET status = 'consumed', consumed_at = ?
+    WHERE id = ? AND status = 'granted' AND expires_at > ?`;
+
+/**
+ * The compare-and-set, as a one-method port so this module stays free of a database handle.
+ *
+ * An implementation runs {@link CLAIM_APPROVAL_SQL} and returns `meta.changes === 1`. It
+ * must never re-read and compare: returning true because the row *looks* consumed after the
+ * fact reintroduces exactly the race this exists to remove.
+ */
+export interface ApprovalClaimStore {
+  claim(params: { readonly approvalId: string; readonly at: string }): Promise<boolean>;
+}
+
+/**
+ * The raw compare-and-set: spend this approval, and say whether **this call** spent it.
+ *
+ * `true` means `meta.changes === 1` — this caller holds the permission. `false` means the
+ * approval was already consumed, revoked, expired or absent, and the caller must stop. It
+ * never explains which; {@link claimApproval} is the function that can, because it looked.
+ *
+ * Almost nobody should call this directly. It exists as a named primitive because A10's
+ * finding was that the *statement* did not exist anywhere, and because the campaign path
+ * binds its payload through A12's hash rather than mine and so cannot use the wrapper.
+ */
+export async function consumeApproval(
+  store: ApprovalClaimStore,
+  params: { readonly approvalId: string; readonly at: string },
+): Promise<boolean> {
+  return store.claim(params);
+}
+
+export type ClaimRejection = OwnerApprovalRejection | 'already_consumed';
+
+export type ApprovalClaim =
+  | { readonly ok: true; readonly hash: string; readonly consumedAt: string }
+  | { readonly ok: false; readonly reason: ClaimRejection; readonly detail: string };
+
+/**
+ * Validate **and spend** an approval, in that order, with no gap a second caller can use.
+ *
+ * There is deliberately no way to get an `ok` from this function without the approval having
+ * been consumed: the call site cannot accidentally check and then forget to claim, because
+ * the check and the claim are the same call. Anything that moves money should call this and
+ * nothing else — `checkOwnerApproval` remains for rendering a page, where nothing is spent.
+ *
+ * ## Call this BEFORE the provider, never after
+ *
+ * The ordering is the control, not a detail of it. Consume-after means a crash between the
+ * provider call and the write leaves an approval that still looks spendable sitting next to
+ * money that has already moved — the one combination that lets the same authorisation be
+ * used twice. Consume-before means the worst case is an approval spent on a call that
+ * failed: visible, recoverable by granting another, and wrong in the safe direction.
+ *
+ * A06's `decideRefund` should therefore replace its `checkOwnerApproval` with this call and
+ * keep it where the check is now — above `gateway.createRefund`, below the state guard:
+ *
+ * ```ts
+ * const claim = await claimApproval(params.approval, refundApprovalPayload(refund, params.policyRule), {
+ *   store: approvalClaims,      // runs CLAIM_APPROVAL_SQL, returns meta.changes === 1
+ *   now: new Date(at),
+ * });
+ * if (!claim.ok) {
+ *   throw new AppError(403, 'REFUND_APPROVAL_INVALID',
+ *     `This approval does not authorise this refund: ${explainApprovalRejection(claim.reason)}`);
+ * }
+ * // `claim.consumedAt` is the audit fact: when this approval was spent.
+ * ```
+ */
+export async function claimApproval(
+  approval: OwnerApproval,
+  input: OwnerApprovalPayload,
+  deps: { readonly store: ApprovalClaimStore; readonly now: Date },
+): Promise<ApprovalClaim> {
+  const check = await checkOwnerApproval(approval, input, deps.now);
+  if (!check.valid) {
+    return { ok: false, reason: check.reason, detail: check.detail };
+  }
+
+  const at = deps.now.toISOString();
+  const won = await deps.store.claim({ approvalId: approval.id, at });
+  if (!won) {
+    return {
+      ok: false,
+      reason: 'already_consumed',
+      detail:
+        'This approval was already used. It authorises one action once, so a second attempt — a double-tapped ' +
+        'button, a retried request, or someone else acting at the same moment — stops here rather than happening twice.',
+    };
+  }
+  return { ok: true, hash: check.hash, consumedAt: at };
 }
 
 /** Is this approval still usable, ignoring any particular payload? For list rendering. */

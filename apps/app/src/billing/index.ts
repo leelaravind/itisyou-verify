@@ -76,10 +76,18 @@ export {
 } from './recovery';
 
 export {
+  allowancePeriodKey,
+  allowancePeriodKeyAt,
+  isAllowancePeriodKey,
+  resolveAllowancePeriodKey,
+  type AllowancePeriodResolution,
+  type SubscriptionPeriodSource,
+} from './period';
+
+export {
   GRACE_SUBSCRIPTION_STATUSES,
   SERVING_SUBSCRIPTION_STATUSES,
   TERMINAL_ORDER_STATUSES,
-  allowancePeriodKey,
   asSubscriptionStatus,
   billingPeriodKey,
   entitlementFor,

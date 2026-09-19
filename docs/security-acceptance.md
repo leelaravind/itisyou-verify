@@ -7,7 +7,8 @@ money.
 | Pass | Date | What existed |
 | --- | --- | --- |
 | 1 | 2026-09-19 (morning) | Contracts, schema, A02's security primitives and data layer |
-| **2 — current** | **2026-09-19 (afternoon)** | **The assembled system, deployed at https://verify.itisyou.app** |
+| 2 | 2026-09-19 (afternoon) | The assembled system, deployed at https://verify.itisyou.app |
+| **3 — current** | **2026-09-19 (evening)** | **The release candidate: real authentication, the mounted webhook path, the three D1 ports, the owner panel's real controls** |
 
 ## The two gates, and why they are different
 
@@ -17,8 +18,8 @@ them either blocks a harmless public site for months or ships a commerce system 
 strength of "the home page looks fine".
 
 - **Gate A — COMMERCE.** Everything that must hold before a real card is charged, a real
-  credential is stored, or a real customer's data enters the system. **Four things are
-  not passing: A-20, A-21, F15 and F16.** Do not take money.
+  credential is stored, or a real customer's data enters the system. **One row is not
+  passing: A-20.** Do not take money until it does.
 - **Gate B — PUBLIC SITE.** Everything that must hold for a public site with no customer
   data and nothing for sale. **This gate is passing, and the site is already live.** I
   verified it by fetching it, not by reading the source.
@@ -29,21 +30,17 @@ is red means it should.
 ## Commands, and what they actually returned
 
 ```
-npx vitest run tests/security          → 226 cases: 224 pass, 2 FAIL   (the two findings still open)
+npx vitest run tests/security          → 245 cases: 243 pass, 2 FAIL
 npx tsc -p tsconfig.json --noEmit      → 0 errors
-node scripts/scan-secrets.mjs           → clean. 377 tracked files.
-node scripts/scan-secrets.mjs --history → FAILS: 7 hits, all synthetic fixtures in
-                                          already-committed blobs. See F16.
+node scripts/scan-secrets.mjs           → clean. 416 tracked files.
+node scripts/scan-secrets.mjs --history → FAILS: synthetic fixtures in already-committed
+                                          blobs. See F16.
 ```
 
-Four findings were raised in this pass. A06 and A02/A09 closed two of them while the
-review was still running, so the numbers above are the end state, not the worst state.
-The middle of the pass looked like this, and it is recorded because it is the honest
-account of what was found:
-
-```
-221 cases: 217 pass, 4 FAIL   SEC-431, SEC-432, SEC-206, SEC-1214
-```
+Findings close fast in this project because agents fix them mid-review. The numbers above
+are the end state; the worst states are recorded in the re-run table at the bottom so the
+account stays honest. Pass two peaked at `221: 217 pass, 4 FAIL`; pass three opened at
+`226: 220 pass, 6 FAIL` with three of A10's own checks red against `apps/app/src/lib/auth.ts`.
 
 The whole suite now runs under `pnpm test` — the root `vitest.config.ts` includes
 `tests/security/**/*.test.ts`. Pass one's SEC-ACC-01 is closed.
@@ -73,14 +70,26 @@ The whole suite now runs under `pnpm test` — the root `vitest.config.ts` inclu
 | **A-17** | `getCaseForOwner` is the only by-id-without-workspace support read, and it says so. | `AUTH-410`, `AUTH-411` | **PASS.** |
 | **A-18** | No Stripe identifier is accepted from a browser; the checkout-session reverse lookup is reachable only from the signature-verified webhook path. | `AUTH-420`, `AUTH-421` | **PASS.** Closes pass one's SEC-ACC-24. |
 | **A-19** | An approval binds budget + audience + creative + destination + duration + currency + action type; one penny changes the hash. | `SEC-301`–`SEC-318`, `SEC-722` | **PASS.** |
-| **A-20** | An approval is consumed exactly once, atomically, before money moves. | owed by A07/A12 | **ABSENT.** Still the largest untested money path. |
-| **A-21** | A new session id is issued and the old row revoked on every privilege transition. | owed by A02 | **ABSENT.** Session wiring not yet landed. |
+| **A-20** | An approval is consumed exactly once, atomically, before money moves. | `AUTH-511` | **FAIL — the one remaining Gate A blocker.** The `consumed` state is unreachable: nothing in the application ever writes it. Finding F17. |
+| **A-21** | A new session id is issued and the old row revoked on every privilege transition. | `AUTH-501`–`AUTH-505` | **PASS.** Verified behaviourally against real SQLite, not against the brief: `rotate()` is one atomic batch, both statements carry the identical liveness guard, a dead session mints nothing, and a planted id is revoked. |
+| **A-22** | An approval refuses a consumed, revoked, expired or altered payload, and treats the approved amount as a ceiling. | `AUTH-510`, `AUTH-513` | **PASS.** |
+| **A-23** | The refund path cannot be entered without a recorded approval — no default, no "auto", no id-only variant. | `AUTH-512` | **PASS.** |
+| **A-24** | `credential_versions.owner_scope` is constrained at the database, and the AAD must carry the key version. | `SEC-641` | **PASS.** A02 shipped `migrations/0002_credential_scope_check.sql` during this pass. |
 
-**Gate A verdict: DO NOT TAKE MONEY — but the reason is now narrow.** The webhook door
-(A-01 to A-09) is closed and proven. What remains is **A-20**, nothing yet consumes an
-approval atomically before money moves, and **A-21**, no session rotation on a privilege
-transition because the session wiring has not landed. Both are real work, not oversights.
-F15 should be fixed before any customer-authored value can reach a link target.
+**Gate A verdict: DO NOT TAKE MONEY — one row, and it is narrow.** Everything else on this
+gate now passes, most of it verified behaviourally rather than structurally. The single
+blocker is **A-20**: an approval is checked and then acted on, with nothing in between
+claiming it, so the `consumed` state the schema defines is never reached.
+
+To be precise about the exposure, because it is smaller than "approval reuse" sounds:
+`refunds.idempotency_key` is `NOT NULL UNIQUE` and the approval's payload hash binds to one
+specific refund, so a replayed approval can only re-submit the **same** refund, which
+reaches Stripe under the same idempotency key and is deduplicated there. What is actually
+missing is a single-use control that is single-use, and an audit fact — today every
+approval stays `granted` forever, so the record cannot answer "was this one used?".
+
+It is still a blocker, because the fix is four lines and the control is the one standing
+between an owner's click and money leaving. See F17.
 
 ---
 
@@ -102,7 +111,7 @@ This gate was assessed against **the deployed site**, by fetching it on 2026-09-
 | **B-10** | Transport and framing headers. | Live: `Strict-Transport-Security: max-age=63072000; includeSubDomains`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, `Cross-Origin-Opener-Policy: same-origin`, `Permissions-Policy` denying camera/mic/geo/payment. | **PASS** |
 | **B-11** | No private response can enter a shared cache. | Live: `/app`, `/app/runs`, `/owner` all `Cache-Control: no-store`; `Vary: Cookie` present site-wide. | **PASS.** Closes pass one's SEC-ACC-25. |
 | **B-12** | Escaping on every field that round-trips to HTML. | `SEC-1210`–`SEC-1213` against A05's shipped `packages/ui`. | **PASS** |
-| **B-13** | A link target cannot carry a `javascript:` scheme. | `SEC-1214` | **FAIL.** Finding F15. **Not exploitable today** — every href is a literal, and the CSP blocks `javascript:` navigation — so this does **not** block Gate B. It blocks Gate A. |
+| **B-13** | A link target cannot carry a `javascript:` scheme, through the guard, through `attrs()`, or through a component. | `SEC-1214`, `SEC-1216`–`SEC-1219` | **PASS.** F15 closed by A05. Verified independently, not accepted: `SEC-1218` runs A10's own 22-value adversarial corpus through both implementations and fails on any disagreement; `SEC-1219` proves they are byte-identical once escaping is accounted for. |
 | **B-14** | CSV exports neutralise formula leaders, with the apostrophe inside the quotes. | `SEC-1201`–`SEC-1205` | **PASS.** A09's claim verified, not accepted: byte-identical to the reference across 23 corpus values. Closes pass one's SEC-ACC-18. |
 | **B-15** | The assistant has no tool that can write a status, entitlement, refund, role or budget. | `SEC-701`, `SEC-702`, `SEC-703` | **PASS** |
 | **B-16** | Injected instructions in ingested text fire no tool; proposals are refused outright on an untrusted turn. | `SEC-710`–`SEC-714` | **PASS.** The refusal precedes the permission check, which is the right order. |
@@ -139,6 +148,66 @@ it **injects** the fallback key and signs the forged body with it. The property 
 is therefore permanent and stronger than the original finding: the opaque path id is a
 gate in its own right, and an attacker who learns the fallback key by any means still
 gets a 400.
+
+---
+
+### The fix for F17, written out
+
+Make consumption the act that authorises, in one statement, and use its row count as the
+permission:
+
+```sql
+UPDATE approvals SET status = 'consumed', consumed_at = ?
+ WHERE id = ? AND status = 'granted' AND expires_at > ?
+```
+
+`meta.changes === 1` is then the authorisation; a loser gets zero rows and stops. That
+turns check-then-act into compare-and-set, which is exactly what `revokeApproval` already
+does correctly one function above in the same file — the pattern is in the codebase, it
+just was not applied here.
+
+Sequencing matters: consume **before** calling Stripe, not after. If the provider call
+fails, the approval is spent and the owner grants a new one — which is the safe direction.
+Consuming afterwards means a crash between the charge and the update leaves an approval
+that can be spent again.
+
+---
+
+## The link-guard divergences A05 raised — adjudicated
+
+A05 built the scheme guard against A10's reviewed semantics rather than inventing a third
+variant, and enumerated three places where the two implementations differ. All three were
+put to A10 to decide. Verified independently first: `SEC-1218` runs A10's own corpus — 22
+values including NUL, TAB, LF and DEL smuggled into `javascript:`, `data:`, `vbscript:`,
+`file:`, `blob:`, protocol-relative, fragment and empty forms — through **both**
+implementations and fails on any disagreement. There is none.
+
+**1. A05 returns the target unescaped. CONFIRMED — A05 is right.**
+`attrs()` escapes exactly once at the point that writes the attribute. Escaping in the
+guard as well would double-encode every query string (`?a=1&b=2` → `&amp;amp;`). The guard
+decides and normalises; the writer escapes. A10's reference keeps escaping because it is a
+self-contained "produce an attribute value" helper with no writer behind it — a different
+position in the pipeline, not a disagreement. `SEC-1219` asserts they are byte-identical
+once `escapeHtml` is applied to A05's output, so neither can drift.
+
+**2. A same-document `#fragment` is preserved rather than resolved. CONFIRMED — and folded
+back into the reference.** A05 and the lead are both right. Resolving `#main` against the
+production origin rewrites every in-page anchor and breaks it in local development, on
+staging and in the demo. A fragment carries no scheme and cannot be a script URL, so
+accepting it widens the set of *relative forms preserved*, not the scheme allowlist.
+`tests/security/helpers/html.ts` now does the same, and `#main` and `#javascript:alert(1)`
+are both in the `SEC-1218` corpus so the agreement is proven rather than assumed.
+
+**3. A protocol-relative `//evil.example/x` is not refused. CONFIRMED — and it should stay
+that way.** The lead's reasoning is correct: this is destination policy, not a scheme
+guard, and the two belong in different places. Refusing off-site links inside a function
+named `safeHref` would silently break every legitimate outbound link and teach callers
+that the guard is unpredictable. One addition, which A05 already implemented: the rendered
+target must be **absolute**, so a reviewer reading the HTML sees `https://evil.example/x`
+rather than something that looks same-origin. Off-site *policy* belongs with
+`isExternalHref` and `rel="noopener noreferrer"`, which A05 has. If a future feature lets a
+customer supply a link target, that is when a destination allowlist is needed — and it is a
+second control, not a change to this one.
 
 ---
 
@@ -179,6 +248,7 @@ Each is a real gap we are choosing to carry, and saying so.
 | **R-05** | **The secret scanner is pattern-based** and would miss an unprefixed or base64'd credential. | A safety net, not the gate. It covers every provider we use and the full history. | A provider whose key has no recognisable shape. |
 | **R-06** | **Sign-in enumeration is unproven.** No behavioural test yet asserts that a registered and an unregistered address get the same body, status and timing. | No real sign-in exists yet; `/app` is synthetic. | A02's session wiring. This becomes a Gate A row the day it lands. |
 | **R-07** | **`/app` is a public demo workspace.** Anyone can read it. | It is synthetic by construction, banner-marked on every page, and has nothing to buy. Verified live. | A real port behind `/app` without the 401 gate (`SEC-213`) still holding. |
+| **R-10** | **`credential_versions.owner_scope` still allows an intra-regime collision.** A02's `0002` migration constrains the column to `connection:?*` or `user:?*`, which closes the cross-regime half of T-TEN-03. It does not stop `user:usr_abc:recovery` being produced by both `totpScope('usr_abc:recovery')` and `recoveryScope('usr_abc')` — a string CHECK cannot; a `scope_kind` discriminator would. | **A10's adjudication: do not hold the release.** The residual is `countRecoveryCodes` returning a wrong figure, and it requires a user id containing a colon. Two independent mitigations, both now asserted by tests: `newId` emits Crockford base32 with no colon (`SEC-643`), and TOTP and recovery material carry different AAD purposes so nothing cross-decrypts (`SEC-644`). `SEC-642` pins that the collision is real at the string level so this cannot be forgotten. | An id sourced from an external system rather than `newId`. `SEC-643` is where to start if that is ever proposed. |
 | **R-08** | **`wrangler.jsonc` contains D1 database ids.** | Not credentials; access needs a Cloudflare API token; Wrangler requires them. | Nothing. |
 | **R-09** | **`audit_events` is an ordinary table** with no tamper-evidence or retention guarantee. | `SECURITY.md` already says ordinary application logs are not immutable, and the product makes no forensic claim. | Any marketing copy that claims otherwise. That claim must not be made. |
 
@@ -190,26 +260,38 @@ Each is a real gap we are choosing to carry, and saying so.
 | --- | --- | --- | --- | --- | --- | --- |
 | 2026-09-19 09:35 | A10 pass 1 | 0 errors | 156: 150 pass, 6 fail | 1 hit (A02 fixture) | — | — |
 | 2026-09-19 10:35 | A10 pass 2 (mid) | 1 error (A07, in flight) | 221: 217 pass, 4 fail | clean, 362 files | FAIL | PASS |
-| **2026-09-19 11:05** | **A10 pass 2 (final)** | **0 errors** | **226: 224 pass, 2 fail** | tree **clean, 377 files**; `--history` **7 hits (F16)** | **FAIL** (A-20, A-21, F15, F16) | **PASS** |
+| 2026-09-19 11:05 | A10 pass 2 (final) | 0 errors | 226: 224 pass, 2 fail | tree clean, 377 files; `--history` 7 hits (F16) | FAIL (A-20, A-21, F15, F16) | PASS |
+| 2026-09-19 (eve) | A10 pass 3 (open) | 7 errors (A05/A07 in flight) | 226: 220 pass, 6 fail | tree 2 hits (A11 artifact) | FAIL | PASS |
+| **2026-09-19 (eve, final)** | **A10 pass 3 (final)** | **0 errors** | **245: 243 pass, 2 fail** | tree **clean, 416 files**; `--history` **red (F16)** | **FAIL** (A-20 only) | **PASS** |
 | | | | | | | |
 
 **The two remaining failures:**
 
 ```
-SEC-1214  javascript: survives into an href                    F15, Medium, A05
+AUTH-511  an approval is never consumed                        F17, blocks Gate A, A07+A06
 SEC-632   --history red on committed synthetic fixtures        F16, Medium, lead
 ```
 
 **Do not make either green by weakening the test.**
 
-For F15, `SEC-1215` beside it already tests the fix target: route every non-literal href
-through a scheme allowlist — or better, a branded `Url` type that only the guard can
-produce, so an unguarded string cannot reach an `href` at all.
+F17 is four lines of SQL, written out above. It is the only thing on Gate A that is still
+red, and it guards the path where money leaves.
 
-For F16 the fix is **not** to drop `--history` from CI and **not** to loosen the
-`stripe-webhook-secret` rule, which is the rule that would catch the real thing. It is:
-(1) stop shaping fixtures like real secrets — Stripe treats the endpoint secret as an
-opaque ASCII string and Svix needs only valid base64 after the prefix, so no test needs a
-literal `whsec_` prefix, and `SEC-633` now enforces that going forward; and (2) for the
-blobs already committed, a small committed allowlist of blob SHAs that `--history`
-consults — a SHA is a precise, auditable exemption in a way a pattern is not.
+F16 is not fixed by dropping `--history` from CI and not by loosening the
+`stripe-webhook-secret` rule, which is the rule that would catch the real thing. It is
+fixed by (1) not shaping fixtures like real secrets — Stripe treats the endpoint secret as
+an opaque ASCII string and Svix needs only valid base64 after the prefix, so no test needs
+a literal `whsec_` prefix, and `SEC-633` enforces that going forward — and (2) a small
+committed allowlist of blob SHAs for what is already in history. A SHA is a precise,
+auditable exemption in a way a pattern is not.
+
+## What changed in pass three, in one paragraph
+
+Three of A10's own checks (`SEC-201`, `SEC-202`, `SEC-206`) went red against
+`apps/app/src/lib/auth.ts` when real authentication landed, which is the checks working:
+raw SQL on a customer-scoped table appeared outside the data layer and was caught within
+the hour. A02 moved it and added the markers, and shipped a migration constraining
+`owner_scope` and requiring the key version inside the AAD — closing pass-one finding F5 at
+the database rather than by convention. A05 built the link guard and A10 verified it
+independently rather than accepting it. A-21 went from ABSENT to proven behaviourally
+against real SQLite. The gate moved from five red rows to one.

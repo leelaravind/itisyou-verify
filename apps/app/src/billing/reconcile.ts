@@ -16,7 +16,8 @@
 import { entitlementFor } from './state';
 import type { SubscriptionRecord } from './port';
 import type { BillingRuntime } from './runtime';
-import { allowancePeriodKey, unixToIso } from './state';
+import { allowancePeriodKey } from './period';
+import { unixToIso } from './state';
 
 export type DiscrepancyKind =
   | 'status_mismatch'

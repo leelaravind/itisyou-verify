@@ -20,8 +20,8 @@ import { rollover } from './entitlements';
 import type { AllowanceRecord, SubscriptionRecord } from './port';
 import { applyProviderRefund } from './refunds';
 import type { BillingRuntime } from './runtime';
+import { allowancePeriodKey } from './period';
 import {
-  allowancePeriodKey,
   asSubscriptionStatus,
   entitlementFor,
   orderTransition,

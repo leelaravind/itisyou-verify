@@ -17,7 +17,7 @@ import {
 } from '@verify/ui';
 import { PLAN_CANCELLATION_WORDING, meterFillClass } from '@verify/ui';
 import { LIMITS } from '@verify/contracts';
-import { formMessage, pageHead } from './chrome.js';
+import { connectionPresentation, formMessage, pageHead } from './chrome.js';
 import { formatInstant } from '../public/shared.js';
 import type { ConnectionView, SupportResult, UsageView, WriteResult } from './port.js';
 
@@ -43,10 +43,7 @@ export function ConnectionsPage(options: {
         (connection) => html`<div class="card stack-sm">
           <div class="card__head">
             <h2 class="card__title">${connection.displayName}</h2>
-            ${StatusBadge({
-              status: connection.status === 'ready' ? 'VERIFIED' : 'UNVERIFIED',
-              label: connection.status.replace(/_/g, ' '),
-            })}
+            ${StatusBadge(connectionPresentation(connection.status))}
           </div>
           <dl class="kv">
             <dt>Account</dt>
@@ -61,6 +58,7 @@ export function ConnectionsPage(options: {
           <form method="post" action="/app/onboarding/connect">
             ${CsrfField(options.csrfToken)}
             <input type="hidden" name="provider" value="${connection.provider}" />
+            <input type="hidden" name="intent" value="authorise" />
             ${Button({
               label: `${connection.status === 'ready' ? 'Reconnect' : 'Connect'} ${connection.displayName}`,
               variant: connection.status === 'ready' ? 'quiet' : 'primary',

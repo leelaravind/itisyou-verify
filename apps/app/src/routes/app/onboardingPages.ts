@@ -28,7 +28,7 @@ import { explainAssertion, explainRunStatus } from '@verify/domain';
 import { setupGuide, type ProviderSetupGuide } from '@verify/connectors';
 import { LIMITS } from '@verify/contracts';
 import { connectionPresentation, formMessage, onboardingProgress, pageHead } from './chrome.js';
-import { formatDuration, formatInstant } from '../public/shared.js';
+import { formatDuration } from '../public/shared.js';
 import type {
   ActivationView,
   ConnectionView,
@@ -165,7 +165,7 @@ function scopeLists(guide: ProviderSetupGuide): Html {
 }
 
 function setupInstructions(guide: ProviderSetupGuide): Html {
-  return html`<ol class="steps">
+  return html`<ol class="steps steps--tight">
     ${guide.instructions.map(
       (instruction) => html`<li>
         <p class="small">${instruction.text}</p>

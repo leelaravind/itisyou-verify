@@ -221,9 +221,18 @@ export function ApprovalsPage(options: {
                     >${formatMoney(money(a.maximum_amount_minor, a.currency ?? 'GBP'))}</span
                   >`,
           },
-          { key: 'by', header: 'By', cell: (a) => html`<span class="mono micro">${a.owner_id}</span>` },
-          { key: 'when', header: 'When', cell: (a) => Instant(a.created_at) },
+          { key: 'by', header: 'Approved by', cell: (a) => html`<span class="mono micro">${a.owner_id}</span>` },
+          { key: 'when', header: 'Approved', cell: (a) => Instant(a.created_at) },
           { key: 'until', header: 'Lapses', cell: (a) => Instant(a.expires_at) },
+          {
+            // Half the point of an approval existing: when it was actually spent.
+            key: 'spent',
+            header: 'Spent',
+            cell: (a) =>
+              a.consumed_at === null
+                ? html`<span class="muted" data-spent="never">not yet</span>`
+                : html`<span data-spent="${a.consumed_at}">${Instant(a.consumed_at)}</span>`,
+          },
           {
             key: 'standing',
             header: 'Standing',

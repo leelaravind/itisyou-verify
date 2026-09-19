@@ -69,6 +69,13 @@ const ALLOWED_HISTORY_BLOBS = new Map([
   ['b649bc0c6ce7340eac043c1407360985b1e0e5ae', 'billing/harness.ts — test webhook secret'],
   ['fec29ff953f114ec6479c8a9d6359ceb7861962d', 'billing/webhooks.test.ts — wrong-secret fixture'],
   ['966d4b11d18203124eecdc2464233c671cd7214c', 'webhook-route.test.ts — earlier revision of the same fixture'],
+  // Added after the first six, and the reason is worth recording: these are fixtures that
+  // were committed and then FIXED. The tree is clean; only history still carries them.
+  // `SEC-633` now fails the build on any NEW fixture shaped like a provider secret, which
+  // is what stops this list growing — without that, a blob allowlist is just a slower way
+  // of turning the control off.
+  ['5b7c53defc3da05bbae681fe25d06c619ba43ca8', 'test-cases.json — two literals harvested verbatim from test sources, since sanitised'],
+  ['59ef934ef13e8d1ee7fb610a9d87bf179825ddbe', 'telegram.test.ts — a key-shaped fixture proving the content guard REFUSES that shape'],
 ]);
 
 const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', 'build', 'coverage', '.wrangler', '.turbo']);

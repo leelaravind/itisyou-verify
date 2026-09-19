@@ -211,17 +211,50 @@ export function createAppRoutes(resolve: PortResolver = syntheticResolver): Hono
             connections: await port.connections(),
             csrfToken: session.csrfToken,
             submitted: null,
+            canSubmitCredentials: typeof port.submitConnectionCredentials === 'function',
           }),
         }),
       ),
     ),
   );
 
+  /**
+   * Two intents share this route because they are two halves of one action: `credentials`
+   * validates a pasted key against the provider, `authorise` starts an OAuth redirect. The
+   * form says which; anything else is treated as the authorisation path rather than guessed at.
+   *
+   * A rejected credential answers 422 and re-renders the same card with the message beside
+   * the field it concerns. A submitted secret is never echoed back into the form, so the
+   * customer retypes it — which is the right trade against putting a live API key back into
+   * the HTML of a page that may sit in a browser cache.
+   */
   routes.post('/onboarding/connect', async (c) =>
     withSession(c, async (port, session) => {
       const body = await formBody(c);
       const provider = body['provider'] === 'resend' ? 'resend' : 'hubspot';
-      const result = await port.beginConnection(provider);
+      const submitCredentials = port.submitConnectionCredentials?.bind(port);
+
+      let result: WriteResult;
+      if (body['intent'] === 'credentials' && submitCredentials !== undefined) {
+        const webhookSecret = (body['webhook_secret'] ?? '').trim();
+        result = await submitCredentials({
+          provider,
+          accessToken: body['access_token'] ?? '',
+          ...(webhookSecret === '' ? {} : { webhookSecret }),
+        });
+      } else if (body['intent'] === 'credentials') {
+        // Never claim to have checked something we have no way of checking.
+        result = {
+          ok: false,
+          fieldErrors: {},
+          message:
+            'Nothing was sent anywhere and nothing was stored. This workspace has no way to validate a credential against the provider yet.',
+          redirectTo: null,
+        };
+      } else {
+        result = await port.beginConnection(provider);
+      }
+
       if (result.ok && result.redirectTo !== null) return c.redirect(result.redirectTo, 303);
       return page(
         c,
@@ -234,6 +267,8 @@ export function createAppRoutes(resolve: PortResolver = syntheticResolver): Hono
             connections: await port.connections(),
             csrfToken: session.csrfToken,
             submitted: result,
+            submittedProvider: provider,
+            canSubmitCredentials: submitCredentials !== undefined,
           }),
         }),
         { status: result.ok ? 200 : 422 },

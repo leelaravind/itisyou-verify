@@ -24,7 +24,7 @@ import {
   type StatusKey,
 } from '@verify/ui';
 import { describeCoverage, detectInactivity, summariseWorkflowHealth } from '@verify/domain';
-import { pageHead } from './chrome.js';
+import { connectionPresentation, pageHead } from './chrome.js';
 import { formatDuration, formatInstant } from '../public/shared.js';
 import type { ConnectionView, RunListItem, UsageView, WorkflowDetail } from './port.js';
 
@@ -47,14 +47,8 @@ function expectedActivity(deadlineSeconds: number): { window_seconds: number; mi
 }
 
 function connectionRow(connection: ConnectionView): Html {
-  const healthy = connection.status === 'ready';
   return html`<div class="margin-row">
-    <div class="margin-row__gutter">
-      ${StatusBadge({
-        status: healthy ? 'VERIFIED' : 'UNVERIFIED',
-        label: healthy ? 'Ready' : connection.status.replace(/_/g, ' '),
-      })}
-    </div>
+    <div class="margin-row__gutter">${StatusBadge(connectionPresentation(connection.status))}</div>
     <div class="stack-sm">
       <h3>${connection.displayName}</h3>
       ${connection.problem === null
