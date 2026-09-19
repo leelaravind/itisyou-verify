@@ -287,17 +287,36 @@ export function seedRun(
     createdAt?: string;
     deadlineAt?: string;
     revision?: number;
+    /**
+     * The address this run's enquiry named. Defaults to one derived from the run id, so two
+     * seeded runs never accidentally share a recipient and correlate to each other.
+     *
+     * `payload_json` used to be seeded as `'{}'`, which no real source event ever is: the
+     * envelope requires `expected.email_recipient`. That gap is what let evidence
+     * correlation go untested while the port attached delivery events by recency.
+     */
+    emailRecipient?: string;
+    /** The provider message id the enquiry named, when it named one. */
+    emailMessageId?: string;
   } = {},
 ): string {
   const createdAt = options.createdAt ?? T0;
   const sourceEventId = `sev_${id}`;
+  const payload = JSON.stringify({
+    expected: {
+      email_recipient: options.emailRecipient ?? `${id}@example.test`,
+      ...(options.emailMessageId === undefined
+        ? {}
+        : { email_message_id: options.emailMessageId }),
+    },
+  });
   h.raw
     .prepare(
       `INSERT INTO source_events
          (id, workspace_id, workflow_id, source, external_event_id, received_at, occurred_at, correlation_key_hash, payload_hash, payload_json)
-       VALUES (?, ?, ?, 'signed_customer_event', ?, ?, ?, 'corr', 'hash', '{}')`,
+       VALUES (?, ?, ?, 'signed_customer_event', ?, ?, ?, 'corr', 'hash', ?)`,
     )
-    .run(sourceEventId, ws.workspaceId, ws.workflowId, `ext_${id}`, createdAt, createdAt);
+    .run(sourceEventId, ws.workspaceId, ws.workflowId, `ext_${id}`, createdAt, createdAt, payload);
   h.raw
     .prepare(
       `INSERT INTO runs

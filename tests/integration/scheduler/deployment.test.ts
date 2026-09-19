@@ -69,17 +69,50 @@ function environments(): Record<string, EnvBlock> {
 }
 
 describe('scheduler deployment', () => {
-  it('RESIL-300 staging has no cron trigger, so nothing runs there on a schedule', () => {
+  /**
+   * These two used to assert the opposite: that staging declared no cron at all, per plan
+   * §30, so a test environment could not generate recurring cost.
+   *
+   * That decision was revised on 19 September 2026 and the reason is kept here because it
+   * is the kind of thing that gets quietly reverted. With no tick on staging, the half of
+   * the product that turns an accepted event into a verdict -- the due-run pass, the
+   * outbox, allowance settlement, the billing recovery sweep -- had never executed on any
+   * deployed environment. Its first real execution was always going to be in production,
+   * in front of a customer. Three defects of exactly that shape (correct code that nothing
+   * reached) were found in a single afternoon, each invisible until a real request hit a
+   * real deployment.
+   *
+   * So the assertion is no longer "staging has no schedule". It is "staging has a schedule,
+   * and it is cheaper than production's" -- which keeps the cost intent that produced §30
+   * while removing the blind spot that came with it.
+   */
+  it('RESIL-300 staging runs the scheduler, so the verdict path is exercised before production', () => {
     const staging = environments().staging;
     expect(staging).toBeDefined();
-    expect(staging?.triggers).toBeUndefined();
+    const crons = (staging?.triggers as { crons?: string[] } | undefined)?.crons;
+    expect(crons, 'staging must schedule the tick, or nothing exercises it pre-production').toEqual(
+      ['*/5 * * * *'],
+    );
   });
 
-  it('RESIL-301 staging declares no cron expressions by any route', () => {
-    const staging = environments().staging as Record<string, unknown> | undefined;
+  it('RESIL-301 staging ticks less often than production, so the cost intent behind plan §30 survives', () => {
+    const staging = (environments().staging?.triggers as { crons?: string[] } | undefined)?.crons;
+    const production = (environments().production?.triggers as { crons?: string[] } | undefined)
+      ?.crons;
     expect(staging).toBeDefined();
-    // Belt and braces: no key anywhere in the staging block mentions a cron.
-    expect(JSON.stringify(staging ?? {})).not.toContain('cron');
+    expect(production).toBeDefined();
+
+    // Both are plain minute-field expressions; comparing the stride is enough and does not
+    // need a cron parser. Production is every minute; staging must be strictly rarer.
+    const stride = (expression: string | undefined): number => {
+      const minute = (expression ?? '').split(' ')[0] ?? '';
+      if (minute === '*') return 1;
+      const step = /^\*\/(\d+)$/.exec(minute);
+      return step === null ? Number.NaN : Number(step[1]);
+    };
+
+    expect(stride(production?.[0])).toBe(1);
+    expect(stride(staging?.[0])).toBeGreaterThan(1);
   });
 
   it('RESIL-302 production runs the tick once a minute', () => {
