@@ -209,7 +209,13 @@ describe('CustomerDataPort against D1', () => {
     expect(summary.runsIncluded).toBe(500);
     expect(summary.ready).toBe(false);
     expect(summary.blockers).toContain('Connect HubSpot so we can read the CRM record.');
-    expect(summary.blockers).toContain('Payments are not enabled in this environment.');
+    // Asserted by substance, not by sentence: the blocker must NAME the missing secret,
+    // because the person reading it on a bare deployment is the operator and "not enabled"
+    // sends them into the code to find out which of the two it is.
+    const payments = summary.blockers.find((b) => b.includes('Payments are not enabled'));
+    expect(payments).toBeDefined();
+    expect(payments).toContain('STRIPE_SECRET_KEY');
+    expect(payments).toContain('STRIPE_PRICE_ID');
   });
 
   it('AUTH-246 signing out revokes the session, and the port stops answering', async () => {
