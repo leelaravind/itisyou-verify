@@ -50,14 +50,34 @@ syntactic damage and rules out nothing else.
 Legend — **Closure evidence** means what would have to be true to close the row, and is
 deliberately phrased as a measurement, not an assertion.
 
+### The two closed states, kept apart on purpose
+
+A row is never just "closed". It is closed at one of two levels, and collapsing them is
+how a status report starts lying without anyone deciding to.
+
+| State | What it means | What it does **not** mean |
+| --- | --- | --- |
+| **LOCAL-TESTED** | Proven by a real request against a locally running Worker, with the resulting database state read back | That it works on staging or production. Local `wrangler dev` has different bindings, different secrets, no cron, and a different D1 |
+| **DEPLOYMENT-VERIFIED** | The auditor re-issued the requests itself against a candidate deployment and read the state itself, and recorded the commit it reproduced against | That the feature is correct in every case — only that this evidence is real |
+
+Nothing may be reported to the owner as done on the strength of LOCAL-TESTED alone.
+Today, `POST /api/v1/events` is LOCAL-TESTED and nothing on this project is
+DEPLOYMENT-VERIFIED, because the auditor's reproduction pass has not completed.
+
+A third level exists implicitly and is worth naming: **UNIT-TESTED ONLY**, which this
+project has repeatedly found to mean nothing at all. Four separate workstreams shipped
+correct, thoroughly tested code that no request could reach — the events route, the
+refund consumption, the notification templates, and the allowance reconciliation. A
+passing unit test is evidence about a function, not about a product.
+
 ### Money path, billing and entitlements
 
 | Requirement | Current state | Missing work | Owner | Depends on | Closure evidence |
 | --- | --- | --- | --- | --- | --- |
-| `POST /api/v1/events` intake exists and is reachable | **CLOSED 19 Sep.** Answered 404 in every deployment until today. Now mounted; an unsigned POST returns `401 SIGNATURE_INVALID` through the real entry point | — | lead | — | Live request against local worker, recorded in commit `5b7c450` |
-| Intake works on a deployment with no Stripe key | **CLOSED 19 Sep.** Returned 500 on every request; `createStripeClient` throws on an empty key and the module had documented that as safe | — | lead | — | Same live probe: 500 before, 401 after |
+| `POST /api/v1/events` intake exists and is reachable | **LOCAL-TESTED 19 Sep.** Answered 404 in every deployment until today. Now mounted; an unsigned POST returns `401 SIGNATURE_INVALID` through the real entry point | — | lead | — | Live request against local worker, recorded in commit `5b7c450` |
+| Intake works on a deployment with no Stripe key | **LOCAL-TESTED 19 Sep.** Returned 500 on every request; `createStripeClient` throws on an empty key and the module had documented that as safe | — | lead | — | Same live probe: 500 before, 401 after |
 | Allowance granted exactly once across retries and duplicate webhooks | Proven in integration against real SQLite: one grant, one notification, replay adds nothing | Same proof against a **candidate deployment**, not a local harness | A16 | deploy | Duplicate Stripe delivery to staging; read `entitlements` back |
-| Allowance-period identity standardised, historical rows reconciled | Algorithm proven; merges `2026-10-01` + `2026-09` to one row without duplicating the grant | Nothing in production called it until today's port move; still no scheduled caller | A16 | `scheduler/tick.ts` (A03's file, **no active owner**) | Cron tick on staging, then read the row |
+| Allowance-period identity standardised, historical rows reconciled | **Now reachable.** The tick calls `runMoneyMaintenance`, which had no caller at all despite its own doc comment naming the tick as its caller. Wired so billing maintenance runs ONCE per tick and two consumers share the report — running it twice is the precise shape of the exactly-once allowance defect | Deployed proof; no tick has run with this wiring anywhere | lead → integration | deploy | Cron tick on staging, then read the allowance row back |
 | Day-8 suspension marks `unpaid`, deletes nothing | Proven in integration: subscription `unpaid`, `consumed 37` survives, workspace not deleted | Deployed proof | A16 | deploy | Staging tick at day 8 boundary |
 | Signing keys can be issued to a customer | **Nothing calls `issueWorkflowSigningKey`.** No customer can obtain a key, so no customer can send a signed event | Wire issuance into the activation page | A05b | A16's spec | A real key issued, then a signed event admitted |
 | `EVENT_SIGNING_ROOT_KEY` provisioned | Absent. Route mounts and, by design, answers 503 on a signed event | `wrangler secret put` per environment | lead + owner | — | Signed event to staging returns 202 |
@@ -67,10 +87,15 @@ deliberately phrased as a measurement, not an assertion.
 
 | Requirement | Current state | Missing work | Owner | Depends on | Closure evidence |
 | --- | --- | --- | --- | --- | --- |
-| Approval validated **and consumed** on every approval-required action | Split. `decideRefund` consumes before calling the provider — but has **no production caller**. `D1OwnerDataPort.issueRefund`, the owner panel's actual button, validates and **never consumes** | Wire consumption into `issueRefund` and every other approval-required path | A07b | — | Double-submit a refund; second attempt fails closed; `approvals.status='consumed'` once |
-| Quality dispatch reachable | Returns `NO_RUNNER`; never consults the runner | Wire to a live call site | A07b | — | Owner action produces a runner job row |
-| Cleanup preview and run reachable | Both return `NO_CLEANUP`. 23 unit cases cover an engine nothing can reach | Wire to live call sites | A07b | — | Preview returns an inventory hash from real data |
-| Campaign activation consumes an approval | No consumption; `campaigns()` returns nothing | Wire, gated on a granted unexpired approval | A07b | — | Activation without approval refused; with approval, consumed once |
+| Approval validated **and consumed** on every approval-required action | **LOCAL-TESTED.** `issueRefund` — the owner panel's actual button — now consumes via compare-and-set. Double-submit proved: first press 422, second 422, `approvals.status=consumed` once, audit shows blocked then refused | Deployed proof | integration | deploy | Re-issue the double-submit against a candidate |
+| `decideRefund` still has no production caller | Correct code, unreachable. Deliberately left: it is not the wired path, and wiring a second refund route would be worse than leaving one unused | Decide: delete it or make it the path | integration | — | One refund path, not two |
+| Quality dispatch reachable | **LOCAL-TESTED.** Produces a real `quality_runs` row, `awaiting_runner`, with a real dedupe key | Deployed proof | integration | deploy | Owner action on staging produces the row |
+| Cleanup preview and run reachable | **LOCAL-TESTED.** Produces a `cleanup_runs` row in `preview` with a real `inventory_hash`; approval spent before the first delete | Deployed proof | integration | deploy | Preview on staging returns a hash from real data |
+| Campaign activation consumes an approval | **LOCAL-TESTED.** Compare-and-set; double-submit consumes once. This is what now protects the reserved £15 in code rather than by nobody having pressed the button | Deployed proof | integration | deploy | Activation without approval refused on a candidate |
+| **Spending ceilings were changeable without approval** | **LOCAL-TESTED, was a live hole.** `owner.budget_limits` sat in the same `writeSetting` allowlist as the business address. `owner/settings.ts` documented it as approval-bound; nothing enforced it. `platform:advertising` is `1500` — the reserved £15 | Deployed proof | integration | deploy | Ceiling change without approval refused on a candidate |
+| **Deployment restore accepted any granted approval** | **LOCAL-TESTED, was a live hole.** `POST /owner/operations/restore` checked only that *an* approval was granted and unexpired, so a `cleanup_execute` approval read as authorisation to replace the running code every customer is served. It also ignored the `deployment_id` on its own form while telling the operator it was recorded. Two existing tests had codified the hole and were rewritten to assert refusal | A `deployment_restore` action type — a new type, not a fix, so not added unilaterally | lead decision | — | Restore refused without a matching approval type |
+| `execute_approved_release` job approval | **Open, latent.** `enqueueJob` requires only a non-null `approvalId` string — any fabricated, expired or consumed id passes. Currently unreachable because the kind is not dispatchable | Load, validate and consume before the job row is written | A08 | — | Fabricated id refused |
+| Evidence records distinguish a real provider read-back from a mock | **Contract added, no producer yet.** A test double and a genuine read-back produced byte-identical records: `origin` records the channel, not whether the channel was real, and `fetchImpl` is injectable. `EvidenceTransport` now exists on the contract | Connector must set it, and `live` must be unforgeable from test wiring | verification/connectors | — | A test that fails if a stubbed fetch can produce `transport: live` |
 
 ### Customer flows and authenticated UI
 
@@ -97,11 +122,11 @@ deliberately phrased as a measurement, not an assertion.
 
 | Requirement | Current state | Missing work | Owner | Depends on | Closure evidence |
 | --- | --- | --- | --- | --- | --- |
-| No unearned public claim ships | **CLOSED 19 Sep.** `scripts/scan-claims.mjs` added and wired into the release gate; proven to exit 0 on the tree and 1 on a planted claim | Keep the served-pages pass running post-deploy | lead | deploy | Gate output per release |
+| No unearned public claim ships | **LOCAL-TESTED 19 Sep.** `scripts/scan-claims.mjs` added and wired into the release gate; proven to exit 0 on the tree and 1 on a planted claim | Keep the served-pages pass running post-deploy | lead | deploy | Gate output per release |
 | `SEC-632` blocks its worker for 218s | Root-caused by two agents independently. Not a pool-pressure problem; a synchronous `execFileSync` holding the event loop past birpc's fixed 60s timer | Make it async, split it, or move it out of vitest into the release gate | A09 | — | Full suite green with no unhandled RPC error |
 | `SEC-206` tenant scope in the predicate | Failing | Fix | A02 | — | Case passes |
 | Migration 0002 forward-compatibility | **Known unresolved.** A previous Worker writing the older AAD shape would be rejected by the CHECK constraint | Decide: widen, or accept with a documented rollback restriction | A02 + lead | — | Stated decision with reasoning |
-| Backup restoration proven | **Closed.** Proven on real D1: 2 tenants, 0 cross-tenant leaks, byte-identical digests, statuses preserved; both drill DBs deleted | — | lead | — | Recorded in the story |
+| Backup restoration proven | **DEPLOYMENT-VERIFIED.** Run against real remote D1, not a local harness. Proven on real D1: 2 tenants, 0 cross-tenant leaks, byte-identical digests, statuses preserved; both drill DBs deleted | — | lead | — | Recorded in the story |
 
 ### Test reporting and cleanup
 
