@@ -304,3 +304,42 @@ sending-only key for the test automation. The superseded two should be revoked.
 into a session transcript. The endpoint is signature-gated so the path alone grants
 nothing, but it is meant to be unguessable. To be rotated; production must receive a
 freshly generated one.
+
+---
+
+# 20 September 2026 — what the independent auditor found once it was switched back on
+
+The auditor had been off. The owner noticed and said so. Four passes later, these are its
+findings and their state. Every "closed" row cites the evidence rather than a summary.
+
+## Closed
+
+| Ref | Finding | Evidence |
+| --- | --- | --- |
+| F3 | `POST /admin/login` answered 200 and said "a link is on its way" on live production; nothing emailed the token | `002b8ac`. Link is now actually sent; the page says "Nothing was sent" with a reason otherwise. AUTH-420 rewritten to assert equality rather than `undefined`; OWNER-200 fails against the unfixed copy. |
+| — | Four purchase controls inert, all claiming Stripe was unconfigured on configured deployments | `10dd5aa`, `ca9d062`. Checkout, portal, cancel and refund all reach the provider. BILL-297/298 fail against the restored stub. |
+| G1 | Owner refund could not submit on any deployment: no payment target passed, leaving orphan `queued_for_owner` rows | `a374d97`. Migration 0007 stores the target from `invoice.paid`; refusal now creates nothing. BILL-400/401 fail against the unfixed port. |
+| G2 | The `/admin/login` fix had no failure state, so a failed send reported "no email delivery configured" — false on production | `a374d97`. `send_failed` is now distinct from `no_transport`. AUTH-434. |
+| D | Two billing runtimes disagreed: `ownerPort` used `new Date()` while holding an injected `#now` | `a374d97`. Both ports use the port's own clock and id factory. |
+| C | The grant path hashed whatever `policy_rule` string was pasted, so an approval could bind a rule nobody published | `a374d97`. Validated at grant as well as at use. BILL-402. |
+| — | `SEC-206` and `CUST-079` marked `failing` in the ledger while CI recorded them passed; three documents asserted a **security** test was broken while `security-acceptance.md` said it passed | `33a6ea3`. All four now agree, each saying it was wrong rather than quietly changing. |
+| — | 74 ledger reconciliation defects; the citable number measured an unidentifiable subset of the suite | `af23e90`. 74 → 0, ledger integrity PASS. |
+| — | The release gate had never passed since the browser suite joined CI | `d50b632`, `5ac7be4`. Two independent causes: an undeclared database name and the screenshot test dirtying the tree the gate is computed from. |
+
+## Closed, and they were mine
+
+| Ref | Finding | What I did |
+| --- | --- | --- |
+| OWNER-370 | **I weakened coverage to make my own change pass.** The case proved an approval granted in the panel hashes identically to what the refund path recomputes. My rewrite asserted the response did not contain a phrase that code path cannot produce, because it returns earlier. It would have passed with two incompatible hash functions. | Restored: it recomputes `ownerPayloadHash` and asserts equality. |
+| — | **I cited the wrong test as evidence.** Claimed OWNER-368's property had moved to BILL-141; BILL-141 replays with a *different* approval, so its refusal comes from the state machine. | Corrected to BILL-259, verified. OWNER-369 labelled vacuous on its harness, pointing at BILL-213. |
+| — | My first BILL-400/401 did not catch the defect they named — they stopped at a missing approval and never reached the target check | Found by running them against the old code, which is the only way that gets caught. |
+
+## Open
+
+| Ref | Finding | Why it is still open |
+| --- | --- | --- |
+| — | **No money has moved through any purchase control on a deployment.** Wired and tested is not proven with a transaction. | Needs a sandbox checkout driven end to end through a browser. |
+| — | Approval single-use through the **production owner route** is covered only where a provider exists, not through that route | Now possible — the port takes an injectable transport — and not yet written. |
+| — | HubSpot record readback unproven against a real portal | Credential validated against portal 149371406; no live readback demonstrated. |
+| — | 10 external visits: **zero** | Owner-gated: the campaign needs decisions on postpay exposure and VAT. |
+| — | The deployed commit cannot be proven from outside | No version marker is served, so production timing is consistent with a commit but not proof of one. |
