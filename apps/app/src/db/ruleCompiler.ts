@@ -20,36 +20,31 @@
  * mandatory assertions. If a form gains a real advisory option, it must say so explicitly
  * and this file must be taught the new shape; it must not infer advisory from "unset".
  *
- * ## Why `record.correlation_id` and `message.recipient` use `exists`, not `equals`
+ * ## Why `record.correlation_id` and `message.recipient` bind to the run's own event
  *
  * The obvious-looking shape for "the CRM record carries this enquiry's reference" is
- * `operator: 'equals'` against the run's own correlation value, and the same for "the
- * acknowledgement went to the enquirer" against the run's own recipient. Both are wrong here
- * — and the reason is worth writing down, because it is not visible from either schema.
+ * `operator: 'equals'` against a literal, and the same for "the acknowledgement went to the
+ * enquirer". Both are wrong: `assertionSpecSchema.expected` is a literal baked into the
+ * workflow VERSION, shared by every run that version ever judges, so a value that is right
+ * for one enquiry is wrong for every other.
  *
- * `assertionSpecSchema.expected` is a literal baked into the workflow VERSION, shared by
- * every run that version ever judges. `evaluateAssertions()` (`packages/domain/evaluate.ts`)
- * compares each candidate's live value against that same static literal — it has no
- * mechanism to bind a per-run value (the enquiry's own correlation id, the enquirer's own
- * address) into `expected` at evaluation time; `loadRules()` in `scheduler/observe.ts` parses
- * `version.rules_json` verbatim and calls `evaluateAssertions` with no substitution step. A
- * literal `expected` that is only ever right for one specific enquiry would be wrong for
- * every other run the same version judges — as the `tests/fixtures/rules.ts` demo constants
- * (`CORRELATION_VALUE`, `RECIPIENT`) already are outside their own fixtures.
+ * Until 2026-09-19 this file therefore emitted `exists` for both — and `exists` on
+ * `message.recipient` proves only that an email had *a* recipient. A run whose
+ * acknowledgement went to entirely the wrong address came back VERIFIED. The CRM side had
+ * the same hole on the record-id locator path, where the record is fetched by id rather than
+ * found by its correlation value.
  *
- * `exists` asks something this evaluator CAN honestly answer per run: does the evidence
- * carry a value in this field at all. For the CRM record that is meaningful on its own
- * terms — HubSpot's own record search already filters by the correlation property
- * (`docs/connectors.md`), so a record reached by that search satisfies the property by
- * construction; `exists` catches the one path that search does not cover, a record reached
- * by a customer-supplied record id instead (`readLocator`'s `crm_record_id`), whose mapped
- * property might be blank. For the recipient field it is a real but weaker claim than "went
- * to the enquirer" — labelled honestly below as exactly that and no more.
+ * Both now use `expected_from` (`packages/contracts/src/rules.ts`): a closed, two-valued
+ * reference to the run's own signed source event. `evaluateAssertions()` resolves it from
+ * `EvaluationContext.sourceEvent`, which `scheduler/observe.ts` fills from the same parsed
+ * event the locator comes from. The comparison is therefore per run, at evaluation time —
+ * and if this run's event carries nothing to compare with, the assertion is UNKNOWN
+ * (`BINDING_UNAVAILABLE`), never a pass.
  *
- * A true per-run match check needs the evaluator to accept a per-run expected value, which
- * is a change to `packages/domain`'s evaluation contract, not to this composer. That gap is
- * reported separately; this file does not paper over it with a literal that would be wrong
- * for every run but the one it was written against.
+ * `normalised_email_equals`, not `equals`, for the recipient: its normalisation lowercases,
+ * trims and strips a display name, and deliberately does NOT strip `+tags` — an address the
+ * customer controls must not satisfy a rule about the enquirer's address. That property is
+ * documented in the development story; this is the line that makes it apply to a real run.
  */
 import {
   LIMITS,
@@ -138,11 +133,12 @@ function buildAssertions(state: ConfiguredWorkflowState): AssertionSpec[] {
       rule_id: 'crm_correlation_matches',
       source: 'crm_record',
       field: 'record.correlation_id',
-      // `exists`, not `equals` — see the file header for why a per-run literal cannot work.
-      operator: 'exists',
+      // Bound to the run's own correlation id — see the file header. A literal cannot work.
+      operator: 'equals',
       expected: '',
+      expected_from: 'source_event.correlation_id',
       mandatory: true,
-      label: 'The CRM record carries a value in the mapped reference property',
+      label: 'The CRM record carries this enquiry reference',
     });
   }
 
@@ -163,12 +159,13 @@ function buildAssertions(state: ConfiguredWorkflowState): AssertionSpec[] {
       rule_id: 'email_recipient_matches',
       source: 'email_event',
       field: 'message.recipient',
-      // `exists`, not `normalised_email_equals` — see the file header; this proves an
-      // acknowledgement carried a recipient address, not that it named this enquirer.
-      operator: 'exists',
+      // Bound to the address this run's event named — see the file header. `+tags` are not
+      // stripped, so a customer-controlled variant of the address does not satisfy it.
+      operator: 'normalised_email_equals',
       expected: '',
+      expected_from: 'source_event.email_recipient',
       mandatory: true,
-      label: 'The acknowledgement email carries a recipient address',
+      label: 'The acknowledgement went to the address the enquiry named',
     });
   }
 

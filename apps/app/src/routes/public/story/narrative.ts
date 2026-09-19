@@ -90,7 +90,7 @@ export const JOURNEY_STEPS: readonly JourneyStep[] = [
   },
   {
     title: 'The customer’s rules are evaluated',
-    body: 'A closed set of typed operators — exists, equals, normalised_email_equals, occurred_within, provider_status_in, one_of — over an allowlisted set of fields. A general expression language was rejected because it would make the difference between "failed" and "could not be checked" impossible to prove.',
+    body: 'A closed set of typed operators — exists, equals, normalised_email_equals, occurred_within, provider_status_in, one_of — over an allowlisted set of fields. A general expression language was rejected because it would make the difference between "failed" and "could not be checked" impossible to prove. Two checks bind to the run’s own signed event — the enquiry reference and the expected recipient — as a closed reference, not an expression; that is what lets "the acknowledgement went to the address this enquiry named" be checked per run.',
     vocabulary:
       'exists · equals · normalised_email_equals · occurred_within · provider_status_in · one_of',
     source: 'docs/development-story.md § Why the rule language is deliberately small; EVT-0002',

@@ -282,6 +282,22 @@ export function DemoPage(): Html {
     <section class="stack">
       <h2>What this workflow checks</h2>
       ${ruleTable()}
+      ${Callout({
+        tone: 'limit',
+        title: 'What the last check proves, and how that was proven',
+        body: html`<p>
+            These are the checks a real workspace gets from its onboarding form, produced by the same
+            code. This page performs no check a customer's workflow could not. The last one compares
+            the address the acknowledgement actually went to with the address this enquiry named, after
+            lowercasing and trimming — and without stripping <span class="mono">+tags</span>, so an
+            address the sender controls does not stand in for the enquirer's.
+          </p>
+          <p>
+            That comparison is proven in the test suite against an in-process harness: a run whose
+            acknowledgement went to the wrong address comes back failed, not verified. It has not run
+            against a live Resend account, because no such credential exists yet.
+          </p>`,
+      })}
     </section>
 
     ${DEMO_RUNS.map((run) => runDetail(run))}

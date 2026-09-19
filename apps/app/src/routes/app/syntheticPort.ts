@@ -47,13 +47,12 @@ import {
   T_EVENT,
   T_INSIDE_WINDOW,
   T_AFTER_DEADLINE,
-  makeAssertion,
   makeEmailEventWithStatus,
   makeEmptyBundle,
   makeEvidenceBundle,
   makeUnreachableBundle,
-  makeWorkflowRules,
 } from '../../../../../tests/fixtures/index.js';
+import { composeWorkflowRules } from '../../db/ruleCompiler.js';
 import type {
   ActivationView,
   SigningKeyIssueResult,
@@ -192,61 +191,35 @@ const RUN_SEEDS: readonly SyntheticRunSeed[] = [
   },
 ];
 
-/** Build the workflow rules the current in-memory configuration describes. */
+/**
+ * Build the workflow rules the current in-memory configuration describes.
+ *
+ * Through the real rule compiler — the same pure function the D1-backed port uses — so this
+ * port publishes exactly the checks a real workspace would get from the same two forms.
+ *
+ * Until 2026-09-19 this function hand-built its assertions and asserted
+ * `normalised_email_equals` on the recipient against a fixture literal. The evaluator
+ * implements that operator; the product's own composer does not emit it. So the synthetic
+ * dashboard was showing a check that no real run performs. Composing through the compiler
+ * removes the possibility, and `tests/unit/public/demo-rules.test.ts` pins it.
+ */
 export function currentRules(): WorkflowRules {
-  const assertions = [];
-  if (state.requireRecordExists) {
-    assertions.push(
-      makeAssertion({
-        rule_id: 'crm_record_exists',
-        field: 'record.id',
-        operator: 'exists',
-        expected: '',
-        label: 'A CRM record was created',
-      }),
-    );
-  }
-  if (state.requireCorrelationMatch) {
-    assertions.push(
-      makeAssertion({
-        rule_id: 'crm_correlation_matches',
-        field: 'record.correlation_id',
-        operator: 'equals',
-        expected: CORRELATION_VALUE,
-        label: 'The CRM record carries this enquiry reference',
-      }),
-    );
-  }
-  if (state.requireEmailDelivered) {
-    assertions.push(
-      makeAssertion({
-        rule_id: 'email_delivered',
-        source: 'email_event',
-        field: 'message.status',
-        operator: 'provider_status_in',
-        expected: ['delivered'],
-        label: 'The acknowledgement email reached the recipient',
-      }),
-    );
-  }
-  if (state.requireRecipientMatch) {
-    assertions.push(
-      makeAssertion({
-        rule_id: 'email_recipient_matches',
-        source: 'email_event',
-        field: 'message.recipient',
-        operator: 'normalised_email_equals',
-        expected: RECIPIENT,
-        label: 'The acknowledgement went to the enquirer',
-      }),
-    );
-  }
-  return makeWorkflowRules({
-    deadline_seconds: state.deadlineSeconds,
-    coverage_mode: state.coverageMode,
-    crm_correlation_property: state.correlationProperty,
-    assertions,
+  const composed = composeWorkflowRules({
+    correlationProperty: state.correlationProperty,
+    deadlineSeconds: state.deadlineSeconds,
+    coverageMode: state.coverageMode,
+    requireRecordExists: state.requireRecordExists,
+    requireCorrelationMatch: state.requireCorrelationMatch,
+    requireEmailDelivered: state.requireEmailDelivered,
+    requireRecipientMatch: state.requireRecipientMatch,
   });
+  if (!composed.ok) {
+    // `saveFieldMapping` and `saveExpectedOutcome` refuse every state the compiler would
+    // reject, so this is unreachable through the forms. If it is ever reached, a loud error
+    // is the honest outcome — never a hand-written document that looks like the rules.
+    throw new Error(`synthetic workflow state does not compose: ${composed.failure.message}`);
+  }
+  return composed.rules;
 }
 
 interface DecidedRun {
@@ -265,6 +238,7 @@ function decide(seed: SyntheticRunSeed): DecidedRun {
     now: seed.now,
     connectedCrmAccountId: CONNECTED_CRM_ACCOUNT,
     connectedEmailAccountId: CONNECTED_EMAIL_ACCOUNT,
+    sourceEvent: { correlation_id: CORRELATION_VALUE, email_recipient: RECIPIENT },
   });
   const decision = decideRunStatus(results, {
     deadlineAt: T_DEADLINE,
@@ -551,6 +525,7 @@ export class SyntheticCustomerDataPort implements CustomerDataPort {
       now: T_INSIDE_WINDOW,
       connectedCrmAccountId: CONNECTED_CRM_ACCOUNT,
       connectedEmailAccountId: CONNECTED_EMAIL_ACCOUNT,
+      sourceEvent: { correlation_id: CORRELATION_VALUE, email_recipient: RECIPIENT },
     });
     const decision = decideRunStatus(results, {
       deadlineAt: T_DEADLINE,

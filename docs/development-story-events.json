@@ -555,6 +555,50 @@
       ],
       "limitations": "Nothing in this pass is deployment-verified; every measurement is local. There is no frozen candidate — HEAD moved four times while the audit ran, and one request returned 503 worker restarted mid-request. The auditor's own could-not-verify list has eight entries.",
       "next_step": "Freeze a candidate commit before the next audit pass. Notifications stay unverified until a real Stripe webhook secret exists."
+    },
+    {
+      "event_id": "EVT-0018",
+      "timestamp": "2026-09-19T17:45:00Z",
+      "milestone_id": "M-AUDIT",
+      "task_id": "T-A23-PER-RUN-BINDING",
+      "agent_role": "A23 per-run evidence binding",
+      "model_id": "claude-fable-5-1",
+      "status": "tested",
+      "goal": "Make a verified run mean the acknowledgement reached the enquirer; and until it does, stop the demo and this story describing a check that real runs do not perform.",
+      "inputs": [
+        "docs/gap-register.md",
+        "packages/contracts/src/rules.ts",
+        "packages/domain/src/evaluate.ts",
+        "apps/app/src/db/ruleCompiler.ts",
+        "packages/connectors/src/resend.ts and hubspot.ts",
+        "Resend API reference, retrieve-email and list-emails pages, read 2026-09-19"
+      ],
+      "changed_artifacts": [
+        "apps/app/src/routes/public/demoData.ts",
+        "apps/app/src/routes/public/demo.ts",
+        "apps/app/src/routes/app/syntheticPort.ts",
+        "apps/app/src/routes/public/story/narrative.ts",
+        "docs/development-story.md",
+        "apps/app/public/development-story.md",
+        "docs/gap-register.md",
+        "tests/unit/public/demo-rules.test.ts",
+        "tests/unit/story/qualification.test.ts",
+        "a proposed patch (not applied) touching packages/contracts, packages/domain, the scheduler and the rule compiler"
+      ],
+      "commit_sha": null,
+      "decision_summary": "The email half of a verification was not bound to the run. The CRM record is found BY the enquiry's correlation value, so asserting it exists is a real claim; the email event is fetched by message id and the compiler asserted only that its recipient field exists, which proves an email had a recipient, not that it went to the enquirer. A run whose acknowledgement went to the wrong address came back VERIFIED. Meanwhile the demo showed a per-run recipient comparison that no customer workflow performs, and the story documented the plus-tag safeguard of that comparison as if it protected customers. Both surfaces were qualified in the tree today: the demo now composes its rules through the real onboarding compiler and says beside its rule table what the recipient check does not prove; the story labels the plus-tag reasoning as a property of the operator and lists the missing proof under what is not yet true. The fix itself is delivered as a patch proven in an isolated copy, because it touches the frozen contract and another workstream's compiler.",
+      "alternatives_considered": [
+        "Bind at retrieval, mirroring the CRM side. Rejected on the provider's own documentation: Resend retrieves a message by id only, and its list endpoint filters on nothing but a cursor, so no lookup can establish the binding. A connector-side comparison was rejected too: a connector can only report a gap, and a gap is unknown, never failed, while the closure evidence requires FAILED.",
+        "A sentinel inside the expected string, avoiding the frozen contract. Rejected: an untyped mini-language inside a string is exactly what the closed rule language exists to prevent, and an empty literal silently changing meaning would upgrade rules that are broken today."
+      ],
+      "decision_reason": "Only the evaluator can turn a wrong recipient into CONTRADICTED, and it can only do that if the rule can name a value from the run's own signed event. The proposed change adds one optional field to the assertion contract, expected_from, a closed enum of two names: the event's correlation reference and its expected recipient. Only equals and normalised_email_equals may bind, the literal must be empty when a binding is set, and each binding may address only its counterpart fields. Server code resolves it; nothing is parsed or executed, so the language stays closed, typed and non-executable. A run whose event carries nothing to compare with is UNKNOWN with a new reason code, never a pass. The same binding closes the CRM hole on the record-id locator path, where a record fetched by id can carry a different enquiry's reference.",
+      "test_evidence_refs": [
+        "In the tree: CUST-468, CUST-469, CUST-470, DOC-130, DOC-131, DOC-132 pass; node scripts/run-tests.mjs exit 0; tsc exit 0; eslint exit 0",
+        "In an isolated copy with the proposed patch applied: VERIFY-227 an acknowledgement delivered to the wrong address fails the run, VERIFY-228 the right address verifies, VERIFY-229 a plus-tagged variant fails, VERIFY-230 the binding is per run, VERIFY-231 a record carrying another enquiry's reference fails, VERIFY-232 an unreadable event binds nothing and is not verified; VERIFY-233 to VERIFY-242 pin the contract refinements and evaluator behaviour",
+        "CUST-342 fails identically on the untouched tree at HEAD 0a17c59: the word 'certified' in EVT-0017's decision_reason is rendered on /development-story/visual. Not introduced here; left for its author."
+      ],
+      "limitations": "The fix is not applied to the tree: packages/contracts and the rule compiler are owned elsewhere, so it is a patch proven in an isolated copy and the lead decides. No HubSpot or Resend credential exists on this project; every run is against the in-process harness with scripted connectors, and nothing has been exercised against a live provider. Nothing is deployed.",
+      "next_step": "Lead decides on the contract diff. If accepted, apply the patch, re-run VERIFY-227 to VERIFY-242 in the tree, and the patch's own requalification of the demo and story replaces today's interim wording."
     }
   ]
 }

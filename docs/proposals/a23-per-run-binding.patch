@@ -1,0 +1,1270 @@
+diff --git a/apps/app/public/development-story.md b/apps/app/public/development-story.md
+index 8449709..2bbfc48 100644
+--- a/apps/app/public/development-story.md
++++ b/apps/app/public/development-story.md
+@@ -65,16 +65,24 @@ Customers define expectations using a closed set of typed operators — `exists`
+ `normalised_email_equals`, `occurred_within`, `provider_status_in`, `one_of` — over an
+ allowlisted set of fields.
+ 
+-Every operator in that list is implemented in the evaluator and covered by its tests. Not
+-every one is yet used by a customer workflow, and the difference matters. As of 19 September
+-2026 the composer that turns the onboarding forms into rules emits `exists` and
+-`provider_status_in` only. So a real run checks that the acknowledgement carried _a_
+-recipient address — not that it carried _this enquiry's_ address. `normalised_email_equals`
+-runs in the test suite and in nothing that judges a customer's run. A fix — letting a rule
+-name a value from the run's own signed event, as a closed reference rather than an
+-expression — is proposed and is with the lead; the gap register records it. Until it lands,
+-a verified run does not prove the acknowledgement went to the enquirer, and the demo page
+-says so beside its rule table.
++Every operator in that list is implemented in the evaluator and covered by its tests. For
++most of one day that was not the same as every one being used. Until 19 September 2026 the
++composer that turns the onboarding forms into rules emitted `exists` and
++`provider_status_in` only, so a real run checked that the acknowledgement carried _a_
++recipient address — not that it carried _this enquiry's_ address — and a run whose
++acknowledgement went to the wrong person could come back verified. The reason was
++structural: a rule's expected value is a literal shared by every run a version judges, so
++"the address _this_ enquiry named" could not be written down at all.
++
++The fix widened the language by exactly one thing, and it is not an expression: a rule may
++now name one of two values from the run's own signed event — its correlation reference or
++its expected recipient — as a closed, typed reference (`expected_from`). Server code
++resolves it; nothing is parsed or executed. The composer now binds the recipient check to
++the enquiry's address with `normalised_email_equals`, and the correlation check to the
++enquiry's reference with `equals`. A run whose event carries nothing to compare with is
++_unknown_ on that check, never a pass. This is tested against the in-process harness: the
++wrong address fails the run. It has not been exercised against a live Resend account,
++because no credential exists yet.
+ 
+ The alternative was a general expression language. It was rejected: a general language
+ lets a customer rule become an unbounded computation or a network request, and it makes
+@@ -91,12 +99,12 @@ could satisfy a rule about having emailed `boss@corp.com`. Verification must nev
+ an equivalence class. Dot-stripping is a Gmail-specific convention and is simply wrong for
+ other providers.
+ 
+-That reasoning is a property of the `normalised_email_equals` operator, and it holds
+-wherever the operator runs. It is not yet a property of every customer run, because — see
+-the section above — no customer workflow emits that operator today. The safeguard is real
+-and tested; the comparison it guards is not yet in force for a real run. This paragraph
+-exists so that the previous one cannot be read as describing a protection customers already
+-have.
++That reasoning is a property of the `normalised_email_equals` operator. For most of one day
++it was documented here while no customer workflow emitted the operator, so the paragraph
++above described a protection no real run had. Since 19 September 2026 the composer binds the
++recipient check with that operator to the address each enquiry named, so the safeguard
++applies to a real run — proven against the in-process harness, not yet against a live
++provider account.
+ 
+ ### The line between "wrong" and "unknown"
+ 
+@@ -269,9 +277,7 @@ the connectors, payments, the customer journey, support and privacy handling.
+ **Live.** `verify.itisyou.app`, serving over TLS, with a health check that actually probes
+ the database instead of returning a hard-coded "ok".
+ 
+-**Not yet true.** That a verified run proves the acknowledgement went to the enquirer — see
+-"Why the rule language is deliberately small" above. Live payments, because that needs the
+-owner's verified business details.
++**Not yet true.** Live payments, because that needs the owner's verified business details.
+ Provider-backed evidence against real HubSpot and Resend accounts, because those
+ credentials do not exist yet — until they do, the connector path is proven against mocks,
+ and this page will not pretend otherwise. Advertising, because no campaign has been
+diff --git a/apps/app/src/db/ruleCompiler.ts b/apps/app/src/db/ruleCompiler.ts
+index 019f5a4..6ce6222 100644
+--- a/apps/app/src/db/ruleCompiler.ts
++++ b/apps/app/src/db/ruleCompiler.ts
+@@ -20,36 +20,31 @@
+  * mandatory assertions. If a form gains a real advisory option, it must say so explicitly
+  * and this file must be taught the new shape; it must not infer advisory from "unset".
+  *
+- * ## Why `record.correlation_id` and `message.recipient` use `exists`, not `equals`
++ * ## Why `record.correlation_id` and `message.recipient` bind to the run's own event
+  *
+  * The obvious-looking shape for "the CRM record carries this enquiry's reference" is
+- * `operator: 'equals'` against the run's own correlation value, and the same for "the
+- * acknowledgement went to the enquirer" against the run's own recipient. Both are wrong here
+- * — and the reason is worth writing down, because it is not visible from either schema.
++ * `operator: 'equals'` against a literal, and the same for "the acknowledgement went to the
++ * enquirer". Both are wrong: `assertionSpecSchema.expected` is a literal baked into the
++ * workflow VERSION, shared by every run that version ever judges, so a value that is right
++ * for one enquiry is wrong for every other.
+  *
+- * `assertionSpecSchema.expected` is a literal baked into the workflow VERSION, shared by
+- * every run that version ever judges. `evaluateAssertions()` (`packages/domain/evaluate.ts`)
+- * compares each candidate's live value against that same static literal — it has no
+- * mechanism to bind a per-run value (the enquiry's own correlation id, the enquirer's own
+- * address) into `expected` at evaluation time; `loadRules()` in `scheduler/observe.ts` parses
+- * `version.rules_json` verbatim and calls `evaluateAssertions` with no substitution step. A
+- * literal `expected` that is only ever right for one specific enquiry would be wrong for
+- * every other run the same version judges — as the `tests/fixtures/rules.ts` demo constants
+- * (`CORRELATION_VALUE`, `RECIPIENT`) already are outside their own fixtures.
++ * Until 2026-09-19 this file therefore emitted `exists` for both — and `exists` on
++ * `message.recipient` proves only that an email had *a* recipient. A run whose
++ * acknowledgement went to entirely the wrong address came back VERIFIED. The CRM side had
++ * the same hole on the record-id locator path, where the record is fetched by id rather than
++ * found by its correlation value.
+  *
+- * `exists` asks something this evaluator CAN honestly answer per run: does the evidence
+- * carry a value in this field at all. For the CRM record that is meaningful on its own
+- * terms — HubSpot's own record search already filters by the correlation property
+- * (`docs/connectors.md`), so a record reached by that search satisfies the property by
+- * construction; `exists` catches the one path that search does not cover, a record reached
+- * by a customer-supplied record id instead (`readLocator`'s `crm_record_id`), whose mapped
+- * property might be blank. For the recipient field it is a real but weaker claim than "went
+- * to the enquirer" — labelled honestly below as exactly that and no more.
++ * Both now use `expected_from` (`packages/contracts/src/rules.ts`): a closed, two-valued
++ * reference to the run's own signed source event. `evaluateAssertions()` resolves it from
++ * `EvaluationContext.sourceEvent`, which `scheduler/observe.ts` fills from the same parsed
++ * event the locator comes from. The comparison is therefore per run, at evaluation time —
++ * and if this run's event carries nothing to compare with, the assertion is UNKNOWN
++ * (`BINDING_UNAVAILABLE`), never a pass.
+  *
+- * A true per-run match check needs the evaluator to accept a per-run expected value, which
+- * is a change to `packages/domain`'s evaluation contract, not to this composer. That gap is
+- * reported separately; this file does not paper over it with a literal that would be wrong
+- * for every run but the one it was written against.
++ * `normalised_email_equals`, not `equals`, for the recipient: its normalisation lowercases,
++ * trims and strips a display name, and deliberately does NOT strip `+tags` — an address the
++ * customer controls must not satisfy a rule about the enquirer's address. That property is
++ * documented in the development story; this is the line that makes it apply to a real run.
+  */
+ import {
+   LIMITS,
+@@ -138,11 +133,12 @@ function buildAssertions(state: ConfiguredWorkflowState): AssertionSpec[] {
+       rule_id: 'crm_correlation_matches',
+       source: 'crm_record',
+       field: 'record.correlation_id',
+-      // `exists`, not `equals` — see the file header for why a per-run literal cannot work.
+-      operator: 'exists',
++      // Bound to the run's own correlation id — see the file header. A literal cannot work.
++      operator: 'equals',
+       expected: '',
++      expected_from: 'source_event.correlation_id',
+       mandatory: true,
+-      label: 'The CRM record carries a value in the mapped reference property',
++      label: 'The CRM record carries this enquiry reference',
+     });
+   }
+ 
+@@ -163,12 +159,13 @@ function buildAssertions(state: ConfiguredWorkflowState): AssertionSpec[] {
+       rule_id: 'email_recipient_matches',
+       source: 'email_event',
+       field: 'message.recipient',
+-      // `exists`, not `normalised_email_equals` — see the file header; this proves an
+-      // acknowledgement carried a recipient address, not that it named this enquirer.
+-      operator: 'exists',
++      // Bound to the address this run's event named — see the file header. `+tags` are not
++      // stripped, so a customer-controlled variant of the address does not satisfy it.
++      operator: 'normalised_email_equals',
+       expected: '',
++      expected_from: 'source_event.email_recipient',
+       mandatory: true,
+-      label: 'The acknowledgement email carries a recipient address',
++      label: 'The acknowledgement went to the address the enquiry named',
+     });
+   }
+ 
+diff --git a/apps/app/src/routes/app/syntheticPort.ts b/apps/app/src/routes/app/syntheticPort.ts
+index bc78dd6..016b86f 100644
+--- a/apps/app/src/routes/app/syntheticPort.ts
++++ b/apps/app/src/routes/app/syntheticPort.ts
+@@ -238,6 +238,7 @@ function decide(seed: SyntheticRunSeed): DecidedRun {
+     now: seed.now,
+     connectedCrmAccountId: CONNECTED_CRM_ACCOUNT,
+     connectedEmailAccountId: CONNECTED_EMAIL_ACCOUNT,
++    sourceEvent: { correlation_id: CORRELATION_VALUE, email_recipient: RECIPIENT },
+   });
+   const decision = decideRunStatus(results, {
+     deadlineAt: T_DEADLINE,
+@@ -524,6 +525,7 @@ export class SyntheticCustomerDataPort implements CustomerDataPort {
+       now: T_INSIDE_WINDOW,
+       connectedCrmAccountId: CONNECTED_CRM_ACCOUNT,
+       connectedEmailAccountId: CONNECTED_EMAIL_ACCOUNT,
++      sourceEvent: { correlation_id: CORRELATION_VALUE, email_recipient: RECIPIENT },
+     });
+     const decision = decideRunStatus(results, {
+       deadlineAt: T_DEADLINE,
+diff --git a/apps/app/src/routes/public/demo.ts b/apps/app/src/routes/public/demo.ts
+index 1cc5285..41af061 100644
+--- a/apps/app/src/routes/public/demo.ts
++++ b/apps/app/src/routes/public/demo.ts
+@@ -284,19 +284,18 @@ export function DemoPage(): Html {
+       ${ruleTable()}
+       ${Callout({
+         tone: 'limit',
+-        title: 'What the last check does not prove',
++        title: 'What the last check proves, and how that was proven',
+         body: html`<p>
+             These are the checks a real workspace gets from its onboarding form, produced by the same
+-            code. This page performs no check a customer's workflow could not. Read the last one exactly
+-            as it is worded: it confirms the acknowledgement carried a recipient address. It does not
+-            confirm that the address was the enquirer's.
++            code. This page performs no check a customer's workflow could not. The last one compares
++            the address the acknowledgement actually went to with the address this enquiry named, after
++            lowercasing and trimming — and without stripping <span class="mono">+tags</span>, so an
++            address the sender controls does not stand in for the enquirer's.
+           </p>
+           <p>
+-            Comparing the recipient against the address each enquiry named is implemented in the
+-            engine as <span class="mono">normalised_email_equals</span>, but no customer workflow
+-            emits that check yet, so this page does not show it either. It is an open item in the
+-            project's gap register. Until it lands, a verified run does not prove the acknowledgement
+-            went to the enquirer.
++            That comparison is proven in the test suite against an in-process harness: a run whose
++            acknowledgement went to the wrong address comes back failed, not verified. It has not run
++            against a live Resend account, because no such credential exists yet.
+           </p>`,
+       })}
+     </section>
+diff --git a/apps/app/src/routes/public/demoData.ts b/apps/app/src/routes/public/demoData.ts
+index 7b41318..b297d52 100644
+--- a/apps/app/src/routes/public/demoData.ts
++++ b/apps/app/src/routes/public/demoData.ts
+@@ -93,8 +93,9 @@ export interface DemoRun {
+  * `exists`. The demo was therefore showing a visitor a comparison the product never performs
+  * on a real run. So the demo now composes its rules through the same function the onboarding
+  * forms use, with every check switched on, and `tests/unit/public/demo-rules.test.ts` pins
+- * the two together. If the composer starts performing the per-run recipient comparison,
+- * the demo starts showing it — and not one moment sooner.
++ * the two together. The composer now binds the recipient and correlation checks to the run's
++ * own event (`expected_from`), so the demo shows that comparison for the same reason it did
++ * not before: because real runs perform it.
+  */
+ function demoRules(): WorkflowRules {
+   const composed = composeWorkflowRules({
+@@ -121,6 +122,9 @@ const EVAL_CONTEXT = {
+   now: T_INSIDE_WINDOW,
+   connectedCrmAccountId: CONNECTED_CRM_ACCOUNT,
+   connectedEmailAccountId: CONNECTED_EMAIL_ACCOUNT,
++  // The synthetic enquiry's own values, exactly as the scheduler hands a real run's. The
++  // composer binds two checks to them, so without this the demo's runs could never verify.
++  sourceEvent: { correlation_id: CORRELATION_VALUE, email_recipient: RECIPIENT },
+ } as const;
+ 
+ interface Scenario {
+diff --git a/apps/app/src/routes/public/story/narrative.ts b/apps/app/src/routes/public/story/narrative.ts
+index e18b1ad..5833ebf 100644
+--- a/apps/app/src/routes/public/story/narrative.ts
++++ b/apps/app/src/routes/public/story/narrative.ts
+@@ -90,7 +90,7 @@ export const JOURNEY_STEPS: readonly JourneyStep[] = [
+   },
+   {
+     title: 'The customer’s rules are evaluated',
+-    body: 'A closed set of typed operators — exists, equals, normalised_email_equals, occurred_within, provider_status_in, one_of — over an allowlisted set of fields. A general expression language was rejected because it would make the difference between "failed" and "could not be checked" impossible to prove. Every operator is implemented; not every one is yet emitted for a customer workflow. Today a real run checks that the acknowledgement carried a recipient address, not that it was the enquirer’s — the story says so, and so does the demo.',
++    body: 'A closed set of typed operators — exists, equals, normalised_email_equals, occurred_within, provider_status_in, one_of — over an allowlisted set of fields. A general expression language was rejected because it would make the difference between "failed" and "could not be checked" impossible to prove. Two checks bind to the run’s own signed event — the enquiry reference and the expected recipient — as a closed reference, not an expression; that is what lets "the acknowledgement went to the address this enquiry named" be checked per run.',
+     vocabulary:
+       'exists · equals · normalised_email_equals · occurred_within · provider_status_in · one_of',
+     source: 'docs/development-story.md § Why the rule language is deliberately small; EVT-0002',
+diff --git a/apps/app/src/scheduler/observe.ts b/apps/app/src/scheduler/observe.ts
+index fa3377c..322330f 100644
+--- a/apps/app/src/scheduler/observe.ts
++++ b/apps/app/src/scheduler/observe.ts
+@@ -286,6 +286,13 @@ export async function observeRun(run: DueRun, deps: ObserveDeps): Promise<Observ
+       now: deps.now,
+       connectedCrmAccountId: gathered.accounts.hubspot,
+       connectedEmailAccountId: gathered.accounts.resend,
++      // The run's own expected values, for assertions bound with `expected_from`. Drawn from
++      // the same parsed source event as the locator — so a payload we could not read binds
++      // nothing, and every bound assertion is UNKNOWN rather than judged against a guess.
++      sourceEvent: {
++        correlation_id: locator.correlation_value ?? null,
++        email_recipient: locator.recipient ?? null,
++      },
+     });
+   } catch {
+     const resolved = await resolveWithoutEvaluation(
+diff --git a/docs/development-story.md b/docs/development-story.md
+index 8449709..2bbfc48 100644
+--- a/docs/development-story.md
++++ b/docs/development-story.md
+@@ -65,16 +65,24 @@ Customers define expectations using a closed set of typed operators — `exists`
+ `normalised_email_equals`, `occurred_within`, `provider_status_in`, `one_of` — over an
+ allowlisted set of fields.
+ 
+-Every operator in that list is implemented in the evaluator and covered by its tests. Not
+-every one is yet used by a customer workflow, and the difference matters. As of 19 September
+-2026 the composer that turns the onboarding forms into rules emits `exists` and
+-`provider_status_in` only. So a real run checks that the acknowledgement carried _a_
+-recipient address — not that it carried _this enquiry's_ address. `normalised_email_equals`
+-runs in the test suite and in nothing that judges a customer's run. A fix — letting a rule
+-name a value from the run's own signed event, as a closed reference rather than an
+-expression — is proposed and is with the lead; the gap register records it. Until it lands,
+-a verified run does not prove the acknowledgement went to the enquirer, and the demo page
+-says so beside its rule table.
++Every operator in that list is implemented in the evaluator and covered by its tests. For
++most of one day that was not the same as every one being used. Until 19 September 2026 the
++composer that turns the onboarding forms into rules emitted `exists` and
++`provider_status_in` only, so a real run checked that the acknowledgement carried _a_
++recipient address — not that it carried _this enquiry's_ address — and a run whose
++acknowledgement went to the wrong person could come back verified. The reason was
++structural: a rule's expected value is a literal shared by every run a version judges, so
++"the address _this_ enquiry named" could not be written down at all.
++
++The fix widened the language by exactly one thing, and it is not an expression: a rule may
++now name one of two values from the run's own signed event — its correlation reference or
++its expected recipient — as a closed, typed reference (`expected_from`). Server code
++resolves it; nothing is parsed or executed. The composer now binds the recipient check to
++the enquiry's address with `normalised_email_equals`, and the correlation check to the
++enquiry's reference with `equals`. A run whose event carries nothing to compare with is
++_unknown_ on that check, never a pass. This is tested against the in-process harness: the
++wrong address fails the run. It has not been exercised against a live Resend account,
++because no credential exists yet.
+ 
+ The alternative was a general expression language. It was rejected: a general language
+ lets a customer rule become an unbounded computation or a network request, and it makes
+@@ -91,12 +99,12 @@ could satisfy a rule about having emailed `boss@corp.com`. Verification must nev
+ an equivalence class. Dot-stripping is a Gmail-specific convention and is simply wrong for
+ other providers.
+ 
+-That reasoning is a property of the `normalised_email_equals` operator, and it holds
+-wherever the operator runs. It is not yet a property of every customer run, because — see
+-the section above — no customer workflow emits that operator today. The safeguard is real
+-and tested; the comparison it guards is not yet in force for a real run. This paragraph
+-exists so that the previous one cannot be read as describing a protection customers already
+-have.
++That reasoning is a property of the `normalised_email_equals` operator. For most of one day
++it was documented here while no customer workflow emitted the operator, so the paragraph
++above described a protection no real run had. Since 19 September 2026 the composer binds the
++recipient check with that operator to the address each enquiry named, so the safeguard
++applies to a real run — proven against the in-process harness, not yet against a live
++provider account.
+ 
+ ### The line between "wrong" and "unknown"
+ 
+@@ -269,9 +277,7 @@ the connectors, payments, the customer journey, support and privacy handling.
+ **Live.** `verify.itisyou.app`, serving over TLS, with a health check that actually probes
+ the database instead of returning a hard-coded "ok".
+ 
+-**Not yet true.** That a verified run proves the acknowledgement went to the enquirer — see
+-"Why the rule language is deliberately small" above. Live payments, because that needs the
+-owner's verified business details.
++**Not yet true.** Live payments, because that needs the owner's verified business details.
+ Provider-backed evidence against real HubSpot and Resend accounts, because those
+ credentials do not exist yet — until they do, the connector path is proven against mocks,
+ and this page will not pretend otherwise. Advertising, because no campaign has been
+diff --git a/packages/contracts/src/errors.ts b/packages/contracts/src/errors.ts
+index 8914025..33d9000 100644
+--- a/packages/contracts/src/errors.ts
++++ b/packages/contracts/src/errors.ts
+@@ -53,6 +53,12 @@ export const REASON_CODE = [
+   'AWAITING_EVIDENCE',
+   'CORRELATION_MISSING',
+   'RULE_UNSUPPORTED',
++  /**
++   * The rule binds its expected value to the run's own source event (`expected_from`), and
++   * this run's event did not carry a readable one. The rule is fine; this run cannot be
++   * judged on it. Distinct from RULE_UNSUPPORTED, whose next step is "edit the check".
++   */
++  'BINDING_UNAVAILABLE',
+ ] as const;
+ export type ReasonCode = (typeof REASON_CODE)[number];
+ 
+diff --git a/packages/contracts/src/rules.ts b/packages/contracts/src/rules.ts
+index 3f4c77d..14bd8e2 100644
+--- a/packages/contracts/src/rules.ts
++++ b/packages/contracts/src/rules.ts
+@@ -22,6 +22,39 @@ export const OPERATOR = [
+ ] as const;
+ export type Operator = (typeof OPERATOR)[number];
+ 
++/**
++ * Where an assertion's expected value may come from when it is not a literal authored into
++ * the workflow version but a value the run's own signed source event carried.
++ *
++ * A closed enum of two *names*, not a path language. Each entry denotes one field of the
++ * already-validated `SourceEvent`; the scheduler resolves it and hands the evaluator the
++ * value. Nothing here is parsed, traversed or executed, and the set of things a rule can
++ * compute is unchanged — only where one string literal comes from.
++ *
++ * Why it exists. `expected` is shared by every run a version judges, so "the acknowledgement
++ * went to the address *this* enquiry named" could not be expressed at all. The rule that
++ * stood in for it — `exists` on `message.recipient` — proved only that an email had *a*
++ * recipient, and a run could come back VERIFIED with the acknowledgement at the wrong
++ * address. The CRM side had the same hole on the record-id locator path.
++ */
++export const EXPECTED_FROM = [
++  'source_event.correlation_id',
++  'source_event.email_recipient',
++] as const;
++export type ExpectedFrom = (typeof EXPECTED_FROM)[number];
++
++/** Which fields each binding may address. A binding on any other field is rejected. */
++export const BINDABLE_FIELDS: Readonly<Record<ExpectedFrom, readonly string[]>> = Object.freeze({
++  'source_event.correlation_id': Object.freeze(['record.correlation_id', 'record.property']),
++  'source_event.email_recipient': Object.freeze(['message.recipient', 'record.email']),
++});
++
++/** The only operators that may take a bound value: the two that compare one string. */
++export const BINDABLE_OPERATORS: readonly Operator[] = Object.freeze([
++  'equals',
++  'normalised_email_equals',
++]);
++
+ /** Field paths a rule may address. An allowlist, not free-form traversal. */
+ export const CRM_FIELD = [
+   'record.id',
+@@ -65,6 +98,14 @@ export const assertionSpecSchema = z
+       z.number().int(),
+       z.array(z.string().max(128)).max(20),
+     ]),
++    /**
++     * When present, the value compared against is drawn from the run's own source event at
++     * evaluation time and `expected` must be the empty string. Only `equals` and
++     * `normalised_email_equals` may bind, and only to the field each binding is the
++     * counterpart of (`BINDABLE_FIELDS`). A run whose event does not carry the value is
++     * UNKNOWN on that assertion, never a pass.
++     */
++    expected_from: z.enum(EXPECTED_FROM).optional(),
+     /** Optional checks are reported but never change the mandatory outcome. See plan §16.4. */
+     mandatory: z.boolean().default(true),
+     /** Human label shown beside the result. */
+@@ -125,6 +166,29 @@ export const assertionSpecSchema = z
+         path: ['expected'],
+       });
+     }
++    if (spec.expected_from !== undefined) {
++      if (!BINDABLE_OPERATORS.includes(spec.operator)) {
++        ctx.addIssue({
++          code: z.ZodIssueCode.custom,
++          message: 'expected_from is only valid with equals or normalised_email_equals',
++          path: ['expected_from'],
++        });
++      }
++      if (spec.expected !== '') {
++        ctx.addIssue({
++          code: z.ZodIssueCode.custom,
++          message: 'expected must be an empty string when expected_from binds the value',
++          path: ['expected'],
++        });
++      }
++      if (!BINDABLE_FIELDS[spec.expected_from].includes(spec.field)) {
++        ctx.addIssue({
++          code: z.ZodIssueCode.custom,
++          message: `${spec.expected_from} cannot bind ${spec.field}`,
++          path: ['field'],
++        });
++      }
++    }
+   });
+ 
+ export type AssertionSpec = z.infer<typeof assertionSpecSchema>;
+diff --git a/packages/domain/src/evaluate.ts b/packages/domain/src/evaluate.ts
+index 4d21387..efbd13f 100644
+--- a/packages/domain/src/evaluate.ts
++++ b/packages/domain/src/evaluate.ts
+@@ -16,6 +16,8 @@
+  */
+ import {
+   AppError,
++  BINDABLE_FIELDS,
++  BINDABLE_OPERATORS,
+   DELIVERY_CONTRADICTING_STATUSES,
+   DELIVERY_PROVING_STATUSES,
+   EMAIL_STATUS,
+@@ -67,6 +69,28 @@ export interface EvaluationContext {
+   readonly connectedCrmAccountId?: string | null;
+   /** As above, for the connected email provider account. */
+   readonly connectedEmailAccountId?: string | null;
++  /**
++   * This run's own expected values, for assertions whose `expected_from` binds to the
++   * source event. When omitted, or when the named value is missing or blank, every bound
++   * assertion is UNKNOWN with `BINDING_UNAVAILABLE`. A missing binding is never a pass and
++   * is never replaced by a literal guess. The scheduler supplies it from the run's event.
++   */
++  readonly sourceEvent?: RunBindings | null;
++}
++
++/**
++ * The run's own expected values, drawn from its signed source event by the scheduler.
++ *
++ * The evaluator never reads a source event itself. It is handed exactly the two values the
++ * contract lets a rule name (`EXPECTED_FROM`), already validated by `sourceEventSchema`
++ * upstream — so the binding is per run at evaluation time, which is what "the acknowledgement
++ * went to the address *this* enquiry named" needs and a version-wide literal cannot give.
++ */
++export interface RunBindings {
++  /** `SourceEvent.correlation_id` — the value the CRM record should carry. */
++  readonly correlation_id?: string | null | undefined;
++  /** `SourceEvent.expected.email_recipient` — where the acknowledgement should have gone. */
++  readonly email_recipient?: string | null | undefined;
+ }
+ 
+ /**
+@@ -215,8 +239,30 @@ function emailRef(event: EmailEventEvidence): string {
+   return `email_event:${event.provider}:${event.message_id}:${event.status}`;
+ }
+ 
+-/** A spec problem the evaluator cannot honestly act on. Null when the spec is usable. */
+-function specProblem(spec: AssertionSpec): string | null {
++type ResolvedExpected =
++  { readonly ok: true; readonly expected: AssertionSpec['expected'] } | { readonly ok: false };
++
++/**
++ * The value this assertion compares against, for this run.
++ *
++ * A literal is used as written. A bound value is looked up in the context and must be present
++ * and non-blank: a blank recipient on the enquiry is not an address to compare with, and
++ * comparing against '' would let an empty provider field "match" it.
++ */
++function resolveExpected(spec: AssertionSpec, ctx: EvaluationContext): ResolvedExpected {
++  if (spec.expected_from === undefined) return { ok: true, expected: spec.expected };
++  const bound =
++    spec.expected_from === 'source_event.correlation_id'
++      ? ctx.sourceEvent?.correlation_id
++      : ctx.sourceEvent?.email_recipient;
++  return present(bound) ? { ok: true, expected: bound } : { ok: false };
++}
++
++/**
++ * A spec problem the evaluator cannot honestly act on. Null when the spec is usable.
++ * `expected` is the value already resolved for this run — a literal, or the bound value.
++ */
++function specProblem(spec: AssertionSpec, expected: AssertionSpec['expected']): string | null {
+   const isCrmField = CRM_FIELDS.has(spec.field);
+   const isEmailField = EMAIL_FIELDS.has(spec.field);
+   if (!isCrmField && !isEmailField) return `unknown field: ${spec.field}`;
+@@ -225,27 +271,37 @@ function specProblem(spec: AssertionSpec): string | null {
+   if (spec.field === 'record.property' && spec.property_name === undefined) {
+     return 'record.property requires property_name';
+   }
++  // The Zod contract already rejects these; the evaluator refuses independently so a
++  // hand-built or migrated rule set cannot bind where the contract says it may not.
++  if (spec.expected_from !== undefined) {
++    if (!BINDABLE_OPERATORS.includes(spec.operator)) {
++      return 'expected_from only binds equals or normalised_email_equals';
++    }
++    if (!BINDABLE_FIELDS[spec.expected_from].includes(spec.field)) {
++      return `${spec.expected_from} cannot bind ${spec.field}`;
++    }
++  }
+   switch (spec.operator) {
+     case 'occurred_within': {
+-      if (typeof spec.expected !== 'number' || !Number.isInteger(spec.expected)) {
++      if (typeof expected !== 'number' || !Number.isInteger(expected)) {
+         return 'occurred_within expects an integer number of seconds';
+       }
+-      if (spec.expected < 0) return 'occurred_within expects a non-negative window';
++      if (expected < 0) return 'occurred_within expects a non-negative window';
+       return null;
+     }
+     case 'one_of': {
+-      if (!Array.isArray(spec.expected) || spec.expected.length === 0) {
++      if (!Array.isArray(expected) || expected.length === 0) {
+         return 'one_of expects a non-empty array of allowed values';
+       }
+       return null;
+     }
+     case 'provider_status_in': {
+-      if (!Array.isArray(spec.expected) || spec.expected.length === 0) {
++      if (!Array.isArray(expected) || expected.length === 0) {
+         return 'provider_status_in expects a non-empty array of statuses';
+       }
+       if (spec.field !== 'message.status')
+         return 'provider_status_in only addresses message.status';
+-      const unknownStatus = spec.expected.find((s) => !EMAIL_STATUS_SET.has(s));
++      const unknownStatus = expected.find((s) => !EMAIL_STATUS_SET.has(s));
+       if (unknownStatus !== undefined) return `unknown email status: ${unknownStatus}`;
+       return null;
+     }
+@@ -254,8 +310,8 @@ function specProblem(spec: AssertionSpec): string | null {
+     case 'equals':
+     case 'not_equals':
+     case 'normalised_email_equals': {
+-      if (typeof spec.expected !== 'string') return `${spec.operator} expects a string`;
+-      if (spec.expected.trim() === '') return `${spec.operator} expects a non-empty value`;
++      if (typeof expected !== 'string') return `${spec.operator} expects a string`;
++      if (expected.trim() === '') return `${spec.operator} expects a non-empty value`;
+       return null;
+     }
+     default:
+@@ -263,7 +319,20 @@ function specProblem(spec: AssertionSpec): string | null {
+   }
+ }
+ 
+-export function describeExpected(spec: AssertionSpec): string {
++/**
++ * What the rule asked for, in words a customer can read.
++ *
++ * For a bound assertion, `resolved` is this run's own value and is shown as the expectation —
++ * pages mask addresses before display, exactly as they do for a literal one. Without a
++ * resolved value the description names the binding rather than inventing a literal.
++ */
++export function describeExpected(spec: AssertionSpec, resolved?: string): string {
++  if (spec.expected_from !== undefined) {
++    if (resolved !== undefined) return resolved;
++    return spec.expected_from === 'source_event.correlation_id'
++      ? "this enquiry's reference, which this run's event did not carry"
++      : "the address this enquiry named, which this run's event did not carry";
++  }
+   switch (spec.operator) {
+     case 'exists':
+       return 'present';
+@@ -313,6 +382,7 @@ function applyOperator(
+   spec: AssertionSpec,
+   value: string | null | undefined,
+   occurredAt: Date,
++  expected: AssertionSpec['expected'],
+ ): Verdict {
+   if (spec.operator === 'exists') {
+     if (present(value)) return SUPPORTED;
+@@ -327,26 +397,26 @@ function applyOperator(
+   switch (spec.operator) {
+     case 'equals': {
+       if (!present(value)) return contradicted('VALUE_MISMATCH');
+-      return compareStrings(spec.field, value, String(spec.expected))
++      return compareStrings(spec.field, value, String(expected))
+         ? SUPPORTED
+         : contradicted('VALUE_MISMATCH');
+     }
+     case 'not_equals': {
+       // An empty value is not proof that the value is not the forbidden one.
+       if (!present(value)) return unknown('EVIDENCE_NOT_RETURNED');
+-      return compareStrings(spec.field, value, String(spec.expected))
++      return compareStrings(spec.field, value, String(expected))
+         ? contradicted('VALUE_MISMATCH')
+         : SUPPORTED;
+     }
+     case 'normalised_email_equals': {
+       if (!present(value)) return contradicted('VALUE_MISMATCH');
+       const observed = normaliseEmailAddress(value);
+-      const expected = normaliseEmailAddress(String(spec.expected));
+-      return observed === expected ? SUPPORTED : contradicted('VALUE_MISMATCH');
++      const wanted = normaliseEmailAddress(String(expected));
++      return observed === wanted ? SUPPORTED : contradicted('VALUE_MISMATCH');
+     }
+     case 'one_of': {
+       if (!present(value)) return contradicted('VALUE_MISMATCH');
+-      const allowed = Array.isArray(spec.expected) ? spec.expected : [];
++      const allowed = Array.isArray(expected) ? expected : [];
+       return allowed.some((a) => compareStrings(spec.field, value, a))
+         ? SUPPORTED
+         : contradicted('VALUE_MISMATCH');
+@@ -356,7 +426,7 @@ function applyOperator(
+       // A corrupt or missing timestamp is not a late timestamp. We simply cannot tell — and
+       // the provider did answer us, so this is an omission, not an outage.
+       if (observedMs === null) return unknown('EVIDENCE_NOT_RETURNED');
+-      const windowSeconds = typeof spec.expected === 'number' ? spec.expected : 0;
++      const windowSeconds = typeof expected === 'number' ? expected : 0;
+       const deltaMs = observedMs - occurredAt.getTime();
+       // Evidence that predates the business event cannot have been produced by it.
+       if (deltaMs < 0) return contradicted('OUTSIDE_TIME_WINDOW');
+@@ -413,6 +483,7 @@ function buildResult(
+   observedDisplay: string | null,
+   observedAt: string | null,
+   evidenceRef: string | null,
++  expectedDisplay: string = describeExpected(spec),
+ ): AssertionResult {
+   return {
+     rule_id: spec.rule_id,
+@@ -420,7 +491,7 @@ function buildResult(
+     mandatory: spec.mandatory,
+     status: verdict.status,
+     reason_code: verdict.reason,
+-    expected_display: describeExpected(spec),
++    expected_display: expectedDisplay,
+     observed_display: observedDisplay,
+     observed_at: observedAt,
+     evidence_ref: evidenceRef,
+@@ -501,16 +572,29 @@ function evaluateOne(
+   bundle: EvidenceBundle,
+   ctx: EvaluationContext,
+ ): AssertionResult {
++  // 0. A bound expectation this run cannot supply. The rule may be perfectly well formed; it
++  //    is this run's event that carries nothing to compare with. UNKNOWN — never a pass, and
++  //    never a literal guessed in its place.
++  const resolved = resolveExpected(spec, ctx);
++  if (!resolved.ok) return buildResult(spec, unknown('BINDING_UNAVAILABLE'), null, null, null);
++  const expected = resolved.expected;
++  const expectedDisplay = describeExpected(
++    spec,
++    spec.expected_from !== undefined && typeof expected === 'string' ? expected : undefined,
++  );
++
+   // 1. A spec we cannot honestly act on never guesses.
+-  const problem = specProblem(spec);
+-  if (problem !== null) return buildResult(spec, unknown('RULE_UNSUPPORTED'), null, null, null);
++  const problem = specProblem(spec, expected);
++  if (problem !== null) {
++    return buildResult(spec, unknown('RULE_UNSUPPORTED'), null, null, null, expectedDisplay);
++  }
+ 
+   const gapsForSource = bundle.gaps.filter((g) => g.source === spec.source);
+ 
+   // 2. Ambiguity beats everything, including a record we happen to hold: if we cannot tell
+   //    which record is the customer's, nothing derived from it is trustworthy.
+   if (gapsForSource.some((g) => g.code === 'AMBIGUOUS_MATCH')) {
+-    return buildResult(spec, unknown('RECORD_AMBIGUOUS'), null, null, null);
++    return buildResult(spec, unknown('RECORD_AMBIGUOUS'), null, null, null, expectedDisplay);
+   }
+ 
+   let candidates =
+@@ -521,9 +605,11 @@ function evaluateOne(
+   // 3. Nothing to look at.
+   if (candidates.length === 0) {
+     const gap = gapsForSource[0];
+-    if (gap !== undefined) return buildResult(spec, unknown(mapGapToReason(gap)), null, null, null);
++    if (gap !== undefined) {
++      return buildResult(spec, unknown(mapGapToReason(gap)), null, null, null, expectedDisplay);
++    }
+     // No evidence and no explanation: we cannot claim the connector established absence.
+-    return buildResult(spec, unknown('AWAITING_EVIDENCE'), null, null, null);
++    return buildResult(spec, unknown('AWAITING_EVIDENCE'), null, null, null, expectedDisplay);
+   }
+ 
+   // 4. Account ownership. A customer-supplied record id is a locator, never a fact — a record
+@@ -539,6 +625,7 @@ function evaluateOne(
+         foreign?.value ?? null,
+         foreign?.at ?? null,
+         foreign?.ref ?? null,
++        expectedDisplay,
+       );
+     }
+     candidates = owned;
+@@ -556,6 +643,7 @@ function evaluateOne(
+         claimed?.value ?? null,
+         claimed?.at ?? null,
+         claimed?.ref ?? null,
++        expectedDisplay,
+       );
+     }
+     candidates = independent;
+@@ -574,18 +662,21 @@ function evaluateOne(
+       observed === '' ? null : observed,
+       chosen?.at ?? null,
+       chosen?.ref ?? null,
++      expectedDisplay,
+     );
+   }
+ 
+   let best: { verdict: Verdict; candidate: Candidate } | null = null;
+   for (const candidate of candidates) {
+-    const verdict = applyOperator(spec, candidate.value, ctx.occurredAt);
++    const verdict = applyOperator(spec, candidate.value, ctx.occurredAt, expected);
+     if (best === null || COMBINE_RANK[verdict.status] > COMBINE_RANK[best.verdict.status]) {
+       best = { verdict, candidate };
+     }
+   }
+   /* c8 ignore next */
+-  if (best === null) return buildResult(spec, unknown('AWAITING_EVIDENCE'), null, null, null);
++  if (best === null) {
++    return buildResult(spec, unknown('AWAITING_EVIDENCE'), null, null, null, expectedDisplay);
++  }
+ 
+   const value = best.candidate.value;
+   return buildResult(
+@@ -594,6 +685,7 @@ function evaluateOne(
+     value === undefined ? null : value,
+     best.candidate.at,
+     best.candidate.ref,
++    expectedDisplay,
+   );
+ }
+ 
+diff --git a/packages/domain/src/explain.ts b/packages/domain/src/explain.ts
+index cd8b4bf..b7f686c 100644
+--- a/packages/domain/src/explain.ts
++++ b/packages/domain/src/explain.ts
+@@ -114,6 +114,12 @@ const REASON_TEXT: Record<ReasonCode, { sentence: string; next_step: string | nu
+       'This check is configured in a way we cannot evaluate, so we have not judged it either way.',
+     next_step: 'Edit the check: its field, operator and expected value do not fit together.',
+   },
++  BINDING_UNAVAILABLE: {
++    sentence:
++      'This check compares against a value from the enquiry’s own signed event, and this run’s event did not carry a readable one, so we have not judged it either way.',
++    next_step:
++      'Check that the event your automation sends us carries the enquiry reference and the recipient address it expects.',
++  },
+ };
+ 
+ export function explainReasonCode(code: ReasonCode): ReasonExplanation {
+diff --git a/packages/domain/src/index.ts b/packages/domain/src/index.ts
+index 61110d5..e3a6fad 100644
+--- a/packages/domain/src/index.ts
++++ b/packages/domain/src/index.ts
+@@ -14,6 +14,7 @@ export {
+   AUTHORITATIVE_ABSENCE_REASONS,
+   type AssertionResult,
+   type EvaluationContext,
++  type RunBindings,
+ } from './evaluate.js';
+ 
+ export {
+diff --git a/tests/integration/scheduler/recipient-binding.test.ts b/tests/integration/scheduler/recipient-binding.test.ts
+new file mode 100644
+index 0000000..fc7dbf0
+--- /dev/null
++++ b/tests/integration/scheduler/recipient-binding.test.ts
+@@ -0,0 +1,200 @@
++/**
++ * A verified run means the acknowledgement reached the enquirer.
++ *
++ * This is the closure evidence for the gap-register row "A verified run does not prove the
++ * acknowledgement reached the enquirer". Until 2026-09-19 the rule compiler asserted only
++ * that `message.recipient` `exists`, so a run whose acknowledgement went to entirely the
++ * wrong address came back VERIFIED. Every case here uses the rules a real workspace gets —
++ * `composeWorkflowRules` with every check on — admits a run the way the API does, drives
++ * the real tick against the real schema, and reads the row back.
++ *
++ * The connectors are fakes scripted with fixed evidence. No HubSpot or Resend credential
++ * exists on this project, so nothing here has run against a live provider; what is proven
++ * is the evaluator's per-run binding, end to end through the scheduler.
++ */
++import { afterEach, beforeEach, describe, expect, it } from 'vitest';
++import { LIMITS, type EvidenceBundle, type WorkflowRules } from '@verify/contracts';
++import { composeWorkflowRules } from '@app/db/ruleCompiler';
++import { makeCrmEvidence, makeEmailEvent } from '../../fixtures/index.js';
++import {
++  at,
++  bundleScript,
++  connectedResolver,
++  createSchedulerHarness,
++  makeFakeConnector,
++  makeRegistry,
++  type SchedulerHarness,
++} from './harness';
++
++const ENQUIRER = 'ada@example.test';
++const SOMEONE_ELSE = 'someone-else@example.test';
++const ENQUIRY = 'enq_0000000000000001';
++
++/** Exactly what the onboarding forms publish with every check switched on. */
++function customerRules(): WorkflowRules {
++  const composed = composeWorkflowRules({
++    correlationProperty: 'verify_correlation_id',
++    deadlineSeconds: LIMITS.DEFAULT_DEADLINE_SECONDS,
++    coverageMode: 'customer_triggered',
++    requireRecordExists: true,
++    requireCorrelationMatch: true,
++    requireEmailDelivered: true,
++    requireRecipientMatch: true,
++  });
++  if (!composed.ok) throw new Error(composed.failure.message);
++  return composed.rules;
++}
++
++function registryFor(bundle: EvidenceBundle) {
++  const script = bundleScript(bundle);
++  return makeRegistry(
++    makeFakeConnector('hubspot', script.hubspot),
++    makeFakeConnector('resend', script.resend),
++  );
++}
++
++interface AssertionRow {
++  rule_id: string;
++  status: string;
++  reason_code: string;
++  expected_display: string | null;
++  observed_display: string | null;
++}
++
++function assertionRows(harness: SchedulerHarness, runId: string): AssertionRow[] {
++  return harness.h.raw
++    .prepare(
++      'SELECT rule_id, status, reason_code, expected_display, observed_display FROM assertions WHERE run_id = ? ORDER BY rule_id',
++    )
++    .all(runId) as unknown as AssertionRow[];
++}
++
++function row(harness: SchedulerHarness, runId: string, ruleId: string): AssertionRow {
++  const found = assertionRows(harness, runId).find((r) => r.rule_id === ruleId);
++  if (found === undefined) throw new Error(`no assertion row for ${ruleId}`);
++  return found;
++}
++
++let harness: SchedulerHarness;
++
++beforeEach(() => {
++  harness = createSchedulerHarness({ rules: customerRules() });
++});
++
++afterEach(() => {
++  harness.close();
++});
++
++describe('the acknowledgement must reach the address this enquiry named', () => {
++  it('VERIFY-227 an acknowledgement delivered to the wrong address fails the run', async () => {
++    const runId = await harness.admit('evt-227', { recipient: ENQUIRER });
++    await harness.tick({
++      now: at(1),
++      resolver: connectedResolver(),
++      connectors: registryFor({
++        crm: makeCrmEvidence(),
++        email_events: [makeEmailEvent({ recipient: SOMEONE_ELSE })],
++        gaps: [],
++      }),
++    });
++    expect(harness.runRow(runId).status).toBe('FAILED');
++
++    const recipient = row(harness, runId, 'email_recipient_matches');
++    expect(recipient.status).toBe('CONTRADICTED');
++    expect(recipient.reason_code).toBe('VALUE_MISMATCH');
++    // The expectation shown is this run's own address, not a literal from the version.
++    expect(recipient.expected_display).toBe(ENQUIRER);
++    expect(recipient.observed_display).toBe(SOMEONE_ELSE);
++    // Everything else about the run was fine — this is the only thing that was wrong.
++    for (const other of ['crm_record_exists', 'crm_correlation_matches', 'email_delivered']) {
++      expect(row(harness, runId, other).status).toBe('SUPPORTED');
++    }
++  });
++
++  it('VERIFY-228 the same run with the acknowledgement at the enquirer’s address is VERIFIED', async () => {
++    const runId = await harness.admit('evt-228', { recipient: ENQUIRER });
++    await harness.tick({
++      now: at(1),
++      resolver: connectedResolver(),
++      connectors: registryFor({
++        crm: makeCrmEvidence(),
++        email_events: [makeEmailEvent({ recipient: ENQUIRER })],
++        gaps: [],
++      }),
++    });
++    expect(harness.runRow(runId).status).toBe('VERIFIED');
++    expect(row(harness, runId, 'email_recipient_matches').status).toBe('SUPPORTED');
++  });
++
++  it('VERIFY-229 a plus-tagged variant of the enquirer’s address is the wrong address', async () => {
++    const runId = await harness.admit('evt-229', { recipient: ENQUIRER });
++    await harness.tick({
++      now: at(1),
++      resolver: connectedResolver(),
++      connectors: registryFor({
++        crm: makeCrmEvidence(),
++        email_events: [makeEmailEvent({ recipient: 'ada+anything@example.test' })],
++        gaps: [],
++      }),
++    });
++    expect(harness.runRow(runId).status).toBe('FAILED');
++    expect(row(harness, runId, 'email_recipient_matches').reason_code).toBe('VALUE_MISMATCH');
++  });
++
++  it('VERIFY-230 the binding is per run: an enquiry that named a different address verifies against that address', async () => {
++    const runId = await harness.admit('evt-230', { recipient: SOMEONE_ELSE });
++    await harness.tick({
++      now: at(1),
++      resolver: connectedResolver(),
++      connectors: registryFor({
++        crm: makeCrmEvidence(),
++        email_events: [makeEmailEvent({ recipient: SOMEONE_ELSE })],
++        gaps: [],
++      }),
++    });
++    expect(harness.runRow(runId).status).toBe('VERIFIED');
++    expect(row(harness, runId, 'email_recipient_matches').expected_display).toBe(SOMEONE_ELSE);
++  });
++
++  it('VERIFY-231 a CRM record carrying a different enquiry’s reference fails the run', async () => {
++    const runId = await harness.admit('evt-231', { correlationId: ENQUIRY, recipient: ENQUIRER });
++    await harness.tick({
++      now: at(1),
++      resolver: connectedResolver(),
++      connectors: registryFor({
++        // What the record-id locator path can return: a real record, wrong enquiry.
++        crm: makeCrmEvidence({ correlation_value: 'enq_0000000000000002' }),
++        email_events: [makeEmailEvent({ recipient: ENQUIRER })],
++        gaps: [],
++      }),
++    });
++    expect(harness.runRow(runId).status).toBe('FAILED');
++    const correlation = row(harness, runId, 'crm_correlation_matches');
++    expect(correlation.status).toBe('CONTRADICTED');
++    expect(correlation.expected_display).toBe(ENQUIRY);
++    expect(correlation.observed_display).toBe('enq_0000000000000002');
++  });
++
++  it('VERIFY-232 an event we cannot read binds nothing: the bound checks are UNKNOWN and the run is not VERIFIED', async () => {
++    const runId = await harness.admit('evt-232', { recipient: ENQUIRER });
++    // The stored envelope is corrupted after admission, so `readLocator` yields nothing.
++    harness.h.raw
++      .prepare('UPDATE source_events SET payload_json = ? WHERE id = ?')
++      .run('{"not":"an event"}', 'sev_evt-232');
++    await harness.tick({
++      now: at(1),
++      resolver: connectedResolver(),
++      connectors: registryFor({
++        crm: makeCrmEvidence(),
++        email_events: [makeEmailEvent({ recipient: ENQUIRER })],
++        gaps: [],
++      }),
++    });
++    expect(harness.runRow(runId).status).not.toBe('VERIFIED');
++    for (const bound of ['email_recipient_matches', 'crm_correlation_matches']) {
++      const r = row(harness, runId, bound);
++      expect(r.status).toBe('UNKNOWN');
++      expect(r.reason_code).toBe('BINDING_UNAVAILABLE');
++    }
++  });
++});
+diff --git a/tests/unit/domain/binding.test.ts b/tests/unit/domain/binding.test.ts
+new file mode 100644
+index 0000000..81aa8cd
+--- /dev/null
++++ b/tests/unit/domain/binding.test.ts
+@@ -0,0 +1,170 @@
++/**
++ * `expected_from` — a rule may name one of two values from the run's own signed event.
++ *
++ * The contract side: the binding is a closed enum, only two operators may take it, the
++ * literal must be empty when it is set, and each binding may address only its counterpart
++ * fields. The evaluator side: a bound value is compared per run, a missing binding is
++ * UNKNOWN and never a pass, and the +tag rule of `normalised_email_equals` applies to the
++ * bound comparison exactly as to a literal one.
++ */
++import { describe, expect, it } from 'vitest';
++import { assertionSpecSchema, type AssertionSpec, type EvidenceBundle } from '@verify/contracts';
++import { describeExpected, evaluateAssertions, type AssertionResult } from '@verify/domain';
++import {
++  CONNECTED_CRM_ACCOUNT,
++  CONNECTED_EMAIL_ACCOUNT,
++  CORRELATION_VALUE,
++  RECIPIENT,
++  T_EVENT,
++  T_INSIDE_WINDOW,
++  makeAssertion,
++  makeCrmEvidence,
++  makeEmailEvent,
++  makeEvidenceBundle,
++  rulesFor,
++} from '../../fixtures/index.js';
++
++const CTX = {
++  occurredAt: T_EVENT,
++  now: T_INSIDE_WINDOW,
++  connectedCrmAccountId: CONNECTED_CRM_ACCOUNT,
++  connectedEmailAccountId: CONNECTED_EMAIL_ACCOUNT,
++  sourceEvent: { correlation_id: CORRELATION_VALUE, email_recipient: RECIPIENT },
++} as const;
++
++const recipientBound = makeAssertion({
++  rule_id: 'email_recipient_matches',
++  source: 'email_event',
++  field: 'message.recipient',
++  operator: 'normalised_email_equals',
++  expected: '',
++  expected_from: 'source_event.email_recipient',
++  label: 'The acknowledgement went to the address the enquiry named',
++});
++
++const correlationBound = makeAssertion({
++  rule_id: 'crm_correlation_matches',
++  field: 'record.correlation_id',
++  operator: 'equals',
++  expected: '',
++  expected_from: 'source_event.correlation_id',
++  label: 'The CRM record carries this enquiry reference',
++});
++
++function one(spec: AssertionSpec, bundle: EvidenceBundle, ctx = CTX as object): AssertionResult {
++  const first = evaluateAssertions(rulesFor(spec), bundle, ctx as typeof CTX)[0];
++  if (first === undefined) throw new Error('expected exactly one result');
++  return first;
++}
++
++describe('the contract keeps the binding closed', () => {
++  it('VERIFY-233 accepts a bound recipient comparison with an empty literal', () => {
++    expect(recipientBound.expected_from).toBe('source_event.email_recipient');
++    expect(recipientBound.expected).toBe('');
++  });
++
++  it('VERIFY-234 rejects a binding on any operator other than equals or normalised_email_equals', () => {
++    for (const operator of ['exists', 'not_equals', 'one_of', 'occurred_within'] as const) {
++      const result = assertionSpecSchema.safeParse({
++        ...recipientBound,
++        operator,
++        expected: operator === 'occurred_within' ? 0 : operator === 'one_of' ? ['x'] : '',
++      });
++      expect(result.success, operator).toBe(false);
++    }
++  });
++
++  it('VERIFY-235 rejects a literal alongside a binding — a rule says where its value comes from, once', () => {
++    const result = assertionSpecSchema.safeParse({ ...recipientBound, expected: RECIPIENT });
++    expect(result.success).toBe(false);
++  });
++
++  it('VERIFY-236 rejects a binding on a field it is not the counterpart of', () => {
++    const wrongField = assertionSpecSchema.safeParse({
++      ...recipientBound,
++      source: 'crm_record',
++      field: 'record.correlation_id',
++    });
++    expect(wrongField.success).toBe(false);
++    const wrongName = assertionSpecSchema.safeParse({
++      ...recipientBound,
++      expected_from: 'source_event.enquirer_address',
++    });
++    expect(wrongName.success).toBe(false);
++  });
++});
++
++describe('the evaluator compares against the run’s own value', () => {
++  it('VERIFY-237 supports a recipient that matches this run’s address, and shows that address as the expectation', () => {
++    const r = one(
++      recipientBound,
++      makeEvidenceBundle({ email_events: [makeEmailEvent({ recipient: ' ADA@Example.test ' })] }),
++    );
++    expect(r.status).toBe('SUPPORTED');
++    expect(r.expected_display).toBe(RECIPIENT);
++  });
++
++  it('VERIFY-238 contradicts a recipient that is not this run’s address', () => {
++    const r = one(
++      recipientBound,
++      makeEvidenceBundle({
++        email_events: [makeEmailEvent({ recipient: 'someone-else@example.test' })],
++      }),
++    );
++    expect(r.status).toBe('CONTRADICTED');
++    expect(r.reason_code).toBe('VALUE_MISMATCH');
++    expect(r.observed_display).toBe('someone-else@example.test');
++  });
++
++  it('VERIFY-239 does not strip a plus tag from the bound comparison either', () => {
++    const r = one(
++      recipientBound,
++      makeEvidenceBundle({
++        email_events: [makeEmailEvent({ recipient: 'ada+anything@example.test' })],
++      }),
++    );
++    expect(r.status).toBe('CONTRADICTED');
++  });
++
++  it('VERIFY-240 a missing or blank binding is UNKNOWN with BINDING_UNAVAILABLE, never a pass', () => {
++    const bundle = makeEvidenceBundle();
++    const without = { ...CTX, sourceEvent: undefined };
++    const blank = {
++      ...CTX,
++      sourceEvent: { correlation_id: CORRELATION_VALUE, email_recipient: '  ' },
++    };
++    for (const ctx of [without, blank]) {
++      const r = one(recipientBound, bundle, ctx);
++      expect(r.status).toBe('UNKNOWN');
++      expect(r.reason_code).toBe('BINDING_UNAVAILABLE');
++      expect(r.expected_display).toBe(describeExpected(recipientBound));
++      expect(r.expected_display).toContain('did not carry');
++    }
++  });
++
++  it('VERIFY-241 binds the correlation check to this run’s reference on the CRM side too', () => {
++    expect(one(correlationBound, makeEvidenceBundle()).status).toBe('SUPPORTED');
++    const wrong = one(
++      correlationBound,
++      makeEvidenceBundle({ crm: makeCrmEvidence({ correlation_value: 'enq_0000000000000002' }) }),
++    );
++    expect(wrong.status).toBe('CONTRADICTED');
++    expect(wrong.expected_display).toBe(CORRELATION_VALUE);
++  });
++
++  it('VERIFY-242 a literal rule is unaffected by the run’s values', () => {
++    const literal = makeAssertion({
++      rule_id: 'always_the_boss',
++      source: 'email_event',
++      field: 'message.recipient',
++      operator: 'normalised_email_equals',
++      expected: 'boss@example.test',
++    });
++    const r = one(
++      literal,
++      makeEvidenceBundle({ email_events: [makeEmailEvent({ recipient: RECIPIENT })] }),
++    );
++    expect(r.status).toBe('CONTRADICTED');
++    expect(r.expected_display).toBe('boss@example.test');
++  });
++});
+diff --git a/tests/unit/domain/explain.test.ts b/tests/unit/domain/explain.test.ts
+index d744519..97c767e 100644
+--- a/tests/unit/domain/explain.test.ts
++++ b/tests/unit/domain/explain.test.ts
+@@ -145,7 +145,7 @@ describe('explainRunStatus', () => {
+   it('VERIFY-174 a reason code missing from the map would be caught at compile time, and none is missing at runtime', () => {
+     const codes: ReasonCode[] = [...REASON_CODE];
+     expect(codes.every((code) => explainReasonCode(code).sentence.length > 0)).toBe(true);
+-    expect(codes).toHaveLength(16);
++    expect(codes).toHaveLength(17);
+   });
+ 
+   it('VERIFY-194 an omitted field reads differently from an unreachable provider', () => {
+diff --git a/tests/unit/public/demo-rules.test.ts b/tests/unit/public/demo-rules.test.ts
+index 377caa7..c3ebd5e 100644
+--- a/tests/unit/public/demo-rules.test.ts
++++ b/tests/unit/public/demo-rules.test.ts
+@@ -42,7 +42,10 @@ describe('the demo judges against the rules a real workspace gets', () => {
+   it('CUST-468 the demo’s rules are byte-identical to the onboarding composer’s output for every check switched on', () => {
+     expect(DEMO_RULES).toEqual(composed());
+     // The fixture the demo used to run carried this operator; the composer never has.
+-    expect(DEMO_RULES.assertions.map((a) => a.operator)).not.toContain('normalised_email_equals');
++    // The recipient check is the bound comparison, not the `exists` placeholder it replaced.
++    const recipient = DEMO_RULES.assertions.find((a) => a.field === 'message.recipient');
++    expect(recipient?.operator).toBe('normalised_email_equals');
++    expect(recipient?.expected_from).toBe('source_event.email_recipient');
+     // Every run on the page was judged against those same rules, so the labels match too.
+     for (const run of DEMO_RUNS) {
+       expect(run.results.map((r) => r.rule_id)).toEqual(
+@@ -56,15 +59,19 @@ describe('the demo judges against the rules a real workspace gets', () => {
+     expect(currentRules()).toEqual(composed());
+   });
+ 
+-  it('CUST-470 the demo page says, beside its rule table, what the recipient check does not prove', async () => {
++  it('CUST-470 the demo page says, beside its rule table, what the recipient check proves and how that was proven', async () => {
+     const markup = await render(DemoPage());
+-    expect(markup).toContain('What the last check does not prove');
+-    expect(markup).toContain('It does not\n            confirm that the address was the enquirer');
+-    expect(markup).toContain(
+-      'a verified run does not prove the acknowledgement\n            went to the enquirer',
++    expect(markup).toContain('What the last check proves, and how that was proven');
++    expect(markup).toContain('comes back failed, not verified');
++    expect(markup).toContain('has not run\n            against a live Resend account');
++    // The rule table carries the composer's label and the operator that actually runs.
++    expect(markup).toContain('The acknowledgement went to the address the enquiry named');
++    expect(markup).toContain('normalised_email_equals');
++    // The demo's verified run was judged against the bound check, with the enquiry's own value.
++    const recipientCheck = DEMO_RUNS[0]?.results.find(
++      (r) => r.rule_id === 'email_recipient_matches',
+     );
+-    // And the rule table itself carries the composer's honest label, not the fixture's claim.
+-    expect(markup).toContain('The acknowledgement email carries a recipient address');
+-    expect(markup).not.toContain('The acknowledgement went to the enquirer');
++    expect(recipientCheck?.status).toBe('SUPPORTED');
++    expect(recipientCheck?.expected_display).toBe('ada@example.test');
+   });
+ });
+diff --git a/tests/unit/story/qualification.test.ts b/tests/unit/story/qualification.test.ts
+index 9bb0a27..19c3e99 100644
+--- a/tests/unit/story/qualification.test.ts
++++ b/tests/unit/story/qualification.test.ts
+@@ -29,26 +29,23 @@ describe('the story qualifies the recipient comparison honestly', () => {
+     // The good reasoning survives.
+     expect(SOURCE).toContain('does **not** strip `+tags`');
+     expect(SOURCE).toContain('Verification must never widen');
+-    // And it is qualified, in the same section, as not yet in force for a real run.
++    // It is labelled a property of the operator, and the story records the day it was not in force.
+     expect(SOURCE).toContain(
+       'That reasoning is a property of the `normalised_email_equals` operator',
+     );
+-    expect(SOURCE).toContain('the comparison it guards is not yet in force for a real run');
+-    // The operator list no longer implies every operator is used by a customer workflow.
+-    expect(SOURCE).toContain('Not\nevery one is yet used by a customer workflow');
+-    expect(SOURCE).toContain(
+-      'a verified run does not prove the acknowledgement went to the enquirer',
+-    );
+-    // "Where it stands" lists it under what is not yet true.
+-    expect(SOURCE).toMatch(
+-      /\*\*Not yet true\.\*\* That a verified run proves the acknowledgement went to the enquirer/,
+-    );
++    expect(SOURCE).toContain('the safeguard\napplies to a real run');
++    // The rule-language section tells the defect and the fix, and labels the proof honestly.
++    expect(SOURCE).toContain('could come back verified');
++    expect(SOURCE).toContain('closed, typed reference (`expected_from`)');
++    expect(SOURCE).toContain('not yet against a live\nprovider account');
++    // It no longer sits under "Not yet true".
++    expect(SOURCE).not.toMatch(/\*\*Not yet true\.\*\* That a verified run proves/);
+   });
+ 
+-  it('DOC-132 the story page’s rule-language step carries the same qualification', () => {
++  it('DOC-132 the story page’s rule-language step names the binding as a closed reference', () => {
+     const step = JOURNEY_STEPS.find((s) => s.title === 'The customer’s rules are evaluated');
+     expect(step).toBeDefined();
+-    expect(step?.body).toContain('not every one is yet emitted for a customer workflow');
+-    expect(step?.body).toContain('carried a recipient address, not that it was the enquirer');
++    expect(step?.body).toContain('as a closed reference, not an expression');
++    expect(step?.body).toContain('the address this enquiry named');
+   });
+ });

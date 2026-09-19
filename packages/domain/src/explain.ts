@@ -114,6 +114,12 @@ const REASON_TEXT: Record<ReasonCode, { sentence: string; next_step: string | nu
       'This check is configured in a way we cannot evaluate, so we have not judged it either way.',
     next_step: 'Edit the check: its field, operator and expected value do not fit together.',
   },
+  BINDING_UNAVAILABLE: {
+    sentence:
+      'This check compares against a value from the enquiry’s own signed event, and this run’s event did not carry a readable one, so we have not judged it either way.',
+    next_step:
+      'Check that the event your automation sends us carries the enquiry reference and the recipient address it expects.',
+  },
 };
 
 export function explainReasonCode(code: ReasonCode): ReasonExplanation {

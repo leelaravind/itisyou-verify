@@ -14,6 +14,7 @@ export {
   AUTHORITATIVE_ABSENCE_REASONS,
   type AssertionResult,
   type EvaluationContext,
+  type RunBindings,
 } from './evaluate.js';
 
 export {
