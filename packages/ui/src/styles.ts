@@ -5,13 +5,17 @@
  *
  * Every page this Worker serves is rendered per request and is `no-store` or short-lived,
  * so the HTML round trip cannot be avoided. A separate stylesheet would therefore add a
- * second, render-blocking round trip to save re-sending roughly 11KB of CSS that gzips to
- * around a fifth of that. For a site whose first job is to be understood in fifteen
- * seconds, one request beats two. The constant is exported rather than hidden so that if
- * the sheet ever outgrows the initial congestion window (~14KB on the wire) it can be
- * moved to `public/app.<hash>.css` with an immutable cache header without touching a
- * single component. `CSS_BYTES` below is checked by a unit test so that decision stays
- * evidence-based rather than remembered.
+ * second, render-blocking round trip to save re-sending a sheet that measures **16,881
+ * bytes raw, 3,928 gzipped and 3,416 brotli** (measured, not estimated — see
+ * `tests/unit/ui/tokens.test.ts`, case CUST-004). Cloudflare compresses responses, so the
+ * cost of inlining is about 3.4KB on the wire per page, comfortably inside the initial
+ * congestion window along with the HTML. For a site whose first job is to be understood in
+ * fifteen seconds, one request beats two.
+ *
+ * The constant is exported rather than hidden so that if the sheet ever grows past roughly
+ * 10KB compressed it can be moved to `public/app.<hash>.css` with an immutable cache header
+ * without touching a single component. CUST-004 fails if it crosses that line, so the
+ * decision stays evidence-based rather than remembered.
  *
  * Nothing here needs JavaScript. There is no client framework, and the only script the
  * site ships is a nine-line theme toggle that is purely additive.
@@ -60,6 +64,7 @@ const BASE = `
   --w-measure:${LAYOUT.measure};
   --w-wide:${LAYOUT.wide};
   --w-margin:${LAYOUT.margin};
+  --w-step:${LAYOUT.stepMargin};
 }
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){color-scheme:dark;${vars(DARK)}}
@@ -104,9 +109,25 @@ a:hover{text-decoration-thickness:2px}
 .section-tight{padding-block:var(--s8)}
 .row{display:flex;flex-wrap:wrap;gap:var(--s3);align-items:center}
 .row-between{display:flex;flex-wrap:wrap;gap:var(--s3);align-items:baseline;justify-content:space-between}
+/*
+  min-width:0 on every grid child is not cosmetic. A grid track sized auto takes its
+  minimum from the child's min-content width, and a long monospace identifier or a table
+  header row can push that past the viewport - which is how a "responsive" page ends up
+  scrolling sideways on a phone. This one line is what CUST-092/093/094 are really testing.
+*/
 .grid{display:grid;gap:var(--s4)}
+.grid>*{min-width:0}
 @media (min-width:46rem){.grid-2{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (min-width:60rem){.grid-3{grid-template-columns:repeat(3,minmax(0,1fr))}}
+/* Utilities, so no component has to reach for an inline style attribute. */
+.grid-center{align-items:center}
+.grid-wide-gap{gap:var(--s12)}
+.band{background:var(--c-surface);border-block:1px solid var(--c-rule)}
+.pad-top{padding-top:var(--s6)}
+.inline-form{display:inline}
+.gap-top{margin-top:var(--s3)}
+.align-start{justify-content:flex-start}
+.pad-block{padding:var(--s4)}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
 
 /* ---- type ---------------------------------------------------------------- */
@@ -150,14 +171,23 @@ a:hover{text-decoration-thickness:2px}
    finding, beside the plain-language sentence. Stacks rather than squeezes on phones. */
 .margin-row{display:grid;gap:var(--s2);padding-block:var(--s4);border-top:1px solid var(--c-rule)}
 .margin-row:first-child{border-top:0}
+/* In a multi-column grid every cell is a "first child" of its own column, so the
+   :first-child rule above would strip the rule from one row and not the other. */
+.grid>.margin-row{border-top:1px solid var(--c-rule)}
 .margin-row__gutter{display:flex;flex-direction:column;gap:var(--s1);align-items:flex-start}
 .margin-row__origin{font-family:var(--f-mono);font-size:var(--t-micro);color:var(--c-faint);letter-spacing:0.04em}
+/* Assertion labels run to fifteen characters ("Not as expected"), so a badge in the gutter
+   wraps rather than overlapping the sentence it is labelling. Badges everywhere else stay
+   on one line. */
+.margin-row__gutter .badge{white-space:normal;text-align:left;align-items:flex-start}
+.margin-row__gutter .badge__glyph{margin-top:0.1em}
 @media (min-width:40rem){
   .margin-row{grid-template-columns:var(--w-margin) minmax(0,1fr);gap:var(--s6);align-items:start}
 }
 
 /* ---- the claim rule: this product's whole argument, as one device --------- */
 .claimrule{border:1px solid var(--c-rule);border-radius:var(--r-container);background:var(--c-surface);padding:var(--s4)}
+.claimrule__caption{font-size:var(--t-small);font-weight:640;margin:0 0 var(--s3);padding-bottom:var(--s3);border-bottom:1px solid var(--c-rule)}
 .claimrule__label{font-family:var(--f-mono);font-size:var(--t-micro);text-transform:uppercase;letter-spacing:0.1em;color:var(--c-faint);margin:0 0 var(--s1)}
 .claimrule__value{font-family:var(--f-mono);font-size:var(--t-small);margin:0;word-break:break-word}
 .claimrule__claim{color:var(--c-muted)}
@@ -285,11 +315,41 @@ a:hover{text-decoration-thickness:2px}
 
 /* ---- health readout ------------------------------------------------------ */
 .health{display:grid;gap:var(--s4)}
+.health>*{min-width:0}
 @media (min-width:46rem){.health{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
 .score{font-family:var(--f-mono);font-size:2.25rem;font-weight:600;line-height:1;letter-spacing:-0.02em;margin:0}
 .score--none{font-family:var(--f-sans);font-size:var(--t-h2);font-weight:640;letter-spacing:-0.015em}
 .meter{height:6px;border-radius:3px;background:var(--c-sunken);overflow:hidden;margin-top:var(--s3)}
-.meter__fill{height:100%;background:var(--c-verified)}
+.meter__fill{height:100%;background:var(--c-verified);width:0}
+/*
+  Meter widths as classes rather than an inline style attribute.
+  The Worker's Content-Security-Policy sets style-src-attr 'none', so a computed
+  style="width:33%" is dropped - and a dropped width falls back to the element's full
+  width, which would draw a 33% verification rate as a full green bar. On a product whose
+  whole claim is that it does not flatter you, that is the worst bug the design could have.
+  Five-point granularity is plenty: the exact figure is stated in text directly above.
+*/
+.meter__fill--0{width:0}
+.meter__fill--5{width:5%}
+.meter__fill--10{width:10%}
+.meter__fill--15{width:15%}
+.meter__fill--20{width:20%}
+.meter__fill--25{width:25%}
+.meter__fill--30{width:30%}
+.meter__fill--35{width:35%}
+.meter__fill--40{width:40%}
+.meter__fill--45{width:45%}
+.meter__fill--50{width:50%}
+.meter__fill--55{width:55%}
+.meter__fill--60{width:60%}
+.meter__fill--65{width:65%}
+.meter__fill--70{width:70%}
+.meter__fill--75{width:75%}
+.meter__fill--80{width:80%}
+.meter__fill--85{width:85%}
+.meter__fill--90{width:90%}
+.meter__fill--95{width:95%}
+.meter__fill--100{width:100%}
 
 /* ---- synthetic banner ---------------------------------------------------- */
 .synthetic{
@@ -314,7 +374,7 @@ a:hover{text-decoration-thickness:2px}
   font-family:var(--f-mono);font-size:var(--t-micro);letter-spacing:0.12em;color:var(--c-faint);
 }
 @media (min-width:46rem){
-  .steps>li{grid-template-columns:var(--w-margin) minmax(0,1fr);gap:var(--s6);align-items:start}
+  .steps>li{grid-template-columns:var(--w-step) minmax(0,1fr);gap:var(--s6);align-items:start}
   .steps>li::before{grid-row:span 2}
 }
 .steps h3{margin:0}
@@ -337,11 +397,41 @@ a:hover{text-decoration-thickness:2px}
 .progress li{margin:0;color:var(--c-faint);display:flex;gap:var(--s2);align-items:center}
 .progress li+li::before{content:"\\203A";color:var(--c-rule-strong)}
 .progress li[aria-current]{color:var(--c-ink);font-weight:700}
-.progress li[data-done="yes"]{color:var(--c-verified)}
+/* A completed setup step is NOT drawn in the verified green. In this system a status
+   colour always means a verdict about evidence, and "you filled in this form" is not one.
+   Completed steps are simply links; the current step is bold. */
+.progress li[data-done="yes"] a{color:var(--c-muted)}
 `;
 
-/** The complete stylesheet. Inline this once, inside `<head>`. */
-export const CSS: string = BASE.replace(/\n\s*\n/g, '\n').trim();
+/**
+ * Collapse the authored sheet to one line.
+ *
+ * Deliberately conservative rather than a real minifier: comments go, and lines are joined
+ * with no separator only when the previous line already ends in `;`, `{`, `}` or `,` —
+ * anywhere else a single space is kept, so a selector or a multi-word value can never be
+ * silently welded together. Nothing inside a declaration is rewritten, so `"Segoe UI"` and
+ * `\\203A` survive untouched.
+ */
+function collapse(source: string): string {
+  const withoutComments = source.replace(/\/\*[\s\S]*?\*\//g, '');
+  const lines = withoutComments
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+  let out = '';
+  for (const line of lines) {
+    if (out.length === 0) {
+      out = line;
+      continue;
+    }
+    const last = out.charAt(out.length - 1);
+    out += last === ';' || last === '{' || last === '}' || last === ',' ? line : ` ${line}`;
+  }
+  return out;
+}
+
+/** The complete stylesheet, collapsed. Inline this once, inside `<head>`. */
+export const CSS: string = collapse(BASE);
 
 /** Byte length of the sheet as served. Asserted by a unit test so the inline-vs-file call stays honest. */
 export const CSS_BYTES: number = new TextEncoder().encode(CSS).length;

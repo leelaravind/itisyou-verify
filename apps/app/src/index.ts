@@ -71,23 +71,19 @@ async function buildCsp(): Promise<string> {
   return [
     // Nothing loads from anywhere unless a directive below says otherwise.
     "default-src 'none'",
-    // Split deliberately. `style-src-elem` stays strict: the inline <style> block is
-    // allowed only by its hash, so no injected stylesheet can load.
-    //
-    // `style-src-attr 'unsafe-inline'` is a real, narrow concession. Pages render a few
-    // computed geometry values as `style="width:33%"` — the verification-rate meter, for
-    // one — and a dynamic value cannot be hashed. Blocking it does not fail safe: the
-    // meter falls back to its full width, so a 33% rate DISPLAYS AS 100%. A verification
-    // product that renders a misleading bar is worse than one that permits a style
-    // attribute. A style attribute cannot execute script; the residual risk is CSS-based
-    // data inference, which requires an injection we have already escaped against.
-    //
-    // This comes out once the geometry moves to predefined classes. Until then the
-    // concession is here, named, rather than hidden inside a blanket 'unsafe-inline'
-    // (which the spec would ignore anyway while a hash is present).
+    // The inline <style> block is allowed only by its hash; no injected stylesheet loads.
     `style-src ${quote(styleHashes)}`,
     `style-src-elem ${quote(styleHashes)}`,
-    "style-src-attr 'unsafe-inline'",
+    // No inline style attributes at all.
+    //
+    // This started as a concession. A strict policy blocked `style="width:33%"` on the
+    // demo page's verification-rate meter, so the fill fell back to its full width and a
+    // 33% rate DISPLAYED AS 100% — on the page written to argue that a partial result must
+    // never look like a pass. The markup was correct throughout; only a screenshot showed
+    // it. Rather than keep the exception, the geometry moved to predefined fill classes
+    // that round DOWN: 33% draws as 30, 99% draws as 95, and only a true 100% fills the
+    // bar. A bar that errs generous is worse than one that errs mean.
+    "style-src-attr 'none'",
     `script-src ${quote(scriptHashes)}`,
     `script-src-elem ${quote(scriptHashes)}`,
     // No inline event handlers anywhere. This one is not a concession.

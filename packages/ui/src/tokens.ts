@@ -115,7 +115,8 @@ export const DARK = {
   onInk: '#0D1217',
 } as const;
 
-export type Palette = typeof LIGHT;
+/** Both palettes carry the same keys; the values are plain strings, not literals. */
+export type Palette = { readonly [K in keyof typeof LIGHT]: string };
 
 /**
  * Type stacks. No webfont: a Worker that inlines its whole stylesheet should not then
@@ -167,8 +168,17 @@ export const LAYOUT = {
   measure: '38rem',
   /** Wide container for tables, dashboards and multi-column marketing sections. */
   wide: '72rem',
-  /** The evidence margin: fixed width, collapses below `stackAt`. */
-  margin: '5.5rem',
+  /**
+   * The evidence margin.
+   *
+   * 7.5rem, not 5.5rem: the widest status badge ("Unverified", glyph + label + padding)
+   * measures about 7.2rem, and at 5.5rem it overlapped the sentence beside it on every
+   * screenshot. A verdict that overlaps its own explanation is not a small cosmetic fault
+   * on this product.
+   */
+  margin: '7.5rem',
+  /** The steps gutter, which only ever holds a two-digit number. */
+  stepMargin: '3.5rem',
   /** Below this width the evidence margin stacks above its content instead of beside it. */
   stackAt: '40rem',
 } as const;

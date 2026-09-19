@@ -227,8 +227,8 @@ export function fail(code: AdsFailureCode, message: string): AdsFailure {
   return { ok: false, code, message };
 }
 
-export function isAdsFailure(value: { readonly ok: boolean }): value is AdsFailure {
-  return value.ok === false;
+export function isAdsFailure(value: unknown): value is AdsFailure {
+  return typeof value === 'object' && value !== null && (value as { readonly ok?: unknown }).ok === false;
 }
 
 /**

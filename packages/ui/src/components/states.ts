@@ -44,10 +44,10 @@ export function ErrorState(options: ErrorStateOptions): Html {
     <p class="state__body">${options.body}</p>
     ${options.requestId === undefined
       ? null
-      : html`<p class="micro mono" style="margin-top:var(--s3)">Reference: ${options.requestId}</p>`}
+      : html`<p class="micro mono gap-top">Reference: ${options.requestId}</p>`}
     ${options.actions === undefined || options.actions.length === 0
       ? null
-      : html`<div class="state__actions" style="justify-content:flex-start">${options.actions}</div>`}
+      : html`<div class="state__actions align-start">${options.actions}</div>`}
   </div>`;
 }
 
