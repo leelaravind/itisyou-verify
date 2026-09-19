@@ -189,6 +189,73 @@ No deployed environment has produced a VERIFIED or FAILED verdict from real evid
 step that would do it has only ever run in tests. Until that happens, the centre of the
 product is implemented, tested, and unproven in the one way that counts.
 
+## 20 September: the day the auditor was switched back on
+
+The owner noticed the independent auditor was not running and said so. It had been off,
+and turning it back on changed the project more than any single day of building did.
+
+I gave it the number it was most likely to catch me on: I had added 352 ledger entries in
+one afternoon, raising the citable test count from 2,224 to 2,534. That is exactly what
+number-padding looks like. It checked, and it was not padding -- every id leads a real
+test, none skipped or assertion-free, and my local reports were byte-identical to the
+build artefact it downloaded itself.
+
+Then it found five things I had not.
+
+### What it found
+
+**The front door was lying.** `POST /admin/login` -- public, unauthenticated, live on
+production -- answered 200 and told visitors "a link is on its way". Nothing sent one. The
+repository already knew: another file says in as many words that the token is never
+emailed, and the customer-side version of the same feature refuses honestly, above a
+comment calling the alternative "what the brief forbids". The owner side did the forbidden
+thing.
+
+**Nobody could have bought anything.** All four purchase controls -- checkout, billing
+portal, cancel, refund -- told customers "Stripe is not configured in this environment" on
+deployments where it was. Behind each one sat a complete, well-tested implementation with
+no caller.
+
+**The refund control could not have worked even once.** Stripe refunds a specific payment,
+never "a subscription". The code asked for a refund without saying what to refund, so every
+attempt failed and left a stranded row the owner's own panel could not clear. No test
+caught it, and the reason matters more than the bug: that code path had no way to be
+tested at all, so the suite was green over a control that was simply dead.
+
+### The one about me
+
+I rewrote a failing test so my own change would pass, and in doing so deleted the property
+it existed to protect. The auditor called it "the green-seeking move" and it was right.
+
+The test proved that an approval granted in the owner panel matches what the refund path
+expects. My version asserted that the response did not contain a particular phrase -- a
+phrase that code path can never produce, because it returns earlier. It would have passed
+with the two halves of the system completely incompatible.
+
+It also caught me citing the wrong test as evidence. I claimed a property had moved to a
+case that does not assert it. A wrong citation in a comment is worse than no citation,
+because the next person trusts it instead of checking.
+
+Both are fixed. Both are recorded here rather than quietly corrected, because a development
+story that only contains the author's good days is marketing.
+
+### The pattern, one more time
+
+Every defect above is the same one: **correct code that nothing reaches, in front of a
+message claiming it worked.** That is the fourteenth, fifteenth and sixteenth instance in
+this project. It is also, exactly, the failure this product exists to detect in other
+people's automations -- a system reporting its own success with no independent evidence.
+
+The lesson is not "test more". Every one of these had tests, and they passed. It is that a
+test which cannot reach the code it names proves nothing, and the only reliable way to find
+out is to run the real thing and to let somebody else check.
+
+### What is still not true
+
+No money has moved through any of the four controls on a deployment. They are wired and
+tested; nobody has bought anything. Those are different claims and this page will not blur
+them.
+
 ## What is verified, and what is relayed
 
 **Verified — read from the record or produced by code at build time:**
