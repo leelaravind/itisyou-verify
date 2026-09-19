@@ -50,8 +50,23 @@
           "migrations_dir": "../../migrations"
         }
       ],
-      // Staging deliberately has NO cron triggers. Plan §30: staging schedules are
-      // disabled by default so a test environment cannot generate recurring cost.
+      // Plan §30 disabled staging cron so a test environment could not generate recurring
+      // cost. That decision is revised here, deliberately, and the reason is worth keeping.
+      //
+      // With no tick on staging, the half of the product that turns an accepted event into
+      // a verdict -- the due-run pass, the outbox, allowance settlement, the billing
+      // recovery sweep -- had never once executed on ANY deployed environment. It was
+      // exercised only by tests and by production, which is to say the first real run of it
+      // was always going to be in front of a customer. On 19 September 2026 three separate
+      // defects of exactly that shape were found in a single afternoon, each one correct
+      // code that nothing reached, and each one invisible until a real request hit a real
+      // deployment. Not running the scheduler anywhere but production is the same bet.
+      //
+      // Every five minutes rather than production's every minute: enough to exercise the
+      // path and settle a proof run in a bounded wait, a fifth of the invocations. Cron
+      // triggers themselves are not billed, and each tick is bounded work over an indexed
+      // query on a near-empty database.
+      "triggers": { "crons": ["*/5 * * * *"] },
       "observability": { "enabled": true }
     },
     "production": {
