@@ -20,6 +20,7 @@
  * Not for production. Never imported by `index.ts`.
  */
 import type { BillingEnvironment } from './config';
+import { isAllowancePeriodKey } from './period';
 import type {
   AllowanceRecord,
   BillingCustomerRecord,
@@ -67,7 +68,24 @@ export function createMemoryBillingStore(): MemoryBillingStore {
     `${workspaceId}|${environment}`;
   const subscriptionKey = (providerId: string, environment: BillingEnvironment): string =>
     `${providerId}|${environment}`;
-  const allowanceKey = (workspaceId: string, period: string): string => `${workspaceId}|${period}`;
+  /**
+   * Every allowance lookup goes through here, and a key that is not an allowance period key
+   * is refused loudly.
+   *
+   * A13-010 was two spellings of this key — `YYYY-MM-DD` on one side, `YYYY-MM` on the
+   * other — silently failing to match, so `settleReservation` returned false forever and a
+   * workspace at its limit reported itself clear. A mismatch must be a crash in a test, not
+   * a `false` in production. A02 should add the same guard to the D1 implementation.
+   */
+  const allowanceKey = (workspaceId: string, period: string): string => {
+    if (!isAllowancePeriodKey(period)) {
+      throw new TypeError(
+        `allowance period key must be YYYY-MM-DD (the date the paid period ends), received: ${period}. ` +
+          'Derive it with allowancePeriodKey() or allowancePeriodKeyAt() — never by slicing a date.',
+      );
+    }
+    return `${workspaceId}|${period}`;
+  };
   const receiptKey = (provider: string, eventId: string): string => `${provider}|${eventId}`;
 
   return {

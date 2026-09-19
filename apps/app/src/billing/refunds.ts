@@ -351,6 +351,29 @@ export interface OwnerDecisionParams {
   readonly approval?: OwnerApproval;
   /** Which published rule the owner applied. Part of the hashed payload. */
   readonly policyRule?: RefundPolicyRule;
+  /**
+   * Spend the approval. **Required to approve**, and called strictly before the Stripe
+   * request — A10's A-20 sequencing rule.
+   *
+   * An approval is a single-use authorisation. Consuming it *after* the provider call
+   * would leave a window in which a crash between the two lets the same approval
+   * authorise a second submission; consuming before means the worst case is a spent
+   * approval and no refund, which is the direction to fail in when the alternative is
+   * money out twice.
+   *
+   * Owned by A07, who own the `approvals` table. The contract this path relies on:
+   * returning `true` means the approval is now consumed and was not already consumed for
+   * a *different* refund; returning `false` means it was already spent elsewhere.
+   * Re-consuming for the **same** `refundId` must return `true`, otherwise the documented
+   * retry after a transport failure could never complete.
+   *
+   * There is no default. An absent consumer is a 422, not a silent skip — a single-use
+   * control that is not single-use is exactly the finding this closes.
+   */
+  readonly consumeApproval?: (params: {
+    readonly approval: OwnerApproval;
+    readonly refundId: string;
+  }) => Promise<boolean>;
   /** Stripe needs one of these to know what to refund against. */
   readonly paymentIntentId?: string;
   readonly chargeId?: string;
@@ -438,6 +461,28 @@ export async function decideRefund(
   if (!approved.allowed) {
     throw new AppError(409, 'REFUND_STATE', `A refund in state ${refund.state} cannot be approved.`);
   }
+
+  // A-20: spend the approval BEFORE the provider call, never after. Ordering is the whole
+  // control — an approval consumed afterwards is not single-use across a crash.
+  if (params.consumeApproval === undefined) {
+    throw new AppError(
+      422,
+      'REFUND_APPROVAL_CONSUMER_REQUIRED',
+      'A refund can only be submitted where the approval can be marked consumed.',
+    );
+  }
+  const consumed = await params.consumeApproval({
+    approval: params.approval,
+    refundId: refund.id,
+  });
+  if (!consumed) {
+    throw new AppError(
+      409,
+      'REFUND_APPROVAL_ALREADY_CONSUMED',
+      'That approval has already been used. Grant a fresh one to submit this refund.',
+    );
+  }
+
   const submitted =
     (await data.recordRefundState({
       workspaceId: params.workspaceId,

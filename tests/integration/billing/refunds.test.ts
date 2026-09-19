@@ -22,6 +22,36 @@ import type { RefundRecord } from '@app/billing/port';
 import { createHarness, type BillingHarness } from './harness';
 
 /**
+ * A stand-in for A07's approval consume, honouring the contract `decideRefund` relies on:
+ * single-use across different refunds, idempotent for the same one (otherwise the
+ * documented retry after a transport failure could never complete).
+ *
+ * `spentOn` records which refund spent each approval, so the tests can assert the
+ * single-use property rather than assume it.
+ */
+function approvalConsumer() {
+  const spentOn = new Map<string, string>();
+  const calls: { approvalId: string; refundId: string }[] = [];
+  return {
+    spentOn,
+    calls,
+    consume: async ({
+      approval,
+      refundId,
+    }: {
+      approval: OwnerApproval;
+      refundId: string;
+    }): Promise<boolean> => {
+      calls.push({ approvalId: approval.id, refundId });
+      const already = spentOn.get(approval.id);
+      if (already !== undefined) return already === refundId;
+      spentOn.set(approval.id, refundId);
+      return true;
+    },
+  };
+}
+
+/**
  * A genuine owner approval, granted over the same canonical payload the refund path will
  * rebuild and hash. Uses A07's real `grantOwnerApproval` — a hand-made object with a
  * plausible-looking hash would prove nothing.
@@ -199,6 +229,7 @@ describe('the owner decides', () => {
       decision: 'approve',
       approval: await approvalFor(harness, refund),
       policyRule: 'unused_period_within_14_days',
+      consumeApproval: approvalConsumer().consume,
       chargeId: 'ch_1',
       providerReason: 'requested_by_customer',
     });
@@ -214,12 +245,14 @@ describe('the owner decides', () => {
   it('BILL-141 approving a refund that already succeeded is refused, not repeated', async () => {
     const harness = createHarness();
     const refund = await queued(harness);
+    const consumer = approvalConsumer();
     await decideRefund(harness, {
       workspaceId: WS,
       refundId: refund.id,
       decision: 'approve',
       approval: await approvalFor(harness, refund),
       policyRule: 'unused_period_within_14_days',
+      consumeApproval: consumer.consume,
       chargeId: 'ch_1',
     });
     await expect(
@@ -229,6 +262,7 @@ describe('the owner decides', () => {
         decision: 'approve',
         approval: await approvalFor(harness, refund, { id: 'apr_0002' }),
         policyRule: 'unused_period_within_14_days',
+        consumeApproval: consumer.consume,
         chargeId: 'ch_1',
       }),
     ).rejects.toThrow(/cannot be approved/);
@@ -238,6 +272,7 @@ describe('the owner decides', () => {
   it('BILL-142 a transport failure leaves the refund submitted and a retry reuses the same key', async () => {
     const harness = createHarness();
     const refund = await queued(harness);
+    const consumer = approvalConsumer();
     harness.gateway.failNext('createRefund', new Error('socket hang up'));
 
     await expect(
@@ -247,6 +282,7 @@ describe('the owner decides', () => {
         decision: 'approve',
         approval: await approvalFor(harness, refund),
         policyRule: 'unused_period_within_14_days',
+        consumeApproval: consumer.consume,
         chargeId: 'ch_1',
       }),
     ).rejects.toThrow(/socket hang up/);
@@ -258,9 +294,13 @@ describe('the owner decides', () => {
       decision: 'approve',
       approval: await approvalFor(harness, refund),
       policyRule: 'unused_period_within_14_days',
+      consumeApproval: consumer.consume,
       chargeId: 'ch_1',
     });
     expect(retried.state).toBe('succeeded');
+    // Re-consumed for the SAME refund, which the contract requires to succeed.
+    expect(consumer.calls).toHaveLength(2);
+    expect(new Set(consumer.calls.map((c) => c.refundId)).size).toBe(1);
     const keys = harness.gateway.calls
       .filter((call) => call.method === 'createRefund')
       .map((call) => (call.params as { idempotencyKey: string }).idempotencyKey);
@@ -395,6 +435,7 @@ describe('the approval is bound to the exact payload', () => {
       decision: 'approve',
       approval: await approvalFor(harness, refund),
       policyRule: 'unused_period_within_14_days',
+      consumeApproval: approvalConsumer().consume,
       chargeId: 'ch_1',
     });
     expect(result.state).toBe('succeeded');
@@ -522,5 +563,143 @@ describe('the approval is bound to the exact payload', () => {
     });
     expect(result.state).toBe('rejected');
     expect(harness.gateway.calls).toHaveLength(0);
+  });
+});
+
+describe('A-20 the approval is spent, and spent before the money moves', () => {
+  async function queuedRefund(harness: BillingHarness) {
+    await seedOrder(harness);
+    const result = await requestRefund(harness, {
+      workspaceId: WS,
+      orderId: 'ord_0001',
+      amountMinor: 2900,
+      currency: 'GBP',
+      reason: 'Did not use the service',
+    });
+    return result.refund;
+  }
+
+  it('BILL-257 a refund cannot be submitted where the approval cannot be marked consumed', async () => {
+    // Fail closed. An absent consumer is a refusal, not a silent skip — a single-use
+    // control that is not single-use is the finding this closes.
+    const harness = createHarness();
+    const refund = await queuedRefund(harness);
+    await expect(
+      decideRefund(harness, {
+        workspaceId: WS,
+        refundId: refund.id,
+        decision: 'approve',
+        approval: await approvalFor(harness, refund),
+        policyRule: 'unused_period_within_14_days',
+        chargeId: 'ch_1',
+      }),
+    ).rejects.toThrow(/marked consumed/);
+    expect(harness.gateway.calls).toHaveLength(0);
+    expect((await harness.data.findRefund(WS, refund.id))?.state).toBe('queued_for_owner');
+  });
+
+  it('BILL-258 the approval is consumed BEFORE the Stripe call, never after', async () => {
+    // The ordering is the control. Recorded as an interleaving rather than asserted from
+    // the code, so a future reordering fails here.
+    const harness = createHarness();
+    const refund = await queuedRefund(harness);
+    const order: string[] = [];
+    const consumer = approvalConsumer();
+
+    await decideRefund(harness, {
+      workspaceId: WS,
+      refundId: refund.id,
+      decision: 'approve',
+      approval: await approvalFor(harness, refund),
+      policyRule: 'unused_period_within_14_days',
+      consumeApproval: async (args) => {
+        order.push('consume');
+        return consumer.consume(args);
+      },
+      chargeId: 'ch_1',
+    });
+
+    for (const call of harness.gateway.calls) {
+      if (call.method === 'createRefund') order.push('stripe');
+    }
+    expect(order).toEqual(['consume', 'stripe']);
+  });
+
+  it('BILL-259 an approval already spent on another refund authorises nothing and no money moves', async () => {
+    const harness = createHarness();
+    const first = await queuedRefund(harness);
+    const consumer = approvalConsumer();
+    const approval = await approvalFor(harness, first);
+
+    await decideRefund(harness, {
+      workspaceId: WS,
+      refundId: first.id,
+      decision: 'approve',
+      approval,
+      policyRule: 'unused_period_within_14_days',
+      consumeApproval: consumer.consume,
+      chargeId: 'ch_1',
+    });
+    expect(consumer.spentOn.get(approval.id)).toBe(first.id);
+
+    // A second, genuinely different refund, presented with the same approval.
+    const second = await requestRefund(harness, {
+      workspaceId: WS,
+      orderId: 'ord_0001',
+      amountMinor: 2900,
+      currency: 'GBP',
+      reason: 'Did not use the service',
+      requestKey: 'second-claim',
+    });
+    const callsBefore = harness.gateway.calls.filter((c) => c.method === 'createRefund').length;
+
+    await expect(
+      decideRefund(harness, {
+        workspaceId: WS,
+        refundId: second.refund.id,
+        decision: 'approve',
+        approval,
+        policyRule: 'unused_period_within_14_days',
+        consumeApproval: consumer.consume,
+        chargeId: 'ch_1',
+      }),
+    ).rejects.toThrow(/already been used/);
+
+    expect(
+      harness.gateway.calls.filter((c) => c.method === 'createRefund').length,
+    ).toBe(callsBefore);
+    expect((await harness.data.findRefund(WS, second.refund.id))?.state).toBe('queued_for_owner');
+  });
+
+  it('BILL-260 a failed consume leaves the refund queued rather than half-submitted', async () => {
+    const harness = createHarness();
+    const refund = await queuedRefund(harness);
+    await expect(
+      decideRefund(harness, {
+        workspaceId: WS,
+        refundId: refund.id,
+        decision: 'approve',
+        approval: await approvalFor(harness, refund),
+        policyRule: 'unused_period_within_14_days',
+        consumeApproval: async () => false,
+        chargeId: 'ch_1',
+      }),
+    ).rejects.toThrow(/already been used/);
+    expect((await harness.data.findRefund(WS, refund.id))?.state).toBe('queued_for_owner');
+    expect(harness.gateway.calls).toHaveLength(0);
+  });
+
+  it('BILL-261 declining still needs no approval and consumes nothing', async () => {
+    const harness = createHarness();
+    const refund = await queuedRefund(harness);
+    const consumer = approvalConsumer();
+    const result = await decideRefund(harness, {
+      workspaceId: WS,
+      refundId: refund.id,
+      decision: 'reject',
+      consumeApproval: consumer.consume,
+    });
+    expect(result.state).toBe('rejected');
+    expect(consumer.calls).toHaveLength(0);
   });
 });

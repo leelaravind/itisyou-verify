@@ -116,7 +116,45 @@ why they reserve nothing at all rather than reserving and releasing. Tests `BILL
 `BILL-052` and `BILL-053` prove each of them is admitted without touching the counters,
 even when the workspace is already at its allowance.
 
-### How a period is identified
+### How a period is identified — one function, one spelling
+
+`apps/app/src/billing/period.ts` is the only place an allowance period key is computed.
+Nothing else may derive one; if you find yourself slicing a date to get one, that is the
+bug.
+
+**A13-010, found by the Evidence and Completion Auditor.** Billing opened allowance rows
+keyed `YYYY-MM-DD`. The scheduler settled them keyed `YYYY-MM`, and the customer usage view
+read them the same way. The keys never matched, so `settleReservation` silently returned
+false forever: reservations were never converted to consumption, `consumed` stayed at zero,
+and **a workspace sitting at its limit reported itself unblocked**. Nothing raised and
+nothing logged — a conditional `UPDATE` that matches no row is not an error.
+
+Two entry points, which agree by construction:
+
+| Function | For | Used by |
+| --- | --- | --- |
+| `allowancePeriodKey(periodEndIso)` | You hold provider evidence of the period end | billing, opening the row |
+| `allowancePeriodKeyAt(atIso, currentPeriodEndIso)` | You hold an instant and need the period that contained it | the scheduler, settling and releasing |
+| `resolveAllowancePeriodKey(source, {workspaceId, atIso, environment})` | You hold only a workspace and an instant | one call for the scheduler |
+
+`...At` returns exactly `allowancePeriodKey(end)` for any instant inside the current period,
+and keeps working after a renewal: boundaries are computed by clamping the anchor day into
+each month rather than by subtracting elapsed time, so a 31st anchor gives 31 Jan, 28 Feb,
+31 Mar — never 3 March. That is how Stripe computes them too, and a drifting boundary would
+silently move a customer's renewal date. A settle that happens after the subscription rolled
+still finds the run's own period (`BILL-247`).
+
+A period is half-open, `[start, end)`: `current_period_end` is the instant the *next* period
+begins, so a run at exactly that instant belongs to the next one (`BILL-251`). I asserted
+the opposite when writing the test; the implementation was right and the assertion wrong.
+
+`isAllowancePeriodKey` refuses a `YYYY-MM`, and the in-memory port throws on one rather than
+returning a silent miss — a mismatch should be a crash in a test, not a `false` in
+production.
+
+### Why the key is the period end, and not the start
+
+
 
 The allowance row is keyed by the UTC date the paid period **ends**, not the date it
 starts. This is load-bearing. Two different events describe the same period —
@@ -127,6 +165,22 @@ start we can trust to agree: deriving one by stepping a month backwards lands on
 keys for one period, `UNIQUE (workspace_id, billing_period)` would happily allow both rows,
 and the workspace would hold 1,000 runs for one £29 payment. Keying on the end makes the
 two sources agree by construction (`BILL-183`, `BILL-192`).
+
+### The wider shape, audited
+
+Anywhere two subsystems derive a shared key independently, this bug is possible. I checked
+the three other shared keys in the system:
+
+| Key | Verdict |
+| --- | --- |
+| `refunds.idempotency_key` | **Safe.** Built once by `refundIdempotencyKey()`. `decideRefund` reads `refund.idempotencyKey` off the stored row rather than rebuilding it, so the value sent to Stripe is by construction the value stored. |
+| `outbox.unique_event_key` | **Safe.** Built once per event type at enqueue; `dispatch.ts` reads `row.unique_event_key` rather than re-deriving it. |
+| `notification_deliveries.notification_key` | **Safe.** Built once by A09's `notificationKey()`; `supportData.ts` stores and looks up by the stored value. |
+
+The generalisation worth keeping: all three are safe for the same reason — **the consumer
+reads the stored key rather than re-deriving it from its own inputs.** The allowance period
+key was the one case where the consumer re-derived it, from a different input, in a
+different module. That is the shape to look for, not the string format.
 
 ### Rollover
 
@@ -296,6 +350,21 @@ set (`REFUND_POLICY_RULES`), not free text, so "which rule was applied" is answe
 from the approval alone.
 
 Declining needs no approval and sends nothing to Stripe (`BILL-219`).
+
+**The approval is spent, and spent before the money moves (A-20).** An approval is a
+single-use authorisation, so `decideRefund` requires a `consumeApproval` callback and calls
+it **strictly before** the Stripe request. Consuming afterwards would leave a window in
+which a crash between the two lets one approval authorise a second submission; consuming
+first means the worst case is a spent approval and no refund, which is the direction to fail
+in when the alternative is money out twice. `BILL-258` records the interleaving so a future
+reordering fails there.
+
+There is no default consumer: an absent one is a 422, not a silent skip (`BILL-257`). An
+approval already spent on a different refund authorises nothing and no call is made
+(`BILL-259`); a consume that returns false leaves the refund queued rather than
+half-submitted (`BILL-260`). Re-consuming for the *same* refund must succeed, otherwise the
+documented retry after a transport failure could never complete — A07 owns that contract and
+it is stated on the parameter.
 
 **What still depends on a live key.** Everything up to and including the authorisation
 decision is real and tested. The submission itself calls

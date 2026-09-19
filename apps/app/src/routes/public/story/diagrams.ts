@@ -160,7 +160,7 @@ export function SystemDiagram(): Html {
   let body = '';
 
   // the visitor
-  body += svgBox({ x: 96, y: 8, w: 160, h: 32, lines: ['Visitor’s browser', 'server-rendered HTML, no client framework'].slice(0, 1) });
+  body += svgBox({ x: 96, y: 8, w: 160, h: 32, lines: ['Visitor’s browser'] });
   body += svgArrow(176, 40, 176, 56);
 
   // the Worker
