@@ -473,9 +473,60 @@ app.route('/api/v1/runner', createRunnerRoutes({ db: (c) => (c.env as Env).DB })
  */
 let moneyApp: Hono | null = null;
 
+/**
+ * A stand-in gateway whose every method throws.
+ *
+ * The events path reads our own tables and never calls Stripe, so it needs a gateway only
+ * to satisfy the billing runtime's type. This is what it gets when no usable key exists.
+ * It is deliberately not a no-op: if admission ever grows a provider call, this throws with
+ * a sentence saying so, rather than quietly returning `undefined` and inventing a verdict.
+ */
+function unusableGateway(because: string): never {
+  return new Proxy(
+    {},
+    {
+      get(_target, property) {
+        return () => {
+          throw new Error(
+            `billing gateway called (${String(property)}) with ${because}: the events path ` +
+              'is supposed to read our own tables only. If this throws, admission has grown ' +
+              'a provider call and needs a real client.',
+          );
+        };
+      },
+    },
+  ) as never;
+}
+
+/**
+ * Build a Stripe client, or report that the key cannot make one.
+ *
+ * `createStripeClient` throws on a key that is neither test nor live, which is the right
+ * behaviour for a caller that is about to take money and the wrong behaviour for a caller
+ * that only needs the type. Returning `null` lets each caller decide which it is.
+ */
+function safeStripeClient(secretKey: string): ReturnType<typeof createStripeClient> | null {
+  try {
+    return createStripeClient({ secretKey });
+  } catch {
+    // Never log the error: its message can carry the key. The caller logs the fact.
+    return null;
+  }
+}
+
 app.all('/api/v1/events', async (c) => {
   if (moneyApp === null) {
     const secretKey = (c.env as Env).STRIPE_SECRET_KEY ?? '';
+    if (secretKey.length > 0 && safeStripeClient(secretKey) === null) {
+      // Loud, once per isolate, and without the value: a deployment in this state can take
+      // events but cannot take money, and that is worth seeing in the logs.
+      // eslint-disable-next-line no-console -- structured operational log, as below
+      console.log('events', {
+        warning: 'stripe_secret_key_unusable',
+        detail: 'STRIPE_SECRET_KEY is set but is neither a test nor a live key; checkout ' +
+          'will fail. Event intake is unaffected because it never calls Stripe.',
+      });
+    }
     moneyApp = createMoneyRoutes(c.env as never, {
       // Admission is a pure read of our own tables and never calls the provider, so the
       // events path needs a gateway only to satisfy the billing runtime's type. The
@@ -487,21 +538,19 @@ app.all('/api/v1/events', async (c) => {
       // represented by an object that fails loudly if the assumption ever stops holding.
       gateway:
         secretKey.length > 0
-          ? createStripeClient({ secretKey })
-          : (new Proxy(
-              {},
-              {
-                get(_target, property) {
-                  return () => {
-                    throw new Error(
-                      `billing gateway called (${String(property)}) with no STRIPE_SECRET_KEY: ` +
-                        'the events path is supposed to read our own tables only. If this ' +
-                        'throws, admission has grown a provider call and needs a real client.',
-                    );
-                  };
-                },
-              },
-            ) as never),
+          ? // `createStripeClient` validates the key's shape and THROWS on a key that is
+            // neither test nor live. A present-but-malformed key therefore turned every
+            // request to the intake into a 500 -- observed on staging and production on
+            // 19 September 2026, `StripeError: Stripe secret key does not look like a test
+            // or live key`. Which is the same defect this block was written to fix, one
+            // step along: the guard asked whether a key existed, not whether it was usable.
+            //
+            // A gateway this path never calls must not be able to take the path down. So a
+            // rejected key degrades to the same failing object as no key at all: intake
+            // keeps working, because it reads our own tables, and anything that genuinely
+            // does call Stripe still fails loudly rather than silently doing nothing.
+            (safeStripeClient(secretKey) ?? unusableGateway('a malformed STRIPE_SECRET_KEY'))
+          : unusableGateway('no STRIPE_SECRET_KEY'),
       signingKeyStore: createWorkflowSigningKeyStore(c.env.DB as never),
       log: (entry) => {
         // One structured line per admitted event; this is the only record of intake in
