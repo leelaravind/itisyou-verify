@@ -17,6 +17,7 @@ import { summariseFinance, freshness, NET_RECEIPTS_CAVEAT } from '../../owner/fi
 import { ActionForm, Instant, PageHead, UnknownAware } from './chrome.js';
 import type {
   CustomerRow,
+  LaunchMetric,
   ExceptionRow,
   OverviewView,
   OwnerConnectionView,
@@ -35,10 +36,33 @@ function healthRow(item: ServiceHealthView): Html {
   });
 }
 
+/**
+ * One launch figure. Never renders a zero for something unmeasured: a `null` value shows
+ * `unknown`, in the muted style, with `data-unknown` for a test to assert on.
+ */
+function LaunchStat(options: {
+  readonly label: string;
+  readonly metric: LaunchMetric;
+  readonly note: string;
+  readonly now: Date;
+}): Html {
+  const observed = freshness(options.metric.observedAt, options.now);
+  return html`<div class="stack-sm" data-launch-metric="${options.label}">
+    <p class="eyebrow">${options.label}</p>
+    <p class="score ${options.metric.value === null ? 'score--none' : ''}">
+      ${options.metric.value === null
+        ? html`<span data-unknown="true">unknown</span>`
+        : String(options.metric.value)}
+    </p>
+    <p class="micro muted">${observed.label}</p>
+    <p class="small">${options.note}</p>
+  </div>`;
+}
+
 export function OverviewPage(options: { readonly view: OverviewView; readonly now: Date }): Html {
   const finance = summariseFinance(options.view.finance);
   const refreshed = freshness(options.view.finance.lastRefreshAt, options.now);
-  const visits = freshness(options.view.launchVisitsObservedAt, options.now);
+  const launch = options.view.launch;
 
   return html`<div class="wrap section stack-lg">
     ${PageHead({
@@ -101,21 +125,45 @@ export function OverviewPage(options: { readonly view: OverviewView; readonly no
           ['Open support cases', UnknownAware(options.view.openSupportCases)],
         ]),
       })}
-      ${Card({
-        title: 'Launch visits',
-        headingLevel: 2,
-        body: html`<p class="score ${options.view.launchVisits === null ? 'score--none' : ''}">
-            ${options.view.launchVisits === null
-              ? html`<span data-unknown="true">unknown</span>`
-              : String(options.view.launchVisits)}
-          </p>
-          <p class="micro muted">${visits.label}</p>
-          <p class="small">
-            External visits only. Our own traffic and suspected bots are excluded, so this number is smaller
-            than a raw hit count and is the one worth looking at.
-          </p>`,
-      })}
     </div>
+
+    ${Card({
+      title: 'Since launch',
+      headingLevel: 2,
+      body: html`<div class="stack">
+        <p class="measure small">
+          Four numbers, kept apart on purpose. <strong>A visit is not interest, and interest is not a
+          customer.</strong> Adding them together, or quoting the largest of them on its own, would tell you
+          the business is doing better than it is.
+        </p>
+        <div class="grid grid-2">
+          ${LaunchStat({
+            label: 'People who visited',
+            metric: launch.totalVisits,
+            note: 'Our own traffic and suspected bots are excluded, so this is smaller than a raw hit count and is the one worth looking at.',
+            now: options.now,
+          })}
+          ${LaunchStat({
+            label: 'Of those, arrived from an advert',
+            metric: launch.adAttributedVisits,
+            note: 'A subset of the figure above, not a separate total. It is what the advertising actually bought.',
+            now: options.now,
+          })}
+          ${LaunchStat({
+            label: 'Created a workspace and connected something',
+            metric: launch.qualifiedSignups,
+            note: 'Interest, not revenue. Somebody got far enough to try it.',
+            now: options.now,
+          })}
+          ${LaunchStat({
+            label: 'Paying customers',
+            metric: launch.payingCustomers,
+            note: 'The only one of the four that is income.',
+            now: options.now,
+          })}
+        </div>
+      </div>`,
+    })}
 
     ${Card({
       title: 'Waiting for you',

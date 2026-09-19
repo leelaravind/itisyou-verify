@@ -1,22 +1,44 @@
 /**
  * The visit counter, as mountable middleware.
  *
- * Mount it in `apps/app/src/index.ts` (the lead's file), **after** the security-headers
- * middleware and **before** the routers:
+ * ## Mounting (lead — this is the whole change)
+ *
+ * In `apps/app/src/index.ts`, **after** the security-headers `app.use('*', …)` block and
+ * **before** `app.route('/app', …)`. Order matters in one direction only: it must be
+ * inside the headers middleware so a counted request still gets its headers, and it must
+ * be above the routers so it sees every public path.
  *
  *     import { createVisitCounter } from './growth/visits.js';
- *     import { createMemoryGrowthPort } from './growth/memory.js';   // until A02 wires D1
+ *     import { createD1GrowthPort } from './db/growthPort.js';   // A02, not yet written
  *
  *     app.use(
  *       '*',
  *       createVisitCounter({
- *         port: (c) => growthPortFor(c),          // null disables counting entirely
+ *         // Returning null disables counting outright — that is the correct behaviour
+ *         // while A02's port does not exist yet, and the page is unaffected either way.
+ *         port: (c) => createD1GrowthPort((c.env as Env).DB),
  *         salt: (c) => (c.env as Env).ANALYTICS_SALT,
- *         internal: {
- *           headerValue: (c.env as Env).INTERNAL_TEST_TOKEN ?? null,
- *         },
+ *         internal: { headerValue: (c.env as Env).INTERNAL_TEST_TOKEN ?? null },
  *       }),
  *     );
+ *
+ * Two bindings are needed and neither is set today:
+ *
+ *  - `ANALYTICS_SALT` — a secret, at least 16 characters. **Without it nothing is
+ *    counted at all**, deliberately: an unsalted hash of an IP address is reversible by
+ *    brute force over the IPv4 space in seconds, so no counting is the safer failure.
+ *  - `INTERNAL_TEST_TOKEN` — a secret the deploy smoke check and any uptime probe send as
+ *    `x-verify-internal`. Without it, header-based exclusion is simply off; it never
+ *    degrades to "any value excludes", because that would let anyone on the internet
+ *    remove themselves — or everyone — from the founder's figures.
+ *
+ * Both need adding to `Env` in `index.ts` and `lib/context.ts`, and `INTERNAL_TEST_TOKEN`
+ * to `.dev.vars.example` as a placeholder. Those are all files I do not own.
+ *
+ * Until `createD1GrowthPort` exists, `createMemoryGrowthPort()` from `./growth/memory.js`
+ * satisfies the same interface, but it is a **test double** — it forgets everything on
+ * each isolate, so mounting it in production would report plausible-looking numbers that
+ * are silently wrong. Prefer passing `null` and counting nothing.
  *
  * Four properties this file exists to guarantee:
  *

@@ -206,13 +206,33 @@ export function createStripeWebhookRoute(deps: StripeWebhookDeps): Hono {
     } catch (error) {
       // Give the event back so the retry is a fresh attempt. Without this, one internal
       // error would permanently swallow a paid invoice behind the dedupe constraint.
-      await deps.data.abandonWebhookProcessing(event.id);
+      //
+      // The release is itself fallible, and its failure is the one genuinely bad window in
+      // this design: the claim stands, the effect never happened, and Stripe's retry will
+      // be deduplicated away. It is logged distinctly so the operator can see it, and
+      // `reconcile.ts` is the net that finds the resulting gap. Swallowing the release
+      // failure here is deliberate — re-throwing would turn a 500 into an unhandled
+      // rejection and lose the log line that says which event is now stranded.
+      let released = true;
+      try {
+        await deps.data.abandonWebhookProcessing(event.id);
+      } catch {
+        released = false;
+      }
       log({
         event: 'stripe_webhook_failed',
         event_id: event.id,
         event_type: event.type,
         error_name: error instanceof Error ? error.name : 'unknown',
+        claim_released: released,
       });
+      if (!released) {
+        log({
+          event: 'stripe_webhook_claim_stranded',
+          event_id: event.id,
+          event_type: event.type,
+        });
+      }
       return c.json(
         { error: { code: 'WEBHOOK_PROCESSING_FAILED', message: 'Not processed. Please retry.' } },
         500,

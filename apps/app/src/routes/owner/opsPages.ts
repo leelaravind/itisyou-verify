@@ -30,6 +30,8 @@ import {
   type RetentionSettings,
 } from '../../owner/settings.js';
 import { heartbeatIsFresh } from '../../owner/runner.js';
+import { NOTIFICATION_STUCK_AFTER_SECONDS, suggestedActionFor } from '../../owner/notifications.js';
+import { describeAge } from '../../owner/finance.js';
 import { ActionForm, Instant, PageHead, UnknownAware } from './chrome.js';
 import type { AccessMode } from '@verify/contracts';
 import type { OperationsView } from '../../owner/port.js';
@@ -92,6 +94,110 @@ export function OperationsPage(options: {
           ['Last successful job', Instant(runner.lastSuccessAt)],
           ['Jobs waiting', html`<span class="mono">${runner.queuedJobs}</span>`],
         ])}
+      </div>`,
+    })}
+
+    ${Card({
+      title: 'Run a maintenance job',
+      headingLevel: 2,
+      body: html`<div class="stack-sm">
+        <p class="measure small">
+          These are whole jobs the runner knows how to do, chosen from a fixed list. Nothing you type here
+          reaches a machine — you pick a job, and the runner maps it to a recipe compiled into it.
+        </p>
+        <div class="btn-row">
+          ${ActionForm({
+            action: '/owner/operations/jobs/run_health_checks',
+            csrfToken: options.csrfToken,
+            body: Button({ label: 'Run health checks', type: 'submit' }),
+          })}
+          ${ActionForm({
+            action: '/owner/operations/jobs/collect_redacted_diagnostics',
+            csrfToken: options.csrfToken,
+            body: Button({ label: 'Collect diagnostics', type: 'submit' }),
+          })}
+        </div>
+        <p class="micro muted">
+          With no runner connected the job is still written down and waits. It is a queue, not a pretence —
+          the row below will say what it is waiting for.
+        </p>
+      </div>`,
+    })}
+
+    ${Card({
+      title: 'Messages that never finished sending',
+      headingLevel: 2,
+      aside: html`<span
+        class="badge ${options.view.notifications.unavailableReason !== null
+          ? 'badge--unverified'
+          : options.view.notifications.stuck.length > 0
+            ? 'badge--failed'
+            : 'badge--verified'}"
+        data-notifications-state="${options.view.notifications.unavailableReason !== null
+          ? 'unknown'
+          : options.view.notifications.stuck.length > 0
+            ? 'stuck'
+            : 'clear'}"
+        >${options.view.notifications.unavailableReason !== null
+          ? 'not checked'
+          : options.view.notifications.stuck.length > 0
+            ? `${options.view.notifications.stuck.length} stuck`
+            : 'none stuck'}</span
+      >`,
+      body: html`<div class="stack-sm">
+        ${Callout({
+          tone: 'note',
+          title: 'You are the retry',
+          body: html`<p>
+            We send each message at most once. If something died halfway through a send, the row below is left
+            behind and <strong>nothing will try again on its own</strong> — that is deliberate, because a second
+            "your data has been deleted" email is worse than a missing one. It does mean that anything listed
+            here only gets dealt with because you dealt with it. Resend by hand, after you have checked what
+            actually happened. Anything older than
+            ${Math.round(NOTIFICATION_STUCK_AFTER_SECONDS / 60)} minutes is here.
+          </p>`,
+        })}
+        ${options.view.notifications.unavailableReason === null
+          ? Table({
+              caption: 'Notifications that claimed a row and never reported an outcome',
+              columns: [
+                {
+                  key: 'template',
+                  header: 'Message',
+                  rowHeader: true,
+                  cell: (row) => html`<span class="mono">${row.template}</span>`,
+                },
+                { key: 'channel', header: 'Channel', cell: (row) => row.channel },
+                {
+                  key: 'workspace',
+                  header: 'Workspace',
+                  cell: (row) =>
+                    row.workspaceId === null
+                      ? html`<span class="muted">platform</span>`
+                      : html`<span class="mono micro">${row.workspaceId}</span>`,
+                },
+                { key: 'age', header: 'Stuck for', cell: (row) => describeAge(row.ageSeconds) },
+                { key: 'attempts', header: 'Attempts', numeric: true, cell: (row) => String(row.attemptCount) },
+                {
+                  key: 'status',
+                  header: 'Last thing the provider said',
+                  cell: (row) =>
+                    row.providerStatus === null
+                      ? html`<span class="muted" data-unknown="true">nothing</span>`
+                      : html`<span class="mono micro">${row.providerStatus}</span>`,
+                },
+                { key: 'action', header: 'What to do', cell: (row) => suggestedActionFor(row.template) },
+              ],
+              rows: options.view.notifications.stuck,
+              empty: html`<p class="muted">
+                Nothing is stuck. This was actually checked — it is not an empty list from a read that did not run.
+              </p>`,
+            })
+          : Callout({
+              tone: 'warn',
+              title: 'Not checked',
+              body: html`<p data-dependency="true">${options.view.notifications.unavailableReason}</p>`,
+            })}
       </div>`,
     })}
 
@@ -206,6 +312,13 @@ export function OperationsPage(options: {
             required: true,
             mono: true,
             hint: 'Copy the id from the history above.',
+          })}
+          ${Field({
+            name: 'approval_id',
+            label: 'Approval id',
+            required: true,
+            mono: true,
+            hint: 'A restore changes what every customer is served, so it needs an approval bound to this exact deployment. Grant one on the approvals page.',
           })}
           ${Button({ label: 'Restore this deployment', variant: 'danger', type: 'submit' })}`,
       }),

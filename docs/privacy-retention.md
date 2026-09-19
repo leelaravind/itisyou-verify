@@ -121,6 +121,24 @@ privacy page renders it from there.
 
 This list is the whole list. If it changes, this page changes with it.
 
+### Telegram — the owner's own channel, and why it is not on that list
+
+The business owner receives operational alerts on Telegram, through a bot they already
+run. It is **not** a subprocessor of customer data, because no customer data reaches it.
+
+That is enforced rather than promised. The channel carries six kinds of message —
+an approval needed, a sign-in or card entry that only a person can complete, a spending
+decision, a critical incident, a provider outage, and a milestone. Every message is
+checked before it is sent, and a message containing anything shaped like an email
+address, an access token, a payment card number or a raw provider record is **refused**,
+not redacted and sent. What it may carry instead is an opaque reference — `ws_…` — which
+means nothing outside our own database and which the owner taps through to the dashboard,
+where access is checked in the ordinary way.
+
+If that guard is ever relaxed so that customer data could reach this channel, Telegram
+becomes a subprocessor and belongs in the table above. The code is in
+`apps/app/src/notifications/telegram.ts`.
+
 ---
 
 ## 5. What you can ask us for

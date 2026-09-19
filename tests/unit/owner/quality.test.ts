@@ -205,7 +205,7 @@ describe('quality centre', () => {
   it('OWNER-075 an unbound artifact store returns nothing and explains why, rather than an empty file', async () => {
     const store = new UnboundQualityArtifactStore();
     expect(await store.get()).toBeNull();
-    expect(store.unavailableReason()).toMatch(/not been uploaded/i);
+    expect(await store.unavailableReason()).toMatch(/not been uploaded/i);
   });
 
   it('OWNER-076 a bound artifact store returns the real bytes', async () => {
@@ -214,6 +214,6 @@ describe('quality centre', () => {
     ]);
     const stored = await store.get('test-report.md');
     expect(stored?.body).toBe('# report\n');
-    expect(store.unavailableReason()).toBeNull();
+    expect(await store.unavailableReason()).toBeNull();
   });
 });

@@ -208,10 +208,7 @@ export interface SafeTelegramDescription {
 }
 
 export type TelegramConfigProblem =
-  | 'token_missing'
-  | 'token_malformed'
-  | 'owner_chat_missing'
-  | 'owner_chat_malformed';
+  'token_missing' | 'token_malformed' | 'owner_chat_missing' | 'owner_chat_malformed';
 
 export type TelegramConfigResult =
   | { readonly ok: true; readonly config: TelegramConfig }
@@ -317,7 +314,11 @@ const FORBIDDEN_SHAPES: readonly { readonly reason: GuardReason; readonly re: Re
   { reason: 'contains_email_address', re: /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/ },
   {
     reason: 'contains_credential_shape',
-    re: /\b(?:sk|rk|pk|re|pat|ghp|gho|xoxb|xoxp)[_-][A-Za-z0-9]{12,}\b/i,
+    // The tail allows `_` and `-` on purpose: `sk_live_abcdefghijklmnop` is a Stripe key
+    // and an earlier `[A-Za-z0-9]{12,}` tail missed it, because the separator inside the
+    // key ended the match after four characters. A prefix rule with a shape blind spot
+    // is worse than no prefix rule, because it is trusted.
+    re: /\b(?:sk|rk|pk|re|pat|ghp|gho|xoxb|xoxp)[_-][A-Za-z0-9_-]{12,}\b/i,
   },
   { reason: 'contains_credential_shape', re: /\bbearer\s+[A-Za-z0-9._~+/=-]{12,}/i },
   { reason: 'contains_credential_shape', re: /\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\./ },
@@ -454,7 +455,11 @@ function splitLongLine(line: string, limit: number): readonly string[] {
 /** The narrow slice of `fetch` this transport uses. Injected, so tests never reach out. */
 export type TelegramFetch = (
   url: string,
-  init: { readonly method: 'POST'; readonly headers: Record<string, string>; readonly body: string },
+  init: {
+    readonly method: 'POST';
+    readonly headers: Record<string, string>;
+    readonly body: string;
+  },
 ) => Promise<{ readonly ok: boolean; readonly status: number; text(): Promise<string> }>;
 
 /**

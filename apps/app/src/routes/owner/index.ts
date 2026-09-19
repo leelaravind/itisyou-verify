@@ -38,6 +38,20 @@ import {
 } from '../../owner/access.js';
 import { bootstrapOwner, type BootstrapResult } from '../../owner/bootstrap.js';
 import { isControlKey } from '../../owner/controls.js';
+import { approvalStanding } from '../../owner/approvals.js';
+
+/**
+ * The maintenance kinds this panel offers as a one-press button.
+ *
+ * A08's vocabulary is wider; these are the ones whose payload has no required fields, so a
+ * button can genuinely supply everything they need. A coding-agent job needs a reviewed
+ * brief and belongs on its own screen, and a release needs a bound approval — neither is
+ * something a single button should be able to start.
+ */
+const OWNER_DISPATCHABLE_JOB_KINDS: ReadonlySet<string> = new Set([
+  'run_health_checks',
+  'collect_redacted_diagnostics',
+]);
 import { MemoryOwnerDataPort } from '../../owner/memory.js';
 import { PairingUnavailable, type RunnerPairingPort } from '../../owner/runner.js';
 import {
@@ -864,6 +878,27 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
     }),
   );
 
+  /**
+   * Queue a whole maintenance job by its typed kind.
+   *
+   * The kind travels in the path and is matched against A08's closed vocabulary before it
+   * reaches anything — there is no field on this page that becomes part of a command, and
+   * an unrecognised kind is a 404 rather than a refusal that confirms the route's shape.
+   */
+  routes.post('/owner/operations/jobs/:kind', async (c) =>
+    withAction(c, 'maintenance.dispatch', async (port, principal) => {
+      const kind = c.req.param('kind');
+      if (!OWNER_DISPATCHABLE_JOB_KINDS.has(kind)) return refuseNotFound(c);
+      return respondToWrite(
+        c,
+        port,
+        principal,
+        await port.enqueueMaintenance(actionContext(principal, 'maintenance.dispatch', c), kind),
+        'Maintenance job',
+      );
+    }),
+  );
+
   routes.post('/owner/operations/restore', async (c) =>
     withAction(c, 'maintenance.dispatch', async (port, principal, form) => {
       if ((form.single['confirm'] ?? '').trim().toLowerCase() !== 'restore') {
@@ -880,6 +915,45 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
           'Restore deployment',
         );
       }
+      const approvalId = (form.single['approval_id'] ?? '').trim();
+      if (approvalId.length === 0) {
+        return respondToWrite(
+          c,
+          port,
+          principal,
+          {
+            ok: false,
+            message:
+              'A restore needs an approval bound to the exact deployment being restored. Grant one on the approvals ' +
+              'page and paste its id here. Nothing has been restored.',
+            redirectTo: null,
+            dependency: null,
+          },
+          'Restore deployment',
+        );
+      }
+      const approval = await port.approval(approvalId);
+      if (approval === null || approvalStanding(approval, clock()) !== 'usable') {
+        return respondToWrite(
+          c,
+          port,
+          principal,
+          {
+            ok: false,
+            message:
+              approval === null
+                ? 'There is no approval with that id, so nothing authorises this restore.'
+                : `That approval is ${approvalStanding(approval, clock())}. Approve the restore again if you still want it.`,
+            redirectTo: null,
+            dependency: null,
+          },
+          'Restore deployment',
+        );
+      }
+      // Everything this route can check has now been checked. What remains is genuinely
+      // outstanding, and is stated precisely rather than as "not wired": A08's runner port
+      // carries a kind and an idempotency key and no approval id, and
+      // `execute_approved_release` is refused without one. The gap is one field.
       return respondToWrite(
         c,
         port,
@@ -889,9 +963,10 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
           message: null,
           redirectTo: null,
           dependency:
-            'Restoring a previous deployment needs a paired maintenance runner with deploy rights, and none is ' +
-            'connected to this deployment. Nothing has been restored. `wrangler rollback` from a machine with ' +
-            'access does the same job in the meantime.',
+            'The approval stands and the deployment id is recorded, but the release cannot be queued yet: ' +
+            'the release job refuses to be created without a bound approval id, and the runner ' +
+            'port this panel calls does not carry one. Nothing has been restored, and nothing is pretending to have ' +
+            'been. `wrangler rollback` from a machine with deploy access does the same job today.',
         },
         'Restore deployment',
       );
@@ -1163,7 +1238,7 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
           body: QualityPage({
             runs: await port.qualityRuns(50),
             csrfToken: principal.csrfToken,
-            artifactsUnavailableReason: artifacts.unavailableReason(),
+            artifactsUnavailableReason: await artifacts.unavailableReason(),
             formMessage: null,
             formDependency: null,
           }),
@@ -1186,7 +1261,7 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
           body: QualityPage({
             runs: await port.qualityRuns(50),
             csrfToken: principal.csrfToken,
-            artifactsUnavailableReason: artifacts.unavailableReason(),
+            artifactsUnavailableReason: await artifacts.unavailableReason(),
             formMessage: result.ok ? result.message : result.dependency === null ? result.message : null,
             formDependency: result.dependency,
           }),
@@ -1207,6 +1282,7 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
       const meta = artifactMeta(id);
       const stored = await artifacts.get(id);
       if (meta === null || stored === null) {
+        const unavailable = await artifacts.unavailableReason();
         return ownerPage(
           c,
           shell(port, principal, {
@@ -1218,7 +1294,7 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
                 tone: 'warn',
                 title: 'No evidence pack is attached to this deployment',
                 body: html`<p data-dependency="true">
-                  ${artifacts.unavailableReason() ??
+                  ${unavailable ??
                   'This file is not part of the evidence pack attached to this deployment.'}
                 </p>`,
               })}

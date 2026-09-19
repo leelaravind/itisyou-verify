@@ -201,9 +201,7 @@ export class InMemorySupportData implements SupportDataPort {
     const rows = [...this.notifications.values()]
       .filter((n) => n.state === 'pending')
       .filter((n) => n.createdAt <= query.createdBefore)
-      .filter((n) =>
-        query.channel === undefined ? true : n.channel === query.channel,
-      )
+      .filter((n) => (query.channel === undefined ? true : n.channel === query.channel))
       .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
       .filter((n) =>
         query.afterId === undefined || query.afterId === null ? true : n.id > query.afterId,

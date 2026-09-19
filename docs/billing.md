@@ -272,6 +272,38 @@ money twice (`BILL-142`).
 A refund issued directly from the Stripe dashboard, which we have no local record of, is
 **reported, never fabricated** (`BILL-130`).
 
+### How the owner queue is wired
+
+A refund request lands in `queued_for_owner`. `listRefundQueue()` gives A07's panel each
+waiting refund with the amount an approval must cover and a plain-language summary. The
+owner grants an approval bound to `refundApprovalPayload(refund, rule)` — A07's real
+`grantOwnerApproval`, hashing the canonical payload — and passes the granted approval back
+to `decideRefund`.
+
+**The payload is rebuilt from our stored row, never from the caller.** That is the whole
+mechanism. `decideRefund` takes the approval *record*, not an approval id: an id alone
+would only prove that some approval exists, whereas the record carries the hash of what the
+owner actually read. We re-derive the payload from the refund on file, hash it, and compare.
+A refund whose amount, order, workspace, reason or cited rule differs from the approved one
+— by a penny or by a character — hashes differently and authorises nothing (`BILL-213`).
+There is no argument a caller could pass to paper over the difference, because the amount is
+not an argument.
+
+Also refused: an approval granted for another workspace's refund (`BILL-215`), an expired
+one (`BILL-216`), one whose status is no longer `granted` (`BILL-217`), and an approve
+call that names no published policy rule (`BILL-218`). The rules themselves are a closed
+set (`REFUND_POLICY_RULES`), not free text, so "which rule was applied" is answerable later
+from the approval alone.
+
+Declining needs no approval and sends nothing to Stripe (`BILL-219`).
+
+**What still depends on a live key.** Everything up to and including the authorisation
+decision is real and tested. The submission itself calls
+`BillingGatewayPort.createRefund`, which is stubbed in every test — so A07's "issue refund"
+button is real as far as the approval, the hash binding, the state machine and the
+idempotency key, and stops at the provider call. It cannot be proven against Stripe until
+the founder supplies a test key. That is a stated dependency, not a silent one.
+
 ### What the founder needs to decide
 
 1. Is there an automatic-refund rule at all (for example: full refund inside 14 days with
@@ -425,40 +457,57 @@ credential-shaped string in a public repository is rejected by our scanner and b
 push protection regardless, and it invites precisely the mistake above. Covered by
 `BILL-207`, `BILL-208`, `BILL-209` and `BILL-210`.
 
-### The receipt and the effect are not in one transaction
+### The receipt and the effect are not in one transaction — decided, not open
 
-Stated plainly because it is a real limitation, not a solved problem.
+**Decision: keep claim-then-compensate. No port change.** Recorded here so it is not an
+open question at the release gate.
 
 The route claims the event id (`beginWebhookProcessing`), dispatches, then completes the
-receipt — and on a thrown handler it releases the claim (`abandonWebhookProcessing`) and
-returns 500 so Stripe's retry is a fresh attempt. That is claim-then-compensate, not a
-transaction. D1's `batch()` is a list of statements, not an interactive transaction, so
-application logic that reads between writes — which every one of these handlers does, since
-deciding whether an event is stale requires reading the stored row first — cannot be
-wrapped in one.
+receipt; on a thrown handler it releases the claim (`abandonWebhookProcessing`) and returns
+500 so Stripe's retry is a fresh attempt. That is not a transaction. D1's `batch()` is a
+list of statements, not an interactive transaction, and every handler reads between writes
+— deciding whether an event is stale requires reading the stored row first — so the work
+cannot be wrapped in one. Restructuring into "read, decide, then one `batch()` carrying the
+receipt insert and every write" is possible but would change the port's shape and push a
+significant rewrite into A02's repositories for a gain the table below shows we do not
+need.
 
-What makes the gap safe rather than merely acknowledged is that **every handler is
-idempotent by construction**:
+**What makes it sufficient is that every handler is idempotent by construction.** Not
+"probably safe to retry" — idempotent, for a stated reason, per handler:
 
-| Handler | Why re-running it is harmless |
+| Handler | Why a second execution changes nothing |
 | --- | --- |
-| `checkout.session.completed` | `rememberBillingCustomer` is insert-once; the order transition `active → active` is legal and terminal; the subscription write goes through the guards |
-| `customer.subscription.*` | `reconcileSubscription` returns `ignore_duplicate` for an identical snapshot |
-| `invoice.paid` | `openAllowancePeriod` is keyed by period end and refreshes terms, never counters |
-| `invoice.payment_failed` | the `past_due` write is guarded; the order transition is idempotent |
-| `charge.refunded` | `applyProviderRefund` returns `no_change` when the state would not move |
+| `checkout.session.completed` | `rememberBillingCustomer` is insert-once and never rebinds; the order transition `active → active` is legal and terminal; the subscription write goes through `reconcileSubscription`, which returns `ignore_duplicate` for an identical snapshot |
+| `customer.subscription.created/updated/deleted` | `reconcileSubscription` returns `ignore_duplicate` for an identical snapshot, `ignore_stale` for an older one, and `ignore_terminal` once cancelled |
+| `invoice.paid` | `openAllowancePeriod` is keyed by period end and refreshes terms, never counters — so a re-run cannot grant a second allowance or reset a used one (`BILL-191`) |
+| `invoice.payment_failed` | the `past_due` write goes through the same guards; the order transition to `failed` is idempotent; the notification key is derived from the window, not the clock (`BILL-188`) |
+| `charge.refunded` | `applyProviderRefund` returns `no_change` when the transition would not move the state |
 
-So the failure modes resolve as follows. A crash **after** the effect and before the
-receipt completes leaves the receipt at `received`; the retry reads `in_flight`, returns
-200, and does nothing — the effect stands, applied once. A crash **between** the claim and
-the effect, where the compensating release also fails, is the one genuinely bad case: the
-retry is deduplicated and that event's effect is lost. The scheduled reconciliation in
-`reconcile.ts` is the net that catches it, which is one of the two reasons it exists.
+**The three windows, named.**
 
-Closing the gap properly would mean restructuring each handler into "read, decide, then one
-`batch()` containing the receipt insert and every resulting write". That is a real change
-to the port's shape and is not something to guess at — flagged for the lead rather than
-half-done.
+1. **Crash between the claim and the effect, release succeeds.** The claim is released, the
+   retry is a fresh attempt, the effect happens once. Covered by `BILL-132`.
+2. **Crash after the effect, while completing the receipt.** The route cannot distinguish
+   this from case 1, so it releases the claim and the retry **re-executes the handler**.
+   This is the case that surprised me when I tested it, and it is the reason the table
+   above is load-bearing rather than decorative: nothing about the receipt protects us
+   here, only the idempotency does. Proven by `BILL-241`, which asserts the counters rather
+   than the `duplicate` flag.
+3. **Crash between the claim and the effect, release also fails.** The genuinely bad one:
+   the claim stands over an effect that never happened, and Stripe's retry is deduplicated
+   away. Two things are true about it. The operator is told — the route logs
+   `stripe_webhook_claim_stranded` with the event id, and swallows the release failure
+   deliberately rather than re-throwing, because re-throwing would lose that line. And
+   reconciliation finds the gap: a lost `invoice.paid` shows up as
+   `allowance_period_missing`, a lost subscription event as `status_mismatch`. Proven end
+   to end by `BILL-242`, which strands an event and then watches `reconcile.ts` report it.
+
+**The one gap reconciliation does not cover** is a lost `charge.refunded`: the refund stays
+at `submitted` and nothing sweeps for it. It is visible — a refund stuck in `submitted` sits
+in the owner's view — but it is not automatically flagged. Closing it properly needs a
+`listRefundsInState` method on `BillingDataPort` and a Stripe refund-list read in
+`reconcile.ts`. Flagged for the lead rather than added unilaterally, since it is another
+port change.
 
 ### Out-of-order events
 
@@ -488,7 +537,124 @@ act on.
 
 ---
 
-## 9. What is not proven
+## 9. Turning it on
+
+### Mounting the webhook route
+
+Everything the composition root needs is in `apps/app/src/billing/mount.ts`, so `index.ts`
+assembles nothing by hand:
+
+```ts
+import { createStripeWebhookDeps, assertBillingSecrets } from './billing/mount.js';
+import { createStripeWebhookRoute } from './routes/webhooks/stripe.js';
+import { D1BillingDataPort, createBillingContactLookup } from './db/index.js';
+import { createStripeClient } from '@verify/connectors/stripe';   // see note below
+
+// Mount BEFORE the public router, and before any body-parsing middleware: the route must
+// read the raw bytes itself.
+app.route(
+  '/',
+  createStripeWebhookRoute(
+    createStripeWebhookDeps(env, {
+      data: new D1BillingDataPort(env.DB),
+      gateway: createStripeClient({ secretKey: env.STRIPE_SECRET_KEY ?? '' }),
+      billingContact: createBillingContactLookup(env.DB),
+      newId: (prefix) => newId(prefix),
+    }),
+  ),
+);
+```
+
+`createStripeWebhookDeps` calls `assertBillingSecrets` itself, so a production or staging
+deployment missing any billing secret **fails at construction** rather than serving a
+money path that silently rejects everything. In development it builds and every delivery is
+a 400, which is the right degraded behaviour for an unconfigured money path (`BILL-222`,
+`BILL-223`).
+
+Note on the import: A04's `packages/connectors/src/index.ts` does not re-export
+`stripe.ts`, so the client comes from the subpath or from a one-line addition to that
+barrel — A04's call. Nothing in `apps/app/src/billing/` imports it directly; the
+orchestration codes against `BillingGatewayPort`, which `createStripeClient` satisfies
+structurally.
+
+### The five secrets
+
+| Name | What it is |
+| --- | --- |
+| `STRIPE_SECRET_KEY` | The API key. Test mode until the founder authorises live. |
+| `STRIPE_PRICE_ID` | The £29/month GBP price, from the provisioning step below. |
+| `STRIPE_WEBHOOK_SECRET` | The endpoint signing secret, `whsec_…`. |
+| `STRIPE_WEBHOOK_PATH_ID` | The opaque path segment we issue. Not public. |
+| `STRIPE_WEBHOOK_UNKNOWN_KEY` | The stand-in key verification runs against for an unknown path id. |
+
+The last one is not a credential — nothing is ever accepted under it — but it must be
+per-deployment and unguessable, and it must be **present**. A stand-in key that silently
+defaults to a compiled-in constant is exactly how SEC-431 reopens, so its absence is a hard
+failure in production (`BILL-222`).
+
+### Why `resolveEndpointSecret` does not read D1
+
+Asked and answered in `mount.ts`, and worth stating here too. There is one endpoint per
+deployment, so a lookup table with one row would add a database round trip to the hottest
+untrusted path in the system — on every delivery, including every forged one, which is a
+free amplification factor for anyone who wants to spend our D1 reads. There is no table for
+it in the frozen schema, and adding one would put a signing key in a database row when the
+Worker secret store is the right home for a value that never leaves the Worker. And the
+opaque id is compared with `timingSafeEqual`; a SQLite lookup is not constant time and
+leaks through timing what the id is not (`BILL-224`).
+
+If a second endpoint ever exists — the real case is the dual-secret window during a roll —
+the fix is to let the resolver return several candidate secrets, not to move it into the
+database.
+
+### Provisioning the product and price
+
+`POST /api/v1/billing/provision-price`, owner-only, one command:
+
+```sh
+curl -X POST https://<host>/api/v1/billing/provision-price \
+  -H "x-owner-bootstrap-token: $OWNER_BOOTSTRAP_TOKEN"
+```
+
+It is a Worker route rather than a local CLI on purpose. There is no TypeScript runner in
+this repository — `node_modules/.bin` has `tsc`, `vitest`, `eslint`, `prettier` and
+`wrangler`, and nothing that executes a `.ts` file — and adding one would be a new
+dependency. Duplicating the Stripe calls into a plain `.mjs` would put money-touching code
+in two places. Running it inside the Worker is better than either anyway: **the secret key
+never leaves the Worker secret store**, never reaches a laptop, a shell history or a CI log.
+
+What it guarantees:
+
+- **No key, no call.** 422 naming the missing secret, nothing sent (`BILL-229`).
+- **Live mode refused outright**, before the key is even read (`BILL-230`) — and refused
+  again if the key itself is a live key while `STRIPE_MODE` claims test, which is the
+  misconfiguration that would create real objects in the owner's live account
+  (`BILL-231`).
+- **Idempotent** on two layers: the price `lookup_key` search, and a deterministic
+  `Idempotency-Key` with no time component. A second run creates nothing and returns the
+  same price id (`BILL-233`).
+- **Never prints the key.** The response carries the price id, the product id and the mode.
+  `StripeError` has already scrubbed any key-shaped string from a provider message before
+  it can be read back (`BILL-234`).
+- **Owner-only, and does not confirm it exists** to anyone else: a missing or wrong token
+  is a 404 byte-identical to the anonymous one (`BILL-235`).
+
+The response includes the next step in one line: set `STRIPE_PRICE_ID` to the price id it
+printed, then redeploy.
+
+### What A05 renders before checkout
+
+`preCheckoutPanel()` in `apps/app/src/billing/disclosure.ts` returns the finished content —
+heading, formatted price, labelled facts, and headed sections with their lines — derived
+from `PLAN` and `PAYMENT_RECOVERY_POLICY`. A05 maps it to markup and retypes nothing, so a
+change to the policy cannot leave the page saying something the code no longer does
+(`BILL-240`).
+
+`panel.mustBeVisible` is the one sentence that may not be hidden behind a disclosure
+control: the price, the allowance, the recovery window and that cancellation is always
+available (`BILL-239`).
+
+## 10. What is not proven
 
 - **No call has ever been made to Stripe from this repository.** There is no key here, and
   a test-mode call would still create real objects in the owner's account. Every test
@@ -528,3 +694,12 @@ act on.
   change. It was left undone rather than guessed at because it needs a decision about where
   the second secret is stored and how it expires.
 - Dispute/chargeback fees are unverified (§7).
+- **The refund submission has never reached Stripe.** The approval binding, the hash check,
+  the state machine and the idempotency key are all real and tested; the final
+  `POST /v1/refunds` is a stub. See §6.
+- **The provisioning route has never run.** Its guards are tested against a stub gateway;
+  whether Stripe behaves as documented for `lookup_key` reuse is a claim about the
+  documentation, not an observation.
+- **Nothing is mounted yet.** `apps/app/src/index.ts` does not route the webhook or the
+  provisioning endpoint. Mounting is the lead's, and the moment to confirm
+  `STRIPE_WEBHOOK_UNKNOWN_KEY` is provisioned in both environments.

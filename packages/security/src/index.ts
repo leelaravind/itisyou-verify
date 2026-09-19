@@ -10,3 +10,4 @@ export * from './crypto';
 export * from './signatures';
 export * from './redact';
 export * from './csrf';
+export * from './totp';

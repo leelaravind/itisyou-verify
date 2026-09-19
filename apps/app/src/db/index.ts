@@ -116,3 +116,6 @@ export { D1BillingDataPort, createBillingContactLookup } from './billingPort';
 export { D1SupportDataPort, D1RateLimiter } from './supportPort';
 export { D1CustomerDataPort, createCustomerDataPort, billingPeriodFor } from './customerPort';
 export type { CustomerPortInput } from './customerPort';
+
+export { D1OwnerDataPort, D1OwnerAuth, createOwnerDataPort, createOwnerAuth } from './ownerPort';
+export type { OwnerPortInput } from './ownerPort';

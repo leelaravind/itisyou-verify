@@ -250,3 +250,127 @@ phase list differs.
 - A05: `packages/ui/src/content/*` is written for you to import as-is (see handoff).
 - The lead: no `plan/` document was found in this repository to check plan §37 against;
   flagging in case that's a repo gap rather than an intentional omission.
+
+## 9. Re-audit — 2026-09-19 (workstream 2, against the deployed product)
+
+§3's table was written when almost nothing existed. Section 1 was written then too. The
+product has since grown a full public site, connectors, domain evaluator, billing with a
+7-day payment-recovery policy, retention/deletion, support and an owner dashboard. This
+section re-checks every claim against what is now actually built, deployed at
+https://verify.itisyou.app. Three lists, as asked for.
+
+### 9.1 Claims that became true (promoted from §3's "cut" or "conditional" rows)
+
+| Claim | What now makes it true |
+| --- | --- |
+| "We read your CRM record back from HubSpot ourselves" | `packages/connectors/src/hubspot.ts`, `HUBSPOT_OPERATIONS` (three read-only endpoints), `docs/connectors.md`. Real code path — see the hard caveat in §9.3 about what has *not* been exercised. |
+| "We check the record matches what your automation expected" | `packages/domain/src/evaluate.ts` and `decide.ts`, exercised by `VERIFY-*` unit tests |
+| "Accepted by the sending service" vs "delivered to the receiving server" are kept distinct | `docs/connectors.md`'s Resend event-mapping table maps `email.sent` → `accepted` and `email.delivered` → `delivered` as the only delivery-proving status; never merged |
+| "An email being opened is never treated as proof anyone read it" | Same table: `email.opened`/`email.clicked` carry no delivery weight; confirmed in code, not just prose |
+| "Absence of evidence is never VERIFIED" | `packages/domain/src/decide.ts` — no branch of the decision table returns `VERIFIED` without every mandatory assertion `SUPPORTED` |
+| "A missed deadline only counts as FAILED if evidence access was actually working" | `decide.ts`'s `FAILED_ABSENT` branch requires an *authoritative* absence (a provider `NOT_FOUND`, per `docs/connectors.md`'s "Absence versus silence" table); anything else resolves `UNVERIFIED`. Held by `CONN-141`/`CONN-142`. |
+| "We never modify your CRM or resend your emails" | `HUBSPOT_OPERATIONS` and `RESEND_OPERATIONS` are frozen tables of read-only calls; there is no code path that could construct a write request (`docs/connectors.md` §"The rules every connector obeys") |
+| "No customer-supplied URL is ever fetched by us" | `packages/connectors/src/url-guard.ts` — compile-time allowlist of exactly three hosts, private/loopback/metadata addresses refused, redirects re-checked per hop |
+| "Your token never appears in a log line, an error message or an exported report" | Redaction is registered before any request is issued (`docs/connectors.md`); export code confirms no stored credential is ever serialised (`docs/privacy-retention.md` §5) |
+| "Card details never touch us" | Stripe hosted Checkout + Billing Portal, `docs/billing.md` §2 — no card data path exists in this codebase |
+| "£29/month, one workflow, 500 runs" and the allowance/overage behaviour | `docs/billing.md` §3 — reservation/consumption accounting, `BILL-*` tests, no automatic overage charge |
+| "Evidence kept 30 days" | `apps/app/src/privacy/retention.ts`, generated into `docs/privacy-retention.md`, checked against the sweep by `API-330` |
+| "We never let a model decide pass/fail or your bill" | `apps/app/src/assistant/` exists with `ASSISTANT_MODES` defaulting to `'off'`; the assistant is a separate subsystem from `packages/domain`'s decision table, which never imports it |
+| Tenant scoping ("your data is scoped to your workspace") | 14 files under `apps/app/src/db/` reference `workspace_id`-scoped queries; no longer merely a brief rule, an actual pattern in the data-access layer |
+
+### 9.2 Claims that quietly became false, or need rewording (caught and already fixed)
+
+- **`PLAN_CANCELLATION_WORDING` inside the payment-failure email.** A09 removed it from
+  `payment_problem` because "you keep access for the rest of the period you already paid
+  for" describes a *voluntary* cancellation, not a *failed renewal* — the period being
+  billed for has already ended when that email goes out, so the sentence would tell a
+  customer they still have something they no longer have. **I agree with this reading.**
+  The constant itself is still correct where it actually applies: the pricing page and the
+  cancellation-confirmed email, both genuine cancellations. No change needed to the
+  constant; A09's judgement to not reuse it in that one email was right.
+- **The privacy/legal content constants under-described Resend.** `SUBPROCESSORS` and
+  `DATA_FLOW` in `packages/ui/src/content/legal.ts` said Resend was "read access only" —
+  true for evidence, but Resend is now also the service that sends our own transactional
+  emails (sign-in links, failure notices, deletion confirmations), per
+  `apps/app/src/privacy/dataflow.ts` (A09) and `docs/privacy-retention.md` §3–4. **Fixed in
+  this pass** — both constants now state the dual role.
+- **The onboarding-guide FAQ answer pointed at a page that did not exist.** `faq.ts`'s
+  `what-do-i-need-before-starting` said "see our onboarding guide for the exact steps" with
+  no such guide published; A05 had to render a visible "not yet published" callout rather
+  than a broken link. **Fixed in this pass** — `packages/ui/src/content/onboarding.ts` now
+  has the actual four-step guide, sourced from `docs/connectors.md`'s verified connector
+  facts (exact HubSpot scope, the Resend full-access-key caveat, the manual webhook setup).
+
+### 9.3 Claims still unbacked — the list to act on
+
+1. **The site must not imply the provider integration has been exercised against a live
+   account — checked hardest, per the brief. It currently does not overstate this**, on
+   the pages I could find: `/`, `/how-it-works`, `/pricing`, `/security`, `/demo`, the FAQ,
+   and the onboarding flow (`apps/app/src/routes/app/onboardingPages.ts`). The demo page is
+   explicit and repeated ("Synthetic data", "no customer here, no database is read") and
+   never claims a live HubSpot/Resend account was used. `docs/connectors.md` and
+   `docs/billing.md` state the CONN-050/CONN-051/Stripe-live gap themselves, in the
+   development-facing docs. I found no customer-facing sentence claiming the connectors
+   have been tested against a real provider account. **No fix needed here; flagging the
+   check as done, not skipped.**
+
+2. **`independently_sourced` coverage mode is selectable and described, but not actually
+   implemented — this is the one I am flagging hardest.** A customer can choose "We find
+   enquiries ourselves" in onboarding (`apps/app/src/routes/app/onboardingPages.ts` line
+   ~326), and `packages/domain/src/coverage.ts`'s `describeCoverage()` then shows the
+   confident headline **"We find the enquiries ourselves"** with the detail "We list
+   enquiries from the connected system on our own schedule rather than waiting to be told
+   about them, so an enquiry your automation missed entirely still shows up here." I looked
+   for the connector operation that would do this listing and could not find one:
+   `HUBSPOT_OPERATIONS` in `packages/connectors/src/hubspot.ts` has exactly three entries
+   (`token_info`, `contact_by_id`, `contact_search` — a lookup by a known correlation
+   value, not an enumeration of recent contacts), and no file under `apps/app/src/scheduler/`
+   references `coverage_mode` at all. The field is stored
+   (`apps/app/src/db/workflows.ts`) and changes the UI copy, but nothing in the codebase
+   actually polls HubSpot or Resend independently of a customer-sent event. **A customer who
+   selects this mode today is told a capability exists that the system cannot deliver.**
+   This is precisely the class of claim this whole audit exists to catch, and it is a
+   product/engineering gap, not a copy gap — my own `faq.ts` (`what-is-coverage-mode`,
+   `run-never-started`) and `home.ts` correctly describe the *intended* design and I have
+   not found a sentence of mine that overstates it beyond what `coverage.ts` itself claims,
+   but that intended design is not yet real. Recommend one of: (a) hide the
+   `independently_sourced` option in onboarding until a real listing connector exists, or
+   (b) reword `describeCoverage()`'s headline to something that does not promise detection
+   that cannot happen, until it can. Either fix belongs to A03/A04, not to a content change
+   in `packages/ui`.
+
+3. **Test-ledger hygiene risk on the exact two IDs the brief singled out.** The ledger
+   (`docs/test-cases.json`) correctly records `CONN-050` and `CONN-051` as
+   `provider_backed: true, status: "planned"`, matching `docs/organic-launch.md`'s "still
+   planned, never run." But `tests/unit/connectors/hubspot.test.ts` also has two unit tests
+   literally titled `'CONN-050 rejects a payload with no usable id as INVALID_EVIDENCE'` and
+   `'CONN-051 rejects a payload whose properties member is not an object'` — unrelated
+   input-validation tests reusing the same case IDs the ledger reserves for the real
+   provider-backed reads. `scripts/verify-test-cases.mjs` does not currently fail on this
+   (the ledger's own `status` field is still `'planned'`, so its "status claims implemented
+   but no test exists" check does not fire, and its "id used in more than one file" check
+   only compares across files, and these two IDs only collide within one file against the
+   ledger's separate `implementation_ref`). Nothing public currently claims these are
+   passing. The risk is purely that a future edit could flip the ledger's `status` to
+   `passing` on the strength of these unit tests existing, without a real provider account
+   ever having been contacted — exactly the false claim the lead is watching for. Flagging
+   for A04/A11 to rename the two unit test titles off `CONN-050`/`CONN-051` so the ids stay
+   reserved for the genuine provider-backed cases.
+
+4. **Dispute/chargeback fees remain unverified** (`docs/billing.md` §7) — unchanged from
+   when that document was written; noted here only because it is a live "estimate, not
+   verified" item that could be mistaken for settled.
+
+5. **VAT status remains `TODO_OWNER_INPUT` everywhere** (this document §6, `legal.ts`,
+   `docs/privacy-retention.md`) — the founder has confirmed UK sole trader; trading name,
+   contact address and VAT registration status are still outstanding and every placeholder
+   stays visibly marked, per instruction.
+
+### 9.4 A05's "What the service does" paragraph on `/terms` — reviewed, blessed
+
+`apps/app/src/routes/public/legal.ts`, `TermsPage()`, the paragraph beginning "`${PLAN_NAME}`
+verifies one workflow shape...": accurate against §2–3 of this document and against
+`docs/connectors.md`. It restates the read-only boundary and the one supported workflow
+shape without overclaiming exercised provider use, and it sits directly above
+`StandingLimitations()`, so the caveats are not separated from the claim. **Blessed as
+written — no change requested.**

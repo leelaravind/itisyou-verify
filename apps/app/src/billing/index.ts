@@ -130,16 +130,54 @@ export {
 } from './portal';
 
 export {
+  BILLING_SECRET_NAMES,
+  BillingConfigurationError,
+  assertBillingSecrets,
+  billingConfigFromEnv,
+  billingEnvironmentOf,
+  checkBillingSecrets,
+  createBillingRuntime,
+  createEndpointSecretResolver,
+  createStripeWebhookDeps,
+  type BillingEnv,
+  type BillingRuntimeParts,
+} from './mount';
+
+export {
+  createProvisionRoute,
+  provisionIdempotencyKey,
+  provisionPlanPrice,
+  type ProvisionFailureCode,
+  type ProvisionOutcome,
+  type ProvisionRouteDeps,
+  type ProvisioningGateway,
+} from './provision';
+
+export {
+  preCheckoutDisclosureText,
+  preCheckoutPanel,
+  type DisclosureFact,
+  type DisclosureSection,
+  type PreCheckoutPanel,
+} from './disclosure';
+
+export {
+  REFUND_POLICY_RULES,
   applyProviderRefund,
   customerVisibleRefundState,
   decideRefund,
+  isRefundPolicyRule,
+  listRefundQueue,
   providerRefundEvent,
+  refundApprovalPayload,
   recommendRefund,
   refundIdempotencyKey,
   refundTransition,
   requestRefund,
   type OwnerDecisionParams,
   type RefundEvent,
+  type RefundPolicyRule,
+  type RefundQueueItem,
   type RefundRecommendation,
   type RefundTransition,
   type RequestRefundParams,

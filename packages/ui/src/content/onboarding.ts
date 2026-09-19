@@ -11,7 +11,7 @@
  * detail changes, this file and that document must change together.
  */
 
-export interface OnboardingStep {
+export interface OnboardingGuideStep {
   readonly id: string;
   readonly stepNumber: 1 | 2 | 3 | 4;
   readonly title: string;
@@ -26,7 +26,7 @@ export interface OnboardingStep {
 export const ONBOARDING_INTRO =
   'This is not a one-click connection. You need an existing enquiry automation that already creates a HubSpot contact and sends an acknowledgement email through Resend — we verify that automation, we do not build it for you. Four things have to be true before we can check a single enquiry. Budget a real afternoon for this if you built the automation yourself; longer if you need someone else\'s help to change it.';
 
-export const ONBOARDING_STEPS: readonly OnboardingStep[] = [
+export const ONBOARDING_GUIDE_STEPS: readonly OnboardingGuideStep[] = [
   {
     id: 'connect-hubspot',
     stepNumber: 1,

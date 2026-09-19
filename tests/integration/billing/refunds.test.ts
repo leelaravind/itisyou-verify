@@ -9,12 +9,51 @@ import { describe, expect, it } from 'vitest';
 import {
   customerVisibleRefundState,
   decideRefund,
+  listRefundQueue,
   recommendRefund,
+  refundApprovalPayload,
   refundIdempotencyKey,
   refundTransition,
   requestRefund,
+  type RefundPolicyRule,
 } from '@app/billing/refunds';
+import { grantOwnerApproval, type OwnerApproval } from '@app/owner/approvals';
+import type { RefundRecord } from '@app/billing/port';
 import { createHarness, type BillingHarness } from './harness';
+
+/**
+ * A genuine owner approval, granted over the same canonical payload the refund path will
+ * rebuild and hash. Uses A07's real `grantOwnerApproval` — a hand-made object with a
+ * plausible-looking hash would prove nothing.
+ */
+async function approvalFor(
+  harness: BillingHarness,
+  refund: RefundRecord,
+  options: {
+    readonly rule?: RefundPolicyRule;
+    readonly amountMinorOverride?: number;
+    readonly id?: string;
+  } = {},
+): Promise<OwnerApproval> {
+  const rule = options.rule ?? 'unused_period_within_14_days';
+  const payload = refundApprovalPayload(
+    options.amountMinorOverride === undefined
+      ? refund
+      : { ...refund, amountMinor: options.amountMinorOverride },
+    rule,
+  );
+  const maximum =
+    payload.action_type === 'refund_issue' ? payload.payload.amount_minor : refund.amountMinor;
+  return grantOwnerApproval(payload, {
+    id: options.id ?? 'apr_0001',
+    owner_id: 'usr_owner',
+    maximum_amount_minor: maximum,
+    currency: 'GBP',
+    summary: 'Refund approved in test',
+    created_at: harness.at(),
+    expires_at: new Date(Date.parse(harness.at()) + 3_600_000).toISOString(),
+  });
+}
 
 const WS = 'ws_customer_1';
 const OTHER_WS = 'ws_someone_else';
@@ -158,7 +197,8 @@ describe('the owner decides', () => {
       workspaceId: WS,
       refundId: refund.id,
       decision: 'approve',
-      approvalId: 'apr_0001',
+      approval: await approvalFor(harness, refund),
+      policyRule: 'unused_period_within_14_days',
       chargeId: 'ch_1',
       providerReason: 'requested_by_customer',
     });
@@ -178,7 +218,8 @@ describe('the owner decides', () => {
       workspaceId: WS,
       refundId: refund.id,
       decision: 'approve',
-      approvalId: 'apr_0001',
+      approval: await approvalFor(harness, refund),
+      policyRule: 'unused_period_within_14_days',
       chargeId: 'ch_1',
     });
     await expect(
@@ -186,7 +227,8 @@ describe('the owner decides', () => {
         workspaceId: WS,
         refundId: refund.id,
         decision: 'approve',
-        approvalId: 'apr_0002',
+        approval: await approvalFor(harness, refund, { id: 'apr_0002' }),
+        policyRule: 'unused_period_within_14_days',
         chargeId: 'ch_1',
       }),
     ).rejects.toThrow(/cannot be approved/);
@@ -203,7 +245,8 @@ describe('the owner decides', () => {
         workspaceId: WS,
         refundId: refund.id,
         decision: 'approve',
-        approvalId: 'apr_0001',
+        approval: await approvalFor(harness, refund),
+        policyRule: 'unused_period_within_14_days',
         chargeId: 'ch_1',
       }),
     ).rejects.toThrow(/socket hang up/);
@@ -213,7 +256,8 @@ describe('the owner decides', () => {
       workspaceId: WS,
       refundId: refund.id,
       decision: 'approve',
-      approvalId: 'apr_0001',
+      approval: await approvalFor(harness, refund),
+      policyRule: 'unused_period_within_14_days',
       chargeId: 'ch_1',
     });
     expect(retried.state).toBe('succeeded');
@@ -230,7 +274,7 @@ describe('the owner decides', () => {
       workspaceId: WS,
       refundId: refund.id,
       decision: 'reject',
-      approvalId: 'apr_0003',
+      approval: await approvalFor(harness, refund, { id: 'apr_0003' }),
     });
     expect(result.state).toBe('rejected');
     expect(harness.gateway.calls).toHaveLength(0);
@@ -244,7 +288,8 @@ describe('the owner decides', () => {
         workspaceId: WS,
         refundId: refund.id,
         decision: 'approve',
-        approvalId: 'apr_0001',
+        approval: await approvalFor(harness, refund),
+        policyRule: 'unused_period_within_14_days',
       }),
     ).rejects.toThrow(/exactly one/);
   });
@@ -257,7 +302,7 @@ describe('the owner decides', () => {
       workspaceId: WS,
       refundId: refund.id,
       decision: 'reject',
-      approvalId: 'apr_0003',
+      approval: await approvalFor(harness, refund, { id: 'apr_0003' }),
     });
     expect(await harness.data.listRefundsAwaitingOwner(10)).toHaveLength(0);
   });
@@ -312,5 +357,170 @@ describe('what the customer is told', () => {
       recommendRefund({ runsConsumedInPeriod: 10, daysSincePayment: 5, serviceOutageMinutes: 0 })
         .recommendation,
     ).toBe('no_recommendation');
+  });
+});
+
+describe('the approval is bound to the exact payload', () => {
+  async function queuedRefund(harness: BillingHarness, amountMinor = 2900) {
+    await seedOrder(harness);
+    const result = await requestRefund(harness, {
+      workspaceId: WS,
+      orderId: 'ord_0001',
+      amountMinor,
+      currency: 'GBP',
+      reason: 'Did not use the service',
+    });
+    return result.refund;
+  }
+
+  it('BILL-211 a refund appears in the owner queue with what an approval must cover', async () => {
+    const harness = createHarness();
+    const refund = await queuedRefund(harness);
+    const queue = await listRefundQueue(harness);
+    expect(queue).toHaveLength(1);
+    expect(queue[0]).toMatchObject({
+      maximumAmountMinor: refund.amountMinor,
+      currency: 'GBP',
+    });
+    expect(queue[0]?.summary).toContain('£29.00');
+    expect(queue[0]?.refund.state).toBe('queued_for_owner');
+  });
+
+  it('BILL-212 an approval granted for this exact refund authorises it', async () => {
+    const harness = createHarness();
+    const refund = await queuedRefund(harness);
+    const result = await decideRefund(harness, {
+      workspaceId: WS,
+      refundId: refund.id,
+      decision: 'approve',
+      approval: await approvalFor(harness, refund),
+      policyRule: 'unused_period_within_14_days',
+      chargeId: 'ch_1',
+    });
+    expect(result.state).toBe('succeeded');
+    expect(result.approvalId).toBe('apr_0001');
+  });
+
+  it('BILL-213 an approval for an amount one penny different authorises nothing', async () => {
+    // THE case. The owner read and approved £28.99; the refund on file is £29.00. The
+    // payload is rebuilt from our stored row, so the hashes differ and the approval is
+    // refused — there is no argument a caller could pass to paper over the difference.
+    const harness = createHarness();
+    const refund = await queuedRefund(harness, 2900);
+    const approval = await approvalFor(harness, refund, { amountMinorOverride: 2899 });
+
+    await expect(
+      decideRefund(harness, {
+        workspaceId: WS,
+        refundId: refund.id,
+        decision: 'approve',
+        approval,
+        policyRule: 'unused_period_within_14_days',
+        chargeId: 'ch_1',
+      }),
+    ).rejects.toThrow(/does not authorise this refund/);
+
+    expect((await harness.data.findRefund(WS, refund.id))?.state).toBe('queued_for_owner');
+    expect(harness.gateway.calls).toHaveLength(0);
+  });
+
+  it('BILL-214 an approval citing a different policy rule authorises nothing', async () => {
+    const harness = createHarness();
+    const refund = await queuedRefund(harness);
+    const approval = await approvalFor(harness, refund, { rule: 'goodwill_owner_discretion' });
+    await expect(
+      decideRefund(harness, {
+        workspaceId: WS,
+        refundId: refund.id,
+        decision: 'approve',
+        approval,
+        policyRule: 'duplicate_charge',
+        chargeId: 'ch_1',
+      }),
+    ).rejects.toThrow(/does not authorise this refund/);
+    expect(harness.gateway.calls).toHaveLength(0);
+  });
+
+  it('BILL-215 an approval granted for another workspace’s refund authorises nothing', async () => {
+    const harness = createHarness();
+    const refund = await queuedRefund(harness);
+    const foreign = await approvalFor(
+      harness,
+      { ...refund, workspaceId: 'ws_someone_else' },
+      {},
+    );
+    await expect(
+      decideRefund(harness, {
+        workspaceId: WS,
+        refundId: refund.id,
+        decision: 'approve',
+        approval: foreign,
+        policyRule: 'unused_period_within_14_days',
+        chargeId: 'ch_1',
+      }),
+    ).rejects.toThrow(/does not authorise this refund/);
+  });
+
+  it('BILL-216 an expired approval authorises nothing', async () => {
+    const harness = createHarness();
+    const refund = await queuedRefund(harness);
+    const approval = await approvalFor(harness, refund);
+    harness.tick(2 * 3_600);
+    await expect(
+      decideRefund(harness, {
+        workspaceId: WS,
+        refundId: refund.id,
+        decision: 'approve',
+        approval,
+        policyRule: 'unused_period_within_14_days',
+        chargeId: 'ch_1',
+      }),
+    ).rejects.toThrow(/does not authorise this refund/);
+    expect(harness.gateway.calls).toHaveLength(0);
+  });
+
+  it('BILL-217 an approval that is no longer granted authorises nothing', async () => {
+    const harness = createHarness();
+    const refund = await queuedRefund(harness);
+    const granted = await approvalFor(harness, refund);
+    for (const status of ['consumed', 'expired', 'revoked'] as const) {
+      await expect(
+        decideRefund(harness, {
+          workspaceId: WS,
+          refundId: refund.id,
+          decision: 'approve',
+          approval: { ...granted, status },
+          policyRule: 'unused_period_within_14_days',
+          chargeId: 'ch_1',
+        }),
+      ).rejects.toThrow(/does not authorise this refund/);
+    }
+    expect(harness.gateway.calls).toHaveLength(0);
+  });
+
+  it('BILL-218 approving requires a named published policy rule', async () => {
+    const harness = createHarness();
+    const refund = await queuedRefund(harness);
+    await expect(
+      decideRefund(harness, {
+        workspaceId: WS,
+        refundId: refund.id,
+        decision: 'approve',
+        approval: await approvalFor(harness, refund),
+        chargeId: 'ch_1',
+      }),
+    ).rejects.toThrow(/published refund rule/);
+  });
+
+  it('BILL-219 declining needs no approval and still sends nothing to Stripe', async () => {
+    const harness = createHarness();
+    const refund = await queuedRefund(harness);
+    const result = await decideRefund(harness, {
+      workspaceId: WS,
+      refundId: refund.id,
+      decision: 'reject',
+    });
+    expect(result.state).toBe('rejected');
+    expect(harness.gateway.calls).toHaveLength(0);
   });
 });

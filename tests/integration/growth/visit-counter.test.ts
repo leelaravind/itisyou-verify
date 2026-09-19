@@ -43,7 +43,10 @@ function contextFor(
   };
 }
 
-function counterOver(port: ReturnType<typeof createMemoryGrowthPort>, salt: string | undefined = SALT) {
+// NOTE: `salt` is deliberately NOT a default parameter. `f(undefined)` restores a
+// default, which silently turned the "no salt configured" case back into the salted one
+// and made ADS-124 pass for the wrong reason until it was written to assert the row count.
+function counterOver(port: ReturnType<typeof createMemoryGrowthPort>, salt: string | undefined) {
   return createVisitCounter({
     port: () => port,
     salt: () => salt,
@@ -58,7 +61,7 @@ describe('visit counter middleware', () => {
   it('ADS-114 one request to the landing page writes exactly one visit row', async () => {
     const port = createMemoryGrowthPort();
     const c = contextFor('https://verify.itisyou.app/', VISITOR);
-    await counterOver(port)(c, async () => undefined);
+    await counterOver(port, SALT)(c, async () => undefined);
     await Promise.all(c.waited);
 
     expect(port.rows.size).toBe(1);
@@ -70,7 +73,7 @@ describe('visit counter middleware', () => {
 
   it('ADS-115 a second request from the same visitor the same day does not create a second row', async () => {
     const port = createMemoryGrowthPort();
-    const counter = counterOver(port);
+    const counter = counterOver(port, SALT);
 
     const first = contextFor('https://verify.itisyou.app/', VISITOR);
     await counter(first, async () => undefined);
@@ -90,7 +93,7 @@ describe('visit counter middleware', () => {
       ...VISITOR,
       'user-agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
     });
-    await counterOver(port)(c, async () => undefined);
+    await counterOver(port, SALT)(c, async () => undefined);
     await Promise.all(c.waited);
 
     expect([...port.rows.values()][0]?.classification).toBe('bot_suspected');
@@ -101,7 +104,7 @@ describe('visit counter middleware', () => {
 
   it('ADS-117 our internal-test marker excludes the request from the external count', async () => {
     const port = createMemoryGrowthPort();
-    const counter = counterOver(port);
+    const counter = counterOver(port, SALT);
 
     const smoke = contextFor('https://verify.itisyou.app/', {
       ...VISITOR,
@@ -163,7 +166,7 @@ describe('visit counter middleware', () => {
 
   it('ADS-121 an uptime probe hitting /health a thousand times records nothing', async () => {
     const port = createMemoryGrowthPort();
-    const counter = counterOver(port);
+    const counter = counterOver(port, SALT);
     for (let i = 0; i < 25; i += 1) {
       const c = contextFor('https://verify.itisyou.app/health', VISITOR);
       await counter(c, async () => undefined);
@@ -175,7 +178,7 @@ describe('visit counter middleware', () => {
   it('ADS-122 a non-GET request is never counted', async () => {
     const port = createMemoryGrowthPort();
     const c = contextFor('https://verify.itisyou.app/', VISITOR, 'POST');
-    await counterOver(port)(c, async () => undefined);
+    await counterOver(port, SALT)(c, async () => undefined);
     await Promise.all(c.waited);
     expect(port.rows.size).toBe(0);
   });
@@ -252,7 +255,7 @@ describe('visit counter middleware', () => {
   it('ADS-127 no raw address reaches the stored row or the port', async () => {
     const port = createMemoryGrowthPort();
     const c = contextFor('https://verify.itisyou.app/?utm_campaign=organic_launch_2026_09', VISITOR);
-    await counterOver(port)(c, async () => undefined);
+    await counterOver(port, SALT)(c, async () => undefined);
     await Promise.all(c.waited);
 
     const serialised = JSON.stringify([...port.rows.values()]);

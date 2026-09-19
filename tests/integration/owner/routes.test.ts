@@ -561,11 +561,32 @@ describe('owner routes — honest rendering', () => {
 
   it('OWNER-127 an operations action that needs a runner reports the dependency rather than a success', async () => {
     const h = harness();
-    const restore = await h.post('/owner/operations/restore', { deployment_id: 'dep_0001', confirm: 'restore' });
+
+    // A restore now checks what it can check first: no approval means the refusal names the
+    // missing approval, not a vague dependency.
+    const noApproval = await h.post('/owner/operations/restore', { deployment_id: 'dep_0001', confirm: 'restore' });
+    expect(noApproval.status).toBe(422);
+    expect(await noApproval.text()).toMatch(/needs an approval bound to the exact deployment/i);
+
+    // With a standing approval, everything this route can verify has passed, and what is
+    // left is named precisely rather than as "not wired".
+    await h.post('/owner/approvals', {
+      action_type: 'cleanup_execute',
+      summary: 'Restore the previous deployment after the bad release',
+      maximum_amount: '',
+      payload_json: JSON.stringify({ categories: [], inventory_hash: 'dep_0001', resource_count: 0, environment: 'development' }),
+    });
+    const approvalId = (await h.port.approvals())[0]?.id ?? '';
+    const restore = await h.post('/owner/operations/restore', {
+      deployment_id: 'dep_0001',
+      approval_id: approvalId,
+      confirm: 'restore',
+    });
     expect(restore.status).toBe(422);
     const restoreBody = await restore.text();
     expect(restoreBody).toContain('data-dependency="true"');
     expect(restoreBody).toMatch(/Nothing has been restored/i);
+    expect(restoreBody).toMatch(/does not carry one/i);
 
     // Pairing with no connector bound mints no code and says so.
     const pair = await h.post('/owner/operations/runner/pair', { label: 'my laptop' });

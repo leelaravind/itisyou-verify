@@ -53,40 +53,107 @@ export interface NotificationHealth {
   readonly unavailableReason: string | null;
 }
 
-/**
- * The read I need from A09 — deliberately one method.
- *
- * `notification_deliveries` already carries everything: `state`, `created_at`,
- * `attempt_count`, `provider_status`, `template`, `channel`, `workspace_id`. What does not
- * exist is a listing scoped to *stuck pending*: A02's `notifications` repository lists by
- * template and recency, which is the wrong axis for this question.
- *
- * **Asked of A09, through the lead:** a repository function shaped like
- *
- * ```ts
- * notifications.listStuckPending(db, { olderThan: string; limit: number }): Promise<NotificationRow[]>
- * ```
- *
- * over `WHERE state = 'pending' AND created_at <= ?`, ordered oldest first. Nothing about it
- * is workspace-scoped, because this is a platform-owner view, and it returns `workspace_id`
- * so the page can say whose message it is.
- */
 export interface NotificationHealthPort {
   health(input: { readonly now: Date; readonly stuckAfterSeconds: number }): Promise<NotificationHealth>;
 }
 
-/** The honest default until that read exists. It claims nothing. */
+/**
+ * The honest default for a deployment with no support data source bound. It claims nothing.
+ *
+ * The distinction it insists on: an empty list here means **"not checked"**, not "nothing
+ * wrong". A screen that renders zero stuck messages because it never looked is worse than
+ * one that admits it never looked, because the first kind gets believed.
+ */
 export class NotificationHealthUnavailable implements NotificationHealthPort {
   async health(): Promise<NotificationHealth> {
     return {
       stuck: [],
       inFlight: 0,
       unavailableReason:
-        'We cannot tell you whether any notification is stuck. The read this needs does not exist yet, so an empty ' +
-        'list here means "not checked", not "nothing wrong". Messages are sent at most once by design, which means a ' +
-        'send interrupted halfway is never retried automatically — until this is wired, the only way to find one is to ' +
-        'ask.',
+        'We cannot tell you whether any notification is stuck — no support data source is bound to this deployment, ' +
+        'so nothing has been checked. Messages are sent at most once by design, which means a send interrupted halfway ' +
+        'is never retried automatically. An empty list here is not reassurance.',
     };
+  }
+}
+
+/**
+ * The live read, over A09's `listStalePendingNotifications`.
+ *
+ * A09 built that read for this screen and says so in its own docblock. Two details are
+ * theirs and are honoured here rather than reinterpreted:
+ *
+ *  - the recipient is a **hash**, never an address, so nothing on this page can identify a
+ *    person by their email even to the owner;
+ *  - `provider_status` is never a delivery claim. A row carrying one still counts as stuck
+ *    if it never settled, because the sending service acknowledging a request is not the
+ *    same as a message arriving.
+ */
+export interface StalePendingSource {
+  listStalePendingNotifications(query: {
+    readonly createdBefore: string;
+    readonly limit: number;
+  }): Promise<
+    readonly {
+      readonly id: string;
+      readonly workspaceId: string | null;
+      readonly channel: string;
+      readonly template: string;
+      readonly attemptCount: number;
+      readonly providerStatus: string | null;
+      readonly createdAt: string;
+    }[]
+  >;
+}
+
+export class SupportNotificationHealth implements NotificationHealthPort {
+  readonly #source: StalePendingSource;
+  readonly #limit: number;
+
+  constructor(source: StalePendingSource, limit = 50) {
+    this.#source = source;
+    this.#limit = limit;
+  }
+
+  async health(input: {
+    readonly now: Date;
+    readonly stuckAfterSeconds: number;
+  }): Promise<NotificationHealth> {
+    const createdBefore = new Date(input.now.getTime() - input.stuckAfterSeconds * 1000).toISOString();
+    let rows;
+    try {
+      rows = await this.#source.listStalePendingNotifications({
+        createdBefore,
+        limit: this.#limit,
+      });
+    } catch {
+      return {
+        stuck: [],
+        inFlight: 0,
+        unavailableReason:
+          'The check for stuck notifications could not be run just now, so this list is not an answer. Try again, ' +
+          'and treat it as unknown until it loads.',
+      };
+    }
+
+    const stuck = rows
+      .map((row) => ({
+        id: row.id,
+        template: row.template,
+        channel: row.channel,
+        workspaceId: row.workspaceId,
+        createdAt: row.createdAt,
+        ageSeconds: Math.max(0, Math.floor((input.now.getTime() - Date.parse(row.createdAt)) / 1000)),
+        attemptCount: row.attemptCount,
+        providerStatus: row.providerStatus,
+      }))
+      .filter((row) => Number.isFinite(row.ageSeconds))
+      .sort((a, b) => b.ageSeconds - a.ageSeconds);
+
+    // `inFlight` is deliberately not reported here. This read returns only rows older than
+    // the threshold, so counting anything else would be a guess, and a guess rendered next
+    // to a real figure reads as a real figure.
+    return { stuck, inFlight: 0, unavailableReason: null };
   }
 }
 

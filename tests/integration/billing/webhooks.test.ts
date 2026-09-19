@@ -9,6 +9,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { signStripe } from '@verify/security';
 import { createStripeWebhookRoute } from '@app/routes/webhooks/stripe';
+import { reconcileSubscriptions } from '@app/billing/reconcile';
 import type { BillingDataPort } from '@app/billing/port';
 import {
   OPAQUE_ID,
@@ -758,5 +759,135 @@ describe('failure of our own handler', () => {
     const retry = await deliver(harness, event, { data: flaky });
     expect(retry.status).toBe(200);
     expect((await harness.data.findSubscriptionForWorkspace(WS, 'test'))?.status).toBe('active');
+  });
+
+  it('BILL-241 a crash after the effect re-runs the handler on retry, and idempotency keeps it applied once', async () => {
+    // The window worth understanding, and it does not behave the way you would first
+    // guess. The effect committed, then completing the receipt threw. At that point the
+    // route cannot tell "the handler failed" from "the handler worked and bookkeeping
+    // failed", so it does the safe-for-lost-events thing and releases the claim.
+    //
+    // The consequence is that Stripe's retry **re-executes the handler** — it is not
+    // deduplicated. What makes that harmless is not the receipt at all: it is that every
+    // handler is idempotent by construction. This case exists to prove that claim rather
+    // than assert it, which is why it checks the counters and not the `duplicate` flag.
+    const harness = createHarness();
+    await seedWorkspace(harness);
+
+    let failCompletion = true;
+    const flaky: BillingDataPort = {
+      ...harness.data,
+      async completeWebhookProcessing(receiptId, status, workspaceId) {
+        if (failCompletion) {
+          failCompletion = false;
+          throw new Error('D1 unavailable while completing the receipt');
+        }
+        return harness.data.completeWebhookProcessing(receiptId, status, workspaceId);
+      },
+    };
+
+    const event = stripeEvent(
+      'customer.subscription.created',
+      subscriptionObject({ workspaceId: WS }),
+      { id: 'evt_crash_after_effect', created: 1_798_000_000 },
+    );
+
+    const first = await deliver(harness, event, { data: flaky });
+    expect(first.status).toBe(500);
+    // The effect did happen.
+    expect((await harness.data.findSubscriptionForWorkspace(WS, 'test'))?.status).toBe('active');
+    const allowancesAfterFirst = harness.data.debug.allowances().length;
+
+    const retry = await deliver(harness, event, { data: flaky });
+    expect(retry.status).toBe(200);
+    // The claim was released, so this really did run the handler a second time.
+    expect(await retry.json()).toEqual({ received: true, duplicate: false });
+    // And it changed nothing: one subscription, one allowance, no second grant.
+    expect(harness.data.debug.allowances()).toHaveLength(allowancesAfterFirst);
+    expect(harness.data.debug.subscriptions()).toHaveLength(1);
+    expect(harness.data.debug.allowances()[0]).toMatchObject({
+      runLimit: 500,
+      consumed: 0,
+      reserved: 0,
+    });
+  });
+
+  it('BILL-242 when the claim cannot be released the event is stranded, logged, and found by reconciliation', async () => {
+    // THE named crash window, stated rather than hidden. The handler failed AND the
+    // compensating release failed, so the claim stands over an effect that never
+    // happened. Stripe's retry is deduplicated away and that event's effect is lost.
+    //
+    // Two things must be true about it: the operator is told, and something finds the
+    // gap. `reconcile.ts` is that something.
+    const harness = createHarness();
+    await seedWorkspace(harness);
+    await harness.data.saveSubscriptionSnapshot({
+      id: 'sub_row_1',
+      workspaceId: WS,
+      providerSubscriptionId: 'sub_live_1',
+      environment: 'test',
+      status: 'active',
+      priceId: harness.config.priceId,
+      currentPeriodEnd: '2026-10-19T09:00:00.000Z',
+      cancelAtPeriodEnd: false,
+      reconciledAt: null,
+      providerEventCreated: 1_795_000_000,
+      updatedAt: harness.at(),
+    });
+
+    const logged: Record<string, string | number | boolean>[] = [];
+    const broken: BillingDataPort = {
+      ...harness.data,
+      async openAllowancePeriod() {
+        throw new Error('D1 write failed');
+      },
+      async abandonWebhookProcessing() {
+        throw new Error('D1 still unavailable');
+      },
+    };
+
+    const paid = stripeEvent(
+      'invoice.paid',
+      invoiceObject({ subscriptionId: 'sub_live_1', billingReason: 'subscription_cycle' }),
+      { id: 'evt_stranded', created: 1_798_000_000 },
+    );
+    const { body, headers } = await signedDelivery(paid, harness.at(), WEBHOOK_SECRET);
+    const app = createStripeWebhookRoute({
+      ...harness,
+      data: broken,
+      resolveEndpointSecret: async (id) => (id === OPAQUE_ID ? WEBHOOK_SECRET : null),
+      log: (entry) => logged.push(entry),
+    });
+
+    const first = await app.request(PATH, { method: 'POST', headers, body });
+    expect(first.status).toBe(500);
+    // The operator is told, precisely.
+    expect(logged.some((entry) => entry['event'] === 'stripe_webhook_claim_stranded')).toBe(true);
+    expect(logged.some((entry) => entry['claim_released'] === false)).toBe(true);
+
+    // Stripe's retry is now deduplicated away: the allowance never opens.
+    const retry = await deliver(harness, paid);
+    expect(retry.status).toBe(200);
+    expect(await retry.json()).toEqual({ received: true, duplicate: true });
+    expect(harness.data.debug.allowances()).toHaveLength(0);
+
+    // And reconciliation finds the gap it left.
+    harness.gateway.subscriptions.set('sub_live_1', {
+      id: 'sub_live_1',
+      status: 'active',
+      customer: 'cus_stub_1',
+      cancel_at_period_end: false,
+      livemode: false,
+      items: {
+        data: [
+          {
+            current_period_end: Math.floor(Date.parse('2026-10-19T09:00:00.000Z') / 1000),
+            price: { id: harness.config.priceId },
+          },
+        ],
+      },
+    });
+    const report = await reconcileSubscriptions(harness);
+    expect(report.discrepancies.map((entry) => entry.kind)).toContain('allowance_period_missing');
   });
 });

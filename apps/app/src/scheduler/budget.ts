@@ -11,7 +11,8 @@
  * cannot multiply: a tick can never cause more calls than `maxExternalCalls`, however many
  * runs it claims.
  */
-import { LIMITS, MAX_EXTERNAL_CALLS_PER_RUN } from '@verify/domain';
+import { LIMITS } from '@verify/contracts';
+import { MAX_EXTERNAL_CALLS_PER_RUN } from '@verify/domain';
 import type { ElapsedFn } from './ports';
 
 export const TICK_DEFAULTS = {

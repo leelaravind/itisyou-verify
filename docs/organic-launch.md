@@ -26,7 +26,15 @@ the lead** — do not reword the post to get around a rule.
    desktop, and that it needs no account, no email and no JavaScript.
 2. On that page, confirm the health card reading **33%** shows a bar filled to roughly one
    third — not full, not green-to-the-end. Every post below tells the story of that bar
-   being wrong. People will check.
+   being wrong, so people will check.
+
+   Verified on staging 2026-09-19: the page serves `<div class="meter__fill meter__fill--30">`
+   with `aria-label="33% of 3 decided runs were verified"`, contains **zero** inline
+   `style` attributes, and the response header carries `style-src-attr 'none'`. The bar is
+   driven by a CSS class, so the policy stayed strict and the bug cannot recur the same
+   way. Note the fill bucket is `--30` for a score of 33 — it rounds **down**, which is the
+   correct direction for this product, but confirm it still looks like a third and not like
+   a pass.
 3. Confirm `ANALYTICS_SALT` is set in the deployed environment. Without it no visit is
    counted at all and the launch report will read zero.
 4. Open one of the UTM'd links from this document in a private window. Confirm it lands on
@@ -250,6 +258,11 @@ https://verify.itisyou.app/demo?utm_source=hn&utm_medium=organic&utm_campaign=or
 > correct, and the CSP was correct in isolation. It took deploying it and looking at a
 > screenshot.
 >
+> The fix I'd defend: the inline style came out entirely and the width became a CSS class,
+> so the policy stayed at `style-src-attr 'none'` rather than being loosened to let the
+> page work. Weakening a security header to fix a rendering bug is how you end up with a
+> policy that permits everything and protects nothing.
+>
 > No customers yet, nothing is launched, and I am here for the rest of the day if anyone
 > wants to tell me it is a bad idea.
 
@@ -364,6 +377,12 @@ future paid campaign on Reddit.
 > page written to demonstrate exactly that. Nothing in review would have found it — the
 > template was right, the test asserted the template was right, and the CSP was right in
 > isolation. It took looking at a screenshot of the deployed page.
+>
+> The fix that I think is the right one: I deleted the inline style rather than loosening
+> the policy. The width is a CSS class now and the header still says
+> `style-src-attr 'none'`. The tempting fix was to allow inline style attributes, which
+> would have made the bar work and quietly widened the XSS surface of every page on the
+> site to fix one progress bar.
 >
 > There's a demo with four seeded runs if you want to see the four outcomes, no signup:
 > [link]
@@ -511,7 +530,9 @@ what happened → what I learned, with the ask at the end:
 > correct; a Content-Security-Policy added an hour earlier blocked inline `style`
 > attributes, so the fill fell back to 100%. On the page whose entire argument is that a
 > partial result must never look like a pass. Template right, test right, policy right in
-> isolation — only a screenshot of the deployed page found it.
+> isolation — only a screenshot of the deployed page found it. I fixed it by removing the
+> inline style rather than relaxing the policy, which is the choice I'd defend: loosening
+> a security header to fix a rendering bug is a trade you make once and regret for years.
 >
 > No customers, nothing launched, no revenue to report. Demo with four seeded runs, no
 > signup: [link]

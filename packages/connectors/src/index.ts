@@ -112,21 +112,48 @@ export {
   type ResendFetchOptions,
 } from './resend.js';
 
-import { SUPPORTED_PROVIDERS, type Connector, type ProviderId } from './types.js';
-import { hubspotConnector } from './hubspot.js';
-import { resendConnector } from './resend.js';
+export {
+  getConnector,
+  isSupportedProvider,
+  type ConnectorRuntimeOptions,
+} from './registry.js';
 
-const REGISTRY: Readonly<Record<ProviderId, Connector>> = Object.freeze({
-  hubspot: hubspotConnector,
-  resend: resendConnector,
-});
+export {
+  CREDENTIAL_PURPOSE,
+  accountLabel,
+  checkTokenShape,
+  checkWebhookSecretShape,
+  credentialAadParts,
+  establishConnection,
+  markWebhookVerified,
+  openConnectionCredentials,
+  revalidateConnection,
+  type ConnectionEstablishment,
+  type CredentialPurpose,
+  type EstablishConnectionInput,
+  type RevalidateInput,
+  type RevalidationResult,
+  type SealedCredential,
+  type StoredCredentials,
+  type TokenShapeProblem,
+  type WebhookReadinessResult,
+  type WrappingKey,
+} from './connect.js';
 
-/** Narrow an untrusted string to a supported provider. */
-export function isSupportedProvider(value: unknown): value is ProviderId {
-  return typeof value === 'string' && (SUPPORTED_PROVIDERS as readonly string[]).includes(value);
-}
+export {
+  crmPropertiesFor,
+  runProof,
+  type ProofRunInput,
+  type ProofRunResult,
+  type ProofShortfall,
+  type ProofSource,
+  type ProofSourceReport,
+} from './proof.js';
 
-/** The typed connector for a provider. Total over `ProviderId`, so it cannot return undefined. */
-export function getConnector(provider: ProviderId): Connector {
-  return REGISTRY[provider];
-}
+export {
+  allSetupGuides,
+  setupGuide,
+  type ProviderSetupGuide,
+  type SetupField,
+  type SetupInstruction,
+} from './setup.js';
