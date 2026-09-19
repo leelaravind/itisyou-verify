@@ -78,6 +78,21 @@ export interface BillingNotificationTickDeps {
   readonly log?: DeliveryLog | undefined;
   /** Run every job regardless of the minute. Tests and the owner's manual trigger. */
   readonly force?: boolean;
+  /**
+   * A maintenance report the caller has already produced, consumed rather than recomputed.
+   *
+   * The scheduler supplies it, because it runs  — a strict superset
+   * that also reconciles allowance periods and pins the runtime clock to the tick instant.
+   * Both call , so without this the tick ran it twice. That is not
+   * merely wasteful on a path whose central guarantee is that a paid period's allowance is
+   * applied EXACTLY ONCE: two passes over the same subscriptions at two instants is the
+   * precise shape of the defect that would violate it, and in production both clocks agree,
+   * so it would not be seen until it mattered.
+   *
+   * Omitted — every other caller, and every existing test — this pass produces its own
+   * exactly as before. The field is additive.
+   */
+  readonly maintenance?: BillingMaintenanceReport | undefined;
 }
 
 /**
@@ -118,15 +133,17 @@ export async function runBillingNotificationTick(
     };
   }
 
-  let maintenance: BillingMaintenanceReport | null = null;
-  try {
-    maintenance = await runBillingMaintenance(runtime, {
-      now: deps.now,
-      ...(deps.force === undefined ? {} : { force: deps.force }),
-    });
-    failures.push(...maintenance.failures);
-  } catch (error) {
-    failures.push({ job: 'billing_maintenance', error: describe(error) });
+  let maintenance: BillingMaintenanceReport | null = deps.maintenance ?? null;
+  if (maintenance === null) {
+    try {
+      maintenance = await runBillingMaintenance(runtime, {
+        now: deps.now,
+        ...(deps.force === undefined ? {} : { force: deps.force }),
+      });
+      failures.push(...maintenance.failures);
+    } catch (error) {
+      failures.push({ job: 'billing_maintenance', error: describe(error) });
+    }
   }
 
   if (maintenance === null) {
