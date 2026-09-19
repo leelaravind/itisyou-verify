@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "project": "itisyou-verify",
-  "generated_at": "2026-09-19T09:11:46.684Z",
+  "generated_at": "2026-09-19T09:32:11.970Z",
   "note": "Structured record of what was decided, built and verified. Observable facts and short decision rationales only — never reasoning traces, private prompts, credentials or customer data. Unknown values stay null rather than being guessed.",
   "events": [
     {
@@ -305,6 +305,66 @@
       ],
       "limitations": "The concession stays until the computed geometry moves to predefined classes. Responsive widths were not confirmed through this tool and are covered by the browser suite instead.",
       "next_step": "Remove style-src-attr once A05 converts the geometry to classes."
+    },
+    {
+      "event_id": "EVT-0011",
+      "timestamp": "2026-09-19T09:45:00Z",
+      "milestone_id": "M7",
+      "task_id": "production-public-site",
+      "agent_role": "lead",
+      "model_id": "claude-opus-5[1m]",
+      "status": "deployed",
+      "goal": "Replace the holding page at verify.itisyou.app with the real public site.",
+      "inputs": [
+        "A05 routers and design system",
+        "A01 factual content"
+      ],
+      "changed_artifacts": [
+        "apps/app/src/index.ts",
+        "apps/app/public/development-story.md"
+      ],
+      "commit_sha": "249d062",
+      "decision_summary": "Deployed the marketing site, the worked-example demo, the legal pages and the development story to production. The customer application is reachable but runs on a synthetic data port, labelled as such on every page.",
+      "alternatives_considered": [
+        "Wait until the real data layer is wired before deploying anything"
+      ],
+      "decision_reason": "A holding page tells a visitor nothing. The public pages are complete and every claim on them maps to implemented behaviour, and the synthetic customer pages carry an unmissable banner plus a stripe. Shipping honest incompleteness is better than shipping nothing, and it makes the work inspectable.",
+      "test_evidence_refs": [
+        "All 11 production routes return 200",
+        "CSP and HSTS present on production responses",
+        "Bundle scanned for secrets before upload: clean"
+      ],
+      "limitations": "Nothing is for sale. No account can be created. Every page under /app returns synthetic data and says so. Live payments and provider-backed evidence both await owner credentials.",
+      "next_step": "Wire the real D1 repositories behind the three data ports."
+    },
+    {
+      "event_id": "EVT-0012",
+      "timestamp": "2026-09-19T09:50:00Z",
+      "milestone_id": "M7",
+      "task_id": "sql-detector-false-positive",
+      "agent_role": "lead",
+      "model_id": "claude-opus-5[1m]",
+      "status": "tested",
+      "goal": "Stop the tenant-scope source scan reporting customer-facing prose as unscoped SQL.",
+      "inputs": [
+        "tests/security/integration/source-scan.test.ts"
+      ],
+      "changed_artifacts": [
+        "tests/security/integration/source-scan.test.ts"
+      ],
+      "commit_sha": "249d062",
+      "decision_summary": "The SQL detector now requires a verb AND a clause, both uppercase, and a paired check fails the build on any lowercase SQL verb in the data layer.",
+      "alternatives_considered": [
+        "Add an allowlist entry for the offending file",
+        "Reword the customer-facing copy to avoid the word update"
+      ],
+      "decision_reason": "The payment-recovery notice says you can update your card and mentions runs and evidence, which a case-insensitive keyword match read as an unscoped query on customer tables. Allowlisting the file or bending the copy around a detector both leave the detector wrong. A security check that fires on English gets muted, and a muted check protects nothing. Tightening to uppercase opens a loophole for lowercase SQL, so the two changes are a pair and neither is safe alone.",
+      "test_evidence_refs": [
+        "Measured rather than assumed: across 285 string literals in the data layer the old rule detected 121 statements and the new rule detects exactly the same 121 — zero detection lost",
+        "SEC-205 added; 19 cases in the file pass"
+      ],
+      "limitations": "The scan is a structural heuristic over source text. It cannot see SQL assembled at runtime, and it is not a substitute for the behavioural tenant-isolation tests.",
+      "next_step": "None."
     }
   ]
 }
