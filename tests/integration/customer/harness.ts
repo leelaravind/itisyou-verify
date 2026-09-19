@@ -214,13 +214,20 @@ export async function getSignedInAgainst(
 
 const ctx = { waitUntil: () => {}, passThroughOnException: () => {} } as never;
 
-function envFor(h: TestDb): never {
+/**
+ * `extra` exists for the bindings a route only takes a different branch on when they are
+ * present — `CREDENTIAL_KEY_V1`, for instance, without which the connect flow correctly
+ * refuses to accept a credential it has nothing to seal with. Defaulting them on would
+ * hide that refusal from every other case here, so they are opted into per test.
+ */
+function envFor(h: TestDb, extra: Readonly<Record<string, unknown>> = {}): never {
   return {
     ASSETS: { fetch: async () => new Response('', { status: 404 }) },
     DB: h.db,
     ENVIRONMENT: 'test',
     PUBLIC_BASE_URL: BASE,
     STRIPE_MODE: 'test',
+    ...extra,
   } as never;
 }
 
@@ -260,13 +267,13 @@ export async function getSignedIn(session: SignedIn, path: string): Promise<Serv
 export async function csrfPairFor(
   session: SignedIn,
   path: string,
-  options: { readonly signedIn?: boolean } = {},
+  options: { readonly signedIn?: boolean; readonly env?: Readonly<Record<string, unknown>> } = {},
 ): Promise<{ readonly cookie: string; readonly token: string }> {
   const headers: Record<string, string> = {};
   if (options.signedIn !== false) headers['cookie'] = `__Host-verify_session=${SESSION_VALUE}`;
   const response = await worker.fetch(
     new Request(`${BASE}${path}`, { headers }),
-    envFor(session.h),
+    envFor(session.h, options.env ?? {}),
     ctx,
   );
   const html = await response.text();
@@ -298,13 +305,13 @@ export async function postSignedIn(
     readonly csrfTokenOverride?: string | null;
     readonly origin?: string | null;
     readonly signedIn?: boolean;
+    readonly env?: Readonly<Record<string, unknown>>;
   } = {},
 ): Promise<Served> {
-  const pair = await csrfPairFor(
-    session,
-    options.csrfSourcePath ?? path,
-    options.signedIn === undefined ? {} : { signedIn: options.signedIn },
-  );
+  const pair = await csrfPairFor(session, options.csrfSourcePath ?? path, {
+    ...(options.signedIn === undefined ? {} : { signedIn: options.signedIn }),
+    ...(options.env === undefined ? {} : { env: options.env }),
+  });
   const cookieToken =
     options.csrfCookieOverride === undefined ? pair.cookie : options.csrfCookieOverride;
   const bodyToken = options.csrfTokenOverride === undefined ? pair.token : options.csrfTokenOverride;
@@ -318,7 +325,7 @@ export async function postSignedIn(
   if (bodyToken !== null) body.set('csrf_token', bodyToken);
   const response = await worker.fetch(
     new Request(`${BASE}${path}`, { method: 'POST', headers, body: body.toString() }),
-    envFor(session.h),
+    envFor(session.h, options.env ?? {}),
     ctx,
   );
   return { status: response.status, html: await response.text() };
