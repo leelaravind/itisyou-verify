@@ -247,12 +247,47 @@ export interface SubscriptionRow {
   readonly reconciled_at: string | null;
   readonly provider_event_created: number;
   readonly updated_at: string;
+  readonly latest_payment_intent_id: string | null;
+  readonly latest_payment_period_end: string | null;
 }
 
 const SUBSCRIPTION_COLUMNS =
-  'id, workspace_id, provider_subscription_id, environment, status, price_id, current_period_end, cancel_at_period_end, reconciled_at, provider_event_created, updated_at';
+  'id, workspace_id, provider_subscription_id, environment, status, price_id, current_period_end, cancel_at_period_end, reconciled_at, provider_event_created, updated_at, latest_payment_intent_id, latest_payment_period_end';
 
 export const subscriptions = {
+  /**
+   * Record the payment a refund could be issued against.
+   *
+   * Scoped by workspace AND provider id together: the provider id arrives from a webhook,
+   * and pairing it with the workspace we resolved keeps a payment from one tenant being
+   * written onto another's row.
+   */
+  async recordPaymentTarget(
+    db: Db,
+    params: {
+      workspaceId: string;
+      providerSubscriptionId: string;
+      environment: string;
+      paymentIntentId: string;
+      periodEnd: string | null;
+    },
+  ): Promise<void> {
+    await db
+      .prepare(
+        `UPDATE subscriptions
+            SET latest_payment_intent_id = ?, latest_payment_period_end = ?
+          WHERE workspace_id = ? AND provider_subscription_id = ? AND environment = ?`,
+      )
+      .bind(
+        params.paymentIntentId,
+        orNull(params.periodEnd),
+        params.workspaceId,
+        params.providerSubscriptionId,
+        params.environment,
+      )
+      .run();
+  },
+
   async getForWorkspace(
     db: Db,
     workspaceId: string,

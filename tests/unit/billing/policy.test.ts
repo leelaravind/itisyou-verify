@@ -30,6 +30,8 @@ function subscription(overrides: Partial<SubscriptionRecord> = {}): Subscription
     currentPeriodEnd: '2026-09-19T09:00:00.000Z',
     cancelAtPeriodEnd: false,
     reconciledAt: null,
+    latestPaymentIntentId: null,
+    latestPaymentPeriodEnd: null,
     providerEventCreated: 1_800_000_000,
     updatedAt: '2026-09-19T09:00:00.000Z',
     ...overrides,

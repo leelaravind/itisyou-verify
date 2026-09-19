@@ -134,6 +134,8 @@ async function scene(
     currentPeriodEnd: PERIOD_END,
     cancelAtPeriodEnd: false,
     reconciledAt: null,
+    latestPaymentIntentId: null,
+    latestPaymentPeriodEnd: null,
     providerEventCreated: 1_700_000_000,
     updatedAt: clock.value,
   });
@@ -483,6 +485,8 @@ describe('a real cron tick reaches a real customer', () => {
       currentPeriodEnd: PERIOD_END,
       cancelAtPeriodEnd: false,
       reconciledAt: null,
+      latestPaymentIntentId: null,
+      latestPaymentPeriodEnd: null,
       providerEventCreated: 1_700_000_000,
       updatedAt: PERIOD_END,
     });

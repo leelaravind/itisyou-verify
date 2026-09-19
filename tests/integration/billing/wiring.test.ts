@@ -39,6 +39,8 @@ async function subscribe(
     currentPeriodEnd: PERIOD_END,
     cancelAtPeriodEnd: false,
     reconciledAt: null,
+    latestPaymentIntentId: null,
+    latestPaymentPeriodEnd: null,
     providerEventCreated: 1_795_000_000,
     updatedAt: harness.at(),
     ...overrides,

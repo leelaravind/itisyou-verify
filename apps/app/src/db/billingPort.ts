@@ -90,6 +90,8 @@ const toSubscription = (row: SubscriptionRow): SubscriptionRecord => ({
   priceId: row.price_id,
   currentPeriodEnd: row.current_period_end,
   cancelAtPeriodEnd: row.cancel_at_period_end === 1,
+  latestPaymentIntentId: row.latest_payment_intent_id,
+  latestPaymentPeriodEnd: row.latest_payment_period_end,
   reconciledAt: row.reconciled_at,
   providerEventCreated: row.provider_event_created,
   updatedAt: row.updated_at,
@@ -104,6 +106,8 @@ const fromSubscription = (record: SubscriptionRecord): SubscriptionRow => ({
   price_id: record.priceId,
   current_period_end: record.currentPeriodEnd,
   cancel_at_period_end: record.cancelAtPeriodEnd ? 1 : 0,
+  latest_payment_intent_id: record.latestPaymentIntentId,
+  latest_payment_period_end: record.latestPaymentPeriodEnd,
   reconciled_at: record.reconciledAt,
   provider_event_created: record.providerEventCreated,
   updated_at: record.updatedAt,
@@ -187,6 +191,16 @@ export class D1BillingDataPort implements BillingDataPort {
   }
 
   // -- orders ---------------------------------------------------------------
+
+  async recordPaymentTarget(params: {
+    workspaceId: string;
+    providerSubscriptionId: string;
+    environment: BillingEnvironment;
+    paymentIntentId: string;
+    periodEnd: string | null;
+  }): Promise<void> {
+    await subscriptions.recordPaymentTarget(this.db, params);
+  }
 
   async openOrderOnce(record: OrderRecord): Promise<{ created: boolean; order: OrderRecord }> {
     const result = await orders.openOnce(this.db, fromOrder(record));

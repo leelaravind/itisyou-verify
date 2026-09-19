@@ -155,7 +155,9 @@ describe('owner data reads', () => {
     expect(money[0]?.state).not.toBe('ok');
     expect(money[0]?.detail).toMatch(/EVENT_SIGNING_ROOT_KEY/);
     expect(
-      view.health.filter((h2) => h2.component !== 'money_path').every((h2) => h2.state === 'unknown'),
+      view.health
+        .filter((h2) => h2.component !== 'money_path')
+        .every((h2) => h2.state === 'unknown'),
     ).toBe(true);
     expect(view.assembledAt).toBe(NOW.toISOString());
   });
@@ -242,7 +244,11 @@ describe('owner data reads', () => {
     };
     const granted = await port.grantApproval(ctx, {
       actionType: 'refund_issue',
-      payloadJson: '{"marker":"payload-body-never-stored","amount_minor":2900}',
+      // Carries a published `policy_rule` because a refund approval now binds one and the
+      // grant path validates it. The marker is what this case is actually about: the
+      // payload body is hashed and never stored.
+      payloadJson:
+        '{"marker":"payload-body-never-stored","amount_minor":2900,"policy_rule":"goodwill_owner_discretion"}',
       maximumAmountMinor: 2900,
       summary: 'Refund the September charge for workspace alpha.',
     });
@@ -360,6 +366,24 @@ describe('owner auth port', () => {
     expect(known).toEqual(unknown);
     // Both minted a token; neither told the caller which was which.
     expect(countRows(h, 'login_tokens')).toBe(2);
+  });
+
+  it('AUTH-434 a deployment that CAN send but fails says so, rather than blaming configuration', async () => {
+    // A transport is configured and the send fails. The first version of this outcome had
+    // only `sent | no_transport`, so this rendered "no email delivery configured" on
+    // production, which has both secrets -- a false configuration statement added while
+    // removing five others.
+    const auth = new D1OwnerAuth({
+      db: h.db,
+      env: env({
+        // secret-scan:allow synthetic; never sent anywhere
+        RESEND_API_KEY: 're_0000000000000000000000',
+        RESEND_FROM_ADDRESS: 'verify@example.invalid',
+      }),
+    });
+    expect(await auth.requestSignInLink(OWNER_EMAIL)).toEqual({ delivery: 'send_failed' });
+    // The token is still minted, so a retry does not silently lose the attempt.
+    expect(countRows(h, 'login_tokens')).toBe(1);
   });
 
   it('AUTH-433 a deployment with no mail transport says nothing was sent, rather than claiming one was', async () => {

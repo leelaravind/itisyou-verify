@@ -42,6 +42,18 @@ export const LOGIN_ACKNOWLEDGEMENT =
  *
  * It still reveals nothing about the address.
  */
+/**
+ * The answer when this deployment CAN send and the attempt failed.
+ *
+ * Distinct from the sentence below, because "we are not set up to email you" and "we tried
+ * and it did not go" are different facts and only one of them is worth retrying. Reporting
+ * the first when the second happened is the same class of false statement this page was
+ * just fixed for.
+ */
+export const LOGIN_SEND_FAILED =
+  'No sign-in link was sent. We tried and the attempt failed, so nothing arrived. Please try ' +
+  'again in a moment. We do not say whether an account exists, to anyone, ever.';
+
 export const LOGIN_NO_TRANSPORT =
   'No sign-in link was sent. This deployment has no email delivery configured, so nothing ' +
   'would arrive and we will not pretend otherwise. We do not say whether an account ' +
@@ -55,7 +67,7 @@ export interface LoginPageOptions {
    * What the deployment actually did. Governs which of the two acknowledgements is shown,
    * and nothing else -- it carries no information about the address.
    */
-  readonly delivery?: 'sent' | 'no_transport';
+  readonly delivery?: 'sent' | 'no_transport' | 'send_failed';
   /** A field-level error for a genuinely malformed address. Never an existence signal. */
   readonly fieldError: string | null;
   /** The address the person typed, echoed so they do not retype it. Escaped by the template. */
@@ -84,10 +96,16 @@ export function AdminLoginPage(options: LoginPageOptions): Html {
         ? Callout({
             // "Check your email" over a deployment that sent nothing is the whole defect.
             // Both the heading and the tone follow what actually happened.
-            tone: options.delivery === 'no_transport' ? 'warn' : 'note',
-            title: options.delivery === 'no_transport' ? 'Nothing was sent' : 'Check your email',
+            tone: options.delivery === 'sent' ? 'note' : 'warn',
+            title: options.delivery === 'sent' ? 'Check your email' : 'Nothing was sent',
             body: html`<p>
-              ${options.delivery === 'no_transport' ? LOGIN_NO_TRANSPORT : LOGIN_ACKNOWLEDGEMENT}
+              ${
+                options.delivery === 'send_failed'
+                  ? LOGIN_SEND_FAILED
+                  : options.delivery === 'no_transport'
+                    ? LOGIN_NO_TRANSPORT
+                    : LOGIN_ACKNOWLEDGEMENT
+              }
             </p>`,
           })
         : null

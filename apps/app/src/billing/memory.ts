@@ -184,6 +184,22 @@ export function createMemoryBillingStore(): MemoryBillingStore {
       return newest;
     },
 
+    async recordPaymentTarget(params) {
+      for (const [key, row] of subscriptions) {
+        if (
+          row.workspaceId === params.workspaceId &&
+          row.providerSubscriptionId === params.providerSubscriptionId &&
+          row.environment === params.environment
+        ) {
+          subscriptions.set(key, {
+            ...row,
+            latestPaymentIntentId: params.paymentIntentId,
+            latestPaymentPeriodEnd: params.periodEnd,
+          });
+        }
+      }
+    },
+
     async findSubscriptionByProviderId(providerSubscriptionId, environment) {
       return subscriptions.get(subscriptionKey(providerSubscriptionId, environment)) ?? null;
     },
