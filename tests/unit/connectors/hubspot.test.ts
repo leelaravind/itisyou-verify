@@ -239,7 +239,7 @@ describe('HubSpot normalisation', () => {
     expect(result.ok && result.evidence.created_at).toBe('2026-03-01T12:02:00.000Z');
   });
 
-  it('CONN-050 rejects a payload with no usable id as INVALID_EVIDENCE', () => {
+  it('CONN-155 rejects a payload with no usable id as INVALID_EVIDENCE', () => {
     for (const bad of [null, [], 'a string', { properties: {} }, { id: '' }]) {
       const result = normaliseHubSpotContact(bad, ctx);
       expect(result.ok, JSON.stringify(bad)).toBe(false);
@@ -247,7 +247,7 @@ describe('HubSpot normalisation', () => {
     }
   });
 
-  it('CONN-051 rejects a payload whose properties member is not an object', () => {
+  it('CONN-156 rejects a payload whose properties member is not an object', () => {
     const result = normaliseHubSpotContact({ id: '1', properties: ['nope'] }, ctx);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.gap.code).toBe('INVALID_EVIDENCE');

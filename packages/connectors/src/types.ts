@@ -125,6 +125,15 @@ export interface ConnectionConfig {
    * value. Costs one extra call; used by connection-health checks (A07).
    */
   readonly reverify_account?: boolean | undefined;
+  /**
+   * When a correctly signed provider callback was last received and understood, for
+   * providers whose evidence arrives that way.
+   *
+   * `null` or absent means we have never seen one. A stored signing secret is a promise
+   * that a webhook *will* work; this field is the record that one actually did. Nothing
+   * but `markWebhookVerified` should ever produce a value for it.
+   */
+  readonly webhook_verified_at?: string | null | undefined;
 }
 
 // ---------------------------------------------------------------------------

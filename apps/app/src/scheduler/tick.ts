@@ -45,6 +45,12 @@ export interface RunPassReport {
   readonly deferred: number;
   readonly stale: number;
   readonly callsMade: number;
+  /**
+   * Runs whose workflow asked for coverage we do not implement. Any number above zero is a
+   * configuration that is promising a customer more than we can deliver; the operations
+   * view surfaces it rather than letting it pass unremarked.
+   */
+  readonly coverageWarnings: number;
   readonly outcomes: readonly ObservationOutcome[];
 }
 
@@ -78,6 +84,20 @@ export interface TickDeps {
   readonly logger?: SchedulerLogger;
 }
 
+/**
+ * The scheduler passes that actually exist.
+ *
+ * Bound to `COVERAGE_MODE_REQUIREMENTS` by the capability test: a coverage mode whose
+ * required pass is not named here cannot be marked supported. Adding a name to this list
+ * without writing the pass behind it fails that test, which is exactly the point — the list
+ * is a claim, and the test is what stops a claim running ahead of its implementation.
+ *
+ * There is deliberately no `enumeration` pass. Nothing in this product can list records it
+ * was never told about.
+ */
+export const IMPLEMENTED_SCHEDULER_PASSES = ['due_job', 'outbox', 'retention'] as const;
+export type SchedulerPass = (typeof IMPLEMENTED_SCHEDULER_PASSES)[number];
+
 /** The real connector registry. Closed over `ProviderId`, so no string can reach it. */
 export const PRODUCTION_CONNECTORS: ConnectorRegistry = {
   get: (provider: ProviderId) => getConnector(provider),
@@ -103,6 +123,7 @@ export async function runSchedulerTick(deps: TickDeps): Promise<TickReport> {
     deferred: 0,
     stale: 0,
     callsMade: 0,
+    coverageWarnings: 0,
     outcomes: [],
   };
   let dispatchReport: DispatchReport = {
@@ -169,6 +190,7 @@ export async function runSchedulerTick(deps: TickDeps): Promise<TickReport> {
     dispatched: dispatchReport.dispatched,
     removed: retentionReport.removed,
     calls: budget.callsUsed,
+    coverage_warnings: runPass.coverageWarnings,
   });
 
   return report;
@@ -202,6 +224,7 @@ async function runDuePass(deps: TickDeps, budget: TickBudget, logger: SchedulerL
   let deferred = 0;
   let stale = 0;
   let callsMade = 0;
+  let coverageWarnings = 0;
 
   const observeDeps = {
     db: deps.db,
@@ -234,13 +257,14 @@ async function runDuePass(deps: TickDeps, budget: TickBudget, logger: SchedulerL
 
     outcomes.push(outcome);
     callsMade += outcome.callsMade;
+    if (outcome.coverageWarning !== null) coverageWarnings += 1;
     if (outcome.note === 'deferred') deferred += 1;
     else if (outcome.note === 'stale') stale += 1;
     else observed += 1;
     if (outcome.terminal && outcome.applied) terminal += 1;
   }
 
-  return { claimed: claimed.length, observed, terminal, deferred, stale, callsMade, outcomes };
+  return { claimed: claimed.length, observed, terminal, deferred, stale, callsMade, coverageWarnings, outcomes };
 }
 
 function messageOf(error: unknown): string {

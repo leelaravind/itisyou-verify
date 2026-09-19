@@ -563,15 +563,29 @@ describe('Resend connection lifecycle', () => {
     expect(result.setup_steps[0]?.id).toBe('resend_create_webhook_endpoint');
   });
 
-  it('CONN-132 accepts a connection with a working key and a signing secret', async () => {
+  it('CONN-132 holds a connection in testing while the signing secret is stored but unproven', async () => {
     const fetchImpl = (async () => json({ object: 'list', has_more: false, data: [] })) as unknown as typeof fetch;
     const result = await makeConnector(fetchImpl).validateConnection({
       credentials,
       connection: connection({ account_id: null }),
       now: NOW,
     });
-    expect(result.ok).toBe(true);
+    // The key works and the secret is present, but no signed callback has ever arrived.
+    expect(result.ok).toBe(false);
+    expect(result.setup_steps[0]?.id).toBe('resend_await_signed_callback');
     expect(result.account_id).toBe(await resendAccountFingerprint(TOKEN));
+  });
+
+  it('CONN-193 accepts a connection only once a signed callback has actually been seen', async () => {
+    const fetchImpl = (async () => json({ object: 'list', has_more: false, data: [] })) as unknown as typeof fetch;
+    const result = await makeConnector(fetchImpl).validateConnection({
+      credentials,
+      connection: connection({ account_id: null, webhook_verified_at: '2026-03-01T12:02:00.000Z' }),
+      now: NOW,
+    });
+    expect(result.ok).toBe(true);
+    expect(result.setup_steps).toHaveLength(0);
+    expect(result.missing_capabilities).toHaveLength(0);
   });
 
   it('CONN-133 tells the customer to swap a send-only key for a full-access one', async () => {

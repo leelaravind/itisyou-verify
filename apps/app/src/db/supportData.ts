@@ -281,6 +281,48 @@ export const notifications = {
     return result.meta.changes === 1;
   },
 
+  /**
+   * Deliveries that claimed a row and never reported an outcome.
+   *
+   * A bounded keyset page over `id`, not an `OFFSET` scan. This is the read that makes
+   * at-most-once sending honest rather than merely quiet: a send interrupted halfway is
+   * never retried automatically, so somebody has to be able to see the ones that stopped.
+   */
+  async listStalePending(
+    db: Db,
+    query: {
+      createdBefore: string;
+      limit: number;
+      afterId?: string | null;
+      channel?: string;
+    },
+  ): Promise<NotificationRow[]> {
+    const limit = Math.min(Math.max(1, query.limit), 200);
+    const afterId = query.afterId ?? null;
+    const bindings: unknown[] = [query.createdBefore];
+
+    let keysetClause = '';
+    if (afterId !== null) {
+      keysetClause = ' AND id > ?';
+      bindings.push(afterId);
+    }
+    let channelClause = '';
+    if (query.channel !== undefined) {
+      channelClause = ' AND channel = ?';
+      bindings.push(query.channel);
+    }
+    bindings.push(limit);
+
+    const sql =
+      `SELECT ${NOTIFICATION_COLUMNS} FROM notification_deliveries
+        WHERE state = 'pending' AND created_at <= ?` +
+      keysetClause +
+      channelClause +
+      ' ORDER BY id LIMIT ?';
+    const result = await db.prepare(sql).bind(...bindings).all<NotificationRow>();
+    return result.results;
+  },
+
   /** Newest first. Answers "did we already tell them about this?". */
   async findHistory(
     db: Db,

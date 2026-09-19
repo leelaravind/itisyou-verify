@@ -11,6 +11,18 @@
     "binding": "ASSETS",
     "not_found_handling": "none"
   },
+  // Local dev needs its own DB binding. Without it `wrangler dev` has no D1 at all,
+  // and every /app request throws once the customer port is wired to the real database.
+  // The id points at the staging database on purpose: `wrangler dev` uses a local
+  // SQLite file by default and only touches the remote one with --remote.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "verify-itisyou-db-staging",
+      "database_id": "b680f037-bcf4-4fd3-85d6-ad7f37cd65a1",
+      "migrations_dir": "../../migrations"
+    }
+  ],
   "vars": {
     "ENVIRONMENT": "development",
     "PUBLIC_BASE_URL": "http://localhost:8787",

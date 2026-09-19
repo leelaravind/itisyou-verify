@@ -108,7 +108,7 @@ export const OWNER_ALERT_ROUTING: readonly AlertRoute[] = [
   {
     kind: 'authentication_required',
     channels: ['telegram', 'dashboard'],
-    why: 'Only a person can complete a sign-in, an MFA prompt or a card entry, and they have to be at their phone to do it. This is the case the channel is for.',
+    why: 'Only a person can complete a sign-in, an MFA prompt or a card entry, and they have to be at their phone to do it. This is the case the channel is for, and it covers the one the founder asked for by name: the moment the payment gateway is ready for card details. See `paymentGatewayReadyAlert`.',
   },
   {
     kind: 'spending_decision',
@@ -128,7 +128,7 @@ export const OWNER_ALERT_ROUTING: readonly AlertRoute[] = [
   {
     kind: 'milestone_reached',
     channels: ['telegram', 'dashboard'],
-    why: 'One line, worth a glance, never actionable. The founder asked for concise milestones; anything longer belongs on the dashboard.',
+    why: 'One line, worth a glance, never actionable. The founder asked for milestone updates specifically, not only action requests — and a milestone is the row easiest to drop from a routing table precisely because nothing breaks when it is missing. It is here on purpose. See `milestoneAlert`.',
   },
 ];
 
@@ -638,4 +638,50 @@ export async function sendOwnerAlert(
     },
     noTransportStatus: 'no_telegram_transport_configured',
   });
+}
+
+/* -------------------------------------------------------------------------- */
+/* the two the founder asked for by name                                      */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * "The payment gateway is ready for your card details."
+ *
+ * A named builder rather than a comment, because this is the single alert whose *timing*
+ * is the whole value: the founder is waiting to do something, and a ping five minutes
+ * later is worth more than a dashboard row they will check tomorrow.
+ *
+ * The key is derived from the environment being set up, not the clock, so the inevitable
+ * retry of whatever provisioning step produced it does not buzz the phone twice.
+ */
+export function paymentGatewayReadyAlert(params: {
+  readonly environment: 'test' | 'live';
+  readonly dashboardPath: string;
+}): OwnerAlert {
+  return {
+    kind: 'authentication_required',
+    notificationKey: `authentication_required:payment_gateway_ready:${params.environment}`,
+    headline: 'Payment gateway ready for card details',
+    detail: `The ${params.environment} payment gateway is set up and waiting for card details. Only you can enter them — we never see a card number, so this cannot be done for you. Open ${params.dashboardPath} when you are ready.`,
+  };
+}
+
+/**
+ * A milestone: one line, a number, no action.
+ *
+ * `measure` and `value` are separate so the message cannot become a paragraph. If a
+ * milestone needs explaining, it is not a milestone and belongs on the dashboard.
+ */
+export function milestoneAlert(params: {
+  /** Stable identity for this milestone, so passing the same threshold twice sends once. */
+  readonly milestoneId: string;
+  readonly measure: string;
+  readonly value: number | string;
+}): OwnerAlert {
+  return {
+    kind: 'milestone_reached',
+    notificationKey: `milestone_reached:${params.milestoneId}`,
+    headline: 'Milestone reached',
+    detail: `${params.measure}: ${String(params.value)}.`,
+  };
 }

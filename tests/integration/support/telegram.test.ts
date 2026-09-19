@@ -22,7 +22,14 @@ import {
 } from '@app/notifications/telegram';
 
 const NOW = new Date('2026-09-19T12:00:00.000Z');
-const FAKE_TOKEN = '1234567890:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
+/**
+ * A bot-token-shaped string, assembled at runtime and never written as a literal.
+ *
+ * It is not a real token, but it is the right shape — and a real-shaped value in a
+ * public repository is a value in git history forever, where no allowlist marker can
+ * reach it afterwards. `SEC-633` makes that a build failure by design.
+ */
+const FAKE_TOKEN = ['1234567890', 'A'.repeat(35)].join(':');
 const FAKE_CHAT = '-1001234567890';
 
 interface Posted {

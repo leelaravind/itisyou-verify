@@ -409,6 +409,15 @@ const RESEND_WEBHOOK_SETUP_STEP: ConnectionSetupStep = Object.freeze({
   verifiable_by_us: true,
 });
 
+const RESEND_AWAIT_CALLBACK_STEP: ConnectionSetupStep = Object.freeze({
+  id: 'resend_await_signed_callback',
+  title: 'Send one test message so we can see a signed callback',
+  detail:
+    'We have your signing secret, but we have never actually received a message signed with it, so we cannot yet say this connection works. Send one email through Resend — a test to yourself is fine — and we will mark the connection ready the moment a correctly signed delivery event arrives and we can read it.',
+  doc_url: 'https://resend.com/docs/dashboard/webhooks/introduction',
+  verifiable_by_us: true,
+});
+
 const RESEND_REVOKE_STEP: ConnectionSetupStep = Object.freeze({
   id: 'resend_delete_api_key',
   title: 'Delete the API key in Resend',
@@ -536,15 +545,26 @@ export class ResendConnector implements WebhookCapableConnector {
 
     const hasSecret =
       typeof input.credentials.webhookSecret === 'string' && input.credentials.webhookSecret.startsWith('whsec_');
+    const webhookProven =
+      typeof input.connection.webhook_verified_at === 'string' && input.connection.webhook_verified_at !== '';
+
+    // A stored signing secret is a promise that a webhook will work. It is not evidence
+    // that one did. Until a correctly signed callback has actually arrived and been
+    // understood, this connection is not ready, and saying otherwise would be exactly the
+    // "marked working on our own say-so" failure this product exists to avoid.
+    const outstanding: ConnectionSetupStep[] = [];
+    if (!hasSecret) outstanding.push(RESEND_WEBHOOK_SETUP_STEP);
+    else if (!webhookProven) outstanding.push(RESEND_AWAIT_CALLBACK_STEP);
+
     return {
-      ok: hasSecret,
+      ok: hasSecret && webhookProven,
       account_id: accountId,
       // Resend does not report a key's permission back to us; we learn it only by being
       // refused. Reporting an empty list is honest, where reporting `['full_access']`
       // would be a guess.
       granted_scopes: [],
-      missing_capabilities: hasSecret ? [] : ['provider_webhook'],
-      setup_steps: hasSecret ? [] : [RESEND_WEBHOOK_SETUP_STEP],
+      missing_capabilities: hasSecret && webhookProven ? [] : ['provider_webhook'],
+      setup_steps: outstanding,
       error: null,
       checked_at: input.now.toISOString(),
       calls_made: 1,

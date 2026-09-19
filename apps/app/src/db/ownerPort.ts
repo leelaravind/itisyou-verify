@@ -36,8 +36,9 @@ import {
   type Controls,
 } from '../owner/controls';
 import type { CleanupInventory, CleanupReport } from '../owner/cleanup';
+import type { NotificationHealth } from '../owner/notifications';
 import type { QualityRun } from '../owner/quality';
-import { AssistantOff, PairingUnavailable } from '../owner/runner';
+import { AssistantOff, OfflineRunner } from '../owner/runner';
 import {
   DEFAULT_ACCESS_MODE,
   DEFAULT_BUDGET_LIMITS,
@@ -79,7 +80,7 @@ import {
   verifyTotpForUser,
 } from '../lib/auth';
 import { consume } from '../lib/ratelimit';
-import { resolveSession } from '../lib/session';
+import { resolveIdentity } from '../lib/session';
 import { addSecondsIso, nowIso } from '../lib/time';
 import { generateCsrfToken, hashToken } from '@verify/security';
 import { AppError } from '@verify/contracts';
@@ -87,8 +88,7 @@ import { auditEvents, settings } from './audit';
 import { orders as ordersRepo, refunds as refundsRepo, subscriptions } from './commerce';
 import { connections } from './connections';
 import type { Db } from './d1';
-import { entitlements } from './entitlements';
-import { sessions, users } from './index';
+import { sessions } from './index';
 import { runs } from './runs';
 
 /** A dependency sentence, used wherever a real source does not exist yet. */
@@ -119,6 +119,7 @@ export class D1OwnerDataPort implements OwnerDataPort {
   readonly #env: Env;
   readonly #request: { readonly headers: Headers; readonly url: string };
   readonly #now: Date;
+  readonly #runner = new OfflineRunner();
   #principal: OwnerPrincipal | undefined = undefined;
 
   constructor(input: OwnerPortInput) {
@@ -138,7 +139,9 @@ export class D1OwnerDataPort implements OwnerDataPort {
   async principal(): Promise<OwnerPrincipal> {
     if (this.#principal !== undefined) return this.#principal;
 
-    const resolved = await resolveSession(
+    // `resolveIdentity`, not `resolveSession`: the platform owner is a member of no
+    // workspace, so a membership-requiring resolver would lock them out of their own panel.
+    const resolved = await resolveIdentity(
       this.#db,
       this.#request,
       this.#env.PUBLIC_BASE_URL,
@@ -149,17 +152,17 @@ export class D1OwnerDataPort implements OwnerDataPort {
       return this.#principal;
     }
 
-    const row = await sessions.findLive(this.#db, resolved.sessionId, nowIso(this.#now));
-    const isAutomation = row?.is_automation === 1;
     this.#principal = {
-      kind: isAutomation ? 'automation' : resolved.isPlatformOwner ? 'owner' : 'customer',
+      // An automation session is an automation principal even when the user row says
+      // owner. The session decides, because the session is the thing that expires.
+      kind: resolved.isAutomation ? 'automation' : resolved.isPlatformOwner ? 'owner' : 'customer',
       userId: resolved.userId,
       email: resolved.email,
       isPlatformOwner: resolved.isPlatformOwner,
-      isAutomation,
+      isAutomation: resolved.isAutomation,
       mfaVerifiedAt: resolved.mfaVerifiedAt,
-      sessionCreatedAt: row?.created_at ?? null,
-      sessionExpiresAt: row?.expires_at ?? null,
+      sessionCreatedAt: resolved.sessionCreatedAt,
+      sessionExpiresAt: resolved.sessionExpiresAt,
       csrfToken: generateCsrfToken(),
     };
     return this.#principal;
@@ -175,7 +178,7 @@ export class D1OwnerDataPort implements OwnerDataPort {
       this.#pendingApprovalCount(),
       this.#openSupportCases(),
       this.#runsSince(addSecondsIso(now, -24 * 60 * 60)),
-      this.#launchVisits(),
+      this.#launchMetrics(),
     ]);
 
     return {
@@ -199,8 +202,17 @@ export class D1OwnerDataPort implements OwnerDataPort {
       ],
       customersActive: customers.active,
       customersTotal: customers.total,
-      launchVisits: visits,
-      launchVisitsObservedAt: visits === null ? null : nowIso(now),
+      // Four separate numbers, never collapsed into one. A visit is not a signup and a
+      // signup is not income; the only one of the four that is money is the last.
+      launch: {
+        totalVisits: { value: visits.total, observedAt: visits.total === null ? null : nowIso(now) },
+        adAttributedVisits: {
+          value: visits.attributed,
+          observedAt: visits.attributed === null ? null : nowIso(now),
+        },
+        qualifiedSignups: { value: visits.qualified, observedAt: nowIso(now) },
+        payingCustomers: { value: customers.active, observedAt: nowIso(now) },
+      },
       pendingApprovals: pending,
       openSupportCases: openCases,
       runsLast24h: runs24h,
@@ -267,11 +279,36 @@ export class D1OwnerDataPort implements OwnerDataPort {
     return row === null ? null : Number(row.n);
   }
 
-  async #launchVisits(): Promise<number | null> {
-    const row = await this.#db
-      .prepare("SELECT COUNT(*) AS n FROM visit_sessions WHERE classification = 'external'")
+  /**
+   * The launch numbers, read separately because they mean different things.
+   *
+   * `qualified` is "created a workspace and connected something" — interest, not revenue.
+   * It is deliberately not the same query as `payingCustomers`.
+   */
+  async #launchMetrics(): Promise<{
+    total: number | null;
+    attributed: number | null;
+    qualified: number | null;
+  }> {
+    const visits = await this.#db
+      .prepare(
+        `SELECT COUNT(*) AS total,
+                SUM(CASE WHEN utm_campaign IS NOT NULL THEN 1 ELSE 0 END) AS attributed
+           FROM visit_sessions WHERE classification = 'external'`,
+      )
+      .first<{ total: number; attributed: number | null }>();
+    const qualified = await this.#db
+      .prepare(
+        `SELECT COUNT(DISTINCT w.id) AS n FROM workspaces w
+           JOIN connections c ON c.workspace_id = w.id AND c.status = 'ready'
+          WHERE w.deleted_at IS NULL AND w.is_synthetic = 0`,
+      )
       .first<{ n: number }>();
-    return row === null ? null : Number(row.n);
+    return {
+      total: visits === null ? null : Number(visits.total),
+      attributed: visits === null ? null : Number(visits.attributed ?? 0),
+      qualified: qualified === null ? null : Number(qualified.n),
+    };
   }
 
   /* ------------------------------------------------------ customers and orders */
@@ -551,7 +588,7 @@ export class D1OwnerDataPort implements OwnerDataPort {
       workspaceId,
       workflowName: workflow?.name ?? 'Workflow',
       status: run.status,
-      statusSentence: STATUS_SENTENCE[run.status],
+      statusSentence: STATUS_SENTENCE[run.status] ?? 'No decision has been recorded.',
       rulesRef: `${run.workflow_id}@v${version?.version_number ?? 1}`,
       rulesSchemaVersion: version?.schema_version ?? 1,
       occurredAt: event?.occurred_at ?? run.created_at,
@@ -687,10 +724,82 @@ export class D1OwnerDataPort implements OwnerDataPort {
       ],
       deployments: [],
       alerts: [],
-      runner: await new PairingUnavailable().status(now),
-      maintenanceJobs: [],
+      runner: await this.#runner.status(),
+      maintenanceJobs: await this.#runner.listJobs(20),
       assistant: await new AssistantOff().status(),
+      // Real, not a stand-in: `notification_deliveries` exists, so "is anything stuck?"
+      // is a question this deployment can actually answer.
+      notifications: await this.#notificationHealth(now),
     };
+  }
+
+  /**
+   * Deliveries that claimed a row and never reported an outcome.
+   *
+   * Messages are sent at most once by design, so a send interrupted halfway is never
+   * retried automatically — the owner is the retry. That is why these are surfaced rather
+   * than swept, and why an empty list here is a real answer and not a default.
+   */
+  async #notificationHealth(now: Date): Promise<NotificationHealth> {
+    const stuckAfterSeconds = 15 * 60;
+    const cutoff = addSecondsIso(now, -stuckAfterSeconds);
+    const stuck = await this.#db
+      .prepare(
+        `SELECT id, workspace_id, template, channel, attempt_count, provider_status, created_at
+           FROM notification_deliveries
+          WHERE state = 'pending' AND created_at <= ?
+          ORDER BY id LIMIT 50`,
+      )
+      .bind(cutoff)
+      .all<{
+        id: string;
+        workspace_id: string | null;
+        template: string;
+        channel: string;
+        attempt_count: number;
+        provider_status: string | null;
+        created_at: string;
+      }>();
+    const inFlight = await this.#db
+      .prepare(
+        "SELECT COUNT(*) AS n FROM notification_deliveries WHERE state = 'pending' AND created_at > ?",
+      )
+      .bind(cutoff)
+      .first<{ n: number }>();
+
+    return {
+      stuck: stuck.results.map((row) => ({
+        id: row.id,
+        template: row.template,
+        channel: row.channel,
+        workspaceId: row.workspace_id,
+        createdAt: row.created_at,
+        ageSeconds: Math.max(0, Math.floor((now.getTime() - Date.parse(row.created_at)) / 1000)),
+        attemptCount: Number(row.attempt_count),
+        providerStatus: row.provider_status,
+      })),
+      inFlight: Number(inFlight?.n ?? 0),
+      unavailableReason: null,
+    };
+  }
+
+  /**
+   * Queue a typed maintenance job.
+   *
+   * `kind` is one of A08's closed vocabulary and never becomes part of a command. With no
+   * runner paired the job is still recorded and comes back `awaiting_runner` with the
+   * reason attached — accepted honestly rather than refused or faked.
+   */
+  async enqueueMaintenance(ctx: ActionContext, kind: string): Promise<OwnerWriteResult> {
+    const outcome = await this.#runner.enqueue({
+      kind,
+      requestedBy: ctx.principal.userId ?? 'owner',
+      at: nowIso(ctx.now),
+      idempotencyKey: `maint:${kind}:${nowIso(ctx.now).slice(0, 16)}`,
+    });
+    await this.#audit(ctx, 'owner.maintenance.enqueued', kind);
+    if (!outcome.ok) return writeBlocked(outcome.detail);
+    return writeOk('/owner/operations', 'The job is queued and will run when a runner is paired.');
   }
 
   async acknowledgeAlert(ctx: ActionContext, alertId: string): Promise<OwnerWriteResult> {
@@ -847,8 +956,8 @@ export class D1OwnerDataPort implements OwnerDataPort {
   async qualityRuns(limit: number): Promise<readonly QualityRun[]> {
     const result = await this.#db
       .prepare(
-        `SELECT id, suite_id, environment, executor, state, commit_sha, total_cases, passed, failed,
-                skipped, started_at, ended_at, report_ref, limitations, created_at
+        `SELECT id, suite_id, environment, executor, state, commit_sha, dedupe_key, total_cases,
+                passed, failed, skipped, started_at, ended_at, report_ref, limitations, created_at
            FROM quality_runs ORDER BY created_at DESC LIMIT ?`,
       )
       .bind(Math.min(Math.max(1, limit), 50))
@@ -860,6 +969,8 @@ export class D1OwnerDataPort implements OwnerDataPort {
       executor: row['executor'] as QualityRun['executor'],
       state: row['state'] as JobState,
       commitSha: (row['commit_sha'] as string | null) ?? null,
+      dedupeKey: String(row['dedupe_key'] ?? ''),
+      requestedBy: 'owner',
       totalCases: row['total_cases'] === null ? null : Number(row['total_cases']),
       passed: row['passed'] === null ? null : Number(row['passed']),
       failed: row['failed'] === null ? null : Number(row['failed']),
@@ -867,9 +978,12 @@ export class D1OwnerDataPort implements OwnerDataPort {
       startedAt: (row['started_at'] as string | null) ?? null,
       endedAt: (row['ended_at'] as string | null) ?? null,
       reportRef: (row['report_ref'] as string | null) ?? null,
-      limitations: (row['limitations'] as string | null) ?? null,
+      limitations:
+        (row['limitations'] as string | null) ??
+        'This run recorded no statement about what it could not prove.',
+      blockedReason: null,
       createdAt: String(row['created_at']),
-    })) as readonly QualityRun[];
+    }));
   }
 
   async dispatchQuality(

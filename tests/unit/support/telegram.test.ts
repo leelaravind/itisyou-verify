@@ -33,13 +33,21 @@ import {
   describeTelegramConfig,
   guardOwnerMessage,
   loadTelegramConfig,
+  milestoneAlert,
+  paymentGatewayReadyAlert,
   redactTelegramToken,
   splitMessage,
 } from '@app/notifications/telegram';
 import { NOTIFICATION_TEMPLATE } from '@app/notifications/templates';
 
-/** A token-shaped string that is not a real token. Never a live credential in a test. */
-const FAKE_TOKEN = '1234567890:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
+/**
+ * A bot-token-shaped string, assembled at runtime and never written as a literal.
+ *
+ * It is not a real token, but it is the right shape — and a real-shaped value in a
+ * public repository is a value in git history forever, where no allowlist marker can
+ * reach it afterwards. `SEC-633` makes that a build failure by design.
+ */
+const FAKE_TOKEN = ['1234567890', 'A'.repeat(35)].join(':');
 const FAKE_CHAT = '-1001234567890';
 
 describe('telegram: the method allowlist', () => {
@@ -91,6 +99,43 @@ describe('telegram: routing', () => {
     expect(channelsFor('spending_decision')).toContain('email');
   });
 
+  it('CUST-228 the two the founder asked for by name both reach the phone and pass the guard', () => {
+    // The payment-gateway ping: its whole value is the timing.
+    const gateway = paymentGatewayReadyAlert({
+      environment: 'live',
+      dashboardPath: '/app/billing',
+    });
+    expect(gateway.kind).toBe('authentication_required');
+    expect(TELEGRAM_PERMITTED_KINDS.has(gateway.kind)).toBe(true);
+    const gatewayVerdict = guardOwnerMessage(
+      gateway.kind,
+      `${gateway.headline}\n\n${gateway.detail}`,
+    );
+    expect(gatewayVerdict.allowed).toBe(true);
+    // Two provisioning attempts of the same environment are one notification.
+    expect(
+      paymentGatewayReadyAlert({ environment: 'live', dashboardPath: '/x' }).notificationKey,
+    ).toBe(gateway.notificationKey);
+
+    // Milestones: the row easiest to leave out, because nothing breaks without it.
+    const milestone = milestoneAlert({
+      milestoneId: 'first_hundred_verified_runs',
+      measure: 'Verified runs',
+      value: 100,
+    });
+    expect(milestone.kind).toBe('milestone_reached');
+    expect(TELEGRAM_PERMITTED_KINDS.has(milestone.kind)).toBe(true);
+    const milestoneVerdict = guardOwnerMessage(
+      milestone.kind,
+      `${milestone.headline}\n\n${milestone.detail}`,
+    );
+    expect(milestoneVerdict.allowed).toBe(true);
+    if (!milestoneVerdict.allowed) return;
+    // One message, one line of numbers. A milestone that needs two is not a milestone.
+    expect(milestoneVerdict.messages).toHaveLength(1);
+    expect(milestone.detail).toBe('Verified runs: 100.');
+  });
+
   it('CUST-293 not one of the twelve customer templates is permitted on the owner channel', () => {
     for (const template of NOTIFICATION_TEMPLATE) {
       expect(TELEGRAM_PERMITTED_KINDS.has(template), template).toBe(false);
@@ -126,11 +171,15 @@ describe('telegram: the content guard', () => {
   });
 
   it('CUST-296 a credential shape is REFUSED, not masked', () => {
+    // Assembled at runtime, never written as a literal. A fixture only has to be the
+    // right *kind* of value; writing it in the right *shape* puts something that looks
+    // like a live Stripe key into a public repository and into git history, where
+    // `secret-scan:allow` cannot reach it afterwards. `SEC-633` enforces this.
     const shapes = [
-      're_ABCDEFGH12345678901234',
-      'sk_live_abcdefghijklmnopqrst',
-      'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9',
-      'api_key: 8f4c2a9d1e7b3f6a55',
+      ['re', 'ABCDEFGH12345678901234'].join('_'),
+      ['sk', 'live', 'abcdefghijklmnopqrst'].join('_'),
+      `Bearer ${['eyJhbGciOiJIUzI1NiIs', 'InR5cCI6IkpXVCJ9'].join('')}`,
+      ['api', 'key: 8f4c2a9d1e7b3f6a55'].join('_'),
       FAKE_TOKEN,
       'AbCdEf0123456789AbCdEf0123456789',
     ];

@@ -97,31 +97,37 @@ export function isSecureRequest(request: { readonly url: string }, publicBaseUrl
   }
 }
 
-/** Everything a page needs to know about who is asking, resolved server-side. */
-export interface ResolvedSession {
+/**
+ * Who is signed in, with no workspace attached.
+ *
+ * Deliberately separate from {@link ResolvedSession}. The platform owner is a member of no
+ * workspace at all — they are not a customer — so a resolver that insists on a membership
+ * refuses them, and the owner panel becomes permanently unreachable by the only person it
+ * is for. Identity and tenancy are two questions; this answers the first one only.
+ */
+export interface ResolvedIdentity {
   readonly sessionId: string;
   readonly userId: string;
   readonly email: string;
+  readonly mfaVerifiedAt: string | null;
+  readonly isPlatformOwner: boolean;
+  readonly isAutomation: boolean;
+  readonly sessionCreatedAt: string;
+  readonly sessionExpiresAt: string;
+}
+
+/** Identity plus the one workspace this request acts in. What the customer pages need. */
+export interface ResolvedSession extends ResolvedIdentity {
   readonly workspaceId: string;
   readonly workspaceName: string;
   readonly role: Role;
-  readonly mfaVerifiedAt: string | null;
-  readonly isPlatformOwner: boolean;
 }
 
-/**
- * Resolve the signed-in identity, and the one workspace this request acts in.
- *
- * The workspace is resolved from membership, never from the request. When a user belongs
- * to several, the oldest is used — v1 has no workspace switcher, and inventing one here
- * would be a silent policy decision in the wrong file.
- */
-export async function resolveSession(
-  db: Db,
+/** Read the session cookie under either name, and hash it to a row id. */
+async function sessionIdFromRequest(
   request: { readonly headers: Headers; readonly url: string },
   publicBaseUrl: string,
-  now: Date = new Date(),
-): Promise<ResolvedSession | null> {
+): Promise<string | null> {
   const secure = isSecureRequest(request, publicBaseUrl);
   const cookieValue =
     readCookie(request.headers.get('cookie'), sessionCookieName(secure)) ??
@@ -129,29 +135,71 @@ export async function resolveSession(
     // should not be silently signed out with no explanation.
     readCookie(request.headers.get('cookie'), sessionCookieName(!secure));
   if (cookieValue === null) return null;
+  return sessionIdFor(cookieValue);
+}
 
-  const sessionId = await sessionIdFor(cookieValue);
+/**
+ * Resolve the signed-in identity. No workspace, no membership requirement.
+ *
+ * Expiry, revocation and a disabled account all resolve to `null` — never to "signed in
+ * but stale".
+ */
+export async function resolveIdentity(
+  db: Db,
+  request: { readonly headers: Headers; readonly url: string },
+  publicBaseUrl: string,
+  now: Date = new Date(),
+): Promise<ResolvedIdentity | null> {
+  const sessionId = await sessionIdFromRequest(request, publicBaseUrl);
+  if (sessionId === null) return null;
+
   const row = await sessions.findLive(db, sessionId, nowIso(now));
   if (row === null) return null;
 
   const user = await users.findById(db, row.user_id);
   if (user === null || user.disabled_at !== null) return null;
 
-  const memberOf = await workspaces.listForUser(db, user.id);
-  const first = memberOf[0];
-  if (first === undefined) return null;
-
-  const role = await memberships.roleFor(db, first.id, user.id);
-  if (role === null) return null;
-
   return {
     sessionId,
     userId: user.id,
     email: user.auth_subject,
+    mfaVerifiedAt: row.mfa_verified_at,
+    isPlatformOwner: user.is_platform_owner === 1,
+    isAutomation: row.is_automation === 1,
+    sessionCreatedAt: row.created_at,
+    sessionExpiresAt: row.expires_at,
+  };
+}
+
+/**
+ * Resolve the signed-in identity AND the one workspace this request acts in.
+ *
+ * The workspace is resolved from membership, never from the request. When a user belongs
+ * to several, the oldest is used — v1 has no workspace switcher, and inventing one here
+ * would be a silent policy decision in the wrong file. A signed-in user with no workspace
+ * resolves to `null`, which is right for the customer pages and is exactly why the owner
+ * panel uses `resolveIdentity` instead.
+ */
+export async function resolveSession(
+  db: Db,
+  request: { readonly headers: Headers; readonly url: string },
+  publicBaseUrl: string,
+  now: Date = new Date(),
+): Promise<ResolvedSession | null> {
+  const identity = await resolveIdentity(db, request, publicBaseUrl, now);
+  if (identity === null) return null;
+
+  const memberOf = await workspaces.listForUser(db, identity.userId);
+  const first = memberOf[0];
+  if (first === undefined) return null;
+
+  const role = await memberships.roleFor(db, first.id, identity.userId);
+  if (role === null) return null;
+
+  return {
+    ...identity,
     workspaceId: first.id,
     workspaceName: first.name,
     role,
-    mfaVerifiedAt: row.mfa_verified_at,
-    isPlatformOwner: user.is_platform_owner === 1,
   };
 }

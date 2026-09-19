@@ -28,6 +28,7 @@ import type {
   RetainedCounts,
   RetentionTarget,
   SettleNotificationParams,
+  StalePendingQuery,
   SupportCaseListQuery,
   SupportCasePage,
   SupportCaseRecord,
@@ -218,6 +219,18 @@ export class D1SupportDataPort implements SupportDataPort {
       template: query.template,
       since: query.since,
       ...(query.keyPrefix !== undefined ? { keyPrefix: query.keyPrefix } : {}),
+    });
+    return rows.map(toNotification);
+  }
+
+  async listStalePendingNotifications(
+    query: StalePendingQuery,
+  ): Promise<readonly NotificationDeliveryRecord[]> {
+    const rows = await notifications.listStalePending(this.db, {
+      createdBefore: query.createdBefore,
+      limit: query.limit,
+      ...(query.afterId !== undefined ? { afterId: query.afterId } : {}),
+      ...(query.channel !== undefined ? { channel: query.channel } : {}),
     });
     return rows.map(toNotification);
   }

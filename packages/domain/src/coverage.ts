@@ -6,39 +6,204 @@
  * us about. If the automation stops firing, we receive nothing — and receiving nothing must
  * never render as a perfect score. A dashboard showing "100%" over zero runs is a lie that
  * the customer will only discover when it costs them a deal.
+ *
+ * ---------------------------------------------------------------------------
+ * `independently_sourced` IS NOT IMPLEMENTED, AND MUST NOT BE OFFERED
+ * ---------------------------------------------------------------------------
+ * This module used to describe `independently_sourced` as though it worked. It does not.
+ * No connector can enumerate records it was never told about — HubSpot's adapter has three
+ * read operations and the closest, `contact_search`, answers "is this specific record
+ * there", never "what exists that nobody mentioned". No scheduler pass lists anything.
+ *
+ * That made it the worst defect this product could ship: not a wrong display of real data,
+ * but a promised capability with nothing behind it, sold to customers whose whole reason
+ * for buying is that silence should not be mistaken for success.
+ *
+ * So the mode stays in the contract — it is a real planned capability — and is marked
+ * unsupported here, as *data* the onboarding UI reads rather than a comment somebody has
+ * to remember. `describeCoverage` degrades an unsupported mode to the coverage we actually
+ * have and attaches a warning that cannot be rendered away. `COVERAGE_MODE_REQUIREMENTS`
+ * states what would have to exist first, so the test that binds those requirements to real
+ * connector capabilities and real scheduler passes fails the moment a claim drifts ahead of
+ * its implementation again.
  */
 import type { CoverageMode } from '@verify/contracts';
 
-export interface CoverageDescription {
+/**
+ * What a coverage mode needs before it can honestly be offered.
+ *
+ * Deliberately expressed as plain strings rather than imported types: this package is pure
+ * and depends on nothing but the contracts. The binding to real connector capabilities and
+ * real scheduler passes happens in the test, which is exactly where a drift between claim
+ * and implementation should be caught.
+ */
+export interface CoverageModeRequirement {
   readonly mode: CoverageMode;
+  /**
+   * A connector capability flag that must be true on at least one adapter, or null when the
+   * mode needs nothing from a connector.
+   */
+  readonly connector_capability: string | null;
+  /** The scheduler pass that would have to exist to deliver this mode. */
+  readonly scheduler_pass: string;
+}
+
+export const COVERAGE_MODE_REQUIREMENTS: Readonly<Record<CoverageMode, CoverageModeRequirement>> = {
+  customer_triggered: {
+    mode: 'customer_triggered',
+    // Nothing beyond receiving the customer's own events and verifying them independently.
+    connector_capability: null,
+    scheduler_pass: 'due_job',
+  },
+  independently_sourced: {
+    mode: 'independently_sourced',
+    // No adapter declares this, because no adapter can do it. It is not a flag somebody
+    // forgot to set; there is no operation behind it.
+    connector_capability: 'can_enumerate_records',
+    scheduler_pass: 'enumeration',
+  },
+};
+
+export interface CoverageModeSupport {
+  readonly mode: CoverageMode;
+  /** True when code exists that actually delivers this mode. */
+  readonly supported: boolean;
+  /** True when onboarding may offer it. Never true while `supported` is false. */
+  readonly selectable: boolean;
+  /** Why it cannot be offered, in words a customer would understand. Null when it can. */
+  readonly unavailable_reason: string | null;
+  /** What would have to be built first. For the roadmap, not for the customer. */
+  readonly requires: readonly string[];
+}
+
+export const COVERAGE_MODE_SUPPORT: Readonly<Record<CoverageMode, CoverageModeSupport>> = {
+  customer_triggered: {
+    mode: 'customer_triggered',
+    supported: true,
+    selectable: true,
+    unavailable_reason: null,
+    requires: [],
+  },
+  independently_sourced: {
+    mode: 'independently_sourced',
+    supported: false,
+    selectable: false,
+    unavailable_reason:
+      'We cannot offer this yet. It would mean listing enquiries out of your connected system ourselves, and we have not built that — so choosing it would mean promising to spot enquiries your automation never reported while having no way to see them.',
+    requires: [
+      'a connector operation that enumerates records we were never told about',
+      'a scheduler pass that reconciles what we enumerated against the runs we received',
+    ],
+  },
+};
+
+/** The modes onboarding may offer. A05 reads this instead of listing the enum. */
+export const SELECTABLE_COVERAGE_MODES: readonly CoverageMode[] = Object.values(COVERAGE_MODE_SUPPORT)
+  .filter((support) => support.selectable)
+  .map((support) => support.mode);
+
+/** The modes anything in the system can actually deliver. */
+export const SUPPORTED_COVERAGE_MODES: readonly CoverageMode[] = Object.values(COVERAGE_MODE_SUPPORT)
+  .filter((support) => support.supported)
+  .map((support) => support.mode);
+
+export function coverageModeSupport(mode: CoverageMode): CoverageModeSupport {
+  return COVERAGE_MODE_SUPPORT[mode];
+}
+
+export function isCoverageModeSupported(mode: CoverageMode): boolean {
+  return COVERAGE_MODE_SUPPORT[mode].supported;
+}
+
+/** The coverage we actually deliver for a requested mode. Never stronger than the truth. */
+export function effectiveCoverageMode(requested: CoverageMode): CoverageMode {
+  return isCoverageModeSupported(requested) ? requested : 'customer_triggered';
+}
+
+/**
+ * A coverage claim that outran its implementation.
+ *
+ * Returned wherever an unsupported mode is encountered, so it cannot be handled silently.
+ * `severity` is `critical` on purpose: a workflow configured for coverage we do not have is
+ * not a cosmetic problem, it is a customer being told that silence is safe.
+ */
+export interface CoverageWarning {
+  readonly code: 'COVERAGE_MODE_UNSUPPORTED';
+  readonly severity: 'critical';
+  readonly requested_mode: CoverageMode;
+  readonly effective_mode: CoverageMode;
+  readonly headline: string;
+  readonly detail: string;
+}
+
+export function coverageWarningFor(requested: CoverageMode): CoverageWarning | null {
+  if (isCoverageModeSupported(requested)) return null;
+  return {
+    code: 'COVERAGE_MODE_UNSUPPORTED',
+    severity: 'critical',
+    requested_mode: requested,
+    effective_mode: effectiveCoverageMode(requested),
+    headline: 'This workflow asks for coverage we do not have',
+    detail:
+      'It is set to have us find enquiries ourselves, which we have not built. We are only checking the enquiries your automation reports, so an enquiry that never reached us will not show up here as a problem. Treat a quiet period as unexplained, not as clean.',
+  };
+}
+
+export interface CoverageDescription {
+  /** The coverage actually in force. Never the unimplemented one. */
+  readonly mode: CoverageMode;
+  /** What the workflow asked for, which may differ from what we can do. */
+  readonly requested_mode: CoverageMode;
+  /** False when the requested mode is not implemented and we degraded to what is. */
+  readonly supported: boolean;
   /** Whether this workflow can detect an enquiry that never reached us at all. */
   readonly can_detect_missing_runs: boolean;
   readonly headline: string;
   readonly detail: string;
   /** The honest limitation, or null when there is none worth stating. */
   readonly limitation: string | null;
+  /** Non-null exactly when the requested mode is not implemented. Render it. */
+  readonly warning: CoverageWarning | null;
 }
 
+/**
+ * Describe a workflow's coverage, truthfully.
+ *
+ * An unsupported mode never gets its own description — it gets the description of the
+ * coverage we actually provide, plus a warning saying so. While `independently_sourced` is
+ * unsupported there is no argument to this function that produces the sentence "We find the
+ * enquiries ourselves."
+ */
 export function describeCoverage(workflow: { readonly coverage_mode: CoverageMode }): CoverageDescription {
-  if (workflow.coverage_mode === 'independently_sourced') {
+  const requested = workflow.coverage_mode;
+  const warning = coverageWarningFor(requested);
+
+  if (effectiveCoverageMode(requested) === 'independently_sourced') {
     return {
       mode: 'independently_sourced',
+      requested_mode: requested,
+      supported: true,
       can_detect_missing_runs: true,
       headline: 'We find the enquiries ourselves.',
       detail:
         'We list enquiries from the connected system on our own schedule rather than waiting to be told about them, so an enquiry your automation missed entirely still shows up here.',
       limitation:
         'We can only see enquiries the connected account can see. Anything outside that account is outside our view.',
+      warning: null,
     };
   }
+
   return {
     mode: 'customer_triggered',
+    requested_mode: requested,
+    supported: warning === null,
     can_detect_missing_runs: false,
     headline: 'We check the enquiries your automation tells us about.',
     detail:
       'Your automation sends us an event for each enquiry, and we then verify it against the connected systems independently.',
     limitation:
       'If your automation stops sending events, we receive nothing — and nothing is not the same as everything passing. Watch the activity warning below, not the pass rate.',
+    warning,
   };
 }
 

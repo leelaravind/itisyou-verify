@@ -28,10 +28,12 @@ import {
 } from '@verify/contracts';
 import {
   MAX_EXTERNAL_CALLS_PER_RUN,
+  coverageWarningFor,
   decideRunStatus,
   evaluateAssertions,
   planNextObservation,
   type AssertionResult,
+  type CoverageWarning,
 } from '@verify/domain';
 import {
   makeGap,
@@ -109,6 +111,12 @@ export interface ObservationOutcome {
   readonly nextCheckAt: string | null;
   readonly assertionsWritten: number;
   readonly allowanceSettled: boolean;
+  /**
+   * Non-null when this run's workflow asked for coverage we do not implement. The run is
+   * still observed — with the coverage we actually have — but the claim is never handled
+   * silently. See `coverage.ts`: `independently_sourced` is not built.
+   */
+  readonly coverageWarning: CoverageWarning | null;
 }
 
 export interface ObserveDeps {
@@ -203,6 +211,26 @@ export async function observeRun(run: DueRun, deps: ObserveDeps): Promise<Observ
       errorCode: 'WORKFLOW_RULES_INVALID',
     });
     return { ...result, note: 'rules_unusable' };
+  }
+
+  /*
+   * Coverage. `independently_sourced` is selectable nowhere any more, but a hand-written
+   * row, a restored backup or a future migration could still carry it — and a workflow
+   * claiming coverage we do not have must never be processed as though we had it.
+   *
+   * The degrade is deliberate and total: we run the ordinary customer-triggered due-job
+   * pass, which is the only coverage that exists, and we carry a critical warning out with
+   * the outcome so the operations view and the customer's report can both say so. Behaving
+   * quietly as if coverage were independent is the one outcome that must be impossible.
+   */
+  const coverageWarning = coverageWarningFor(rules.coverage_mode);
+  if (coverageWarning !== null) {
+    logger.warn('scheduler.coverage.unsupported', {
+      run_id: run.id,
+      workflow_id: run.workflow_id,
+      requested_mode: coverageWarning.requested_mode,
+      effective_mode: coverageWarning.effective_mode,
+    });
   }
 
   const sourceEvent = await sourceEvents.getForRun(deps.db, run.workspace_id, run.id);
@@ -336,7 +364,18 @@ export async function observeRun(run: DueRun, deps: ObserveDeps): Promise<Observ
       endedAt: nowIso,
       outcome: 'stale',
     });
-    return outcome(run, decision.status, decision.reason, terminal, 'stale', gathered.calls, null, assertionsWritten, false);
+    return outcome(
+      run,
+      decision.status,
+      decision.reason,
+      terminal,
+      'stale',
+      gathered.calls,
+      null,
+      assertionsWritten,
+      false,
+      coverageWarning,
+    );
   }
 
   let allowanceSettled = false;
@@ -381,6 +420,7 @@ export async function observeRun(run: DueRun, deps: ObserveDeps): Promise<Observ
     terminal ? null : committedNextCheck,
     assertionsWritten,
     allowanceSettled,
+    coverageWarning,
   );
 }
 
@@ -745,6 +785,7 @@ function outcome(
   nextCheckAt: string | null,
   assertionsWritten: number,
   allowanceSettled: boolean,
+  coverageWarning: CoverageWarning | null = null,
 ): ObservationOutcome {
   return {
     runId: run.id,
@@ -758,6 +799,7 @@ function outcome(
     nextCheckAt,
     assertionsWritten,
     allowanceSettled,
+    coverageWarning,
   };
 }
 

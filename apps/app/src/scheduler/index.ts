@@ -9,6 +9,8 @@ export {
   runSchedulerTick,
   createRetentionSweeper,
   PRODUCTION_CONNECTORS,
+  IMPLEMENTED_SCHEDULER_PASSES,
+  type SchedulerPass,
   type SchedulerEnv,
   type ScheduledOptions,
   type TickDeps,
