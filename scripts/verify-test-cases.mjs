@@ -172,26 +172,18 @@ function loadSecretRules(scannerPath = SCANNER_PATH) {
  * Replace credential-shaped substrings with a placeholder that names what the fixture is.
  * The ledger's job is to describe the requirement, not to reproduce a fixture byte for byte.
  */
-function redactSecrets(text, rules) {
-  if (typeof text !== 'string' || text === '') return text;
-  let out = text;
-  for (const rule of rules) {
-    const re = new RegExp(
-      rule.re.source,
-      rule.re.flags.includes('g') ? rule.re.flags : `${rule.re.flags}g`,
-    );
-    out = out.replace(re, (match) => {
-      if (rule.id === 'basic-auth-url') {
-        const scheme = /^([a-z][a-z0-9+.-]*):\/\//i.exec(match);
-        return `${scheme ? scheme[1] : 'https'}://<credentials-in-url>@`;
-      }
-      const assigned = /^([A-Za-z_][A-Za-z0-9_-]*)\s*([:=])/.exec(match);
-      if (assigned) return `${assigned[1]}${assigned[2]} '<REDACTED-FIXTURE>'`;
-      return '<REDACTED-FIXTURE>';
-    });
-  }
-  return out;
-}
+/*
+ * `redactSecrets` used to live here and has been removed rather than wired up.
+ *
+ * This script only ever READS the ledger, so a redaction helper inside it could not have
+ * redacted anything that mattered — the file would already have been written. And the
+ * validator already does the better thing at the point of detection: it refuses, naming
+ * the field and the secret shape, and tells the author to regenerate rather than hand-edit.
+ *
+ * A validator that silently rewrites what it is checking hides the mistake from the person
+ * who made it and leaves the source that produced it unchanged. Refusing is louder, and the
+ * loudness is the feature.
+ */
 
 const ARGS = new Set(process.argv.slice(2));
 const QUIET = ARGS.has('--quiet');
@@ -296,7 +288,6 @@ const REQUIRED_FIELDS = [
  *                     Mandatory for a prefix whose default is `null` (see PREFIX_CATEGORY).
  *   title_generated — marks a case whose test title is built at runtime.
  */
-const OPTIONAL_FIELDS = ['area', 'category', 'title_generated'];
 const TEXT_FIELDS = [
   'requirement',
   'risk',
