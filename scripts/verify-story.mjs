@@ -78,6 +78,45 @@ for (const rule of FORBIDDEN) {
     problems.push(`forbidden content [${rule.id}] in the public record: ${m[0].slice(0, 12)}…`);
 }
 
+
+/**
+ * Phrases that must never appear in this record, because this record is PUBLIC COPY.
+ *
+ * `/development-story/visual` renders the record — decision summaries, decision reasons
+ * and evidence references — as page text. So every sentence written here is published, and
+ * a sentence describing a false claim publishes the claim.
+ *
+ * That trap was walked into five separate times in a single day, each time in good faith:
+ * recording that a design tool had produced a compliance badge; noting a heading that read
+ * like a third-party attestation; writing that a weak scanner "certified" the page it was
+ * meant to guard; and twice more in evidence references quoting the very strings being
+ * removed. Every one was caught downstream, by a test fetching the rendered page, hours
+ * after it was written.
+ *
+ * Catching it here is the point. The record is written far more often than the page is
+ * fetched, and a failure at write time names the sentence while its author still has it in
+ * hand. Describe the class instead — "an attestation-shaped heading", "a compliance badge
+ * we do not hold" — and the meaning survives without the string.
+ */
+const PUBLIC_CLAIM_PHRASES = [
+  {
+    id: 'certification',
+    re: /\b(?:SOC\s?-?2|ISO\s?-?27001|PCI[- ]?DSS|FedRAMP|independently audited|certified)\b/i,
+  },
+  { id: 'remediation', re: /\b(?:auto[- ]?heal\w*|self[- ]?heal\w*|auto[- ]?remediat\w*)\b/i },
+  { id: 'absolutist', re: /\b(?:guaranteed accuracy|100% accurate|undeniable)\b/i },
+];
+
+for (const rule of PUBLIC_CLAIM_PHRASES) {
+  const hit = rule.re.exec(raw);
+  if (hit) {
+    problems.push(
+      `public-claim phrase [${rule.id}] in the record: "${hit[0]}". This file is rendered on ` +
+        '/development-story/visual, so writing the phrase publishes it. Describe the class instead.',
+    );
+  }
+}
+
 for (const [i, e] of doc.events.entries()) {
   const at = `events[${i}] (${e.event_id ?? 'no id'})`;
 

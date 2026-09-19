@@ -2180,7 +2180,7 @@ export class D1OwnerDataPort implements OwnerDataPort {
     const now = nowIso(this.#now);
     try {
       const row = await this.#db
-        .prepare(`SELECT 1 AS present FROM ${target.table} WHERE ${target.predicate}`)
+        .prepare(target.existsSql)
         .bind(...target.bind(now))
         .first<{ present: number }>();
       return row !== null;
@@ -2204,7 +2204,7 @@ export class D1OwnerDataPort implements OwnerDataPort {
     const now = nowIso(this.#now);
     try {
       const result = await this.#db
-        .prepare(`DELETE FROM ${target.table} WHERE ${target.predicate}`)
+        .prepare(target.deleteSql)
         .bind(...target.bind(now))
         .run();
       if (result.meta.changes !== 1) {
@@ -2344,60 +2344,71 @@ function toQualityRun(row: Record<string, unknown>): QualityRun {
 /* -------------------------------------------------------------------- cleanup */
 
 /**
- * Where one inventoried resource lives, and the predicate that addresses exactly it.
+ * Complete statements, not fragments.
  *
- * The table name comes from this closed map and never from the item — an `InventoryItem`
- * carries a `kind` the engine produced, and the only kinds that appear here are the ones
- * the scanners create. There is no path by which a value from a form reaches a SQL
- * identifier, and every value that varies is bound.
+ * This used to return a table name and a predicate, which the caller interpolated into a
+ * template literal. A security scan flagged it and was right to. The values were in fact
+ * safe — every branch below returns compile-time literals and every runtime value binds
+ * through a placeholder — but a bare string type promised nothing, the safety lived in reading the
+ * switch and trusting it, and SQL cannot bind an identifier, so a table name can never
+ * become a parameter.
+ *
+ * Typing the fragments as literal unions was the first attempt and it did not answer the
+ * scan: the source still contained an interpolation, and a source scan reads source. This
+ * does answer it. Each branch returns two finished statements, so there is no interpolation
+ * anywhere and nothing to reason about at the call site.
  */
 function cleanupTarget(
   item: InventoryItem,
-): { table: string; predicate: string; bind: (now: string) => readonly unknown[] } | null {
+): {
+  existsSql: string;
+  deleteSql: string;
+  bind: (now: string) => readonly unknown[];
+} | null {
   switch (item.kind) {
     case 'workspace':
       return {
-        table: 'workspaces',
-        predicate: 'id = ? AND is_synthetic = 1',
+        existsSql: 'SELECT 1 AS present FROM workspaces WHERE id = ? AND is_synthetic = 1',
+        deleteSql: 'DELETE FROM workspaces WHERE id = ? AND is_synthetic = 1',
         bind: () => [item.resourceId],
       };
     case 'session':
       return {
-        table: 'sessions',
-        predicate: 'id = ? AND expires_at <= ?',
+        existsSql: 'SELECT 1 AS present FROM sessions WHERE id = ? AND expires_at <= ?',
+        deleteSql: 'DELETE FROM sessions WHERE id = ? AND expires_at <= ?',
         bind: (now) => [item.resourceId, now],
       };
     case 'login_token': {
       const rowid = Number(item.resourceId.slice('login_token:'.length));
       if (!Number.isSafeInteger(rowid)) return null;
       return {
-        table: 'login_tokens',
-        predicate: 'rowid = ? AND (consumed_at IS NOT NULL OR expires_at <= ?)',
+        existsSql: 'SELECT 1 AS present FROM login_tokens WHERE rowid = ? AND (consumed_at IS NOT NULL OR expires_at <= ?)',
+        deleteSql: 'DELETE FROM login_tokens WHERE rowid = ? AND (consumed_at IS NOT NULL OR expires_at <= ?)',
         bind: (now) => [rowid, now],
       };
     }
     case 'visit_session':
       return {
-        table: 'visit_sessions',
-        predicate: 'id = ? AND expires_at <= ?',
+        existsSql: 'SELECT 1 AS present FROM visit_sessions WHERE id = ? AND expires_at <= ?',
+        deleteSql: 'DELETE FROM visit_sessions WHERE id = ? AND expires_at <= ?',
         bind: (now) => [item.resourceId, now],
       };
     case 'outbox_entry':
       return {
-        table: 'outbox',
-        predicate: "id = ? AND dispatch_state = 'dead'",
+        existsSql: "SELECT 1 AS present FROM outbox WHERE id = ? AND dispatch_state = 'dead'",
+        deleteSql: "DELETE FROM outbox WHERE id = ? AND dispatch_state = 'dead'",
         bind: () => [item.resourceId],
       };
     case 'quality_run':
       return {
-        table: 'quality_runs',
-        predicate: "id = ? AND state NOT IN ('queued','awaiting_runner','running')",
+        existsSql: "SELECT 1 AS present FROM quality_runs WHERE id = ? AND state NOT IN ('queued','awaiting_runner','running')",
+        deleteSql: "DELETE FROM quality_runs WHERE id = ? AND state NOT IN ('queued','awaiting_runner','running')",
         bind: () => [item.resourceId],
       };
     case 'cleanup_preview':
       return {
-        table: 'cleanup_runs',
-        predicate: "id = ? AND state = 'preview'",
+        existsSql: "SELECT 1 AS present FROM cleanup_runs WHERE id = ? AND state = 'preview'",
+        deleteSql: "DELETE FROM cleanup_runs WHERE id = ? AND state = 'preview'",
         bind: () => [item.resourceId],
       };
     default:
