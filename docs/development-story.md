@@ -167,6 +167,29 @@ The fixtures were rewritten so they are assembled at runtime and no credential-s
 literal is committed. The alternative — clicking "allow this secret" — would have trained
 us to dismiss the one warning that will one day be real.
 
+### 33% that displayed as 100%
+
+The demo page shows a workflow health card: a big "33%" with a progress bar underneath.
+The bar was rendering full width and solid green.
+
+The markup was right the whole time — `style="width:33%"`. What was wrong was the
+Content-Security-Policy added an hour earlier. A strict policy with no `unsafe-inline`
+blocks inline `style` attributes as well as inline stylesheets, so the fill fell back to
+its default width, which is all of it.
+
+Of every bug this project could have shipped, this is the one that most directly
+contradicts what it sells. The entire argument for the product is that a partial or
+unknown result must never be displayed as a pass. A bar inflating 33% to 100% does
+exactly that, on the page written to demonstrate the opposite.
+
+Nothing in the code review would have found it. The template was correct, the test
+asserted the template was correct, and the policy was correct in isolation. It took
+deploying the page and looking at a screenshot.
+
+The fix is a narrow exception — inline style *attributes* are permitted; inline scripts
+and injected stylesheets still are not — written into the policy with a comment saying
+why it is there and what has to change before it can be removed.
+
 ### A pinned action that did not exist
 
 The CI workflow pins every GitHub Action to a full commit SHA, because a tag can be
