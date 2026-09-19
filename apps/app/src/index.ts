@@ -17,6 +17,8 @@ import { createRunnerRoutes } from './maintenance/routes.js';
 import { D1RunnerPairingPort } from './maintenance/ownerPort.js';
 import { createVisitCounter } from './growth/visits.js';
 import { createStripeWebhookRoute } from './routes/webhooks/stripe.js';
+import { createResendWebhookRoute } from './routes/webhooks/resend.js';
+import { createResendEndpointResolver, createResendWebhookData } from './db/resendWebhookPort.js';
 import { createStripeWebhookDeps } from './billing/mount.js';
 import { createStripeClient } from '@verify/connectors/stripe';
 import { D1BillingDataPort, createBillingContactLookup } from './db/index.js';
@@ -66,6 +68,14 @@ export interface Env {
   readonly STRIPE_PRICE_ID?: string;
   readonly STRIPE_WEBHOOK_PATH_ID?: string;
   readonly STRIPE_WEBHOOK_UNKNOWN_KEY?: string;
+  /**
+   * The key the Resend webhook verifies against when the opaque path id is unknown.
+   *
+   * Not a credential: nothing is ever accepted under it, because the rejection is decided
+   * by the lookup rather than by the signature. It exists so an unknown id costs the same
+   * work as a known one and cannot be told apart by timing.
+   */
+  readonly RESEND_WEBHOOK_UNKNOWN_KEY?: string;
   readonly INTERNAL_TEST_TOKEN?: string;
   readonly TELEGRAM_BOT_TOKEN?: string;
   readonly TELEGRAM_OWNER_CHAT_ID?: string;
@@ -560,6 +570,42 @@ app.route('/', storyRoutes);
  * a tenant, and it shares one redact-then-triage implementation with the signed-in path
  * rather than growing a second one that would drift.
  */
+/**
+ * `POST /api/v1/webhooks/resend/:opaqueId` — the provider's side of the evidence path.
+ *
+ * Written, tested, and mounted nowhere until now, which made it the eighth thing on this
+ * project that was correct and unreachable. A connector's webhook is half of what makes
+ * `provider_webhook` evidence possible at all: without it the only route to an email
+ * outcome is us asking, and a provider that calls us is a second, independent channel.
+ *
+ * Built lazily per isolate and cached, like the Stripe block. The unknown-endpoint key is
+ * not a credential — nothing is ever accepted under it, because the rejection is decided
+ * by the lookup, not the signature. It exists so an unknown opaque id costs the same work
+ * as a known one and cannot be distinguished by timing.
+ */
+let resendWebhookApp: Hono | null = null;
+
+app.all('/api/v1/webhooks/resend/*', async (c) => {
+  if (resendWebhookApp === null) {
+    const db = c.env.DB as never;
+    resendWebhookApp = createResendWebhookRoute({
+      resolveEndpoint: createResendEndpointResolver(db, c.env as never),
+      data: createResendWebhookData(db),
+      now: () => new Date().toISOString(),
+      newId: (prefix: string) => newId(prefix),
+      ...((c.env as Env).RESEND_WEBHOOK_UNKNOWN_KEY === undefined
+        ? {}
+        : { unknownEndpointKey: (c.env as Env).RESEND_WEBHOOK_UNKNOWN_KEY }),
+      //  rather than : this project's lint rule permits only warn and error,
+      // and the rule is right — a webhook delivery an operator may need to find later
+      // should not be buried at the same level as routine chatter. The entry never carries
+      // a payload, a secret or a recipient address.
+      log: (entry) => console.warn('resend_webhook', entry),
+    }) as unknown as Hono;
+  }
+  return resendWebhookApp.fetch(c.req.raw, c.env, c.executionCtx);
+});
+
 app.route('/', createPublicSupportRoute({ db: (c) => (c.env as Env).DB }));
 
 app.route('/', publicRoutes);
