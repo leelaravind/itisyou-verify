@@ -176,6 +176,112 @@ const runners = {
 const vitestSameCommit =
   vitest && vitest.meta?.commit_sha ? vitest.meta.commit_sha === commitSha : null;
 
+// ---------------------------------------------------------------------------
+// Evidence transport — the count stage (c) of the transport migration needs to see.
+//
+// `packages/contracts/src/evidence.ts` (commit `6509969`) added `transport: 'live' |
+// 'simulated' | 'unknown'`, recording whether a piece of evidence actually left the
+// process, independently of `origin` (which only records the channel). Requiring
+// `transport === 'live'` for a mandatory assertion is the correct end state — accepting
+// anything less is the same failure this field exists to catch, one layer up — but the
+// evaluator (`packages/domain/src/evaluate.ts`) does not check it yet, deliberately: every
+// piece of evidence produced before `6509969` has no `transport` at all, so flipping that
+// switch today would move the citable gate number for a reason invisible to anyone reading
+// it, and a gate that moves invisibly is how people learn to stop trusting it.
+//
+// So this section exists to make the *pending* state visible instead of silent. It answers
+// one question: of the evidence PATHS capable of independently supporting a mandatory
+// assertion (`provider_readback` / `provider_webhook`), how many have ever been confirmed
+// to leave the process for real?
+//
+// This is a table, not a computed scan of the evidence contract, because that scan would
+// require importing a TypeScript workspace package into a loader-free Node script. The
+// table must be kept in sync with each connector's `capabilities().origins` by hand; a
+// drift here is a defect in this table, not in the connectors, and would be caught the
+// moment a new provider or origin is added without a matching row.
+const MANDATORY_CAPABLE_TRANSPORT_PATHS = [
+  {
+    provider: 'hubspot',
+    origin: 'provider_readback',
+    // The one test permitted to make a real call and so the only evidence this path will
+    // ever have that `transport: 'live'` actually happened. See
+    // tests/integration/connectors/live-smoke.test.ts.
+    confirming_case_id: 'CONN-900',
+    confirmable: true,
+  },
+  {
+    provider: 'resend',
+    origin: 'provider_readback',
+    confirming_case_id: 'CONN-901',
+    confirmable: true,
+  },
+  {
+    provider: 'resend',
+    origin: 'provider_webhook',
+    // Deliberately not confirmable through this mechanism. A valid Svix signature proves
+    // the bytes match the shared secret and are fresh; it does not prove the request that
+    // carried them was ever really received, so no test can honestly assert `live` here —
+    // asserting it would reproduce the exact defect this field exists to catch. This path
+    // stays `unknown` by design, tracked so it is visible, and its owner is whoever holds
+    // `apps/app/src/routes/webhooks/resend.ts` — not this gate, and not stage (c)'s trigger.
+    confirming_case_id: null,
+    confirmable: false,
+  },
+];
+
+function vitestStatus(caseId) {
+  if (!vitest || !Array.isArray(vitest.cases)) return null;
+  const found = vitest.cases.find((c) => c.id === caseId);
+  return found ? found.status : null;
+}
+
+const transportPaths = MANDATORY_CAPABLE_TRANSPORT_PATHS.map((p) => {
+  const status = p.confirming_case_id === null ? null : vitestStatus(p.confirming_case_id);
+  return {
+    ...p,
+    live_confirmed: p.confirmable && status === 'passed',
+    last_checked_status: status,
+  };
+});
+
+const confirmableTotal = transportPaths.filter((p) => p.confirmable).length;
+const confirmedLive = transportPaths.filter((p) => p.live_confirmed).length;
+const pendingLive = transportPaths.filter((p) => p.confirmable && !p.live_confirmed);
+const excludedByDesign = transportPaths.filter((p) => !p.confirmable);
+
+const evidenceTransport = {
+  // Named precisely so it survives being quoted alone: this is a count of PATHS (provider ×
+  // origin combinations), not of test cases or of live runs.
+  description:
+    'Evidence paths capable of independently supporting a mandatory assertion (origin provider_readback or provider_webhook) for which transport: "live" has never been confirmed. Not a failure and not folded into the floors or the citable total — it is the number that says whether requiring transport: "live" in the evaluator (stage c of the transport migration) would currently be safe.',
+  mandatory_capable_paths_total: transportPaths.length,
+  confirmable_paths_total: confirmableTotal,
+  confirmed_live: confirmedLive,
+  pending_confirmation: pendingLive.map((p) => ({
+    provider: p.provider,
+    origin: p.origin,
+    confirming_case_id: p.confirming_case_id,
+    last_checked_status: p.last_checked_status,
+  })),
+  excluded_by_design: excludedByDesign.map((p) => ({
+    provider: p.provider,
+    origin: p.origin,
+    reason:
+      'a signature proves the bytes are authentic and fresh, not that the request was really received; no test can honestly assert live for this path, so it is tracked separately and is not part of the stage-c trigger',
+  })),
+  stage_c_trigger:
+    'The evaluator may start requiring transport === "live" for a mandatory-supporting ' +
+    'provider_readback assertion once EVERY row in confirmable_paths_total above reads ' +
+    'confirmed_live === true, i.e. pending_confirmation is empty — concretely, once ' +
+    'CONN-900 (HubSpot) and CONN-901 (Resend) have both actually run against a real, ' +
+    'authorised credential and passed, rather than skipping. It does NOT require the ' +
+    'excluded_by_design row (resend provider_webhook) to ever be confirmed: that path is ' +
+    'permanently unknown by design, and the trigger condition must not be written in a ' +
+    'way that can never be satisfied because of it. Whether provider_webhook should then ' +
+    'be barred from mandatory support entirely, or judged by a different rule, is a ' +
+    'separate product decision for whoever owns that route, not a precondition of this one.',
+};
+
 const artefact = {
   schema_version: 1,
   kind: 'release-gate',
@@ -207,6 +313,10 @@ const artefact = {
   // ----- the twelve floors -----
   floors,
   floors_met: floors.every((f) => f.met),
+
+  // ----- the transport migration's own gate, reported here so it is seen rather than
+  // sought out. Not part of `floors_met` or `gate.met`: it blocks nothing today. -----
+  evidence_transport: evidenceTransport,
 
   // ----- the single citable number -----
   gate: {
@@ -266,6 +376,23 @@ for (const f of floors) {
   console.log(
     `  ${f.category.padEnd(30)} ${String(f.counted).padStart(5)} / ${String(f.minimum ?? '?').padStart(3)}  ${f.met ? 'ok' : `SHORT by ${f.short_by}`}`,
   );
+}
+console.log('');
+console.log('  evidence transport — mandatory-capable paths with transport never confirmed live');
+console.log(
+  `    confirmed live      ${evidenceTransport.confirmed_live} / ${evidenceTransport.confirmable_paths_total}`,
+);
+if (evidenceTransport.pending_confirmation.length > 0) {
+  for (const p of evidenceTransport.pending_confirmation) {
+    console.log(
+      `    PENDING             ${p.provider} ${p.origin} — awaiting ${p.confirming_case_id} (currently ${p.last_checked_status ?? 'not run'})`,
+    );
+  }
+} else {
+  console.log('    none pending — stage (c) trigger condition is met for every confirmable path');
+}
+for (const p of evidenceTransport.excluded_by_design) {
+  console.log(`    excluded by design  ${p.provider} ${p.origin} — ${p.reason}`);
 }
 console.log('');
 console.log(
