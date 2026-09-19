@@ -99,6 +99,10 @@ export class FailingDb implements Db {
 
   prepare(query: string): DbStatement {
     const inner = this.inner.prepare(query);
+    // The wrapper below is an object literal, so its methods get their own `this`.
+    // `#guard` is a private field and can only be reached through the instance, so the
+    // alias is what makes the guard reachable at all — not a style choice.
+    // eslint-disable-next-line @typescript-eslint/no-this-alias -- see above
     const self = this;
 
     const wrap = (statement: DbStatement): DbStatement => ({
