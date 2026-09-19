@@ -387,9 +387,7 @@ describe('the customer sees the policy before paying', () => {
   it('BILL-240 every line A05 renders comes from the policy — none of it is retyped copy', () => {
     const panel = preCheckoutPanel();
     const pauses = panel.sections.find((section) => section.id === 'payment-recovery-pauses');
-    const preserved = panel.sections.find(
-      (section) => section.id === 'payment-recovery-preserved',
-    );
+    const preserved = panel.sections.find((section) => section.id === 'payment-recovery-preserved');
     expect(pauses?.lines).toEqual(PAYMENT_RECOVERY_POLICY.whatPauses);
     expect(preserved?.lines).toEqual(PAYMENT_RECOVERY_POLICY.whatStaysAvailable);
   });

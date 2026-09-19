@@ -41,7 +41,9 @@ describe('error handler', () => {
 
   it('API-163 turns an unexpected throw into a generic 500 that leaks nothing', () => {
     const { log, entries } = capture();
-    const cause = new Error('D1_ERROR: UNIQUE constraint failed: users.auth_subject (ada@example.com)');
+    const cause = new Error(
+      'D1_ERROR: UNIQUE constraint failed: users.auth_subject (ada@example.com)',
+    );
     const rendered = renderError(cause, REQUEST_ID, log);
     expect(rendered.status).toBe(500);
     expect(rendered.body.error.code).toBe('INTERNAL');
@@ -64,7 +66,11 @@ describe('error handler', () => {
 
   it('API-165 errorResponse carries the request id in a header and a JSON content type', async () => {
     const { log } = capture();
-    const response = errorResponse(new AppError(422, 'INVALID_CONFIGURATION', 'Bad rules.'), REQUEST_ID, log);
+    const response = errorResponse(
+      new AppError(422, 'INVALID_CONFIGURATION', 'Bad rules.'),
+      REQUEST_ID,
+      log,
+    );
     expect(response.status).toBe(422);
     expect(response.headers.get('x-request-id')).toBe(REQUEST_ID);
     expect(response.headers.get('content-type')).toContain('application/json');

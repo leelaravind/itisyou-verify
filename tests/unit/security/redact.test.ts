@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { maskEmail, maskToken, maskValue, neutraliseCsvField, redactObject } from '@verify/security';
+import {
+  maskEmail,
+  maskToken,
+  maskValue,
+  neutraliseCsvField,
+  redactObject,
+} from '@verify/security';
 
 describe('maskEmail', () => {
   it('API-080 masks the local part to a fixed width', () => {

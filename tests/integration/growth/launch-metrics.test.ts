@@ -16,7 +16,10 @@ const FRESH = '2026-10-08T11:55:00.000Z';
 const CAMPAIGN = 'cmp_1';
 const UTM = 'verify_first_test';
 
-const INTERVAL = { intervalStart: '2026-10-06T00:00:00.000Z', intervalEnd: '2026-10-07T00:00:00.000Z' } as const;
+const INTERVAL = {
+  intervalStart: '2026-10-06T00:00:00.000Z',
+  intervalEnd: '2026-10-07T00:00:00.000Z',
+} as const;
 
 const session = (over: Partial<VisitSession>): VisitSession => ({
   id: `s_${Math.random().toString(36).slice(2)}`,
@@ -32,7 +35,10 @@ const session = (over: Partial<VisitSession>): VisitSession => ({
   ...over,
 });
 
-async function seed(port: ReturnType<typeof createMemoryGrowthPort>, sessions: readonly VisitSession[]) {
+async function seed(
+  port: ReturnType<typeof createMemoryGrowthPort>,
+  sessions: readonly VisitSession[],
+) {
   for (const s of sessions) await port.recordVisit(s, s.first_seen_at);
 }
 
@@ -43,7 +49,14 @@ describe('campaign metrics persistence', () => {
     const first = await applyMetricsSync(
       port,
       CAMPAIGN,
-      { kind: 'observed', ...INTERVAL, impressions: 900, clicks: 11, spendMinor: 640, currency: 'GBP' },
+      {
+        kind: 'observed',
+        ...INTERVAL,
+        impressions: 900,
+        clicks: 11,
+        spendMinor: 640,
+        currency: 'GBP',
+      },
       FRESH,
     );
     expect(first).toMatchObject({ applied: true, inserted: true });
@@ -53,7 +66,14 @@ describe('campaign metrics persistence', () => {
     const second = await applyMetricsSync(
       port,
       CAMPAIGN,
-      { kind: 'observed', ...INTERVAL, impressions: 940, clicks: 12, spendMinor: 705, currency: 'GBP' },
+      {
+        kind: 'observed',
+        ...INTERVAL,
+        impressions: 940,
+        clicks: 12,
+        spendMinor: 705,
+        currency: 'GBP',
+      },
       '2026-10-08T11:58:00.000Z',
     );
     expect(second).toMatchObject({ applied: true, inserted: false });
@@ -67,7 +87,14 @@ describe('campaign metrics persistence', () => {
     await applyMetricsSync(
       port,
       CAMPAIGN,
-      { kind: 'observed', ...INTERVAL, impressions: 900, clicks: 11, spendMinor: 640, currency: 'GBP' },
+      {
+        kind: 'observed',
+        ...INTERVAL,
+        impressions: 900,
+        clicks: 11,
+        spendMinor: 640,
+        currency: 'GBP',
+      },
       FRESH,
     );
 
@@ -104,7 +131,14 @@ describe('campaign metrics persistence', () => {
     await applyMetricsSync(
       port,
       CAMPAIGN,
-      { kind: 'observed', ...INTERVAL, impressions: 10, clicks: 1, spendMinor: 90, currency: 'GBP' },
+      {
+        kind: 'observed',
+        ...INTERVAL,
+        impressions: 10,
+        clicks: 1,
+        spendMinor: 90,
+        currency: 'GBP',
+      },
       '2026-10-08T12:05:00.000Z',
     );
     expect(await port.campaignSyncState(CAMPAIGN)).toEqual({
@@ -118,7 +152,14 @@ describe('campaign metrics persistence', () => {
     await applyMetricsSync(
       port,
       CAMPAIGN,
-      { kind: 'observed', ...INTERVAL, impressions: null, clicks: null, spendMinor: null, currency: null },
+      {
+        kind: 'observed',
+        ...INTERVAL,
+        impressions: null,
+        clicks: null,
+        spendMinor: null,
+        currency: null,
+      },
       FRESH,
     );
     expect(port.metrics[0]).toMatchObject({ impressions: null, clicks: null, spendMinor: null });
@@ -130,7 +171,14 @@ describe('campaign metrics persistence', () => {
       applyMetricsSync(
         port,
         CAMPAIGN,
-        { kind: 'observed', ...INTERVAL, impressions: 1, clicks: 1, spendMinor: 6.4, currency: 'GBP' },
+        {
+          kind: 'observed',
+          ...INTERVAL,
+          impressions: 1,
+          clicks: 1,
+          spendMinor: 6.4,
+          currency: 'GBP',
+        },
         FRESH,
       ),
     ).rejects.toThrow(/integer/);
@@ -138,7 +186,14 @@ describe('campaign metrics persistence', () => {
       applyMetricsSync(
         port,
         CAMPAIGN,
-        { kind: 'observed', ...INTERVAL, impressions: 1, clicks: 1, spendMinor: -5, currency: 'GBP' },
+        {
+          kind: 'observed',
+          ...INTERVAL,
+          impressions: 1,
+          clicks: 1,
+          spendMinor: -5,
+          currency: 'GBP',
+        },
         FRESH,
       ),
     ).rejects.toThrow(/negative/);
@@ -150,7 +205,14 @@ describe('campaign metrics persistence', () => {
     const applied = await applyMetricsSync(
       port,
       CAMPAIGN,
-      { kind: 'observed', ...INTERVAL, impressions: 900, clicks: 11, spendMinor: 340, currency: 'GBP' },
+      {
+        kind: 'observed',
+        ...INTERVAL,
+        impressions: 900,
+        clicks: 11,
+        spendMinor: 340,
+        currency: 'GBP',
+      },
       FRESH,
     );
     expect(applied.applied).toBe(true);
@@ -170,7 +232,14 @@ describe('campaign metrics persistence', () => {
     const restated = await applyMetricsSync(
       port,
       CAMPAIGN,
-      { kind: 'observed', ...INTERVAL, impressions: 940, clicks: 12, spendMinor: 380, currency: 'GBP' },
+      {
+        kind: 'observed',
+        ...INTERVAL,
+        impressions: 940,
+        clicks: 12,
+        spendMinor: 380,
+        currency: 'GBP',
+      },
       '2026-10-08T12:10:00.000Z',
     );
     expect(restated.applied).toBe(true);
@@ -200,7 +269,10 @@ describe('campaign metrics persistence', () => {
 });
 
 describe('launch metrics read', () => {
-  const input = (port: ReturnType<typeof createMemoryGrowthPort>, over: Record<string, unknown> = {}) => ({
+  const input = (
+    port: ReturnType<typeof createMemoryGrowthPort>,
+    over: Record<string, unknown> = {},
+  ) => ({
     port,
     since: '2026-10-01T00:00:00.000Z',
     until: '2026-11-01T00:00:00.000Z',
@@ -255,7 +327,12 @@ describe('launch metrics read', () => {
     const port = createMemoryGrowthPort();
     await seed(port, [session({ id: 'a' })]);
     const metrics = await readLaunchMetrics(
-      input(port, { qualifiedSignups: null, qualifiedSignupsObservedAt: null, payingCustomers: null, payingCustomersObservedAt: null }),
+      input(port, {
+        qualifiedSignups: null,
+        qualifiedSignupsObservedAt: null,
+        payingCustomers: null,
+        payingCustomersObservedAt: null,
+      }),
     );
     expect(metrics.totalVisits.known).toBe(true);
     expect(metrics.qualifiedSignups.known).toBe(false);

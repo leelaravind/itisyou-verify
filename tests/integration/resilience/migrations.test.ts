@@ -52,7 +52,9 @@ function schemaAfter(count: number): SchemaSnapshot {
     const tables = new Map<string, readonly ColumnInfo[]>();
     const tableSql = new Map<string, string>();
     const rows = db
-      .prepare("SELECT name, sql FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")
+      .prepare(
+        "SELECT name, sql FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'",
+      )
       .all() as { name: string; sql: string }[];
     for (const row of rows) {
       const columns = db.prepare(`PRAGMA table_info(${row.name})`).all() as unknown as ColumnInfo[];
@@ -71,7 +73,9 @@ function schemaAfter(count: number): SchemaSnapshot {
     const indexes = new Set(
       (
         db
-          .prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND name NOT LIKE 'sqlite_%'")
+          .prepare(
+            "SELECT name FROM sqlite_master WHERE type = 'index' AND name NOT LIKE 'sqlite_%'",
+          )
           .all() as { name: string }[]
       ).map((r) => r.name),
     );
@@ -151,7 +155,9 @@ describe('RESIL: the previous version still reads the current schema', () => {
       for (const [table, columns] of before.tables) {
         const names = new Set(columnsOf(after, table).map((c) => c.name));
         for (const column of columns) {
-          expect(names.has(column.name), `${FILES[step]} removed ${table}.${column.name}`).toBe(true);
+          expect(names.has(column.name), `${FILES[step]} removed ${table}.${column.name}`).toBe(
+            true,
+          );
         }
       }
     }
@@ -213,8 +219,14 @@ describe('RESIL: the previous version still reads the current schema', () => {
       const after = schemaAfter(step + 1);
       for (const [table, columns] of before.tables) {
         if (!after.tables.has(table)) continue;
-        const pkBefore = columns.filter((c) => c.pk > 0).map((c) => c.name).sort();
-        const pkAfter = columnsOf(after, table).filter((c) => c.pk > 0).map((c) => c.name).sort();
+        const pkBefore = columns
+          .filter((c) => c.pk > 0)
+          .map((c) => c.name)
+          .sort();
+        const pkAfter = columnsOf(after, table)
+          .filter((c) => c.pk > 0)
+          .map((c) => c.name)
+          .sort();
         expect(pkAfter, `${FILES[step]} changed the primary key of ${table}`).toEqual(pkBefore);
       }
     }
@@ -275,7 +287,9 @@ describe('RESIL: the previous version still reads the current schema', () => {
       );
       insert.run('conn_a', 'hubspot');
       expect(() => insert.run('conn_b', 'resend')).not.toThrow();
-      const n = db.prepare('SELECT COUNT(*) AS n FROM connections WHERE webhook_path_id IS NULL').get() as {
+      const n = db
+        .prepare('SELECT COUNT(*) AS n FROM connections WHERE webhook_path_id IS NULL')
+        .get() as {
         n: number;
       };
       expect(Number(n.n)).toBe(2);
@@ -293,12 +307,17 @@ describe('RESIL: writes an older version made must still be legal', () => {
     const found = new Map<string, string[]>();
     for (const file of FILES) {
       const sql = readFileSync(join(MIGRATIONS_DIR, file), 'utf8');
-      const rebuilt = [...sql.matchAll(/ALTER TABLE\s+(\w+)_new\s+RENAME TO\s+(\w+)/gi)].map((m) => m[2] as string);
+      const rebuilt = [...sql.matchAll(/ALTER TABLE\s+(\w+)_new\s+RENAME TO\s+(\w+)/gi)].map(
+        (m) => m[2] as string,
+      );
       if (rebuilt.length > 0) found.set(file, rebuilt);
     }
     for (const [file, tables] of found) {
       const accepted = KNOWN_CONSTRAINT_TIGHTENING.get(file);
-      expect(accepted, `${file} rebuilds ${tables.join(', ')} and is not in the accepted list`).toBeDefined();
+      expect(
+        accepted,
+        `${file} rebuilds ${tables.join(', ')} and is not in the accepted list`,
+      ).toBeDefined();
       expect([...tables].sort()).toEqual([...(accepted ?? [])].sort());
     }
     // And the accepted list is not stale.
@@ -315,7 +334,9 @@ describe('RESIL: writes an older version made must still be legal', () => {
     try {
       const sql = (
         db
-          .prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'credential_versions'")
+          .prepare(
+            "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'credential_versions'",
+          )
           .get() as { sql: string }
       ).sql;
       expect(sql).toContain('CHECK');
@@ -359,12 +380,16 @@ describe('RESIL: writes an older version made must still be legal', () => {
     const offenders: string[] = [];
     for (const file of FILES) {
       const sql = readFileSync(join(MIGRATIONS_DIR, file), 'utf8');
-      for (const match of sql.matchAll(/^\s*DELETE\s+FROM\s+(\w+)/gim)) offenders.push(`${file}: DELETE FROM ${match[1]}`);
+      for (const match of sql.matchAll(/^\s*DELETE\s+FROM\s+(\w+)/gim))
+        offenders.push(`${file}: DELETE FROM ${match[1]}`);
       for (const match of sql.matchAll(/^\s*DROP\s+TABLE\s+(?:IF\s+EXISTS\s+)?(\w+)/gim)) {
         const table = match[1] as string;
         // Dropping the *old* table is the second half of a rebuild, and the rebuild itself
         // is already governed by the constraint-tightening case above.
-        const isRebuild = new RegExp(`ALTER TABLE\\s+${table}_new\\s+RENAME TO\\s+${table}`, 'i').test(sql);
+        const isRebuild = new RegExp(
+          `ALTER TABLE\\s+${table}_new\\s+RENAME TO\\s+${table}`,
+          'i',
+        ).test(sql);
         if (!isRebuild) offenders.push(`${file}: DROP TABLE ${table}`);
       }
     }
@@ -380,7 +405,10 @@ describe('RESIL: writes an older version made must still be legal', () => {
         const columns = columnsOf(before, table);
         expect(columns.length).toBeGreaterThan(0);
         for (const column of columns) {
-          expect(sql, `${file} does not carry ${table}.${column.name} across the rebuild`).toContain(column.name);
+          expect(
+            sql,
+            `${file} does not carry ${table}.${column.name} across the rebuild`,
+          ).toContain(column.name);
         }
       }
     }

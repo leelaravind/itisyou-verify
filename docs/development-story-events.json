@@ -95,7 +95,7 @@
       "inputs": ["plan §2"],
       "changed_artifacts": [".gitignore", "scripts/scan-secrets.mjs", "SECURITY.md", "README.md"],
       "commit_sha": "08f5b33",
-      "decision_summary": "Secret scanning and push protection enabled, private vulnerability reporting enabled, Dependabot alerts and auto-fixes enabled, a branch ruleset blocking deletion and force-push and requiring a reviewed pull request, and default workflow permissions set to read.",
+      "decision_summary": "Secret scanning and push protection enabled, private vulnerability reporting enabled, Dependabot alerts and its automatic dependency-update pull requests enabled, a branch ruleset blocking deletion and force-push and requiring a reviewed pull request, and default workflow permissions set to read.",
       "alternatives_considered": ["Start private and flip to public at release"],
       "decision_reason": "The founder requires permanent public visibility, so every byte must be treated as permanently disclosed from the first commit. Writing .gitignore and the secret scanner before generating any credential is the only ordering that works.",
       "test_evidence_refs": [
@@ -307,6 +307,66 @@
       ],
       "limitations": "The scan is a structural heuristic over source text. It cannot see SQL assembled at runtime, and it is not a substitute for the behavioural tenant-isolation tests.",
       "next_step": "None."
+    },
+    {
+      "event_id": "EVT-0013",
+      "timestamp": "2026-09-19T12:05:00Z",
+      "milestone_id": "M8",
+      "task_id": "public-claims-accuracy",
+      "agent_role": "A18",
+      "model_id": "claude-opus-5[1m]",
+      "status": "tested",
+      "goal": "Make every outward-facing statement true today rather than true when finished, and close any purchase or activation path resting on something that is not.",
+      "inputs": [
+        "docs/agent-brief.md",
+        "docs/product-scope.md",
+        "docs/billing.md",
+        "docs/connectors.md",
+        "docs/privacy-retention.md",
+        "docs/development-story.md"
+      ],
+      "changed_artifacts": [
+        "packages/ui/src/content/site.ts",
+        "packages/ui/src/content/home.ts",
+        "packages/ui/src/content/faq.ts",
+        "packages/ui/src/components/activation.ts",
+        "packages/ui/src/components/index.ts",
+        "packages/ui/src/layout/layouts.ts",
+        "apps/app/src/routes/public/index.ts",
+        "apps/app/src/routes/public/home.ts",
+        "apps/app/src/routes/public/marketing.ts",
+        "apps/app/src/routes/app/authPages.ts",
+        "apps/app/src/routes/app/onboardingPages.ts",
+        "apps/app/src/routes/app/index.ts",
+        "tests/integration/public/claims.test.ts",
+        "tests/unit/ui/pages.test.ts",
+        "vitest.config.ts",
+        "docs/product-scope.md",
+        "apps/app/src/routes/public/story/narrative.ts",
+        "packages/ui/src/content/legal.ts"
+      ],
+      "commit_sha": null,
+      "decision_summary": "Twelve published claims were corrected against what the code does today. The site had been promising a second coverage mode that would detect a run that never started; nothing implements it, the onboarding form still offered it, and the development story already claimed that had been fixed. The connector claim — we read the record back from HubSpot and Resend — is now accompanied on every page that makes it by the statement that it has never been run against a real provider account. The seven-day payment-recovery policy is now displayed on the one page a prospective customer can actually read. Eleven regression cases (CUST-330..CUST-340) drive the real Worker entry point and assert the response body. A second pass, prompted by a design audit of a Stitch-generated landing page that carried false SOC 2 and ISO 27001 badges, a fabricated attributed quote, auto-remediation language and USD pricing tiers, ruled each of those classes out on the real site. Three were absent outright. One heading on the visual development story read \"Independently audited\" — an internal cross-review, but in the exact register of a security attestation — and was reworded. Four figures were retyped as literals where a constant governs them and now interpolate it.",
+      "alternatives_considered": [
+        "Soften the development story so the coverage-mode claim became true by wording rather than by code",
+        "Add the provider-proof caveat once in the footer instead of beside each claim it qualifies",
+        "Take the pricing page down entirely rather than disclose terms nobody can buy",
+        "Assert the corrected copy by rendering the page functions directly, as the existing suite does",
+        "Report the four absent claim classes as a prose negative without a test, since nothing was found"
+      ],
+      "decision_reason": "The coverage-mode claim was fixed in code rather than in prose because the story was describing a real fix that had not been made, and rewriting the description of a fix is how a project learns to describe instead of fix. The provider-proof notice sits against each claim rather than in the footer because a caveat a reader meets after forming the belief has not corrected anything. The pricing page stays because the purchase control was already visibly closed and the terms are what a buyer needs to evaluate the product at all. The tests go through apps/app/src/index.ts because the dominant defect on this project is correct code reached by nothing: a case that calls PricingPage() proves the function is right and proves nothing about what GET /pricing puts on the wire. The four absent claim classes got regression cases anyway, because \"we looked and found nothing\" is worth nothing once the looking stops: a negative finding without a standing check is a statement about one afternoon. The retyped figures got a source-level assertion rather than a rendering one, because four copies of \"30 days\" all render correctly right up to the moment the constant changes, which is exactly when a claims test should fire and a rendering assertion would not.",
+      "test_evidence_refs": [
+        "tests/integration/public/claims.test.ts — 11 cases, all committed red against the site as it stood (11 failed) and green after the corrections (11 passed)",
+        "CUST-334 asserts the payment-recovery disclosure against PAYMENT_RECOVERY_POLICY itself, so changing the approved window fails the test rather than leaving stale prose",
+        "CUST-331 sweeps all ten public pages for the withdrawn coverage promise rather than checking the two that were reported",
+        "tests/unit/ui/pages.test.ts CUST-043 tightened to the unqualified heading, so restoring the old copy fails in two places",
+        "CUST-342..345 assert the four audited claim classes absent from every public page, matching visible text and raw markup; CUST-342 was red on the \"Independently audited\" heading and is green after the rewording",
+        "CUST-346 asserts price, currency, allowance, retention and recovery window against LIMITS and PAYMENT_RECOVERY_POLICY, and that no $, EUR or USD figure appears on any page",
+        "CUST-347 reads the six customer-facing copy modules as source and fails on a hard-coded governed figure; proven red against the HEAD blobs, which carried four (two in faq.ts, one in legal.ts, one in the /pricing meta description)",
+        "No <img> element and no <pre> or <code> block exists on any public page — asserted, not assumed, so no badge graphic or install command can appear without failing a test"
+      ],
+      "limitations": "The onboarding coverage-mode selector is asserted by the domain constant it now reads, not by an HTTP request: every /app route answers 401 without a session, and seeding one needs a real D1 and the owner-authentication wiring. Four claims are recommended for removal rather than qualification (docs/product-scope.md 11.3) and were deliberately left in place, because removing a page or a policy is the owner’s decision. No provider was contacted and no credential exists, so the mock-only statement is itself the only thing that could be verified about the connectors. CUST-343, CUST-344 and CUST-345 were green from the moment they were written: nothing was found for those three classes, and they are standing guards rather than regressions. The competitor check bars a capability claim about a named competitor, not the naming itself — \"we never see inside n8n, Make, Zapier\" is deliberately still permitted, because it is a statement about our own blindness.",
+      "next_step": "Owner to rule on the four removal candidates in docs/product-scope.md 11.3. The provider-proof notice comes down when CONN-900 and CONN-901 have actually run against real accounts, and the activation notice when the event-intake route, the Resend webhook mount, the entitlement check and the billing maintenance pass are all wired."
     }
   ]
 }

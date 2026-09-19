@@ -33,7 +33,12 @@ describe('planNextObservation', () => {
   it('VERIFY-139 backs off exponentially as observations are spent', () => {
     const first = planNextObservation({ ...BASE, observationCount: 0, jitterSeed: 0.5 });
     const second = planNextObservation({ ...BASE, observationCount: 1, jitterSeed: 0.5 });
-    const third = planNextObservation({ ...BASE, observationCount: 2, jitterSeed: 0.5, deadlineAt: dateAfter(T_EVENT, 3600) });
+    const third = planNextObservation({
+      ...BASE,
+      observationCount: 2,
+      jitterSeed: 0.5,
+      deadlineAt: dateAfter(T_EVENT, 3600),
+    });
     expect(secondsFromNow(first.nextCheckAt!, T_EVENT)).toBe(BASE_BACKOFF_SECONDS);
     expect(secondsFromNow(second.nextCheckAt!, T_EVENT)).toBe(BASE_BACKOFF_SECONDS * 2);
     expect(secondsFromNow(third.nextCheckAt!, T_EVENT)).toBe(BASE_BACKOFF_SECONDS * 4);
@@ -67,7 +72,10 @@ describe('planNextObservation', () => {
   });
 
   it('VERIFY-144 stops scheduling once the observation budget is spent', () => {
-    const plan = planNextObservation({ ...BASE, observationCount: LIMITS.MAX_OBSERVATIONS_PER_RUN });
+    const plan = planNextObservation({
+      ...BASE,
+      observationCount: LIMITS.MAX_OBSERVATIONS_PER_RUN,
+    });
     expect(plan.nextCheckAt).toBeNull();
     expect(plan.reason).toContain('every check it is allowed');
   });
@@ -98,7 +106,11 @@ describe('planNextObservation', () => {
 
   it('VERIFY-148 never schedules a check beyond the deadline plus its grace', () => {
     // Four minutes of backoff left with five seconds of window remaining.
-    const plan = planNextObservation({ ...BASE, observationCount: 3, now: dateAfter(T_DEADLINE, -5) });
+    const plan = planNextObservation({
+      ...BASE,
+      observationCount: 3,
+      now: dateAfter(T_DEADLINE, -5),
+    });
     expect(plan.nextCheckAt).toBeNull();
     expect(plan.reason).toContain('after the completion window');
   });
@@ -116,7 +128,10 @@ describe('planNextObservation', () => {
   });
 
   it('VERIFY-150 stops entirely once the grace period has passed', () => {
-    const plan = planNextObservation({ ...BASE, now: dateAfter(T_DEADLINE, DEADLINE_GRACE_SECONDS + 1) });
+    const plan = planNextObservation({
+      ...BASE,
+      now: dateAfter(T_DEADLINE, DEADLINE_GRACE_SECONDS + 1),
+    });
     expect(plan.nextCheckAt).toBeNull();
     expect(plan.reason).toContain('completion window has closed');
   });
@@ -157,7 +172,12 @@ describe('planNextRetry', () => {
   });
 
   it('VERIFY-155 a transport retry honours Retry-After as a floor', () => {
-    const plan = planNextRetry({ attemptsUsed: 0, now: T_EVENT, retryAfterSeconds: 45, jitterSeed: 0.5 });
+    const plan = planNextRetry({
+      attemptsUsed: 0,
+      now: T_EVENT,
+      retryAfterSeconds: 45,
+      jitterSeed: 0.5,
+    });
     expect(secondsFromNow(plan.nextAttemptAt!, T_EVENT)).toBe(45);
   });
 });
@@ -208,7 +228,13 @@ describe('nested budgets', () => {
       }
       observationCount += 1;
 
-      const plan = planNextObservation({ observationCount, deadlineAt, now, attemptsUsed, lastGap: gap });
+      const plan = planNextObservation({
+        observationCount,
+        deadlineAt,
+        now,
+        attemptsUsed,
+        lastGap: gap,
+      });
       if (plan.nextCheckAt === null) break;
       now = plan.nextCheckAt;
     }
@@ -219,7 +245,12 @@ describe('nested budgets', () => {
   });
 
   it('VERIFY-159 a decided run is terminal for the scheduler regardless of remaining budget', () => {
-    const plan = planNextObservation({ ...BASE, observationCount: 0, attemptsUsed: 0, decided: true });
+    const plan = planNextObservation({
+      ...BASE,
+      observationCount: 0,
+      attemptsUsed: 0,
+      decided: true,
+    });
     expect(plan.nextCheckAt).toBeNull();
   });
 });

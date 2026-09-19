@@ -119,9 +119,11 @@ describe('injected instructions do not fire a tool', () => {
       expect(outcome.ok, injection).toBe(false);
       if (!outcome.ok) {
         // It must be refused for a policy reason, never executed and never crash.
-        expect(['PROPOSALS_DISABLED_UNTRUSTED_CONTEXT', 'INVALID_ARGUMENTS', 'FORBIDDEN']).toContain(
-          outcome.refusal.reason,
-        );
+        expect([
+          'PROPOSALS_DISABLED_UNTRUSTED_CONTEXT',
+          'INVALID_ARGUMENTS',
+          'FORBIDDEN',
+        ]).toContain(outcome.refusal.reason);
       }
     }
   });

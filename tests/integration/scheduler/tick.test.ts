@@ -52,7 +52,10 @@ afterEach(() => {
 /** A registry that answers both providers from one bundle. */
 function registryFor(bundle: Parameters<typeof bundleScript>[0], callsMade = 1) {
   const script = bundleScript(bundle, callsMade);
-  return makeRegistry(makeFakeConnector('hubspot', script.hubspot), makeFakeConnector('resend', script.resend));
+  return makeRegistry(
+    makeFakeConnector('hubspot', script.hubspot),
+    makeFakeConnector('resend', script.resend),
+  );
 }
 
 const EMPTY_BUNDLE = { crm: null, email_events: [], gaps: [] } as const;
@@ -96,7 +99,9 @@ describe('the tick observes admitted runs without anyone touching the database',
     expect(harness.runRow(runId).completed_at).not.toBeNull();
 
     const announced = harness.h.raw
-      .prepare("SELECT COUNT(*) AS n FROM outbox WHERE event_type = 'run.decided' AND entity_id = ?")
+      .prepare(
+        "SELECT COUNT(*) AS n FROM outbox WHERE event_type = 'run.decided' AND entity_id = ?",
+      )
       .get(runId) as { n: number };
     expect(Number(announced.n)).toBe(1);
   });
@@ -194,7 +199,11 @@ describe('no credentials — the only path that runs in production today', () =>
 
   it('VERIFY-216 ten unconnected runs produce ten quiet resolutions, not an alert storm', async () => {
     for (let i = 0; i < 10; i += 1) await harness.admit(`evt-storm-${i}`);
-    const report = await harness.tick({ now: at(1), resolver: notConnectedResolver(), maxRuns: 10 });
+    const report = await harness.tick({
+      now: at(1),
+      resolver: notConnectedResolver(),
+      maxRuns: 10,
+    });
 
     expect(report.runs.terminal).toBe(10);
     expect(report.budget.callsUsed).toBe(0);
@@ -282,8 +291,18 @@ describe('an unreachable provider never becomes a failure', () => {
       crm: null,
       email_events: [],
       gaps: [
-        { source: 'crm_record', code: 'NOT_FOUND', retryable: false, detail: 'the CRM has no such record' },
-        { source: 'email_event', code: 'NOT_FOUND', retryable: false, detail: 'no events for this message' },
+        {
+          source: 'crm_record',
+          code: 'NOT_FOUND',
+          retryable: false,
+          detail: 'the CRM has no such record',
+        },
+        {
+          source: 'email_event',
+          code: 'NOT_FOUND',
+          retryable: false,
+          detail: 'no events for this message',
+        },
       ],
     });
     await harness.tick({
@@ -300,8 +319,18 @@ describe('an unreachable provider never becomes a failure', () => {
       crm: null,
       email_events: [],
       gaps: [
-        { source: 'crm_record', code: 'NOT_FOUND', retryable: false, detail: 'the CRM has no such record' },
-        { source: 'email_event', code: 'NOT_FOUND', retryable: false, detail: 'no events for this message' },
+        {
+          source: 'crm_record',
+          code: 'NOT_FOUND',
+          retryable: false,
+          detail: 'the CRM has no such record',
+        },
+        {
+          source: 'email_event',
+          code: 'NOT_FOUND',
+          retryable: false,
+          detail: 'no events for this message',
+        },
       ],
     });
     await harness.tick({ now: at(1), resolver: connectedResolver(), connectors: absent });
@@ -329,7 +358,11 @@ describe('coverage modes the scheduler cannot deliver', () => {
     await harness.tick({
       now: at(1),
       resolver: connectedResolver(),
-      connectors: registryFor({ crm: makeCrmEvidence(), email_events: [makeEmailEvent()], gaps: [] }),
+      connectors: registryFor({
+        crm: makeCrmEvidence(),
+        email_events: [makeEmailEvent()],
+        gaps: [],
+      }),
     });
     // Degrading does not mean refusing: the enquiries we were told about are still checked.
     expect(harness.runRow(runId).status).toBe('VERIFIED');
@@ -348,7 +381,11 @@ describe('two ticks in the same minute', () => {
     for (let i = 0; i < 5; i += 1) await harness.admit(`evt-race-${i}`);
 
     const first = await harness.tick({ now: at(1), resolver: notConnectedResolver(), maxRuns: 10 });
-    const second = await harness.tick({ now: at(1), resolver: notConnectedResolver(), maxRuns: 10 });
+    const second = await harness.tick({
+      now: at(1),
+      resolver: notConnectedResolver(),
+      maxRuns: 10,
+    });
 
     expect(first.runs.claimed).toBe(5);
     expect(second.runs.claimed).toBe(0);
@@ -448,7 +485,12 @@ describe('a tick that dies part way', () => {
     expect(admitted.reserved).toBe(1);
 
     // Crash right after the claim.
-    await runs.claimDue(harness.h.db, { now: iso(1), limit: 5, leaseSeconds: 120, leaseUntil: iso(121) });
+    await runs.claimDue(harness.h.db, {
+      now: iso(1),
+      limit: 5,
+      leaseSeconds: 120,
+      leaseUntil: iso(121),
+    });
     expect(harness.entitlement().reserved).toBe(1);
 
     // The lease expires and the run is resolved by a later tick, which settles it.
@@ -642,7 +684,10 @@ describe('the tick is bounded in every dimension', () => {
         calls_made: 99,
       })),
     );
-    const budget = new TickBudget({ maxExternalCalls: MAX_EXTERNAL_CALLS_PER_RUN, elapsed: () => 0 });
+    const budget = new TickBudget({
+      maxExternalCalls: MAX_EXTERNAL_CALLS_PER_RUN,
+      elapsed: () => 0,
+    });
     await harness.tick({ now: at(1), resolver: connectedResolver(), connectors: greedy, budget });
 
     // The first connector's inflated claim consumes the allowance, and the second is then
@@ -690,7 +735,9 @@ describe('the outbox dispatcher', () => {
 
     await harness.tick({ now: at(1), resolver: notConnectedResolver(), handlers });
     // Force the same row back to pending, exactly as a crash before markDispatched would.
-    harness.h.exec("UPDATE outbox SET dispatch_state = 'pending', next_attempt_at = '2000-01-01T00:00:00.000Z'");
+    harness.h.exec(
+      "UPDATE outbox SET dispatch_state = 'pending', next_attempt_at = '2000-01-01T00:00:00.000Z'",
+    );
     await harness.tick({ now: at(2), resolver: notConnectedResolver(), handlers });
 
     // Delivered more than once — and the handler's effect is still exactly one per key.
@@ -715,7 +762,9 @@ describe('the outbox dispatcher', () => {
     expect(report.error).toBeNull();
     expect(report.outbox.retrying).toBeGreaterThanOrEqual(1);
     const row = harness.h.raw
-      .prepare("SELECT dispatch_state, attempts, last_error FROM outbox WHERE event_type = 'run.created'")
+      .prepare(
+        "SELECT dispatch_state, attempts, last_error FROM outbox WHERE event_type = 'run.created'",
+      )
       .get() as { dispatch_state: string; attempts: number; last_error: string | null };
     expect(row.dispatch_state).toBe('pending');
     expect(Number(row.attempts)).toBe(1);
@@ -729,7 +778,9 @@ describe('the outbox dispatcher', () => {
     let state = '';
     for (let i = 0; i < 8; i += 1) {
       await harness.tick({ now: at(1 + i), resolver: notConnectedResolver(), handlers });
-      harness.h.exec("UPDATE outbox SET next_attempt_at = '2000-01-01T00:00:00.000Z' WHERE dispatch_state = 'pending'");
+      harness.h.exec(
+        "UPDATE outbox SET next_attempt_at = '2000-01-01T00:00:00.000Z' WHERE dispatch_state = 'pending'",
+      );
       state = (
         harness.h.raw
           .prepare("SELECT dispatch_state FROM outbox WHERE event_type = 'run.created'")
@@ -855,7 +906,11 @@ describe('the allowance period key is read, never derived (A13-010)', () => {
 
     const rows = harness.allowanceRows();
     expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({ billing_period: ALLOWANCE_PERIOD_KEY, consumed: 1, reserved: 0 });
+    expect(rows[0]).toMatchObject({
+      billing_period: ALLOWANCE_PERIOD_KEY,
+      consumed: 1,
+      reserved: 0,
+    });
     expect(harness.runRow(runId).status).toBe('UNVERIFIED');
   });
 
@@ -919,7 +974,8 @@ describe('the allowance period key is read, never derived (A13-010)', () => {
     for (const file of readdirSync(dir).filter((name) => name.endsWith('.ts'))) {
       const source = readFileSync(join(dir, file), 'utf8');
       if (/billingPeriodFor/.test(source)) offenders.push(`${file}: imports billingPeriodFor`);
-      if (/\.slice\(\s*0\s*,\s*(7|10)\s*\)/.test(source)) offenders.push(`${file}: slices a date into a key`);
+      if (/\.slice\(\s*0\s*,\s*(7|10)\s*\)/.test(source))
+        offenders.push(`${file}: slices a date into a key`);
     }
     expect(offenders).toEqual([]);
   });

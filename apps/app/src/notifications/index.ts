@@ -8,3 +8,7 @@ export * from './templates';
 export * from './send';
 export * from './grouping';
 export * from './telegram';
+export * from './email';
+export * from './delivery';
+export * from './billingEvents';
+export * from './billingTick';

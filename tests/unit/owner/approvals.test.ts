@@ -69,7 +69,11 @@ const PACKET: CampaignPacket = {
     url: 'https://verify.itisyou.app/?utm_source=reddit',
     conversion_definition: 'a workspace is created',
   },
-  duration: { starts_at: '2026-10-05T09:00:00.000Z', ends_at: '2026-10-12T09:00:00.000Z', timezone: 'Europe/London' },
+  duration: {
+    starts_at: '2026-10-05T09:00:00.000Z',
+    ends_at: '2026-10-12T09:00:00.000Z',
+    timezone: 'Europe/London',
+  },
   bidding: { max_cpc_minor: 60, strategy: 'manual_cpc' },
 };
 
@@ -161,9 +165,9 @@ describe('owner approvals', () => {
   });
 
   it('OWNER-029 an approval cannot authorise less than the thing it approves', async () => {
-    await expect(grantOwnerApproval(REFUND, grantInput({ maximum_amount_minor: 4899 }))).rejects.toThrow(
-      /below the refund amount/,
-    );
+    await expect(
+      grantOwnerApproval(REFUND, grantInput({ maximum_amount_minor: 4899 })),
+    ).rejects.toThrow(/below the refund amount/);
   });
 
   it('OWNER-030 an approval must expire after it is created', async () => {
@@ -175,11 +179,21 @@ describe('owner approvals', () => {
   it('OWNER-031 cleanup categories in a different order are the same approval', async () => {
     const a: OwnerApprovalPayload = {
       action_type: 'cleanup_execute',
-      payload: { categories: ['expired_sessions', 'synthetic_workspaces'], inventory_hash: 'h', resource_count: 3, environment: 'staging' },
+      payload: {
+        categories: ['expired_sessions', 'synthetic_workspaces'],
+        inventory_hash: 'h',
+        resource_count: 3,
+        environment: 'staging',
+      },
     };
     const b: OwnerApprovalPayload = {
       action_type: 'cleanup_execute',
-      payload: { categories: ['synthetic_workspaces', 'expired_sessions'], inventory_hash: 'h', resource_count: 3, environment: 'staging' },
+      payload: {
+        categories: ['synthetic_workspaces', 'expired_sessions'],
+        inventory_hash: 'h',
+        resource_count: 3,
+        environment: 'staging',
+      },
     };
     expect(await ownerPayloadHash(a)).toBe(await ownerPayloadHash(b));
   });
@@ -187,9 +201,17 @@ describe('owner approvals', () => {
   it('OWNER-032 a cleanup approval stops applying when the inventory hash moves', async () => {
     const payload: OwnerApprovalPayload = {
       action_type: 'cleanup_execute',
-      payload: { categories: ['expired_sessions'], inventory_hash: 'hash-a', resource_count: 2, environment: 'staging' },
+      payload: {
+        categories: ['expired_sessions'],
+        inventory_hash: 'hash-a',
+        resource_count: 2,
+        environment: 'staging',
+      },
     };
-    const approval = await grantOwnerApproval(payload, grantInput({ maximum_amount_minor: null, currency: null }));
+    const approval = await grantOwnerApproval(
+      payload,
+      grantInput({ maximum_amount_minor: null, currency: null }),
+    );
     const moved: OwnerApprovalPayload = {
       action_type: 'cleanup_execute',
       payload: { ...payload.payload, inventory_hash: 'hash-b' },

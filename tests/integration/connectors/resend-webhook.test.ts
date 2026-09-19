@@ -123,7 +123,9 @@ async function post(
   headers: Record<string, string>,
   path = `/api/v1/webhooks/resend/${OPAQUE_ID}`,
 ): Promise<Response> {
-  return app.fetch(new Request(`https://verify.example${path}`, { method: 'POST', body: raw, headers }));
+  return app.fetch(
+    new Request(`https://verify.example${path}`, { method: 'POST', body: raw, headers }),
+  );
 }
 
 async function signedHeaders(
@@ -159,7 +161,9 @@ describe('Resend webhook — the accepted path', () => {
     const raw = body();
     await post(app, raw, await signedHeaders(raw));
 
-    const stored = rec.evidence[0] as { evidence: { provider_account_id: string; origin: string; status: string } };
+    const stored = rec.evidence[0] as {
+      evidence: { provider_account_id: string; origin: string; status: string };
+    };
     expect(stored.evidence.provider_account_id).toBe(ACCOUNT);
     expect(stored.evidence.origin).toBe('provider_webhook');
     expect(stored.evidence.status).toBe('delivered');
@@ -179,7 +183,9 @@ describe('Resend webhook — the accepted path', () => {
   });
 
   it('CONN-221 does not promote again once the connection is already proven', async () => {
-    const { app, rec } = harness({ endpoint: endpoint({ webhookVerifiedAt: '2026-02-01T00:00:00.000Z' }) });
+    const { app, rec } = harness({
+      endpoint: endpoint({ webhookVerifiedAt: '2026-02-01T00:00:00.000Z' }),
+    });
     const raw = body();
     const response = await post(app, raw, await signedHeaders(raw));
 

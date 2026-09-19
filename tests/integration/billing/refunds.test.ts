@@ -188,7 +188,12 @@ describe('requesting a refund', () => {
     const harness = createHarness();
     await seedOrder(harness);
     await expect(
-      requestRefund(harness, { workspaceId: WS, orderId: 'ord_0001', amountMinor: 0, currency: 'GBP' }),
+      requestRefund(harness, {
+        workspaceId: WS,
+        orderId: 'ord_0001',
+        amountMinor: 0,
+        currency: 'GBP',
+      }),
     ).rejects.toThrow(/positive integer/);
     expect(harness.data.debug.refunds()).toHaveLength(0);
   });
@@ -351,7 +356,14 @@ describe('the owner decides', () => {
 describe('what the customer is told', () => {
   it('BILL-146 only a succeeded refund is ever rendered as "Refunded"', () => {
     expect(customerVisibleRefundState('succeeded')).toBe('Refunded');
-    for (const state of ['requested', 'queued_for_owner', 'submitted', 'pending', 'failed', 'rejected'] as const) {
+    for (const state of [
+      'requested',
+      'queued_for_owner',
+      'submitted',
+      'pending',
+      'failed',
+      'rejected',
+    ] as const) {
       expect(customerVisibleRefundState(state)).not.toBe('Refunded');
       expect(customerVisibleRefundState(state).toLowerCase()).not.toMatch(/^refunded$/);
     }
@@ -371,7 +383,9 @@ describe('what the customer is told', () => {
 
   it('BILL-148 the state machine refuses every move that would skip the owner', () => {
     expect(refundTransition('requested', { kind: 'owner_approved' }).allowed).toBe(false);
-    expect(refundTransition('queued_for_owner', { kind: 'provider_succeeded' }).allowed).toBe(false);
+    expect(refundTransition('queued_for_owner', { kind: 'provider_succeeded' }).allowed).toBe(
+      false,
+    );
     expect(refundTransition('rejected', { kind: 'owner_approved' }).allowed).toBe(false);
     expect(refundTransition('succeeded', { kind: 'provider_failed' }).allowed).toBe(false);
   });
@@ -485,11 +499,7 @@ describe('the approval is bound to the exact payload', () => {
   it('BILL-215 an approval granted for another workspace’s refund authorises nothing', async () => {
     const harness = createHarness();
     const refund = await queuedRefund(harness);
-    const foreign = await approvalFor(
-      harness,
-      { ...refund, workspaceId: 'ws_someone_else' },
-      {},
-    );
+    const foreign = await approvalFor(harness, { ...refund, workspaceId: 'ws_someone_else' }, {});
     await expect(
       decideRefund(harness, {
         workspaceId: WS,
@@ -665,9 +675,9 @@ describe('A-20 the approval is spent, and spent before the money moves', () => {
       }),
     ).rejects.toThrow(/already been used/);
 
-    expect(
-      harness.gateway.calls.filter((c) => c.method === 'createRefund').length,
-    ).toBe(callsBefore);
+    expect(harness.gateway.calls.filter((c) => c.method === 'createRefund').length).toBe(
+      callsBefore,
+    );
     expect((await harness.data.findRefund(WS, second.refund.id))?.state).toBe('queued_for_owner');
   });
 

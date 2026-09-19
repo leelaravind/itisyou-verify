@@ -24,19 +24,33 @@ const SVIX_SECRET = `whsec_${btoa('0123456789abcdef0123456789abcdef')}`; // secr
 const NOW = 1_770_000_000;
 
 const BODY = enc.encode(
-  JSON.stringify({ id: 'evt_test_1', type: 'checkout.session.completed', data: { object: { id: 'cs_1' } } }),
+  JSON.stringify({
+    id: 'evt_test_1',
+    type: 'checkout.session.completed',
+    data: { object: { id: 'cs_1' } },
+  }),
 );
 
 describe('Stripe webhook signatures', () => {
   it('SEC-401 accepts a correctly signed body', async () => {
     const header = await signStripe(BODY, STRIPE_SECRET, NOW);
-    const r = await verifyStripeSignature({ rawBody: BODY, header, secret: STRIPE_SECRET, nowSeconds: NOW });
+    const r = await verifyStripeSignature({
+      rawBody: BODY,
+      header,
+      secret: STRIPE_SECRET,
+      nowSeconds: NOW,
+    });
     expect(r.ok).toBe(true);
   });
 
   it('SEC-402 rejects a forged signature', async () => {
     const header = `t=${NOW},v1=${'0'.repeat(64)}`;
-    const r = await verifyStripeSignature({ rawBody: BODY, header, secret: STRIPE_SECRET, nowSeconds: NOW });
+    const r = await verifyStripeSignature({
+      rawBody: BODY,
+      header,
+      secret: STRIPE_SECRET,
+      nowSeconds: NOW,
+    });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.reason).toBe('signature_mismatch');
   });
@@ -45,7 +59,12 @@ describe('Stripe webhook signatures', () => {
     const header = await signStripe(BODY, STRIPE_SECRET, NOW);
     const tampered = new Uint8Array(BODY);
     tampered[tampered.length - 2] = (tampered[tampered.length - 2] as number) ^ 0x01;
-    const r = await verifyStripeSignature({ rawBody: tampered, header, secret: STRIPE_SECRET, nowSeconds: NOW });
+    const r = await verifyStripeSignature({
+      rawBody: tampered,
+      header,
+      secret: STRIPE_SECRET,
+      nowSeconds: NOW,
+    });
     expect(r.ok).toBe(false);
   });
 
@@ -53,7 +72,9 @@ describe('Stripe webhook signatures', () => {
     // The trap: `JSON.stringify(await c.req.json())` reorders nothing but changes
     // whitespace/number formatting. Verification MUST use the raw bytes.
     const header = await signStripe(BODY, STRIPE_SECRET, NOW);
-    const reserialised = enc.encode(JSON.stringify(JSON.parse(new TextDecoder().decode(BODY)), null, 2));
+    const reserialised = enc.encode(
+      JSON.stringify(JSON.parse(new TextDecoder().decode(BODY)), null, 2),
+    );
     const r = await verifyStripeSignature({
       rawBody: reserialised,
       header,
@@ -77,7 +98,12 @@ describe('Stripe webhook signatures', () => {
 
   it('SEC-406 rejects a future-dated timestamp as well as a stale one', async () => {
     const header = await signStripe(BODY, STRIPE_SECRET, NOW + 10_000);
-    const r = await verifyStripeSignature({ rawBody: BODY, header, secret: STRIPE_SECRET, nowSeconds: NOW });
+    const r = await verifyStripeSignature({
+      rawBody: BODY,
+      header,
+      secret: STRIPE_SECRET,
+      nowSeconds: NOW,
+    });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.reason).toBe('timestamp_out_of_tolerance');
   });
@@ -85,7 +111,12 @@ describe('Stripe webhook signatures', () => {
   it('SEC-407 ignores the v0 scheme (downgrade attack)', async () => {
     // Stripe docs: "To prevent downgrade attacks, ignore all schemes that aren't v1."
     const header = `t=${NOW},v0=${'a'.repeat(64)}`;
-    const r = await verifyStripeSignature({ rawBody: BODY, header, secret: STRIPE_SECRET, nowSeconds: NOW });
+    const r = await verifyStripeSignature({
+      rawBody: BODY,
+      header,
+      secret: STRIPE_SECRET,
+      nowSeconds: NOW,
+    });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.reason).toBe('no_supported_scheme');
   });
@@ -94,20 +125,35 @@ describe('Stripe webhook signatures', () => {
     const good = await signStripe(BODY, STRIPE_SECRET, NOW);
     const goodHex = good.slice(good.indexOf('v1=') + 3);
     const header = `t=${NOW},v1=${'b'.repeat(64)},v1=${goodHex}`;
-    const r = await verifyStripeSignature({ rawBody: BODY, header, secret: STRIPE_SECRET, nowSeconds: NOW });
+    const r = await verifyStripeSignature({
+      rawBody: BODY,
+      header,
+      secret: STRIPE_SECRET,
+      nowSeconds: NOW,
+    });
     expect(r.ok).toBe(true);
   });
 
   it('SEC-409 rejects a missing or malformed header instead of defaulting to trust', async () => {
     for (const header of [null, '', 'garbage', 't=notanumber,v1=abc', 'v1=abc']) {
-      const r = await verifyStripeSignature({ rawBody: BODY, header, secret: STRIPE_SECRET, nowSeconds: NOW });
+      const r = await verifyStripeSignature({
+        rawBody: BODY,
+        header,
+        secret: STRIPE_SECRET,
+        nowSeconds: NOW,
+      });
       expect(r.ok, JSON.stringify(header)).toBe(false);
     }
   });
 
   it('SEC-410 rejects a signature made with a different secret (test/live confusion)', async () => {
     const header = await signStripe(BODY, 'whsec_a_different_secret', NOW); // secret-scan:allow
-    const r = await verifyStripeSignature({ rawBody: BODY, header, secret: STRIPE_SECRET, nowSeconds: NOW });
+    const r = await verifyStripeSignature({
+      rawBody: BODY,
+      header,
+      secret: STRIPE_SECRET,
+      nowSeconds: NOW,
+    });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.reason).toBe('signature_mismatch');
   });

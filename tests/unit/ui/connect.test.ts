@@ -12,7 +12,10 @@ import { setupGuide } from '@verify/connectors';
 import { ConnectPage } from '../../../apps/app/src/routes/app/onboardingPages.js';
 import { ConnectionsPage } from '../../../apps/app/src/routes/app/accountPages.js';
 import { CONNECTION_PRESENTATION } from '../../../apps/app/src/routes/app/chrome.js';
-import { SyntheticCustomerDataPort, resetSyntheticState } from '../../../apps/app/src/routes/app/syntheticPort.js';
+import {
+  SyntheticCustomerDataPort,
+  resetSyntheticState,
+} from '../../../apps/app/src/routes/app/syntheticPort.js';
 import type { ConnectionView } from '../../../apps/app/src/routes/app/port.js';
 
 /**
@@ -51,7 +54,10 @@ function connection(overrides: Partial<ConnectionView> = {}): ConnectionView {
   };
 }
 
-async function renderConnect(overrides: Partial<ConnectionView> = {}, canSubmit = true): Promise<string> {
+async function renderConnect(
+  overrides: Partial<ConnectionView> = {},
+  canSubmit = true,
+): Promise<string> {
   return render(
     ConnectPage({
       connections: [connection(overrides)],
@@ -125,7 +131,10 @@ describe('the connect card', () => {
   it('CUST-114 the same honesty holds on the connections page, not just during onboarding', async () => {
     const markup = await render(
       ConnectionsPage({
-        connections: [connection({ status: 'testing' }), connection({ provider: 'hubspot', displayName: 'HubSpot', status: 'ready' })],
+        connections: [
+          connection({ status: 'testing' }),
+          connection({ provider: 'hubspot', displayName: 'HubSpot', status: 'ready' }),
+        ],
         csrfToken: 'token',
         submitted: null,
       }),
@@ -147,7 +156,10 @@ describe('the connect card', () => {
   it('CUST-116 a rejected credential reports that nothing was stored, beside the field it concerns', async () => {
     resetSyntheticState();
     const port = new SyntheticCustomerDataPort();
-    const result = await port.submitConnectionCredentials({ provider: 'resend', accessToken: 'nope' });
+    const result = await port.submitConnectionCredentials({
+      provider: 'resend',
+      accessToken: 'nope',
+    });
     expect(result.ok).toBe(false);
     expect(result.fieldErrors['access_token']).toContain('starts re_');
     expect(result.message).toContain('nothing was stored');
@@ -168,7 +180,10 @@ describe('the connect card', () => {
   it('CUST-117 a well-shaped credential is still not called working, because nothing checked it', async () => {
     resetSyntheticState();
     const port = new SyntheticCustomerDataPort();
-    const result = await port.submitConnectionCredentials({ provider: 'resend', accessToken: 're_abcdefghijklmnop' });
+    const result = await port.submitConnectionCredentials({
+      provider: 'resend',
+      accessToken: 're_abcdefghijklmnop',
+    });
     // Shape is fine, so no field error — but `ok` stays false, because storing is not validating.
     expect(result.fieldErrors).toEqual({});
     expect(result.ok).toBe(false);
@@ -183,7 +198,9 @@ describe('the connect card', () => {
   it('CUST-118 HubSpot’s notice says the scope is the narrowest available, and is not dressed as a warning', async () => {
     const markup = await render(
       ConnectPage({
-        connections: [connection({ provider: 'hubspot', displayName: 'HubSpot', status: 'not_connected' })],
+        connections: [
+          connection({ provider: 'hubspot', displayName: 'HubSpot', status: 'not_connected' }),
+        ],
         csrfToken: 'token',
         submitted: null,
         canSubmitCredentials: true,

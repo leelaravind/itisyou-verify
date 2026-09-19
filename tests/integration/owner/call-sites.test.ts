@@ -30,7 +30,10 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 function source(...relative: readonly string[]): string {
-  return readFileSync(fileURLToPath(new URL(`../../../${relative.join('/')}`, import.meta.url)), 'utf8');
+  return readFileSync(
+    fileURLToPath(new URL(`../../../${relative.join('/')}`, import.meta.url)),
+    'utf8',
+  );
 }
 
 const LIVE_PORT = 'apps/app/src/db/ownerPort.ts';
@@ -70,13 +73,16 @@ function methodBody(src: string, name: string): string | null {
 }
 
 describe('the money paths cannot run without the control in front of them', () => {
-  it('OWNER-320 if the refund path can reach a provider, it consumes the approval first', ({ skip }) => {
+  it('OWNER-320 if the refund path can reach a provider, it consumes the approval first', ({
+    skip,
+  }) => {
     const refunds = source(REFUNDS);
     const decide = methodBody(refunds, 'decideRefund') ?? refunds;
     const reachesProvider = /gateway\.createRefund\s*\(/.test(decide);
-    const consumes = /(consumeApproval|claimApproval|RefundApprovalConsumer|consumeRefundApproval|approvalConsumer)/.test(
-      decide,
-    );
+    const consumes =
+      /(consumeApproval|claimApproval|RefundApprovalConsumer|consumeRefundApproval|approvalConsumer)/.test(
+        decide,
+      );
 
     if (reachesProvider && !consumes) {
       // Not a pass and not a silent failure: this is the finding, stated where it will be
@@ -91,13 +97,17 @@ describe('the money paths cannot run without the control in front of them', () =
       return;
     }
     if (!reachesProvider) {
-      skip(`${REFUNDS}: decideRefund does not reach a provider yet, so there is no ordering to assert.`);
+      skip(
+        `${REFUNDS}: decideRefund does not reach a provider yet, so there is no ordering to assert.`,
+      );
       return;
     }
 
     // The real assertion, live the moment the provider call exists.
     expect(consumes).toBe(true);
-    const consumeAt = decide.search(/(consumeApproval|claimApproval|RefundApprovalConsumer|approvalConsumer)/);
+    const consumeAt = decide.search(
+      /(consumeApproval|claimApproval|RefundApprovalConsumer|approvalConsumer)/,
+    );
     const providerAt = decide.search(/gateway\.createRefund\s*\(/);
     expect(
       consumeAt,
@@ -105,12 +115,16 @@ describe('the money paths cannot run without the control in front of them', () =
     ).toBeLessThan(providerAt);
   });
 
-  it('OWNER-321 the live owner port consumes the approval on any refund that can move money', ({ skip }) => {
+  it('OWNER-321 the live owner port consumes the approval on any refund that can move money', ({
+    skip,
+  }) => {
     const port = source(LIVE_PORT);
     const body = methodBody(port, 'issueRefund');
     expect(body, `${LIVE_PORT} has no issueRefund at all`).not.toBeNull();
     const blocked = /writeBlocked\s*\(/.test(body ?? '');
-    const consumes = /(consumeApproval|claimApproval|ApprovalClaims|approvalConsumer)/.test(body ?? '');
+    const consumes = /(consumeApproval|claimApproval|ApprovalClaims|approvalConsumer)/.test(
+      body ?? '',
+    );
 
     if (blocked && !consumes) {
       skip(
@@ -127,14 +141,21 @@ describe('the money paths cannot run without the control in front of them', () =
     // Not conditional on anything, so it cannot go vacuous. A second UPDATE of
     // approvals.status anywhere means two guarantees that can drift apart.
     const spellings: string[] = [];
-    for (const file of [CLAIMS, LIVE_PORT, REFUNDS, 'apps/app/src/owner/approvals.ts', 'apps/app/src/owner/memory.ts']) {
+    for (const file of [
+      CLAIMS,
+      LIVE_PORT,
+      REFUNDS,
+      'apps/app/src/owner/approvals.ts',
+      'apps/app/src/owner/memory.ts',
+    ]) {
       let text = '';
       try {
         text = source(file);
       } catch {
         continue;
       }
-      if (/UPDATE\s+approvals\s+SET[^;`']*status\s*=\s*'consumed'/is.test(text)) spellings.push(file);
+      if (/UPDATE\s+approvals\s+SET[^;`']*status\s*=\s*'consumed'/is.test(text))
+        spellings.push(file);
     }
     expect(spellings).toEqual(['apps/app/src/owner/approvals.ts']);
   });
@@ -152,24 +173,92 @@ describe('every owner control is reachable from a real route', () => {
   const router = source(ROUTER);
 
   /** Each control, the port method behind it, and the route that must call it. */
-  const CONTROLS: readonly { readonly label: string; readonly method: string; readonly route: RegExp }[] = [
-    { label: 'pause or resume a control', method: 'setControl', route: /routes\.post\('\/owner\/controls\/:key'/ },
-    { label: 'grant an approval', method: 'grantApproval', route: /routes\.post\('\/owner\/approvals'/ },
-    { label: 'withdraw an approval', method: 'revokeApproval', route: /routes\.post\('\/owner\/approvals\/:id\/revoke'/ },
+  const CONTROLS: readonly {
+    readonly label: string;
+    readonly method: string;
+    readonly route: RegExp;
+  }[] = [
+    {
+      label: 'pause or resume a control',
+      method: 'setControl',
+      route: /routes\.post\('\/owner\/controls\/:key'/,
+    },
+    {
+      label: 'grant an approval',
+      method: 'grantApproval',
+      route: /routes\.post\('\/owner\/approvals'/,
+    },
+    {
+      label: 'withdraw an approval',
+      method: 'revokeApproval',
+      route: /routes\.post\('\/owner\/approvals\/:id\/revoke'/,
+    },
     { label: 'issue a refund', method: 'issueRefund', route: /routes\.post\('\/owner\/refunds'/ },
-    { label: 'reject an order', method: 'rejectBeforeCheckout', route: /routes\.post\('\/owner\/orders\/:orderId\/reject'/ },
-    { label: 'cancel a subscription', method: 'cancelSubscription', route: /routes\.post\('\/owner\/customers\/:workspaceId\/cancel'/ },
-    { label: 'retry a run', method: 'retryRun', route: /routes\.post\('\/owner\/verification\/:runId\/retry'/ },
-    { label: 'rotate a connection', method: 'rotateConnection', route: /routes\.post\('\/owner\/connections\/:id\/rotate'/ },
-    { label: 'revoke a connection', method: 'revokeConnection', route: /routes\.post\('\/owner\/connections\/:id\/revoke'/ },
-    { label: 'activate a campaign', method: 'activateCampaign', route: /routes\.post\('\/owner\/ads\/:id\/activate'/ },
-    { label: 'pause a campaign', method: 'pauseCampaign', route: /routes\.post\('\/owner\/ads\/:id\/pause'/ },
-    { label: 'acknowledge an alert', method: 'acknowledgeAlert', route: /routes\.post\('\/owner\/operations\/alerts\/:id\/acknowledge'/ },
-    { label: 'queue a maintenance job', method: 'enqueueMaintenance', route: /routes\.post\('\/owner\/operations\/jobs\/:kind'/ },
-    { label: 'run a test suite', method: 'dispatchQuality', route: /routes\.post\('\/owner\/quality\/run'/ },
-    { label: 'preview a cleanup', method: 'cleanupPreview', route: /routes\.post\('\/owner\/cleanup\/preview'/ },
-    { label: 'run a cleanup', method: 'cleanupExecute', route: /routes\.post\('\/owner\/cleanup\/run'/ },
-    { label: 'save a setting', method: 'writeSetting', route: /routes\.post\('\/owner\/settings\//  },
+    {
+      label: 'reject an order',
+      method: 'rejectBeforeCheckout',
+      route: /routes\.post\('\/owner\/orders\/:orderId\/reject'/,
+    },
+    {
+      label: 'cancel a subscription',
+      method: 'cancelSubscription',
+      route: /routes\.post\('\/owner\/customers\/:workspaceId\/cancel'/,
+    },
+    {
+      label: 'retry a run',
+      method: 'retryRun',
+      route: /routes\.post\('\/owner\/verification\/:runId\/retry'/,
+    },
+    {
+      label: 'rotate a connection',
+      method: 'rotateConnection',
+      route: /routes\.post\('\/owner\/connections\/:id\/rotate'/,
+    },
+    {
+      label: 'revoke a connection',
+      method: 'revokeConnection',
+      route: /routes\.post\('\/owner\/connections\/:id\/revoke'/,
+    },
+    {
+      label: 'activate a campaign',
+      method: 'activateCampaign',
+      route: /routes\.post\('\/owner\/ads\/:id\/activate'/,
+    },
+    {
+      label: 'pause a campaign',
+      method: 'pauseCampaign',
+      route: /routes\.post\('\/owner\/ads\/:id\/pause'/,
+    },
+    {
+      label: 'acknowledge an alert',
+      method: 'acknowledgeAlert',
+      route: /routes\.post\('\/owner\/operations\/alerts\/:id\/acknowledge'/,
+    },
+    {
+      label: 'queue a maintenance job',
+      method: 'enqueueMaintenance',
+      route: /routes\.post\('\/owner\/operations\/jobs\/:kind'/,
+    },
+    {
+      label: 'run a test suite',
+      method: 'dispatchQuality',
+      route: /routes\.post\('\/owner\/quality\/run'/,
+    },
+    {
+      label: 'preview a cleanup',
+      method: 'cleanupPreview',
+      route: /routes\.post\('\/owner\/cleanup\/preview'/,
+    },
+    {
+      label: 'run a cleanup',
+      method: 'cleanupExecute',
+      route: /routes\.post\('\/owner\/cleanup\/run'/,
+    },
+    {
+      label: 'save a setting',
+      method: 'writeSetting',
+      route: /routes\.post\('\/owner\/settings\//,
+    },
   ];
 
   it('OWNER-324 every control has a route, and every route calls its port method', () => {
@@ -177,7 +266,8 @@ describe('every owner control is reachable from a real route', () => {
     const uncalled: string[] = [];
     for (const control of CONTROLS) {
       if (!control.route.test(router)) missingRoute.push(`${control.label} (no route)`);
-      if (!new RegExp(`port\\.${control.method}\\s*\\(`).test(router)) uncalled.push(`${control.label} (route never calls port.${control.method})`);
+      if (!new RegExp(`port\\.${control.method}\\s*\\(`).test(router))
+        uncalled.push(`${control.label} (route never calls port.${control.method})`);
     }
     expect(missingRoute).toEqual([]);
     expect(uncalled).toEqual([]);
@@ -206,10 +296,13 @@ describe('every owner control is reachable from a real route', () => {
       if (body === null) continue;
       const claimsSuccess = /writeOk\s*\(|ok:\s*true/.test(body);
       const namesDependency = /writeBlocked\s*\(|detail:\s*NO_/.test(body);
-      const doesSomething = /\.(run|first|all|batch)\s*\(|prepare\s*\(|#runner\.|#audit\s*\(|settings\.set/.test(body);
+      const doesSomething =
+        /\.(run|first|all|batch)\s*\(|prepare\s*\(|#runner\.|#audit\s*\(|settings\.set/.test(body);
       if (claimsSuccess && !doesSomething && !namesDependency) silent.push(control.method);
     }
-    expect(silent, 'these report success without performing an action or naming a blocker').toEqual([]);
+    expect(silent, 'these report success without performing an action or naming a blocker').toEqual(
+      [],
+    );
   });
 
   it('OWNER-327 the deployed entry point builds the live port, not the in-memory stand-in', () => {

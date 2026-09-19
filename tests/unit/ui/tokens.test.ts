@@ -12,7 +12,9 @@ import { CSS, CSS_BYTES, DARK, LIGHT, STATUS_PRESENTATION, THEME_SCRIPT } from '
 /** WCAG 2.1 relative luminance. */
 function luminance(hex: string): number {
   const channels = [1, 3, 5].map((index) => Number.parseInt(hex.slice(index, index + 2), 16) / 255);
-  const linear = channels.map((c) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)));
+  const linear = channels.map((c) =>
+    c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4),
+  );
   return 0.2126 * (linear[0] ?? 0) + 0.7152 * (linear[1] ?? 0) + 0.0722 * (linear[2] ?? 0);
 }
 
@@ -25,8 +27,12 @@ describe('design tokens', () => {
   it('CUST-001 every status colour clears WCAG AA for body text on the page background, in both themes', () => {
     for (const palette of [LIGHT, DARK]) {
       for (const key of ['verified', 'failed', 'unverified', 'pending'] as const) {
-        expect(contrast(palette[key], palette.paper), `${key} on paper`).toBeGreaterThanOrEqual(4.5);
-        expect(contrast(palette[key], palette.surface), `${key} on surface`).toBeGreaterThanOrEqual(4.5);
+        expect(contrast(palette[key], palette.paper), `${key} on paper`).toBeGreaterThanOrEqual(
+          4.5,
+        );
+        expect(contrast(palette[key], palette.surface), `${key} on surface`).toBeGreaterThanOrEqual(
+          4.5,
+        );
       }
     }
   });
@@ -40,7 +46,10 @@ describe('design tokens', () => {
     ] as const;
     for (const palette of [LIGHT, DARK]) {
       for (const [colour, tint] of pairs) {
-        expect(contrast(palette[colour], palette[tint]), `${colour} on ${tint}`).toBeGreaterThanOrEqual(4.5);
+        expect(
+          contrast(palette[colour], palette[tint]),
+          `${colour} on ${tint}`,
+        ).toBeGreaterThanOrEqual(4.5);
       }
     }
   });

@@ -33,7 +33,12 @@ interface Envelope {
 }
 
 /** The AAD string shape the schema comment promises: workspace + provider + purpose. */
-function buildAad(workspaceId: string, provider: string, purpose: string, keyVersion: number): string {
+function buildAad(
+  workspaceId: string,
+  provider: string,
+  purpose: string,
+  keyVersion: number,
+): string {
   return `v${keyVersion}|ws=${workspaceId}|provider=${provider}|purpose=${purpose}`;
 }
 
@@ -44,7 +49,10 @@ function toBuffer(view: Uint8Array): ArrayBuffer {
 }
 
 async function importKey(raw: Uint8Array): Promise<CryptoKey> {
-  return crypto.subtle.importKey('raw', toBuffer(raw), { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+  return crypto.subtle.importKey('raw', toBuffer(raw), { name: 'AES-GCM' }, false, [
+    'encrypt',
+    'decrypt',
+  ]);
 }
 
 async function seal(key: CryptoKey, plaintext: string, aad: string): Promise<Envelope> {
@@ -67,7 +75,7 @@ async function open(key: CryptoKey, envelope: Envelope, aad: string): Promise<st
 }
 
 const KEY_BYTES = new Uint8Array(32).fill(7); // synthetic, deterministic, not a real key
-const TOKEN_A = ['pat','na1','00000000-0000-4000-8000-000000000001'].join('-');
+const TOKEN_A = ['pat', 'na1', '00000000-0000-4000-8000-000000000001'].join('-');
 const WS_A = 'ws_aaaaaaaaaaaaaaaa';
 const WS_B = 'ws_bbbbbbbbbbbbbbbb';
 
@@ -82,13 +90,17 @@ describe('credential envelope: AAD binds ciphertext to a tenant', () => {
   it('SEC-502 tenant A ciphertext will not decrypt in tenant B context, even with the key', async () => {
     const key = await importKey(KEY_BYTES);
     const sealed = await seal(key, TOKEN_A, buildAad(WS_A, 'hubspot', 'connection_token', 1));
-    await expect(open(key, sealed, buildAad(WS_B, 'hubspot', 'connection_token', 1))).rejects.toThrow();
+    await expect(
+      open(key, sealed, buildAad(WS_B, 'hubspot', 'connection_token', 1)),
+    ).rejects.toThrow();
   });
 
   it('SEC-503 will not decrypt under a different provider context', async () => {
     const key = await importKey(KEY_BYTES);
     const sealed = await seal(key, TOKEN_A, buildAad(WS_A, 'hubspot', 'connection_token', 1));
-    await expect(open(key, sealed, buildAad(WS_A, 'resend', 'connection_token', 1))).rejects.toThrow();
+    await expect(
+      open(key, sealed, buildAad(WS_A, 'resend', 'connection_token', 1)),
+    ).rejects.toThrow();
   });
 
   it('SEC-504 will not decrypt under a different purpose (connection token vs TOTP seed)', async () => {
@@ -100,7 +112,9 @@ describe('credential envelope: AAD binds ciphertext to a tenant', () => {
   it('SEC-505 will not decrypt under a different key version label', async () => {
     const key = await importKey(KEY_BYTES);
     const sealed = await seal(key, TOKEN_A, buildAad(WS_A, 'hubspot', 'connection_token', 1));
-    await expect(open(key, sealed, buildAad(WS_A, 'hubspot', 'connection_token', 2))).rejects.toThrow();
+    await expect(
+      open(key, sealed, buildAad(WS_A, 'hubspot', 'connection_token', 2)),
+    ).rejects.toThrow();
   });
 
   it('SEC-506 rejects a tampered ciphertext (GCM tag)', async () => {

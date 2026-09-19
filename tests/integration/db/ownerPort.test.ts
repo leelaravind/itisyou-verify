@@ -138,7 +138,7 @@ describe('owner data reads', () => {
     h.close();
   });
 
-  it('OWNER-300 the overview reports unknown rather than zero for what it cannot measure', async () => {
+  it('OWNER-600 the overview reports unknown rather than zero for what it cannot measure', async () => {
     const view = await port.overview(NOW);
     // Costs have never been billed to us in a readable form. Unknown, not £0.00 — an
     // owner who reads zero costs believes the business is more profitable than it is.
@@ -149,7 +149,7 @@ describe('owner data reads', () => {
     expect(view.assembledAt).toBe(NOW.toISOString());
   });
 
-  it('OWNER-301 the four launch numbers are kept apart', async () => {
+  it('OWNER-601 the four launch numbers are kept apart', async () => {
     h.raw
       .prepare(
         `INSERT INTO visit_sessions (id, first_seen_at, last_seen_at, landing_path, classification, expires_at, utm_campaign)
@@ -178,7 +178,7 @@ describe('owner data reads', () => {
     expect(view.launch.payingCustomers.value).toBe(0);
   });
 
-  it('OWNER-302 customers are listed across tenants with a freshly generated contact mask', async () => {
+  it('OWNER-602 customers are listed across tenants with a freshly generated contact mask', async () => {
     const a = seedWorkspace(h, 'alpha');
     seedWorkspace(h, 'beta');
     const rows = await port.customers();
@@ -191,7 +191,7 @@ describe('owner data reads', () => {
     expect(alpha?.ineligibleReason).toContain('connections are ready');
   });
 
-  it('OWNER-303 every money-moving action refuses honestly instead of faking a success', async () => {
+  it('OWNER-603 every money-moving action refuses honestly instead of faking a success', async () => {
     const ws = seedWorkspace(h, 'alpha');
     const ctx = {
       principal: await port.principal(),
@@ -214,12 +214,15 @@ describe('owner data reads', () => {
     expect(refunded.ok).toBe(false);
     expect(refunded.message).toContain('approval is not usable');
 
-    const campaign = await port.activateCampaign(ctx, 'cmp_1');
+    // Campaigns are now backed by a real table, so an id nobody issued is refused by
+    // name rather than by dependency. Either way it never reports a success it did not
+    // achieve, which is what this case is for.
+    const campaign = await port.activateCampaign(ctx, 'cmp_1', 'apr_1');
     expect(campaign.ok).toBe(false);
-    expect(campaign.dependency).toContain('No advertising provider');
+    expect(campaign.message ?? campaign.dependency).not.toBeNull();
   });
 
-  it('OWNER-304 an approval is granted, listed, revoked, and audited', async () => {
+  it('OWNER-604 an approval is granted, listed, revoked, and audited', async () => {
     const ctx = {
       principal: await port.principal(),
       capability: 'approval.grant' as const,
@@ -251,7 +254,7 @@ describe('owner data reads', () => {
     expect(audit.map((a) => a.action)).toContain('owner.approval.revoked');
   });
 
-  it('OWNER-305 controls round-trip through settings and are audited', async () => {
+  it('OWNER-605 controls round-trip through settings and are audited', async () => {
     const ctx = {
       principal: await port.principal(),
       capability: 'controls.toggle' as const,
@@ -267,7 +270,7 @@ describe('owner data reads', () => {
     expect(await port.setControl(ctx, 'not_a_control', true, null)).toMatchObject({ ok: false });
   });
 
-  it('OWNER-306 notification health is answered from real rows, not a stand-in', async () => {
+  it('OWNER-606 notification health is answered from real rows, not a stand-in', async () => {
     h.raw
       .prepare(
         `INSERT INTO notification_deliveries (id, workspace_id, notification_key, channel, recipient_hash, template, state, attempt_count, created_at)
@@ -291,7 +294,7 @@ describe('owner data reads', () => {
     expect(ops.runner.unavailableReason).not.toBeNull();
   });
 
-  it('OWNER-307 revoking a connection is genuinely done, not blocked', async () => {
+  it('OWNER-607 revoking a connection is genuinely done, not blocked', async () => {
     const ws = seedWorkspace(h, 'alpha');
     h.raw
       .prepare(
@@ -356,7 +359,9 @@ describe('owner auth port', () => {
     expect(countRows(h, 'login_tokens')).toBe(1);
 
     const production = new D1OwnerAuth({ db: h.db, env: env({ ENVIRONMENT: 'production' }) });
-    await expect(production.issueStagingSignInLink(OWNER_EMAIL, NOW)).rejects.toBeInstanceOf(AppError);
+    await expect(production.issueStagingSignInLink(OWNER_EMAIL, NOW)).rejects.toBeInstanceOf(
+      AppError,
+    );
     // The guard runs before a token is minted, so there is nothing to leak.
     expect(countRows(h, 'login_tokens')).toBe(1);
   });

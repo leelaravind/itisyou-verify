@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_standard" name="shell-type"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@500;600&amp;family=Plus+Jakarta+Sans:wght@600;700&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base { html, body { margin: 0; padding: 0; } body { overscroll-behavior: none; } main > :first-child { margin-top: 0 !important; } main > :last-child { margin-bottom: 0 !important; } } ::-webkit-scrollbar { display: none; }</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { "colors": { "inverse-primary": "#006c49", "on-secondary-fixed": "#001f26", "secondary-fixed": "#acedff", "outline": "#86948a", "surface-container-low": "#181b25", "on-primary-fixed-variant": "#005236", "on-primary": "#003824", "on-secondary": "#003640", "tertiary-fixed-dim": "#ffb95f", "on-tertiary": "#472a00", "on-primary-container": "#00422b", "surface-container": "#1c1f29", "background": "#0f131c", "on-error-container": "#ffdad6", "on-surface-variant": "#bbcabf", "error": "#ffb4ab", "surface-container-highest": "#31353f", "on-tertiary-fixed": "#2a1700", "on-secondary-container": "#00424e", "primary-fixed": "#6ffbbe", "primary-fixed-dim": "#4edea3", "surface-container-lowest": "#0a0e17", "on-secondary-fixed-variant": "#004e5c", "error-container": "#93000a", "on-background": "#dfe2ef", "surface-bright": "#353943", "on-primary-fixed": "#002113", "primary-container": "#10b981", "surface": "#0f131c", "tertiary-fixed": "#ffddb8", "secondary": "#4cd7f6", "on-tertiary-container": "#523200", "surface-container-high": "#262a34", "on-surface": "#dfe2ef", "on-error": "#690005", "secondary-fixed-dim": "#4cd7f6", "tertiary": "#ffb95f", "on-tertiary-fixed-variant": "#653e00", "inverse-surface": "#dfe2ef", "primary": "#4edea3", "secondary-container": "#03b5d3", "surface-tint": "#4edea3", "surface-dim": "#0f131c", "outline-variant": "#3c4a42", "tertiary-container": "#e29100", "inverse-on-surface": "#2c303a", "surface-variant": "#31353f" }, "borderRadius": { "DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem" }, "spacing": { "margin": "2rem", "space-md": "1rem", "margin-lg": "4rem", "margin-sm": "1rem", "space-lg": "1.5rem", "space-sm": "0.5rem", "gutter": "1.5rem", "space-xs": "0.25rem", "gutter-sm": "1rem", "space-xl": "2.5rem", "gutter-lg": "2rem" }, "fontFamily": { "display-md-mobile": [ "Plus Jakarta Sans" ], "headline-xl": [ "Plus Jakarta Sans" ], "label-code-md": [ "JetBrains Mono" ], "headline-lg": [ "Plus Jakarta Sans" ], "display-lg": [ "Plus Jakarta Sans" ], "label-code-sm": [ "JetBrains Mono" ], "label-code-lg": [ "JetBrains Mono" ], "body-md": [ "Inter" ], "display-lg-mobile": [ "Plus Jakarta Sans" ], "display-md": [ "Plus Jakarta Sans" ], "body-lg": [ "Inter" ], "headline-sm": [ "Plus Jakarta Sans" ], "body-sm": [ "Inter" ] }, "fontSize": { "display-md-mobile": [ "28px", { "lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "600" } ], "headline-xl": [ "30px", { "lineHeight": "38px", "letterSpacing": "-0.02em", "fontWeight": "600" } ], "label-code-md": [ "12px", { "lineHeight": "16px", "letterSpacing": "0em", "fontWeight": "500" } ], "headline-lg": [ "24px", { "lineHeight": "32px", "letterSpacing": "-0.015em", "fontWeight": "600" } ], "display-lg": [ "56px", { "lineHeight": "64px", "letterSpacing": "-0.03em", "fontWeight": "700" } ], "label-code-sm": [ "11px", { "lineHeight": "14px", "letterSpacing": "0.04em", "fontWeight": "600" } ], "label-code-lg": [ "14px", { "lineHeight": "20px", "letterSpacing": "-0.01em", "fontWeight": "500" } ], "body-md": [ "14px", { "lineHeight": "20px", "letterSpacing": "0em", "fontWeight": "400" } ], "display-lg-mobile": [ "36px", { "lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "700" } ], "display-md": [ "40px", { "lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "600" } ], "body-lg": [ "16px", { "lineHeight": "24px", "letterSpacing": "-0.005em", "fontWeight": "400" } ], "headline-sm": [ "18px", { "lineHeight": "26px", "letterSpacing": "-0.01em", "fontWeight": "600" } ], "body-sm": [ "13px", { "lineHeight": "18px", "letterSpacing": "0.005em", "fontWeight": "400" } ] } } } };</script></head><body class="bg-background font-body-md text-on-surface antialiased"><header class="fixed top-0 left-0 right-0 z-50 bg-surface-container-lowest/90 backdrop-blur-xl border-b border-outline-variant/30"><div class="h-16 w-full px-gutter-lg max-w-[1680px] mx-auto flex items-center justify-between gap-space-md"><div class="flex items-center gap-space-md shrink-0"><img alt="Brand logo. - Primary color: #10b981
+- Font: plusJakartaSans
+- Mode: dark
+- Roundness: rounded-sm
+" class="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1U7B5ZTJffMnV9nd87k-oSX0MbVJFr9ADq2wg5kjNspqTjmWXgOeiOc49rAfQRfCujiC8j3UYH3A71mB2XGBaz8XsX12Uxt7nz1vLFzAJlF-_OeIf-D_KWsMWHWFLXJpx-e9JYP2Qn5ERMbTvz7VAITuJgNPE1WhyiI9CveuRmTRi1QkXufv5P5qamvcrRkPN4g6Xpo2hesOtice_aZ2fLPQpSsn47P4apvhvs5Do71KgycyToCwwbYLkJ3"/><div class="flex flex-col"><span class="font-headline-sm text-headline-sm text-on-surface tracking-tight leading-none">ITISYOU</span><span class="font-label-code-sm text-label-code-sm text-primary tracking-widest leading-none mt-1">VERIFY CORE</span></div></div><nav class="hidden xl:flex items-center gap-space-xs" data-active-classes="bg-surface-container-high text-primary font-semibold"><a class="px-3 py-1.5 rounded-lg text-on-surface-variant hover:text-on-surface font-body-sm text-body-sm transition-colors" data-path="overview" href="#">Overview/Dashboard</a><a class="px-3 py-1.5 rounded-lg text-on-surface-variant hover:text-on-surface font-body-sm text-body-sm transition-colors" data-path="how-it-works" href="#">How It Works</a><a class="px-3 py-1.5 rounded-lg text-on-surface-variant hover:text-on-surface font-body-sm text-body-sm transition-colors" data-path="connections" href="#">Connections</a><a class="px-3 py-1.5 rounded-lg text-on-surface-variant hover:text-on-surface font-body-sm text-body-sm transition-colors" data-path="workflow-rules" href="#">Workflow Rules</a><a class="px-3 py-1.5 rounded-lg text-on-surface-variant hover:text-on-surface font-body-sm text-body-sm transition-colors" data-path="run-ledger" href="#">Run Ledger</a><a class="px-3 py-1.5 rounded-lg text-on-surface-variant hover:text-on-surface font-body-sm text-body-sm transition-colors" data-path="reports-and-exports" href="#">Reports &amp; Exports</a><a class="px-3 py-1.5 rounded-lg text-on-surface-variant hover:text-on-surface font-body-sm text-body-sm transition-colors" data-path="pricing" href="#">Pricing</a><a class="px-3 py-1.5 rounded-lg text-on-surface-variant hover:text-on-surface font-body-sm text-body-sm transition-colors" data-path="settings" href="#">Settings</a></nav><div class="flex items-center gap-space-md shrink-0"><div class="hidden md:flex items-center px-2.5 py-1 rounded bg-surface-container-low border border-outline-variant/40"><span class="font-label-code-sm text-label-code-sm text-secondary font-mono tracking-wide">ws_984e1 // Acme Agency</span></div><div class="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded bg-surface-container-low border border-outline-variant/40"><span class="inline-block w-2 h-2 rounded-full bg-primary animate-pulse"></span><span class="font-label-code-sm text-label-code-sm text-on-surface-variant font-mono uppercase">Oracle Sync: Active</span></div><button aria-label="User account menu" class="w-8 h-8 rounded-full bg-primary flex items-center justify-center hover:opacity-90 transition-opacity" type="button"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></button></div></div></header><main class="w-full pt-16 bg-surface min-h-screen"><div class="flex flex-col w-full">
+<!-- Top Forensic Breadcrumb & Telemetry Rib -->
+<div class="w-full bg-surface-container-lowest px-gutter-lg py-space-sm">
+<div class="max-w-[1680px] mx-auto flex flex-wrap items-center justify-between gap-space-sm font-label-code-sm text-label-code-sm text-on-surface-variant">
+<div class="flex items-center gap-2">
+<span class="text-secondary font-mono">WORKSPACE // ACME AUTOMATIONS UK</span>
+<span class="text-outline-variant">/</span>
+<span class="text-on-surface">ws_984e1</span>
+<span class="text-outline-variant">→</span>
+<span class="text-on-surface-variant uppercase">Audit &amp; Export Hub</span>
+<span class="text-outline-variant">→</span>
+<span class="text-primary font-semibold uppercase">Client Attestation Pack</span>
+</div>
+<div class="flex items-center gap-space-md font-mono">
+<span class="inline-flex items-center gap-1.5 text-on-surface-variant">
+<span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
+          ENCLAVE: ACTIVE_SEALED
+        </span>
+<span class="text-outline-variant">|</span>
+<span class="text-on-surface-variant">ROOT_DIGEST: <span class="text-secondary">sha256:7f83b165...e92a</span></span>
+</div>
+</div>
+</div>
+<!-- Header Section -->
+<section class="w-full bg-surface-container-low px-gutter-lg py-margin">
+<div class="max-w-[1680px] mx-auto flex flex-col gap-space-md">
+<div class="flex flex-col lg:flex-row lg:items-end justify-between gap-space-lg">
+<div class="flex flex-col gap-space-xs max-w-4xl">
+<div class="inline-flex items-center gap-2 self-start px-2 py-0.5 rounded bg-surface-container-highest text-primary font-label-code-sm text-label-code-sm font-mono uppercase tracking-wider">
+            FORENSIC ATTESTATION HUB // REV 2.4
+          </div>
+<h1 class="font-headline-xl text-headline-xl text-on-surface tracking-tight">
+            Reports &amp; Forensic Exports // Client-Facing Period Attestation
+          </h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant">
+            Generate cryptographically sealed execution summaries and raw query logs for agency client delivery. Reports reflect empirical destination readbacks during the selected period.
+          </p>
+</div>
+<div class="flex items-center gap-space-sm shrink-0">
+<button class="px-space-md py-2.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface font-label-code-md text-label-code-md font-mono flex items-center gap-2 shadow-sm transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px] text-secondary">history</span>
+            Audit Run Log (365d)
+          </button>
+<button class="px-space-md py-2.5 rounded-lg bg-primary hover:bg-primary-container text-on-primary font-label-code-md text-label-code-md font-mono font-semibold flex items-center gap-2 shadow-md transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">verified</span>
+            New Period Seal Batch
+          </button>
+</div>
+</div>
+</div>
+</section>
+<!-- Date Range Controller & Strict Coverage Disclosure Banner -->
+<section class="w-full px-gutter-lg py-space-lg bg-surface">
+<div class="max-w-[1680px] mx-auto flex flex-col gap-space-md">
+<!-- Date Range Controls -->
+<div class="p-space-md rounded-xl bg-surface-container-low shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-space-md">
+<div class="flex flex-wrap items-center gap-space-sm">
+<span class="font-label-code-sm text-label-code-sm font-mono uppercase text-on-surface-variant flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px] text-primary">calendar_month</span>
+            Sampling Window:
+          </span>
+<div class="px-3 py-1.5 rounded-lg bg-surface-container-highest text-on-surface font-label-code-md text-label-code-md font-mono flex items-center gap-2">
+<span>01 Feb 2025 00:00 UTC</span>
+<span class="text-secondary font-bold">→</span>
+<span>28 Feb 2025 23:59 UTC</span>
+</div>
+<span class="font-label-code-sm text-label-code-sm text-on-surface-variant font-mono">(28 Days, 00:00:00 Duration)</span>
+</div>
+<!-- Presets -->
+<div class="flex flex-wrap items-center gap-1.5 font-label-code-sm text-label-code-sm font-mono">
+<span class="text-on-surface-variant mr-1">Presets:</span>
+<button class="px-2.5 py-1 rounded bg-surface-container hover:bg-surface-container-high text-on-surface-variant transition-colors" type="button">Trailing 7d</button>
+<button class="px-2.5 py-1 rounded bg-surface-container hover:bg-surface-container-high text-on-surface-variant transition-colors" type="button">Trailing 30d</button>
+<button class="px-2.5 py-1 rounded bg-primary text-on-primary font-semibold shadow-sm" type="button">February 2025 MTD</button>
+<button class="px-2.5 py-1 rounded bg-surface-container hover:bg-surface-container-high text-on-surface-variant transition-colors" type="button">Custom Epoch</button>
+</div>
+</div>
+<!-- CRITICAL REQUIREMENT: EXPLICIT COVERAGE MODE NOTICE -->
+<div class="p-space-lg rounded-xl bg-surface-container-low shadow-sm relative overflow-hidden">
+<div class="absolute left-0 top-0 bottom-0 w-1.5 bg-tertiary"></div>
+<div class="flex flex-col md:flex-row items-start gap-space-md pl-space-xs">
+<div class="p-2 rounded-lg bg-surface-container-highest text-tertiary shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-[24px]">gavel</span>
+</div>
+<div class="flex flex-col gap-1.5">
+<div class="flex flex-wrap items-center gap-2">
+<span class="font-label-code-sm text-label-code-sm font-mono font-semibold px-2 py-0.5 rounded bg-tertiary/15 text-tertiary uppercase tracking-wider">
+                COVERAGE MODE: STRICT INGRESS-BOUND CAPTURE (ACTIVE GATES ONLY)
+              </span>
+<span class="font-label-code-sm text-label-code-sm font-mono text-on-surface-variant">STATUTORY ATTESTATION CLAUSE 4.1</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
+<strong class="text-on-surface font-semibold">Notice to client and auditor:</strong> This report accounts solely for webhook payloads successfully received and acknowledged by ITISYOU Verify workers between <code class="px-1 py-0.5 rounded bg-surface-container-highest text-secondary font-mono text-label-code-sm">2025-02-01 00:00:00 UTC</code> and <code class="px-1 py-0.5 rounded bg-surface-container-highest text-secondary font-mono text-label-code-sm">2025-02-28 23:59:59 UTC</code>. This report <strong class="text-on-surface font-semibold">DOES NOT assert</strong> that all actions taken within your automation platform were seen, nor does it guarantee absence of unrouted executions. It guarantees only that every event recorded below underwent non-destructive destination query validation.
+            </p>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Metric Breakdown & Four Status Matrix -->
+<section class="w-full px-gutter-lg py-space-md bg-surface">
+<div class="max-w-[1680px] mx-auto flex flex-col gap-space-md">
+<!-- Section subhead with Downward-rounded Evidence Coverage Meter -->
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-space-sm px-1">
+<div class="flex items-center gap-2">
+<span class="font-headline-sm text-headline-sm text-on-surface">Period Execution Verdict Distribution</span>
+<span class="font-label-code-sm text-label-code-sm text-on-surface-variant font-mono">(1,904 Ingress Events Recorded)</span>
+</div>
+<div class="flex items-center gap-space-md">
+<span class="font-label-code-sm text-label-code-sm font-mono text-on-surface-variant">Downwards-Rounded Evidence Floor:</span>
+<div class="flex items-center gap-2 px-2.5 py-1 rounded bg-surface-container-high text-primary font-mono font-semibold text-label-code-md">
+<span class="material-symbols-outlined text-[16px]">verified</span>
+            96% VERIFIED
+          </div>
+</div>
+</div>
+<!-- Four Status Cards (Glyph + Bold Text so it reads without colour) -->
+<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-gutter">
+<!-- 1. VERIFIED -->
+<div class="p-space-lg rounded-xl bg-surface-container-low shadow-sm flex flex-col justify-between gap-space-md relative overflow-hidden group hover:bg-surface-container transition-colors">
+<div class="absolute top-0 right-0 left-0 h-1 bg-primary"></div>
+<div class="flex items-start justify-between">
+<div class="flex items-center gap-2">
+<span class="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-mono font-bold text-headline-sm">[✓]</span>
+<div>
+<span class="font-headline-sm text-headline-sm text-on-surface font-bold uppercase tracking-wide block">VERIFIED</span>
+<span class="font-label-code-sm text-label-code-sm text-primary font-mono">ASSERTED STATE PROVED</span>
+</div>
+</div>
+<span class="font-label-code-lg text-label-code-lg font-mono text-primary font-semibold">94.2%</span>
+</div>
+<div>
+<div class="font-headline-xl text-headline-xl font-bold text-on-surface font-mono tracking-tight">1,842 <span class="text-headline-sm text-on-surface-variant font-normal">runs</span></div>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-2 leading-snug">
+              Asserted true by destination API readback within settling window. Empirical state match verified.
+            </p>
+</div>
+<div class="pt-2 flex items-center justify-between text-on-surface-variant font-label-code-sm text-label-code-sm font-mono">
+<span>Avg Readback Latency:</span>
+<span class="text-on-surface font-semibold">412ms</span>
+</div>
+</div>
+<!-- 2. FAILED -->
+<div class="p-space-lg rounded-xl bg-surface-container-low shadow-sm flex flex-col justify-between gap-space-md relative overflow-hidden group hover:bg-surface-container transition-colors">
+<div class="absolute top-0 right-0 left-0 h-1 bg-error"></div>
+<div class="flex items-start justify-between">
+<div class="flex items-center gap-2">
+<span class="w-8 h-8 rounded-lg bg-error-container text-error flex items-center justify-center font-mono font-bold text-headline-sm">[✕]</span>
+<div>
+<span class="font-headline-sm text-headline-sm text-on-surface font-bold uppercase tracking-wide block">FAILED</span>
+<span class="font-label-code-sm text-label-code-sm text-error font-mono">CONTRADICTED BY REALITY</span>
+</div>
+</div>
+<span class="font-label-code-lg text-label-code-lg font-mono text-error font-semibold">1.8%</span>
+</div>
+<div>
+<div class="font-headline-xl text-headline-xl font-bold text-on-surface font-mono tracking-tight">37 <span class="text-headline-sm text-on-surface-variant font-normal">runs</span></div>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-2 leading-snug">
+              Destination query returned contradictory state or missing record. Forensic diff generated.
+            </p>
+</div>
+<div class="pt-2 flex items-center justify-between text-on-surface-variant font-label-code-sm text-label-code-sm font-mono">
+<span>Payload Divergences:</span>
+<span class="text-error font-semibold">37 cataloged</span>
+</div>
+</div>
+<!-- 3. UNVERIFIED -->
+<div class="p-space-lg rounded-xl bg-surface-container-low shadow-sm flex flex-col justify-between gap-space-md relative overflow-hidden group hover:bg-surface-container transition-colors">
+<div class="absolute top-0 right-0 left-0 h-1 bg-tertiary"></div>
+<div class="flex items-start justify-between">
+<div class="flex items-center gap-2">
+<span class="w-8 h-8 rounded-lg bg-tertiary/15 text-tertiary flex items-center justify-center font-mono font-bold text-headline-sm">[◐]</span>
+<div>
+<span class="font-headline-sm text-headline-sm text-on-surface font-bold uppercase tracking-wide block">UNVERIFIED</span>
+<span class="font-label-code-sm text-label-code-sm text-tertiary font-mono">INCONCLUSIVE PROBE</span>
+</div>
+</div>
+<span class="font-label-code-lg text-label-code-lg font-mono text-tertiary font-semibold">0.9%</span>
+</div>
+<div>
+<div class="font-headline-xl text-headline-xl font-bold text-on-surface font-mono tracking-tight">19 <span class="text-headline-sm text-on-surface-variant font-normal">runs</span></div>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-2 leading-snug">
+              Target unreachable, 429 rate limit, or socket timeout. Neither proved nor disproved; our probe failure is not customer automation failure.
+            </p>
+</div>
+<div class="pt-2 flex items-center justify-between text-on-surface-variant font-label-code-sm text-label-code-sm font-mono">
+<span>Primary Cause:</span>
+<span class="text-tertiary font-semibold">Stripe API 429</span>
+</div>
+</div>
+<!-- 4. PENDING -->
+<div class="p-space-lg rounded-xl bg-surface-container-low shadow-sm flex flex-col justify-between gap-space-md relative overflow-hidden group hover:bg-surface-container transition-colors">
+<div class="absolute top-0 right-0 left-0 h-1 bg-secondary"></div>
+<div class="flex items-start justify-between">
+<div class="flex items-center gap-2">
+<span class="w-8 h-8 rounded-lg bg-surface-container text-secondary flex items-center justify-center font-mono font-bold text-headline-sm">[⏱]</span>
+<div>
+<span class="font-headline-sm text-headline-sm text-on-surface font-bold uppercase tracking-wide block">PENDING</span>
+<span class="font-label-code-sm text-label-code-sm text-secondary font-mono">SETTLING IN FLIGHT</span>
+</div>
+</div>
+<span class="font-label-code-lg text-label-code-lg font-mono text-secondary font-semibold">0.3%</span>
+</div>
+<div>
+<div class="font-headline-xl text-headline-xl font-bold text-on-surface font-mono tracking-tight">6 <span class="text-headline-sm text-on-surface-variant font-normal">runs</span></div>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-2 leading-snug">
+              Still within 180s settling window at period boundary cutoff (2025-02-28 23:59:59 UTC).
+            </p>
+</div>
+<div class="pt-2 flex items-center justify-between text-on-surface-variant font-label-code-sm text-label-code-sm font-mono">
+<span>Window Expiry:</span>
+<span class="text-secondary font-semibold">Settled post-cutoff</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Export Format Controls & Payload Manifests -->
+<section class="w-full px-gutter-lg py-space-lg bg-surface">
+<div class="max-w-[1680px] mx-auto flex flex-col gap-space-lg">
+<div class="flex flex-col gap-1 px-1">
+<h2 class="font-headline-lg text-headline-lg text-on-surface">Export Formats &amp; Cryptographic Manifests</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">Select an artifact type to compile for client audit delivery. Every package is sealed with the workspace enclave key.</p>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-gutter-lg">
+<!-- Artifact A: Signed PDF Summary -->
+<div class="p-space-xl rounded-xl bg-surface-container-low shadow-md flex flex-col justify-between gap-space-lg relative">
+<div class="flex flex-col gap-space-md">
+<div class="flex items-start justify-between gap-space-sm">
+<div class="flex items-center gap-space-sm">
+<div class="w-12 h-12 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[28px]">picture_as_pdf</span>
+</div>
+<div>
+<div class="flex items-center gap-2">
+<h3 class="font-headline-sm text-headline-sm text-on-surface">Cryptographically Signed PDF Summary</h3>
+</div>
+<span class="font-label-code-sm text-label-code-sm text-primary font-mono font-semibold uppercase">CLIENT PRESENTATION READY</span>
+</div>
+</div>
+<span class="px-2.5 py-1 rounded bg-surface-container-highest font-mono text-label-code-sm text-on-surface">~1.4 MB</span>
+</div>
+<!-- Content Disclosure Payload -->
+<div class="flex flex-col gap-space-xs pt-space-xs">
+<span class="font-label-code-sm text-label-code-sm font-mono text-on-surface-variant uppercase tracking-wider">Included Manifest Payload:</span>
+<ul class="flex flex-col gap-2 font-body-sm text-body-sm text-on-surface-variant">
+<li class="flex items-start gap-2">
+<span class="material-symbols-outlined text-[16px] text-primary shrink-0 mt-0.5">check_circle</span>
+<span><strong>Executive Verdict Breakdown:</strong> High-impact four-status distribution charts &amp; daily stability histogram.</span>
+</li>
+<li class="flex items-start gap-2">
+<span class="material-symbols-outlined text-[16px] text-primary shrink-0 mt-0.5">check_circle</span>
+<span><strong>Evaluation Methodology:</strong> Formal non-destructive probe protocol explanation for client compliance officers.</span>
+</li>
+<li class="flex items-start gap-2">
+<span class="material-symbols-outlined text-[16px] text-secondary shrink-0 mt-0.5">fingerprint</span>
+<span><strong>SHA-256 Workspace Seal:</strong> Signed Enclave root certificate (<code class="font-mono text-label-code-sm text-secondary">sha256:7f83b165...</code>) validating zero tamper.</span>
+</li>
+<li class="flex items-start gap-2">
+<span class="material-symbols-outlined text-[16px] text-error shrink-0 mt-0.5">warning</span>
+<span><strong>Detailed Ledger of 37 FAILED Runs:</strong> Includes raw downstream HTTP error bodies and field-level key discrepancies.</span>
+</li>
+<li class="flex items-start gap-2">
+<span class="material-symbols-outlined text-[16px] text-tertiary shrink-0 mt-0.5">help</span>
+<span><strong>Distinction Appendix:</strong> Legal clarification contrasting FAILED (empirical mismatch) vs. UNVERIFIED (probe timeout).</span>
+</li>
+</ul>
+</div>
+</div>
+<div class="pt-space-md flex flex-col sm:flex-row items-center justify-between gap-space-sm">
+<span class="font-label-code-sm text-label-code-sm font-mono text-on-surface-variant">PDF Template: Forensic Executive v3</span>
+<button class="w-full sm:w-auto px-space-lg py-2.5 rounded-lg bg-primary hover:bg-primary-container text-on-primary font-label-code-md text-label-code-md font-mono font-semibold flex items-center justify-center gap-2 shadow transition-all" type="button">
+<span class="material-symbols-outlined text-[18px]">verified</span>
+              Configure &amp; Dispatch PDF
+            </button>
+</div>
+</div>
+<!-- Artifact B: Raw Audit CSV -->
+<div class="p-space-xl rounded-xl bg-surface-container-low shadow-md flex flex-col justify-between gap-space-lg relative">
+<div class="flex flex-col gap-space-md">
+<div class="flex items-start justify-between gap-space-sm">
+<div class="flex items-center gap-space-sm">
+<div class="w-12 h-12 rounded-lg bg-secondary/10 text-secondary flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[28px]">data_table</span>
+</div>
+<div>
+<div class="flex items-center gap-2">
+<h3 class="font-headline-sm text-headline-sm text-on-surface">Deterministic Audit CSV (Raw Data)</h3>
+</div>
+<span class="font-label-code-sm text-label-code-sm text-secondary font-mono font-semibold uppercase">MACHINE AUDITABLE</span>
+</div>
+</div>
+<span class="px-2.5 py-1 rounded bg-surface-container-highest font-mono text-label-code-sm text-on-surface">~8.6 MB (uncompressed) / 1.2 MB (.csv.gz)</span>
+</div>
+<!-- Content Disclosure Payload -->
+<div class="flex flex-col gap-space-xs pt-space-xs">
+<span class="font-label-code-sm text-label-code-sm font-mono text-on-surface-variant uppercase tracking-wider">Included Manifest Payload:</span>
+<ul class="flex flex-col gap-2 font-body-sm text-body-sm text-on-surface-variant">
+<li class="flex items-start gap-2">
+<span class="material-symbols-outlined text-[16px] text-secondary shrink-0 mt-0.5">terminal</span>
+<span><strong>Complete Ingress Set:</strong> 1,904 full execution records with RFC 3339 UTC timestamps.</span>
+</li>
+<li class="flex items-start gap-2">
+<span class="material-symbols-outlined text-[16px] text-secondary shrink-0 mt-0.5">table_rows</span>
+<span><strong>Granular Schema:</strong> <code class="font-mono text-label-code-sm text-on-surface">run_id, workflow_key, terminal_status, settling_duration_sec, destination_endpoints_queried, http_response_code</code></span>
+</li>
+<li class="flex items-start gap-2">
+<span class="material-symbols-outlined text-[16px] text-secondary shrink-0 mt-0.5">tag</span>
+<span><strong>Cryptographic Probes:</strong> <code class="font-mono text-label-code-sm text-on-surface">response_payload_sha256, eval_operator_applied, divergence_notes</code></span>
+</li>
+<li class="flex items-start gap-2">
+<span class="material-symbols-outlined text-[16px] text-secondary shrink-0 mt-0.5">timer</span>
+<span><strong>Network Observability:</strong> Complete raw readback roundtrip latencies and edge node execution tags.</span>
+</li>
+<li class="flex items-start gap-2">
+<span class="material-symbols-outlined text-[16px] text-primary shrink-0 mt-0.5">lock</span>
+<span><strong>Sealed Manifest:</strong> Embedded checksum manifest with HMAC signature per archive chunk.</span>
+</li>
+</ul>
+</div>
+</div>
+<div class="pt-space-md flex flex-col sm:flex-row items-center justify-between gap-space-sm">
+<span class="font-label-code-sm text-label-code-sm font-mono text-on-surface-variant">Format: RFC 4180 UTF-8 with GZIP</span>
+<button class="w-full sm:w-auto px-space-lg py-2.5 rounded-lg bg-surface-container-high hover:bg-surface-bright text-secondary font-label-code-md text-label-code-md font-mono font-semibold flex items-center justify-center gap-2 shadow transition-all" type="button">
+<span class="material-symbols-outlined text-[18px]">file_download</span>
+              Configure &amp; Dispatch CSV
+            </button>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Recent Period Exports & Delivery Ledger (MUST SHOW ALL 4 STATES) -->
+<section class="w-full px-gutter-lg py-space-lg bg-surface">
+<div class="max-w-[1680px] mx-auto flex flex-col gap-space-md">
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-space-xs px-1">
+<div>
+<h2 class="font-headline-lg text-headline-lg text-on-surface">Recent Period Exports &amp; Delivery Ledger</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Cryptographic compilation audit queue displaying all four execution lifecycles.</p>
+</div>
+<span class="font-label-code-sm text-label-code-sm text-on-surface-variant font-mono">Queue Status: 1 Active Compile // 3 Archived</span>
+</div>
+<!-- Table / Cards List of 4 States -->
+<div class="flex flex-col gap-space-sm">
+<!-- STATE 1: READY / AVAILABLE FOR DOWNLOAD -->
+<div class="p-space-md rounded-xl bg-surface-container-low shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-space-md hover:bg-surface-container transition-colors">
+<div class="flex items-start gap-space-sm min-w-0">
+<div class="p-2.5 rounded-lg bg-primary/10 text-primary shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-[24px]">task_alt</span>
+</div>
+<div class="flex flex-col gap-1 min-w-0">
+<div class="flex flex-wrap items-center gap-2">
+<span class="font-headline-sm text-headline-sm text-on-surface font-mono font-semibold truncate">audit_pack_2025_02_monthly.pdf</span>
+<span class="px-2 py-0.5 rounded bg-primary/15 text-primary font-label-code-sm text-label-code-sm font-mono font-semibold uppercase flex items-center gap-1">
+<span>[✓] READY (Valid for 6 days)</span>
+</span>
+<span class="px-2 py-0.5 rounded bg-surface-container-highest font-mono text-label-code-sm text-on-surface">1.4 MB</span>
+</div>
+<div class="flex flex-wrap items-center gap-space-md text-on-surface-variant font-label-code-sm text-label-code-sm font-mono">
+<span>Scope: 01 Feb 2025 – 28 Feb 2025 (Full 1,904 runs)</span>
+<span>•</span>
+<span>Digest: <code class="text-secondary">sha256:c4d91e...91ab</code></span>
+<span>•</span>
+<span>Compiled: 2025-03-01 02:14 UTC</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-space-sm shrink-0">
+<button class="px-space-md py-2 rounded-lg bg-primary hover:bg-primary-container text-on-primary font-label-code-sm text-label-code-sm font-mono font-semibold flex items-center gap-1.5 shadow transition-colors" type="button">
+<span class="material-symbols-outlined text-[16px]">download</span>
+              Download Signed PDF
+            </button>
+<button class="p-2 rounded-lg bg-surface-container-high hover:bg-surface-bright text-on-surface transition-colors" title="View Signature Enclave Record" type="button">
+<span class="material-symbols-outlined text-[18px]">verified_user</span>
+</button>
+</div>
+</div>
+<!-- STATE 2: GENERATING (HONEST PROGRESS) -->
+<div class="p-space-md rounded-xl bg-surface-container-low shadow-sm flex flex-col gap-space-sm relative overflow-hidden">
+<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-space-md">
+<div class="flex items-start gap-space-sm min-w-0">
+<div class="p-2.5 rounded-lg bg-secondary/10 text-secondary shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-[24px] animate-spin">sync</span>
+</div>
+<div class="flex flex-col gap-1 min-w-0">
+<div class="flex flex-wrap items-center gap-2">
+<span class="font-headline-sm text-headline-sm text-on-surface font-mono font-semibold truncate">telemetry_ledger_2025_02_raw.csv.gz</span>
+<span class="px-2 py-0.5 rounded bg-secondary/15 text-secondary font-label-code-sm text-label-code-sm font-mono font-semibold uppercase flex items-center gap-1">
+<span>[⏱] GENERATING (38% Compiled)</span>
+</span>
+<span class="px-2 py-0.5 rounded bg-surface-container-highest font-mono text-label-code-sm text-on-surface">~1.2 MB est.</span>
+</div>
+<div class="flex flex-wrap items-center gap-space-md text-on-surface-variant font-label-code-sm text-label-code-sm font-mono">
+<span>Scope: 01 Feb 2025 – 28 Feb 2025</span>
+<span>•</span>
+<span>Worker PID: <code class="text-on-surface">wrk_pool_c991</code></span>
+<span>•</span>
+<span>Dispatched: Just now (34s ago)</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-space-sm shrink-0">
+<button class="px-space-md py-2 rounded-lg bg-surface-container-high hover:bg-surface-bright text-on-surface-variant font-label-code-sm text-label-code-sm font-mono flex items-center gap-1.5 transition-colors" type="button">
+<span class="material-symbols-outlined text-[16px]">cancel</span>
+                Cancel Worker Job
+              </button>
+</div>
+</div>
+<!-- Honest Progress Disclosure & Determinate Progress Bar -->
+<div class="pt-2 flex flex-col gap-1.5">
+<div class="flex items-center justify-between text-label-code-sm font-label-code-sm font-mono">
+<span class="text-on-surface-variant">Processing run 724 of 1,904 — compiling readback hashes and normalizing Postmark TLS handshakes. Est. 18s remaining.</span>
+<span class="text-secondary font-bold">38%</span>
+</div>
+<div class="w-full h-1.5 rounded-full bg-surface-container-highest overflow-hidden">
+<div class="h-full bg-secondary rounded-full" style="width: 38%"></div>
+</div>
+</div>
+</div>
+<!-- STATE 3: EXPIRED (PASSED RETENTION WINDOW) -->
+<div class="p-space-md rounded-xl bg-surface-container-low shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-space-md opacity-90 hover:opacity-100 transition-opacity">
+<div class="flex items-start gap-space-sm min-w-0">
+<div class="p-2.5 rounded-lg bg-surface-container-highest text-on-surface-variant shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-[24px]">history_toggle_off</span>
+</div>
+<div class="flex flex-col gap-1 min-w-0">
+<div class="flex flex-wrap items-center gap-2">
+<span class="font-headline-sm text-headline-sm text-on-surface-variant font-mono font-semibold truncate">client_attestation_2025_01.pdf</span>
+<span class="px-2 py-0.5 rounded bg-surface-container-highest text-outline font-label-code-sm text-label-code-sm font-mono font-semibold uppercase flex items-center gap-1">
+<span>[⊘] EXPIRED (30-day delivery link elapsed)</span>
+</span>
+<span class="px-2 py-0.5 rounded bg-surface-container-highest font-mono text-label-code-sm text-outline">1.3 MB</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant max-w-3xl leading-relaxed">
+                Ephemeral download link expired on <code class="font-mono text-label-code-sm text-on-surface">02 Mar 2025 00:00 UTC</code>. The compiled report binary has been purged from CDN edge storage. The underlying raw run telemetry remains permanently sealed in your workspace database and may be recompiled at any time.
+              </p>
+</div>
+</div>
+<div class="flex items-center gap-space-sm shrink-0">
+<button class="px-space-md py-2 rounded-lg bg-surface-container-high hover:bg-surface-bright text-primary font-label-code-sm text-label-code-sm font-mono font-semibold flex items-center gap-1.5 transition-colors" type="button">
+<span class="material-symbols-outlined text-[16px]">restart_alt</span>
+              Recompile Report
+            </button>
+</div>
+</div>
+<!-- STATE 4: FAILED GENERATION (HONEST ERROR DISCLOSURE) -->
+<div class="p-space-md rounded-xl bg-surface-container-low shadow-sm flex flex-col lg:flex-row lg:items-start justify-between gap-space-md relative overflow-hidden">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-error"></div>
+<div class="flex items-start gap-space-sm min-w-0 pl-space-xs">
+<div class="p-2.5 rounded-lg bg-error-container text-error shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-[24px]">error</span>
+</div>
+<div class="flex flex-col gap-1 min-w-0">
+<div class="flex flex-wrap items-center gap-2">
+<span class="font-headline-sm text-headline-sm text-error font-mono font-semibold truncate">full_evidence_archive_2024_q4.tar.gz</span>
+<span class="px-2 py-0.5 rounded bg-error-container text-error font-label-code-sm text-label-code-sm font-mono font-semibold uppercase flex items-center gap-1">
+<span>[✕] EXPORT GENERATION FAILED</span>
+</span>
+<span class="text-on-surface-variant font-mono text-label-code-sm">(Archive request 01 Oct – 31 Dec 2024)</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant max-w-3xl leading-relaxed">
+<strong class="text-error font-semibold">Plain error statement:</strong> Worker process memory limit exceeded while serializing 48,290 raw JSON response payloads. No partial or corrupted file was published. Recommendation: Select a narrower date window (maximum 30 days per archive batch) or export as chunked CSV.
+              </p>
+</div>
+</div>
+<div class="flex items-center gap-space-sm shrink-0 self-end lg:self-center">
+<button class="px-space-md py-2 rounded-lg bg-surface-container-high hover:bg-surface-bright text-on-surface font-label-code-sm text-label-code-sm font-mono flex items-center gap-1.5 transition-colors" type="button">
+<span class="material-symbols-outlined text-[16px]">tune</span>
+              Dismiss &amp; Retry with Date Filter
+            </button>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Unyielding Data Retention & Non-Deletion Policy Panel -->
+<section class="w-full px-gutter-lg py-margin bg-surface">
+<div class="max-w-[1680px] mx-auto">
+<div class="p-space-xl rounded-xl bg-surface-container-low shadow-lg flex flex-col gap-space-lg relative overflow-hidden">
+<div class="absolute top-0 right-0 w-96 h-96 bg-primary/5 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20"></div>
+<div class="flex flex-col gap-space-xs max-w-3xl">
+<div class="inline-flex items-center gap-2 self-start px-2 py-0.5 rounded bg-surface-container-highest text-primary font-label-code-sm text-label-code-sm font-mono uppercase tracking-wider">
+            FORENSIC CONTINUITY CLAUSE
+          </div>
+<h2 class="font-headline-lg text-headline-lg text-on-surface tracking-tight">
+            Data Retention &amp; Inviolable Continuity Policy
+          </h2>
+<p class="font-body-md text-body-md text-on-surface-variant">
+            Forensic integrity requires that proof cannot be held hostage or quietly expunged. The platform enforces immutable operational durability.
+          </p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-gutter">
+<!-- Policy 1 -->
+<div class="p-space-md rounded-xl bg-surface-container shadow-sm flex flex-col gap-space-sm">
+<div class="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[22px]">history_edu</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface">365-Day Immutable Store</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
+              Historical telemetry is stored in immutable append-only storage for 365 days under your subscription agreement. Write-once, read-many (WORM) parameters prevent retrospective modification.
+            </p>
+</div>
+<!-- Policy 2: CRITICAL NON-DELETION GUARANTEE -->
+<div class="p-space-md rounded-xl bg-surface-container shadow-sm flex flex-col gap-space-sm relative overflow-hidden">
+<div class="w-10 h-10 rounded-lg bg-secondary/10 text-secondary flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[22px]">security</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface">Non-Deletion Guarantee</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
+              Customer data, historical run ledgers, signed certificates, and export configurations are <strong class="text-on-surface font-semibold">NEVER automatically deleted, truncated, or discarded</strong> if a subscription renewal payment fails or card expires. In the event of billing suspension, verification runs pause, but all existing data remains permanently accessible for review, search, and export.
+            </p>
+</div>
+<!-- Policy 3 -->
+<div class="p-space-md rounded-xl bg-surface-container shadow-sm flex flex-col gap-space-sm">
+<div class="w-10 h-10 rounded-lg bg-tertiary/10 text-tertiary flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[22px]">link_off</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface">Ephemeral Edge Delivery</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
+              Ephemeral export download URLs expire 30 days after generation to prevent link exposure, but underlying audit records remain reproducible on demand without re-querying third-party targets.
+            </p>
+</div>
+</div>
+<!-- Footer Audit Verification Strip -->
+<div class="pt-space-md flex flex-wrap items-center justify-between gap-space-sm font-label-code-sm text-label-code-sm font-mono text-on-surface-variant">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-primary"></span>
+<span>AUDIT COMPLIANCE STANDARD: ISO/IEC 27001 §A.12.4.1 (EVENT LOGGING)</span>
+</div>
+<span class="text-secondary">ENCLAVE SECURE BOOT // ATTESTATION ID: ec71-998f-410a</span>
+</div>
+</div>
+</div>
+</section>
+</div>
+<script>
+  // Active navigation highlight for current view
+  document.addEventListener('DOMContentLoaded', () => {
+    const navLinks = document.querySelectorAll('nav[data-active-classes] a');
+    navLinks.forEach(link => {
+      if (link.getAttribute('data-path') === 'reports-and-exports') {
+        link.className = 'px-3 py-1.5 rounded-lg bg-surface-container-high text-primary font-semibold font-body-sm text-body-sm transition-colors';
+      }
+    });
+  });
+</script></main><footer class="w-full bg-surface-container-lowest border-t border-outline-variant/30 text-on-surface-variant"><div class="w-full max-w-[1680px] mx-auto px-gutter-lg py-margin"><div class="grid grid-cols-1 md:grid-cols-4 gap-gutter mb-space-xl"><div class="flex flex-col gap-space-sm"><div class="flex items-center gap-2"><span class="material-symbols-outlined text-primary text-[20px]">verified_user</span><span class="font-headline-sm text-headline-sm text-on-surface">ITISYOU Verify</span></div><p class="font-body-sm text-body-sm text-on-surface-variant">Zero-trust architectural integrity and real-time execution validation platform. Reject the log. Verify the reality.</p><div class="flex items-center gap-2 mt-space-xs"><span class="w-2 h-2 rounded-full bg-primary"></span><span class="font-label-code-sm text-label-code-sm font-mono text-primary uppercase">Deterministic Engine Online</span></div></div><div class="flex flex-col gap-space-sm"><span class="font-label-code-md text-label-code-md font-mono text-on-surface uppercase tracking-wider">Verification Protocols</span><ul class="flex flex-col gap-1.5 font-body-sm text-body-sm text-on-surface-variant"><li><a class="hover:text-primary transition-colors" href="#">ZKP Attestation Grid</a></li><li><a class="hover:text-primary transition-colors" href="#">Cryptographic Audit Mesh</a></li><li><a class="hover:text-primary transition-colors" href="#">Silent Fault Interceptor</a></li><li><a class="hover:text-primary transition-colors" href="#">Oracle Parity Pipeline</a></li></ul></div><div class="flex flex-col gap-space-sm"><span class="font-label-code-md text-label-code-md font-mono text-on-surface uppercase tracking-wider">System Specifications</span><div class="flex flex-col gap-1.5 font-label-code-sm text-label-code-sm font-mono text-on-surface-variant"><div class="flex justify-between border-b border-outline-variant/20 pb-1"><span>Protocol Core</span><span class="text-on-surface">v4.19.8-prod</span></div><div class="flex justify-between border-b border-outline-variant/20 pb-1"><span>Sha-256 Digest</span><span class="text-secondary font-mono">a9f8...c41d</span></div><div class="flex justify-between border-b border-outline-variant/20 pb-1"><span>Statutory Standard</span><span class="text-on-surface">SOC2-Type II / ISO27001</span></div><div class="flex justify-between"><span>Telemetry SLA</span><span class="text-primary">99.999% Ground Truth</span></div></div></div><div class="flex flex-col gap-space-sm"><span class="font-label-code-md text-label-code-md font-mono text-on-surface uppercase tracking-wider">Legal &amp; Compliance</span><ul class="flex flex-col gap-1.5 font-body-sm text-body-sm text-on-surface-variant"><li><a class="hover:text-primary transition-colors" href="#">Deterministic Attestation Terms</a></li><li><a class="hover:text-primary transition-colors" href="#">Forensic Privacy Policy</a></li><li><a class="hover:text-primary transition-colors" href="#">Zero-Knowledge Security Disclosures</a></li><li><a class="hover:text-primary transition-colors" href="#">Statutory Compliance Matrix</a></li></ul></div></div><div class="pt-space-md border-t border-outline-variant/20 flex flex-col md:flex-row items-center justify-between gap-space-sm font-label-code-sm text-label-code-sm font-mono text-on-surface-variant"><p>© 2025 ITISYOU Verify Inc. Forensic attestation engine. All rights reserved.</p><div class="flex items-center gap-space-md"><span>NODE_ID: US-EAST-01A</span><span>LATENCY: 1.2ms</span><span class="text-primary">ZERO-TRUST SECURED</span></div></div></div></footer></body></html>

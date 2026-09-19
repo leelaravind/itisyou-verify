@@ -27,7 +27,9 @@ describe('describeCoverage', () => {
   });
 
   it('VERIFY-176 an independently sourced workflow degrades to the coverage we actually have', () => {
-    const coverage = describeCoverage(makeWorkflowRules({ coverage_mode: 'independently_sourced' }));
+    const coverage = describeCoverage(
+      makeWorkflowRules({ coverage_mode: 'independently_sourced' }),
+    );
     // The mode is not implemented, so the description is of what we really do.
     expect(coverage.requested_mode).toBe('independently_sourced');
     expect(coverage.mode).toBe('customer_triggered');

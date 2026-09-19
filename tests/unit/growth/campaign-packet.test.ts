@@ -63,7 +63,8 @@ const BIND = {
 
 const NOW = new Date('2026-09-20T10:00:00.000Z');
 
-const codes = (packet: CampaignPacket) => validateCampaignPacket(packet, ALLOCATION).map((d) => d.code);
+const codes = (packet: CampaignPacket) =>
+  validateCampaignPacket(packet, ALLOCATION).map((d) => d.code);
 
 describe('campaign packet validation', () => {
   it('ADS-001 a budget above the advertising allocation is refused, naming the ceiling', () => {
@@ -78,7 +79,9 @@ describe('campaign packet validation', () => {
   });
 
   it('ADS-002 a packet with no end date is refused', () => {
-    expect(codes({ ...PACKET, duration: { ...PACKET.duration, ends_at: '' } })).toContain('missing_end_date');
+    expect(codes({ ...PACKET, duration: { ...PACKET.duration, ends_at: '' } })).toContain(
+      'missing_end_date',
+    );
     expect(
       codes({ ...PACKET, duration: { ...PACKET.duration, ends_at: '2026-10-01T00:00:00.000Z' } }),
     ).toContain('end_not_after_start');
@@ -103,7 +106,10 @@ describe('campaign packet validation', () => {
     const defects = validateCampaignPacket(
       {
         ...PACKET,
-        creative: { ...PACKET.creative, body: 'Works with Salesforce, Pipedrive and any CRM you already use.' },
+        creative: {
+          ...PACKET.creative,
+          body: 'Works with Salesforce, Pipedrive and any CRM you already use.',
+        },
       },
       ALLOCATION,
     );
@@ -115,12 +121,15 @@ describe('campaign packet validation', () => {
   });
 
   it('ADS-028 the destination must be https and must carry a utm_campaign', () => {
-    expect(codes({ ...PACKET, destination: { ...PACKET.destination, url: 'http://verify.example/?utm_campaign=x' } })).toContain(
-      'destination_not_https',
-    );
-    expect(codes({ ...PACKET, destination: { ...PACKET.destination, url: 'https://verify.example/' } })).toContain(
-      'destination_missing_utm',
-    );
+    expect(
+      codes({
+        ...PACKET,
+        destination: { ...PACKET.destination, url: 'http://verify.example/?utm_campaign=x' },
+      }),
+    ).toContain('destination_not_https');
+    expect(
+      codes({ ...PACKET, destination: { ...PACKET.destination, url: 'https://verify.example/' } }),
+    ).toContain('destination_missing_utm');
   });
 
   it('ADS-029 a non-integer or non-positive budget is a defect, never rounded', () => {
@@ -129,7 +138,9 @@ describe('campaign packet validation', () => {
   });
 
   it('ADS-030 a packet with no audience targets is refused', () => {
-    expect(codes({ ...PACKET, audience: { ...PACKET.audience, targets: [] } })).toContain('no_targets');
+    expect(codes({ ...PACKET, audience: { ...PACKET.audience, targets: [] } })).toContain(
+      'no_targets',
+    );
   });
 
   it('ADS-031 a campaign cannot be funded from an allocation that is already committed', () => {
@@ -214,8 +225,13 @@ describe('approval binding', () => {
 
   it('ADS-037 a bid reduction inside an approved campaign keeps the approval valid', async () => {
     const approval = await bindApproval(PACKET, BIND);
-    const cheaper: CampaignPacket = { ...PACKET, bidding: { max_cpc_minor: 90, strategy: 'manual_cpc' } };
-    await expect(isApprovalValidFor(approval, cheaper, NOW)).resolves.toMatchObject({ valid: true });
+    const cheaper: CampaignPacket = {
+      ...PACKET,
+      bidding: { max_cpc_minor: 90, strategy: 'manual_cpc' },
+    };
+    await expect(isApprovalValidFor(approval, cheaper, NOW)).resolves.toMatchObject({
+      valid: true,
+    });
     expect(classifyChange(PACKET, cheaper)).toMatchObject({
       classification: 'reduces_exposure',
       allowed_under_existing_approval: true,
@@ -223,7 +239,10 @@ describe('approval binding', () => {
   });
 
   it('ADS-038 raising the bid cap needs a fresh approval even though the budget is unchanged', () => {
-    const dearer: CampaignPacket = { ...PACKET, bidding: { max_cpc_minor: 400, strategy: 'manual_cpc' } };
+    const dearer: CampaignPacket = {
+      ...PACKET,
+      bidding: { max_cpc_minor: 400, strategy: 'manual_cpc' },
+    };
     expect(classifyChange(PACKET, dearer)).toMatchObject({
       classification: 'expands_exposure',
       allowed_under_existing_approval: false,
@@ -274,14 +293,19 @@ describe('approval binding', () => {
   it('ADS-043 changing the destination URL is an altered claim', () => {
     const redirected: CampaignPacket = {
       ...PACKET,
-      destination: { ...PACKET.destination, url: 'https://verify.itisyou.app/pricing?utm_campaign=x' },
+      destination: {
+        ...PACKET.destination,
+        url: 'https://verify.itisyou.app/pricing?utm_campaign=x',
+      },
     };
     expect(classifyChange(PACKET, redirected).classification).toBe('alters_claim');
   });
 
   it('ADS-044 a revoked or expired approval fails before the hash is even compared', async () => {
     const approval = await bindApproval(PACKET, BIND);
-    await expect(isApprovalValidFor({ ...approval, status: 'revoked' }, PACKET, NOW)).resolves.toMatchObject({
+    await expect(
+      isApprovalValidFor({ ...approval, status: 'revoked' }, PACKET, NOW),
+    ).resolves.toMatchObject({
       valid: false,
       reason: 'status_not_granted',
     });
@@ -295,7 +319,9 @@ describe('approval binding', () => {
     await expect(
       isApprovalValidFor(approval, { ...PACKET, platform: 'google_ads' }, NOW),
     ).resolves.toMatchObject({ valid: false, reason: 'platform_mismatch' });
-    await expect(isApprovalValidFor(approval, { ...PACKET, currency: 'USD' }, NOW)).resolves.toMatchObject({
+    await expect(
+      isApprovalValidFor(approval, { ...PACKET, currency: 'USD' }, NOW),
+    ).resolves.toMatchObject({
       valid: false,
       reason: 'currency_mismatch',
     });

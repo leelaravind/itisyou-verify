@@ -21,7 +21,10 @@ describe('ids', () => {
     const early = newId(ID_PREFIX.run, Date.UTC(2026, 0, 1));
     const late = newId(ID_PREFIX.run, Date.UTC(2026, 8, 19));
     expect(early < late).toBe(true);
-    const sameMs = [newId(ID_PREFIX.run, 1_700_000_000_000), newId(ID_PREFIX.run, 1_700_000_000_000)];
+    const sameMs = [
+      newId(ID_PREFIX.run, 1_700_000_000_000),
+      newId(ID_PREFIX.run, 1_700_000_000_000),
+    ];
     expect(sameMs[0]?.slice(4, 14)).toBe(sameMs[1]?.slice(4, 14));
   });
 

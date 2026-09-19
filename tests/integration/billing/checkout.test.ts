@@ -92,7 +92,10 @@ describe('starting a checkout', () => {
     expect(result.order.workspaceId).toBe(WS);
 
     const session = harness.gateway.calls.find((call) => call.method === 'createCheckoutSession');
-    expect(session?.params).toMatchObject({ priceId: 'price_planv1stub', customerId: 'cus_stub_1' });
+    expect(session?.params).toMatchObject({
+      priceId: 'price_planv1stub',
+      customerId: 'cus_stub_1',
+    });
     expect(JSON.stringify(session?.params)).not.toContain('price_attacker_free');
     expect(JSON.stringify(session?.params)).not.toContain('cus_someone_else');
   });
@@ -275,9 +278,9 @@ describe('the billing portal and cancellation', () => {
     await seedSubscription(harness, { status: 'canceled' });
     const result = await cancelSubscription(harness, { workspaceId: WS });
     expect(result.providerStatus).toBe('canceled');
-    expect(harness.gateway.calls.filter((call) => call.method === 'cancelSubscription')).toHaveLength(
-      0,
-    );
+    expect(
+      harness.gateway.calls.filter((call) => call.method === 'cancelSubscription'),
+    ).toHaveLength(0);
   });
 
   it('BILL-103 a past_due customer can still reach the portal and cancel', async () => {

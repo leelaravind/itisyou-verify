@@ -48,7 +48,10 @@ function blankComments(source: string): string {
   const blank = (m: string) => m.replace(/[^\n]/g, ' ');
   return source
     .replace(/\/\*[\s\S]*?\*\//g, blank)
-    .replace(/(^|[^:])(\/\/[^\n]*)/gm, (_all, before: string, comment: string) => before + blank(comment));
+    .replace(
+      /(^|[^:])(\/\/[^\n]*)/gm,
+      (_all, before: string, comment: string) => before + blank(comment),
+    );
 }
 
 /** Every string literal in a source file, with the offset where it started. */
@@ -128,7 +131,9 @@ describe('tenant scope: every SQL statement that reads customer data is scoped',
       for (const literal of stringLiterals(blankComments(read(file)))) {
         if (!looksLikeSql(literal.text)) continue;
         if (scopedTablesIn(literal.text).length === 0) continue;
-        offenders.push(`${relative(ROOT, file)}: ${literal.text.slice(0, 90).replace(/\s+/g, ' ')}`);
+        offenders.push(
+          `${relative(ROOT, file)}: ${literal.text.slice(0, 90).replace(/\s+/g, ' ')}`,
+        );
       }
     }
     expect(offenders).toEqual([]);
@@ -161,7 +166,10 @@ describe('tenant scope: every SQL statement that reads customer data is scoped',
     for (const file of walk(dbDir)) {
       for (const literal of stringLiterals(blankComments(read(file)))) {
         // Only literals that are plausibly statements: they mention a table we know.
-        if (scopedTablesIn(literal.text).length === 0 && !/\b(FROM|INTO|UPDATE)\b/i.test(literal.text)) {
+        if (
+          scopedTablesIn(literal.text).length === 0 &&
+          !/\b(FROM|INTO|UPDATE)\b/i.test(literal.text)
+        ) {
           continue;
         }
         const m = LOWER_VERB.exec(literal.text);
@@ -204,7 +212,8 @@ describe('tenant scope: every SQL statement that reads customer data is scoped',
       const source = read(file);
       for (const literal of stringLiterals(blankComments(source))) {
         const sql = literal.text;
-        const child = /\bFROM\s+(assertions|evidence|run_attempts|workflow_versions|credential_versions)\b/i;
+        const child =
+          /\bFROM\s+(assertions|evidence|run_attempts|workflow_versions|credential_versions)\b/i;
         if (!child.test(sql)) continue;
         if (/\bworkspace_id\b/.test(sql)) continue;
         if (/\bJOIN\b[\s\S]*\bworkspace_id\b/i.test(sql)) continue;
@@ -249,7 +258,11 @@ describe('SSRF: no outbound request bypasses the URL guard', () => {
     const offenders: string[] = [];
     for (const file of walk(connectorsDir)) {
       const source = stripComments(read(file));
-      if (/(baseUrl|base_url|apiHost|endpoint)\s*[:=]\s*(row|record|req|request|body|params|query)\b/i.test(source)) {
+      if (
+        /(baseUrl|base_url|apiHost|endpoint)\s*[:=]\s*(row|record|req|request|body|params|query)\b/i.test(
+          source,
+        )
+      ) {
         offenders.push(relative(ROOT, file));
       }
     }

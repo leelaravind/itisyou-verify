@@ -30,12 +30,17 @@ describe('owner settings', () => {
     expect(DEFAULT_BUSINESS.proprietorName).toBe(TODO_OWNER_INPUT);
     expect(DEFAULT_BUSINESS.addressLine1).toBe(TODO_OWNER_INPUT);
     expect(DEFAULT_BUSINESS.postcode).toBe(TODO_OWNER_INPUT);
-    expect([...pendingBusinessFields(DEFAULT_BUSINESS)].sort()).toEqual([...REQUIRED_BUSINESS_FIELDS].sort());
+    expect([...pendingBusinessFields(DEFAULT_BUSINESS)].sort()).toEqual(
+      [...REQUIRED_BUSINESS_FIELDS].sort(),
+    );
   });
 
   it('OWNER-146 the legal form is fixed as a UK sole trader, not offered as a guess', () => {
     expect(DEFAULT_BUSINESS.legalForm).toBe('uk_sole_trader');
-    const { values } = validateBusiness({ tradingName: 'Anything', legalForm: 'limited_company' } as Record<string, string>);
+    const { values } = validateBusiness({
+      tradingName: 'Anything',
+      legalForm: 'limited_company',
+    } as Record<string, string>);
     expect(values.legalForm).toBe('uk_sole_trader');
   });
 
@@ -92,12 +97,22 @@ describe('owner settings', () => {
   });
 
   it('OWNER-153 a malformed provider price id is refused rather than saved', () => {
-    const { errors } = validatePricing({ monthlyAmount: '49.00', runsIncluded: '500', stripePriceId: 'not a price' });
+    const { errors } = validatePricing({
+      monthlyAmount: '49.00',
+      runsIncluded: '500',
+      stripePriceId: 'not a price',
+    });
     expect(errors['stripePriceId']).toBeDefined();
   });
 
   it('OWNER-154 retention values are bounded and a bad one falls back rather than saving', () => {
-    const { values, errors } = validateRetention({ evidenceDays: '9000', runDays: 'soon', auditDays: '365', visitDays: '30', supportCaseDays: '365' });
+    const { values, errors } = validateRetention({
+      evidenceDays: '9000',
+      runDays: 'soon',
+      auditDays: '365',
+      visitDays: '30',
+      supportCaseDays: '365',
+    });
     expect(errors['evidenceDays']).toMatch(new RegExp(String(RETENTION_BOUNDS.evidenceDays.max)));
     expect(errors['runDays']).toMatch(/whole number/i);
     expect(values.evidenceDays).toBe(DEFAULT_RETENTION.evidenceDays);

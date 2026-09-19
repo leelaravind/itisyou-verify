@@ -57,7 +57,9 @@ describe('RESIL: a tick killed mid-outbox', () => {
     expect(report.outbox.dispatched).toBe(2);
 
     const states = harness.h.raw
-      .prepare("SELECT dispatch_state, COUNT(*) AS n FROM outbox WHERE event_type = 'run.created' GROUP BY dispatch_state")
+      .prepare(
+        "SELECT dispatch_state, COUNT(*) AS n FROM outbox WHERE event_type = 'run.created' GROUP BY dispatch_state",
+      )
       .all() as { dispatch_state: string; n: number }[];
     const byState = Object.fromEntries(states.map((s) => [s.dispatch_state, Number(s.n)]));
     expect(byState.dispatched).toBe(2);
@@ -80,7 +82,9 @@ describe('RESIL: a tick killed mid-outbox', () => {
     ]);
     // The handler works; recording the dispatch does not. At-least-once is the guarantee,
     // and this is the case that makes idempotent handlers non-negotiable.
-    const failing = new FailingDb(harness.h.db, { failMatching: /SET dispatch_state = 'dispatched'/ });
+    const failing = new FailingDb(harness.h.db, {
+      failMatching: /SET dispatch_state = 'dispatched'/,
+    });
     const { runSchedulerTick } = await import('@app/scheduler');
     const { D1BillingDataPort } = await import('@app/db/billingPort');
     await runSchedulerTick({
@@ -102,7 +106,11 @@ describe('RESIL: a tick killed mid-outbox', () => {
 
     // It is redelivered once the claim's lease has expired — the same mechanism that stops
     // a dispatcher which died holding a row from blocking it forever.
-    await harness.tick({ now: at(TICK_DEFAULTS.LEASE_SECONDS + 80), resolver: notConnectedResolver(), handlers });
+    await harness.tick({
+      now: at(TICK_DEFAULTS.LEASE_SECONDS + 80),
+      resolver: notConnectedResolver(),
+      handlers,
+    });
     expect(delivered.length).toBe(2);
   });
 
@@ -137,7 +145,9 @@ describe('RESIL: a tick killed mid-outbox', () => {
 
     expect(report.runs.claimed).toBe(0);
     const decided = harness.h.raw
-      .prepare("SELECT COUNT(*) AS n FROM outbox WHERE event_type = 'run.decided' AND entity_id = ?")
+      .prepare(
+        "SELECT COUNT(*) AS n FROM outbox WHERE event_type = 'run.decided' AND entity_id = ?",
+      )
       .get(runId) as { n: number };
     expect(Number(decided.n)).toBe(0);
     expect(harness.runRow(runId).status).toBe('PENDING');
@@ -191,7 +201,10 @@ describe('RESIL: a lease expiring while its worker is still alive', () => {
       leaseSeconds: TICK_DEFAULTS.LEASE_SECONDS,
       leaseUntil: iso(1 + TICK_DEFAULTS.LEASE_SECONDS),
     });
-    await harness.tick({ now: at(TICK_DEFAULTS.LEASE_SECONDS + 10), resolver: notConnectedResolver() });
+    await harness.tick({
+      now: at(TICK_DEFAULTS.LEASE_SECONDS + 10),
+      resolver: notConnectedResolver(),
+    });
 
     // A's late write is refused, so no second finalisation follows it.
     await runs.applyOutcome(harness.h.db, {
@@ -230,13 +243,21 @@ describe('RESIL: a lease expiring while its worker is still alive', () => {
     });
 
     const attemptsBefore = Number(
-      (harness.h.raw.prepare('SELECT COUNT(*) AS n FROM run_attempts WHERE run_id = ?').get(runId) as { n: number }).n,
+      (
+        harness.h.raw
+          .prepare('SELECT COUNT(*) AS n FROM run_attempts WHERE run_id = ?')
+          .get(runId) as { n: number }
+      ).n,
     );
     // The run is no longer due, so no tick observes it again and no attempt is opened.
     const report = await harness.tick({ now: at(5), resolver: notConnectedResolver() });
     expect(report.runs.claimed).toBe(0);
     const attemptsAfter = Number(
-      (harness.h.raw.prepare('SELECT COUNT(*) AS n FROM run_attempts WHERE run_id = ?').get(runId) as { n: number }).n,
+      (
+        harness.h.raw
+          .prepare('SELECT COUNT(*) AS n FROM run_attempts WHERE run_id = ?')
+          .get(runId) as { n: number }
+      ).n,
     );
     expect(attemptsAfter).toBe(attemptsBefore);
   });
@@ -391,7 +412,11 @@ describe('RESIL: interruption never fabricates a customer-visible outcome', () =
   });
 
   it('RESIL-137 no interruption point strands allowance arithmetic', async () => {
-    const patterns: RegExp[] = [/UPDATE runs\s+SET status/, /INSERT INTO outbox/, /UPDATE entitlements/];
+    const patterns: RegExp[] = [
+      /UPDATE runs\s+SET status/,
+      /INSERT INTO outbox/,
+      /UPDATE entitlements/,
+    ];
     const { runSchedulerTick } = await import('@app/scheduler');
     const { D1BillingDataPort } = await import('@app/db/billingPort');
 
@@ -416,7 +441,11 @@ describe('RESIL: interruption never fabricates a customer-visible outcome', () =
   });
 
   it('RESIL-138 every interrupted run is still reachable by a later tick', async () => {
-    const patterns: RegExp[] = [/UPDATE runs\s+SET status/, /INSERT INTO evidence/, /INSERT INTO outbox/];
+    const patterns: RegExp[] = [
+      /UPDATE runs\s+SET status/,
+      /INSERT INTO evidence/,
+      /INSERT INTO outbox/,
+    ];
     const { runSchedulerTick } = await import('@app/scheduler');
     const { D1BillingDataPort } = await import('@app/db/billingPort');
 
@@ -446,7 +475,9 @@ describe('RESIL: interruption never fabricates a customer-visible outcome', () =
     const before = harness.runRow(runId);
     const entitlementBefore = harness.entitlement();
 
-    const failing = new FailingDb(harness.h.db, { failMatching: /FROM runs\s+WHERE next_check_at/ });
+    const failing = new FailingDb(harness.h.db, {
+      failMatching: /FROM runs\s+WHERE next_check_at/,
+    });
     const { runSchedulerTick } = await import('@app/scheduler');
     const { D1BillingDataPort } = await import('@app/db/billingPort');
     const report = await runSchedulerTick({

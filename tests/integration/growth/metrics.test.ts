@@ -78,12 +78,19 @@ describe('metric freshness', () => {
     // Never retrieved is stale, and carries a null retrieval time rather than a made-up one.
     const never = markStale(1_200, null, 3_600, NOW);
     expect(never).toMatchObject({ stale: true, retrieved_at: null, age_seconds: null });
-    expect(isMetricStale({ spend_minor: 0, observed_at: null, source: 'none' }, 3_600, NOW)).toBe(true);
+    expect(isMetricStale({ spend_minor: 0, observed_at: null, source: 'none' }, 3_600, NOW)).toBe(
+      true,
+    );
   });
 
   it('ADS-087 an observed spend older than the freshness budget is returned but marked stale', async () => {
     const store = inMemoryManualStore();
-    const ads = createManualAdsAdapter({ platform: 'reddit', capFacts: REDDIT_FACTS, store, blockers: [] });
+    const ads = createManualAdsAdapter({
+      platform: 'reddit',
+      capFacts: REDDIT_FACTS,
+      store,
+      blockers: [],
+    });
     await ads.createDraft(PUBLISH, NOW);
     await recordExternalId(store, 'cmp_1', 't2_reddit_99');
     await recordObservation(store, 'cmp_1', {
@@ -104,7 +111,12 @@ describe('metric freshness', () => {
 
   it('ADS-088 unknown spend is reported as null, never as zero', async () => {
     const store = inMemoryManualStore();
-    const ads = createManualAdsAdapter({ platform: 'reddit', capFacts: REDDIT_FACTS, store, blockers: [] });
+    const ads = createManualAdsAdapter({
+      platform: 'reddit',
+      capFacts: REDDIT_FACTS,
+      store,
+      blockers: [],
+    });
     await ads.createDraft(PUBLISH, NOW);
     const spend = await ads.getSpend(REF, NOW);
     expect(isAdsFailure(spend)).toBe(false);
@@ -137,17 +149,24 @@ describe('automatic stop rules', () => {
   });
 
   it('ADS-092 a non-integer spend figure is a billing anomaly, never something to round', () => {
-    const halt = firstHalt(evaluateStops({ ...BASE, spend: { ...BASE.spend, spend_minor: 1_499.5 } }));
+    const halt = firstHalt(
+      evaluateStops({ ...BASE, spend: { ...BASE.spend, spend_minor: 1_499.5 } }),
+    );
     expect(halt?.reason).toBe('billing_anomaly');
     expect(halt?.detail).toMatch(/integer/);
   });
 
   it('ADS-093 a negative spend figure halts rather than being treated as headroom', () => {
-    expect(reasons({ ...BASE, spend: { ...BASE.spend, spend_minor: -100 } })).toContain('billing_anomaly');
+    expect(reasons({ ...BASE, spend: { ...BASE.spend, spend_minor: -100 } })).toContain(
+      'billing_anomaly',
+    );
   });
 
   it('ADS-094 unknown spend is not zero spend, and staying unknown too long is itself a stop', () => {
-    const unknown = { ...BASE, spend: { spend_minor: null, observed_at: null, source: 'none' as const } };
+    const unknown = {
+      ...BASE,
+      spend: { spend_minor: null, observed_at: null, source: 'none' as const },
+    };
     const halt = firstHalt(evaluateStops(unknown));
     expect(halt?.reason).toBe('spend_unknown_too_long');
     expect(halt?.on_stale_evidence).toBe(true);
@@ -188,7 +207,14 @@ describe('automatic stop rules', () => {
     );
     // Strip comments before scanning, so prose about money does not fail the check.
     const code = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
-    for (const forbidden of [/parseFloat/, /toFixed/, /Math\.round/, /Math\.ceil/, /\*\s*0\./, /\*\s*1\./]) {
+    for (const forbidden of [
+      /parseFloat/,
+      /toFixed/,
+      /Math\.round/,
+      /Math\.ceil/,
+      /\*\s*0\./,
+      /\*\s*1\./,
+    ]) {
       expect(code, String(forbidden)).not.toMatch(forbidden);
     }
     // No decimal literal appears anywhere in the code at all.

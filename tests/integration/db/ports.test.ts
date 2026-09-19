@@ -349,9 +349,9 @@ describe('BillingDataPort against D1', () => {
     expect((await port.findBillingCustomer(a.workspaceId, 'test'))?.stripeCustomerId).toBe(
       'cus_first',
     );
-    expect(
-      (await port.findWorkspaceForBillingCustomer('cus_first', 'test'))?.workspaceId,
-    ).toBe(a.workspaceId);
+    expect((await port.findWorkspaceForBillingCustomer('cus_first', 'test'))?.workspaceId).toBe(
+      a.workspaceId,
+    );
     expect(await port.findWorkspaceForBillingCustomer('cus_second', 'test')).toBeNull();
   });
 
@@ -515,9 +515,9 @@ describe('SupportDataPort against D1', () => {
     expect(
       (await port.listCases({ workspaceId: a.workspaceId, limit: 10 })).items.map((c) => c.id),
     ).toEqual(['sup_a']);
-    expect((await port.listCases({ workspaceId: null, limit: 10 })).items.map((c) => c.id)).toEqual([
-      'sup_anon',
-    ]);
+    expect((await port.listCases({ workspaceId: null, limit: 10 })).items.map((c) => c.id)).toEqual(
+      ['sup_anon'],
+    );
     expect((await port.listCases({ limit: 10 })).items).toHaveLength(3);
   });
 
@@ -671,7 +671,9 @@ describe('SupportDataPort against D1', () => {
 
   it('PERSIST-265 listExpired handles the tables keyed by something other than id', async () => {
     h.raw
-      .prepare('INSERT INTO rate_limits (bucket, window_start, count, expires_at) VALUES (?, ?, 1, ?)')
+      .prepare(
+        'INSERT INTO rate_limits (bucket, window_start, count, expires_at) VALUES (?, ?, 1, ?)',
+      )
       .run('events:ws_a', T0, '2026-09-01T00:00:00.000Z');
     h.raw
       .prepare(
@@ -909,7 +911,9 @@ describe('SupportDataPort against D1', () => {
       .run(a.workspaceId, T0, T0);
 
     expect(await port.stopScheduledWork(a.workspaceId)).toBe(2);
-    expect(countRows(h, 'runs', 'workspace_id = ? AND next_check_at IS NULL', a.workspaceId)).toBe(1);
+    expect(countRows(h, 'runs', 'workspace_id = ? AND next_check_at IS NULL', a.workspaceId)).toBe(
+      1,
+    );
     expect(countRows(h, 'outbox', "dispatch_state = 'dead'")).toBe(1);
     expect(await port.revokeSessions(a.workspaceId)).toBe(1);
     expect(await port.revokeCredentials(a.workspaceId)).toBe(1);

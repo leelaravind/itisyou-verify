@@ -131,7 +131,9 @@ describe('campaign lifecycle through the manual adapter', () => {
       expires_at: '2026-10-19T11:00:00.000Z',
     });
     expect(reapproved.canonical_payload_hash).not.toBe(approval.canonical_payload_hash);
-    await expect(isApprovalValidFor(reapproved, edited, NOW)).resolves.toMatchObject({ valid: true });
+    await expect(isApprovalValidFor(reapproved, edited, NOW)).resolves.toMatchObject({
+      valid: true,
+    });
   });
 
   it('ADS-015 a retried creation with the same idempotency key does not produce a second campaign', async () => {
@@ -382,7 +384,9 @@ describe('cap enforceability', () => {
     const pricey = { ...MICROSOFT_ADS_FACTS, minimum_monthly_minor: 2_000 };
     const verdict = capVerdict(pricey, ALLOCATION);
     expect(verdict.enforceable).toBe(false);
-    expect(verdict.reason).toMatch(/minimum monthly budget of 2000 minor units is above the 1500 allocated/);
+    expect(verdict.reason).toMatch(
+      /minimum monthly budget of 2000 minor units is above the 1500 allocated/,
+    );
   });
 
   it('ADS-112 Reddit’s minimums are recorded as requiring a signed-in account, not as unresearched', () => {

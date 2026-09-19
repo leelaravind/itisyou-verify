@@ -107,3 +107,85 @@ jobs:
         run: |
           pnpm --filter @verify/app build
           node scripts/scan-secrets.mjs --paths apps/app/dist
+
+  # ---------------------------------------------------------------------------
+  # The release gate number.
+  #
+  # This job exists because a total taken on a developer machine is not a measurement
+  # of a commit. While the suite was being measured on a live working tree here it moved
+  # from 1,793 to 2,196 distinct cases in twenty minutes, and one category read 0 passing
+  # purely because thirteen files landed after that run had started. Nothing was wrong
+  # with the script; the thing it was measuring was changing underneath it.
+  #
+  # A checkout in CI is clean by construction and pinned to one SHA, so the number this
+  # job produces belongs to that commit and can be re-derived from it. The artefact it
+  # uploads — `release-gate-<sha>` — is the ONLY number anyone may cite for the
+  # "at least 500 distinct passing cases" requirement. `scripts/release.mjs` refuses a
+  # production deploy unless the artefact it is shown was produced here, at HEAD.
+  #
+  # It runs the suite a second time rather than reusing the `verify` job's run: the JSON
+  # reporter output is the evidence, and a gate that depends on another job having
+  # happened to leave a file behind is not a gate.
+  # ---------------------------------------------------------------------------
+  gate:
+    name: release gate number (clean checkout, one SHA)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          version: 11.22.0
+          run_install: false
+
+      - name: Set up Node 22
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: '22'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Writes reports/test-results.json from the runner's own JSON output. A failing
+      # suite is a legitimate outcome to record: the artefact reports it rather than
+      # this step hiding it.
+      - name: Full vitest suite with the JSON reporter
+        run: node scripts/build-test-report.mjs
+
+      # The ledger checker runs inside this script and its exit code is recorded in the
+      # artefact. Playwright is not run here: the browser suite needs `wrangler dev` and
+      # a seeded automation identity, so every playwright-only case is recorded as
+      # unmeasured and counts zero rather than being assumed to pass.
+      - name: Build the release gate artefact
+        run: node scripts/build-gate-artefact.mjs
+
+      - name: Summarise the gate on the run page
+        if: always()
+        run: |
+          {
+            echo '## Release gate — `'"${GITHUB_SHA:0:12}"'`'
+            echo ''
+            echo '```json'
+            cat reports/release-gate.json
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Keyed to the commit SHA on purpose. An artefact whose name does not name its
+      # commit is one copy-paste away from being quoted about a different one.
+      - name: Upload release-gate-${{ github.sha }}
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-gate-${{ github.sha }}
+          path: |
+            reports/release-gate.json
+            reports/test-results.json
+            reports/test-report.md
+          if-no-files-found: error
+          retention-days: 90

@@ -63,7 +63,10 @@ describe('campaign state machine', () => {
 
     // No resubmission without a fresh approval: the machine refuses the attempt outright,
     // and the creation planner refuses too.
-    const resubmit = transition(rejectedByProvider, { type: 'submission_attempted', idempotency_key: 'k2' });
+    const resubmit = transition(rejectedByProvider, {
+      type: 'submission_attempted',
+      idempotency_key: 'k2',
+    });
     expect(resubmit.ok).toBe(false);
     expect(resubmit.next.state).toBe('rejected');
     expect(planCreation(rejectedByProvider, 'k2')).toMatchObject({ action: 'adopt_existing' });
@@ -122,7 +125,11 @@ describe('campaign state machine', () => {
   });
 
   it('ADS-050 a fresh campaign starts as draft with no external id and no unknown outcome', () => {
-    expect(initialLifecycle()).toMatchObject({ state: 'draft', external_id: null, outcome_unknown: false });
+    expect(initialLifecycle()).toMatchObject({
+      state: 'draft',
+      external_id: null,
+      outcome_unknown: false,
+    });
   });
 
   it('ADS-051 the owner cannot approve a packet that was never sent to them', () => {
@@ -145,7 +152,10 @@ describe('campaign state machine', () => {
   });
 
   it('ADS-053 the same idempotency key is never used for a second submission', () => {
-    const once = transition(readyToSubmit(), { type: 'submission_attempted', idempotency_key: 'k1' });
+    const once = transition(readyToSubmit(), {
+      type: 'submission_attempted',
+      idempotency_key: 'k1',
+    });
     expect(once.ok).toBe(true);
     const twice = transition(once.next, { type: 'submission_attempted', idempotency_key: 'k1' });
     expect(twice.ok).toBe(false);
@@ -213,7 +223,10 @@ describe('campaign state machine', () => {
   });
 
   it('ADS-060 a pause cannot be confirmed for a campaign that has no external id', () => {
-    const result = transition(readyToSubmit(), { type: 'owner_confirmed_paused', observed_at: OBSERVED });
+    const result = transition(readyToSubmit(), {
+      type: 'owner_confirmed_paused',
+      observed_at: OBSERVED,
+    });
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('expected the pause confirmation to be rejected');
     expect(result.reason).toMatch(/no external id/);
@@ -221,7 +234,12 @@ describe('campaign state machine', () => {
 
   it('ADS-061 revoking the approval on a live campaign requests a pause rather than claiming it stopped', () => {
     const live = applyAll(accepted(), [
-      { type: 'reconciled', provider_status: 'active', external_id: 'ext_9', observed_at: OBSERVED },
+      {
+        type: 'reconciled',
+        provider_status: 'active',
+        external_id: 'ext_9',
+        observed_at: OBSERVED,
+      },
       { type: 'approval_revoked' },
     ]).lifecycle;
     expect(live.state).toBe('pause_pending');
@@ -241,7 +259,10 @@ describe('campaign state machine', () => {
   });
 
   it('ADS-063 an owner confirmation is the other route to paused, and records when they looked', () => {
-    const confirmed = transition(accepted(), { type: 'owner_confirmed_paused', observed_at: OBSERVED });
+    const confirmed = transition(accepted(), {
+      type: 'owner_confirmed_paused',
+      observed_at: OBSERVED,
+    });
     expect(confirmed.ok).toBe(true);
     expect(confirmed.next.state).toBe('paused');
     expect(confirmed.next.last_observed_at).toBe(OBSERVED);

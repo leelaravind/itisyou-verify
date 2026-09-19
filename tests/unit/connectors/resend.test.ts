@@ -87,7 +87,12 @@ function webhookBody(type: string, overrides: Record<string, unknown> = {}): str
   });
 }
 
-async function svixHeaders(rawBody: string, secret: string, timestampSeconds: number, id = 'msg_test_0001'): Promise<Headers> {
+async function svixHeaders(
+  rawBody: string,
+  secret: string,
+  timestampSeconds: number,
+  id = 'msg_test_0001',
+): Promise<Headers> {
   return new Headers({
     'svix-id': id,
     'svix-timestamp': String(timestampSeconds),
@@ -231,7 +236,12 @@ describe('Resend normalisation', () => {
 
   it('CONN-098 rejects an unmapped event as UNSUPPORTED_CAPABILITY rather than guessing', () => {
     const result = normaliseResendEvent(
-      { eventType: 'email.teleported', messageId: MESSAGE_ID, recipient: [RECIPIENT], occurredAt: NOW.toISOString() },
+      {
+        eventType: 'email.teleported',
+        messageId: MESSAGE_ID,
+        recipient: [RECIPIENT],
+        occurredAt: NOW.toISOString(),
+      },
       ctx,
     );
     expect(result.ok).toBe(false);
@@ -243,7 +253,12 @@ describe('Resend normalisation', () => {
 
   it('CONN-099 rejects a payload with no message id', () => {
     const result = normaliseResendEvent(
-      { eventType: 'email.delivered', messageId: undefined, recipient: [], occurredAt: NOW.toISOString() },
+      {
+        eventType: 'email.delivered',
+        messageId: undefined,
+        recipient: [],
+        occurredAt: NOW.toISOString(),
+      },
       ctx,
     );
     expect(result.ok).toBe(false);
@@ -252,7 +267,12 @@ describe('Resend normalisation', () => {
 
   it('CONN-100 rejects a payload with no usable timestamp rather than inventing one', () => {
     const result = normaliseResendEvent(
-      { eventType: 'email.delivered', messageId: MESSAGE_ID, recipient: [], occurredAt: 'yesterday-ish' },
+      {
+        eventType: 'email.delivered',
+        messageId: MESSAGE_ID,
+        recipient: [],
+        occurredAt: 'yesterday-ish',
+      },
       ctx,
     );
     expect(result.ok).toBe(false);
@@ -261,7 +281,12 @@ describe('Resend normalisation', () => {
 
   it('CONN-101 parses the Postgres-style timestamp the retrieve endpoint returns', () => {
     const result = normaliseResendEvent(
-      { lastEvent: 'delivered', messageId: MESSAGE_ID, recipient: RECIPIENT, occurredAt: '2026-03-01 12:01:00.000000+00' },
+      {
+        lastEvent: 'delivered',
+        messageId: MESSAGE_ID,
+        recipient: RECIPIENT,
+        occurredAt: '2026-03-01 12:01:00.000000+00',
+      },
       ctx,
     );
     expect(result.ok && result.evidence.occurred_at).toBe('2026-03-01T12:01:00.000Z');
@@ -294,7 +319,8 @@ describe('Resend fetchEvidence', () => {
   });
 
   it('CONN-104 maps the retrieved last_event honestly: sent becomes accepted', async () => {
-    const fetchImpl = (async () => json(emailPayload({ last_event: 'sent' }))) as unknown as typeof fetch;
+    const fetchImpl = (async () =>
+      json(emailPayload({ last_event: 'sent' }))) as unknown as typeof fetch;
     const result = await makeConnector(fetchImpl).fetchEvidence(base);
     const evidence = result.evidence[0];
     expect(evidence?.kind === 'email_event' && evidence.status).toBe('accepted');
@@ -302,7 +328,10 @@ describe('Resend fetchEvidence', () => {
 
   it('CONN-105 emits NOT_FOUND when Resend authoritatively has no such message', async () => {
     const fetchImpl = (async () =>
-      json({ statusCode: 404, name: 'not_found', message: 'Email not found' }, 404)) as unknown as typeof fetch;
+      json(
+        { statusCode: 404, name: 'not_found', message: 'Email not found' },
+        404,
+      )) as unknown as typeof fetch;
     const result = await makeConnector(fetchImpl).fetchEvidence(base);
     expect(result.gaps[0]?.code).toBe('NOT_FOUND');
     expect(result.gaps[0]?.retryable).toBe(false);
@@ -342,7 +371,11 @@ describe('Resend fetchEvidence', () => {
   it('CONN-109 maps a missing API key to AUTH_EXPIRED', () => {
     const error = classifyResendError({
       status: 401,
-      bodyText: JSON.stringify({ statusCode: 401, name: 'missing_api_key', message: 'Missing API key.' }),
+      bodyText: JSON.stringify({
+        statusCode: 401,
+        name: 'missing_api_key',
+        message: 'Missing API key.',
+      }),
     });
     expect(error.code).toBe('AUTH_EXPIRED');
   });
@@ -361,14 +394,19 @@ describe('Resend fetchEvidence', () => {
   });
 
   it('CONN-112 treats malformed JSON from a 200 as unavailable, not as absence', async () => {
-    const fetchImpl = (async () => new Response('{"id": "abc"', { status: 200 })) as unknown as typeof fetch;
+    const fetchImpl = (async () =>
+      new Response('{"id": "abc"', { status: 200 })) as unknown as typeof fetch;
     const result = await makeConnector(fetchImpl).fetchEvidence(base);
     expect(result.gaps[0]?.code).toBe('PROVIDER_UNAVAILABLE');
   });
 
   it('CONN-113 treats a 200 carrying an error envelope as unavailable', async () => {
     const fetchImpl = (async () =>
-      json({ statusCode: 500, name: 'application_error', message: 'An unexpected error occurred.' })) as unknown as typeof fetch;
+      json({
+        statusCode: 500,
+        name: 'application_error',
+        message: 'An unexpected error occurred.',
+      })) as unknown as typeof fetch;
     const result = await makeConnector(fetchImpl).fetchEvidence(base);
     expect(result.gaps[0]?.code).toBe('PROVIDER_UNAVAILABLE');
   });
@@ -497,7 +535,9 @@ describe('Resend webhook signature verification', () => {
     const headers = await svixHeaders(body, SECRET, NOW_SECONDS);
     const first = await verify(body, headers);
     expect(first.valid).toBe(true);
-    const replay = await verify(body, headers, SECRET, { seenEventIds: new Set(['msg_test_0001']) });
+    const replay = await verify(body, headers, SECRET, {
+      seenEventIds: new Set(['msg_test_0001']),
+    });
     expect(replay.valid).toBe(false);
     if (!replay.valid) expect(replay.reason).toBe('replayed_event');
   });
@@ -515,7 +555,10 @@ describe('Resend webhook signature verification', () => {
   it('CONN-127 maps every documented event type through a real signed callback', async () => {
     for (const [event, expected] of Object.entries(RESEND_EVENT_STATUS)) {
       const body = webhookBody(event);
-      const result = await verify(body, await svixHeaders(body, SECRET, NOW_SECONDS, `msg_${event}`));
+      const result = await verify(
+        body,
+        await svixHeaders(body, SECRET, NOW_SECONDS, `msg_${event}`),
+      );
       expect(result.valid, event).toBe(true);
       if (!result.valid) continue;
       const evidence = result.evidence[0];
@@ -546,13 +589,16 @@ describe('Resend webhook signature verification', () => {
     expect(result.valid).toBe(true);
     if (!result.valid) return;
     const evidence = result.evidence[0];
-    expect(evidence?.kind === 'email_event' && evidence.occurred_at).toBe('2026-03-01T12:02:00.126Z');
+    expect(evidence?.kind === 'email_event' && evidence.occurred_at).toBe(
+      '2026-03-01T12:02:00.126Z',
+    );
   });
 });
 
 describe('Resend connection lifecycle', () => {
   it('CONN-131 marks a connection incomplete until a webhook signing secret exists', async () => {
-    const fetchImpl = (async () => json({ object: 'list', has_more: false, data: [] })) as unknown as typeof fetch;
+    const fetchImpl = (async () =>
+      json({ object: 'list', has_more: false, data: [] })) as unknown as typeof fetch;
     const result = await makeConnector(fetchImpl).validateConnection({
       credentials: { accessToken: TOKEN },
       connection: connection({ account_id: null }),
@@ -564,7 +610,8 @@ describe('Resend connection lifecycle', () => {
   });
 
   it('CONN-132 holds a connection in testing while the signing secret is stored but unproven', async () => {
-    const fetchImpl = (async () => json({ object: 'list', has_more: false, data: [] })) as unknown as typeof fetch;
+    const fetchImpl = (async () =>
+      json({ object: 'list', has_more: false, data: [] })) as unknown as typeof fetch;
     const result = await makeConnector(fetchImpl).validateConnection({
       credentials,
       connection: connection({ account_id: null }),
@@ -577,7 +624,8 @@ describe('Resend connection lifecycle', () => {
   });
 
   it('CONN-193 accepts a connection only once a signed callback has actually been seen', async () => {
-    const fetchImpl = (async () => json({ object: 'list', has_more: false, data: [] })) as unknown as typeof fetch;
+    const fetchImpl = (async () =>
+      json({ object: 'list', has_more: false, data: [] })) as unknown as typeof fetch;
     const result = await makeConnector(fetchImpl).validateConnection({
       credentials,
       connection: connection({ account_id: null, webhook_verified_at: '2026-03-01T12:02:00.000Z' }),
@@ -590,7 +638,14 @@ describe('Resend connection lifecycle', () => {
 
   it('CONN-133 tells the customer to swap a send-only key for a full-access one', async () => {
     const fetchImpl = (async () =>
-      json({ statusCode: 401, name: 'restricted_api_key', message: 'This API key is restricted to only send emails.' }, 401)) as unknown as typeof fetch;
+      json(
+        {
+          statusCode: 401,
+          name: 'restricted_api_key',
+          message: 'This API key is restricted to only send emails.',
+        },
+        401,
+      )) as unknown as typeof fetch;
     const result = await makeConnector(fetchImpl).validateConnection({
       credentials,
       connection: connection({ account_id: null }),
@@ -602,7 +657,8 @@ describe('Resend connection lifecycle', () => {
   });
 
   it('CONN-134 never reports a guessed scope list', async () => {
-    const fetchImpl = (async () => json({ object: 'list', has_more: false, data: [] })) as unknown as typeof fetch;
+    const fetchImpl = (async () =>
+      json({ object: 'list', has_more: false, data: [] })) as unknown as typeof fetch;
     const result = await makeConnector(fetchImpl).validateConnection({
       credentials,
       connection: connection({ account_id: null }),

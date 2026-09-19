@@ -50,7 +50,10 @@ function blankComments(source: string): string {
   const blank = (m: string) => m.replace(/[^\n]/g, ' ');
   return source
     .replace(/\/\*[\s\S]*?\*\//g, blank)
-    .replace(/(^|[^:])(\/\/[^\n]*)/gm, (_all, before: string, comment: string) => before + blank(comment));
+    .replace(
+      /(^|[^:])(\/\/[^\n]*)/gm,
+      (_all, before: string, comment: string) => before + blank(comment),
+    );
 }
 
 function stringLiterals(source: string): { readonly text: string; readonly index: number }[] {
@@ -107,7 +110,10 @@ describe('tenant scope: the predicate, not the column list', () => {
         const sql = literal.text;
         if (!READ_OR_WRITE.test(sql) || !SQL_CLAUSE.test(sql)) continue;
         // An INSERT has no predicate; its workspace_id column IS the scoping.
-        if (/\bINSERT INTO\b/.test(sql) && !/\b(SELECT|UPDATE|DELETE FROM)\b.*\bWHERE\b/.test(sql)) {
+        if (
+          /\bINSERT INTO\b/.test(sql) &&
+          !/\b(SELECT|UPDATE|DELETE FROM)\b.*\bWHERE\b/.test(sql)
+        ) {
           continue;
         }
         if (!WORKSPACE_SCOPED_TABLES.some((t) => new RegExp(`\\b${t}\\b`).test(sql))) continue;
@@ -128,7 +134,10 @@ describe('tenant scope: the predicate, not the column list', () => {
     // keeps it honest: it has to sit near the statement it excuses.
     //
     // This case asserts the look-back is not widened to "anywhere in the file".
-    const selfSource = readFileSync(join(ROOT, 'tests', 'security', 'integration', 'source-scan.test.ts'), 'utf8');
+    const selfSource = readFileSync(
+      join(ROOT, 'tests', 'security', 'integration', 'source-scan.test.ts'),
+      'utf8',
+    );
     const m = /index - (\d+)\), index\)/.exec(selfSource);
     expect(m, 'isExempt no longer uses a bounded look-back').not.toBeNull();
     expect(Number(m?.[1] ?? Infinity)).toBeLessThanOrEqual(600);
@@ -143,7 +152,10 @@ describe('synthetic data can never be mistaken for a real workspace', () => {
     // one — and a customer would read invented verification results as their own.
     const port = readFileSync(join(ROOT, 'apps', 'app', 'src', 'routes', 'app', 'port.ts'), 'utf8');
     expect(port).toMatch(/readonly synthetic: boolean/);
-    const index = readFileSync(join(ROOT, 'apps', 'app', 'src', 'routes', 'app', 'index.ts'), 'utf8');
+    const index = readFileSync(
+      join(ROOT, 'apps', 'app', 'src', 'routes', 'app', 'index.ts'),
+      'utf8',
+    );
     expect(index).toMatch(/syntheticNotice\(port\.synthetic\)/);
     expect(index).toMatch(/syntheticStripe\(port\.synthetic\)/);
   });
@@ -173,8 +185,13 @@ describe('synthetic data can never be mistaken for a real workspace', () => {
 
   it('SEC-213 the authenticated shell refuses a request with no session at 401', () => {
     // Not a redirect that loses the reason, and never a blank page that looks like data.
-    const index = readFileSync(join(ROOT, 'apps', 'app', 'src', 'routes', 'app', 'index.ts'), 'utf8');
-    expect(index).toMatch(/const session = await port\.session\(\);\s*\n\s*if \(session === null\)/);
+    const index = readFileSync(
+      join(ROOT, 'apps', 'app', 'src', 'routes', 'app', 'index.ts'),
+      'utf8',
+    );
+    expect(index).toMatch(
+      /const session = await port\.session\(\);\s*\n\s*if \(session === null\)/,
+    );
     expect(index).toMatch(/status: 401/);
   });
 });

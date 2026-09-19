@@ -20,7 +20,7 @@ import {
   rulesFor,
 } from '../../fixtures/index.js';
 
-const HUBSPOT_TOKEN = ['pat','na1','11111111-2222-3333-4444-555555555555'].join('-');
+const HUBSPOT_TOKEN = ['pat', 'na1', '11111111-2222-3333-4444-555555555555'].join('-');
 const RESEND_TOKEN = 're' + '_' + '0'.repeat(28);
 const PORTAL = '1020304';
 const FOREIGN_PORTAL = '9999999';
@@ -74,7 +74,10 @@ function stubs(routes: Stubs = {}): { fetchImpl: typeof fetch; calls: string[] }
   const fetchImpl = (async (url: string) => {
     calls.push(url);
     if (url.includes('access-token-info')) {
-      return routes.tokenInfo?.() ?? json({ hubId: Number(PORTAL), scopes: ['crm.objects.contacts.read'] });
+      return (
+        routes.tokenInfo?.() ??
+        json({ hubId: Number(PORTAL), scopes: ['crm.objects.contacts.read'] })
+      );
     }
     if (url.includes('api.resend.com')) return routes.resend?.() ?? json(email());
     return routes.search?.() ?? json({ total: 1, results: [contact()] });
@@ -98,7 +101,11 @@ const emailSource = {
   connection: { provider: 'resend' as const, account_id: EMAIL_ACCOUNT },
 };
 
-const locator = { correlation_value: CORRELATION_VALUE, message_id: MESSAGE_ID, recipient: RECIPIENT };
+const locator = {
+  correlation_value: CORRELATION_VALUE,
+  message_id: MESSAGE_ID,
+  recipient: RECIPIENT,
+};
 
 function proofInput(overrides: Record<string, unknown> = {}) {
   return {
@@ -133,7 +140,9 @@ describe('proof run refusals', () => {
 
   it('CONN-195 refuses to run when a rule reads from a source that is not connected', async () => {
     const { fetchImpl, calls } = stubs();
-    const result = await runProof(proofInput({ email: null, runtime: { fetchImpl, sleep: noSleep } }));
+    const result = await runProof(
+      proofInput({ email: null, runtime: { fetchImpl, sleep: noSleep } }),
+    );
     expect(result.ran).toBe(false);
     expect(result.blockedReason).toContain('your email provider');
     expect(calls).toHaveLength(0);
@@ -163,7 +172,10 @@ describe('proof run refusals', () => {
   it('CONN-198 refuses when there is no message id, because Resend cannot be searched', async () => {
     const { fetchImpl, calls } = stubs();
     const result = await runProof(
-      proofInput({ locator: { correlation_value: CORRELATION_VALUE }, runtime: { fetchImpl, sleep: noSleep } }),
+      proofInput({
+        locator: { correlation_value: CORRELATION_VALUE },
+        runtime: { fetchImpl, sleep: noSleep },
+      }),
     );
     expect(result.ran).toBe(false);
     expect(result.blockedReason).toContain('cannot be searched');
@@ -172,7 +184,9 @@ describe('proof run refusals', () => {
 
   it('CONN-199 always gives a blockedReason exactly when it did not run', async () => {
     const { fetchImpl } = stubs();
-    const blockedResult = await runProof(proofInput({ crm: null, runtime: { fetchImpl, sleep: noSleep } }));
+    const blockedResult = await runProof(
+      proofInput({ crm: null, runtime: { fetchImpl, sleep: noSleep } }),
+    );
     const ranResult = await runProof(proofInput({ runtime: { fetchImpl, sleep: noSleep } }));
     expect(blockedResult.ran).toBe(false);
     expect(blockedResult.blockedReason).not.toBeNull();
@@ -248,7 +262,9 @@ describe('a proof that cannot prove things', () => {
     // Absence becomes a failure only at a real deadline in a real run, never at proof time.
     expect(result.status).toBe('UNVERIFIED');
     expect(result.status).not.toBe('FAILED');
-    expect(result.notProved.some((s) => s.rule_id === 'crm_record_exists' && s.blocking)).toBe(true);
+    expect(result.notProved.some((s) => s.rule_id === 'crm_record_exists' && s.blocking)).toBe(
+      true,
+    );
   });
 
   it('CONN-206 reports "could not prove" when the provider was unreachable', async () => {
@@ -287,7 +303,8 @@ describe('a proof that cannot prove things', () => {
 
   it('CONN-210 fails a proof whose record belongs to a different account, and says which', async () => {
     const { fetchImpl } = stubs({
-      tokenInfo: () => json({ hubId: Number(FOREIGN_PORTAL), scopes: ['crm.objects.contacts.read'] }),
+      tokenInfo: () =>
+        json({ hubId: Number(FOREIGN_PORTAL), scopes: ['crm.objects.contacts.read'] }),
     });
     const result = await runProof(
       proofInput({

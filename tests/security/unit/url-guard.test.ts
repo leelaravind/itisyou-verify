@@ -205,7 +205,14 @@ describe('SSRF: outbound URL allowlist', () => {
 describe('SSRF: numeric address parsing used by the guard', () => {
   it('SEC-019 parses inet_aton-style IPv4 encodings to the same address', () => {
     const expected = [127, 0, 0, 1];
-    for (const form of ['127.0.0.1', '127.1', '127.0.1', '2130706433', '0x7f000001', '0177.0.0.01']) {
+    for (const form of [
+      '127.0.0.1',
+      '127.1',
+      '127.0.1',
+      '2130706433',
+      '0x7f000001',
+      '0177.0.0.01',
+    ]) {
       const parsed = parseIpv4Loose(form);
       expect(parsed, form).not.toBeNull();
       if (parsed && parsed.version === 4) expect([...parsed.bytes], form).toEqual(expected);

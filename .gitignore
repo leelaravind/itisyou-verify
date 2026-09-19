@@ -69,3 +69,7 @@ reports/
 # Paired-device identity. The runner already refuses to write inside the repository;
 # this is the second line of defence.
 **/identity.json
+
+# Rendered page snapshots taken for the claim gate. Regenerated, never edited.
+/*.html
+reports/served/

@@ -8,7 +8,7 @@
  * guarantee than a code-review rule.
  */
 import { attrs, cx, html, type Html } from '../html.js';
-import { iconAlert } from './icons.js';
+import { iconAlert, iconLimit } from './icons.js';
 
 export interface CardOptions {
   readonly title?: string;
@@ -62,17 +62,43 @@ export interface CalloutOptions {
  *           a legal page that silently omits a trading address is worse than one that
  *           admits it is incomplete.
  */
+/**
+ * The title a tone falls back to when the caller supplies none.
+ *
+ * ## Why a default title rather than a bare glyph
+ *
+ * The glyph used to be built inside the branch that renders the title, so a callout with no
+ * title shipped as a coloured box and nothing else — and `.callout--warn` differs from
+ * `.callout--note` only by a red-versus-grey left border and tint. `formMessage` on the
+ * customer surface passes no title, so *every* form-level refusal was distinguished from a
+ * confirmation by hue alone: a WCAG 1.4.1 failure on the seven places a customer is most
+ * likely to meet one, and invisible in greyscale, in a forced-colours mode, and to a screen
+ * reader.
+ *
+ * A glyph on its own would satisfy 1.4.1 and would still be weak here. These four tones
+ * mean four different things and two of them share an amber; a word is the only cue that
+ * cannot be lost. So every tone that carries meaning gets a heading, and `note` — which
+ * means "neutral context" and claims nothing — deliberately gets none.
+ */
+const TONE_TITLE: Readonly<Record<CalloutTone, string | null>> = {
+  note: null,
+  limit: 'What this does not cover',
+  warn: 'There is a problem',
+  todo: 'Not filled in yet',
+};
+
 export function Callout(options: CalloutOptions): Html {
   const tone = options.tone ?? 'note';
-  const titleIcon = tone === 'warn' || tone === 'todo' ? iconAlert() : null;
+  // `limit` gets its own silhouette rather than the warning triangle: a permanent edge of
+  // the product is not a fault the reader can act on, and drawing the two the same way
+  // tells them to try.
+  const titleIcon =
+    tone === 'warn' || tone === 'todo' ? iconAlert() : tone === 'limit' ? iconLimit() : null;
+  const title = options.title ?? TONE_TITLE[tone] ?? undefined;
   return html`<aside
     ${attrs({ class: cx('callout', `callout--${tone}`), id: options.id ?? null, 'data-tone': tone })}
   >
-    ${
-      options.title === undefined
-        ? null
-        : html`<p class="callout__title">${titleIcon}${options.title}</p>`
-    }
+    ${title === undefined ? null : html`<p class="callout__title">${titleIcon}${title}</p>`}
     <div class="callout__body">${options.body}</div>
   </aside>`;
 }

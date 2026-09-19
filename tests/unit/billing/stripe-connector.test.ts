@@ -48,9 +48,7 @@ function stubFetch(responses: readonly StubResponse[]): {
   const fetchImpl = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
     const headers: Record<string, string> = {};
-    for (const [key, value] of Object.entries(
-      (init?.headers ?? {}) as Record<string, string>,
-    )) {
+    for (const [key, value] of Object.entries((init?.headers ?? {}) as Record<string, string>)) {
       headers[key.toLowerCase()] = value;
     }
     requests.push({
@@ -117,11 +115,9 @@ describe('keys and secrets', () => {
   });
 
   it('BILL-063 a secret key is scrubbed out of anything that could be logged or thrown', () => {
-    expect(scrubSecret(`boom ${TEST_KEY} boom`, TEST_KEY)).toBe(
-      'boom [redacted-stripe-key] boom',
-    );
+    expect(scrubSecret(`boom ${TEST_KEY} boom`, TEST_KEY)).toBe('boom [redacted-stripe-key] boom');
     // Even a key that is not ours never travels onward.
-    expect(scrubSecret('leaked ' + ['sk','live','someoneelseskey000000'].join('_'))).toBe(
+    expect(scrubSecret('leaked ' + ['sk', 'live', 'someoneelseskey000000'].join('_'))).toBe(
       'leaked [redacted-stripe-key]',
     );
   });
@@ -130,7 +126,9 @@ describe('keys and secrets', () => {
     const { stripe } = client([
       {
         status: 400,
-        json: { error: { message: `Invalid API Key provided: ${TEST_KEY}`, code: 'api_key_invalid' } },
+        json: {
+          error: { message: `Invalid API Key provided: ${TEST_KEY}`, code: 'api_key_invalid' },
+        },
       },
     ]);
     await expect(
@@ -142,7 +140,9 @@ describe('keys and secrets', () => {
   });
 
   it('BILL-065 the key never appears in a request URL, only in the Authorization header', async () => {
-    const { stripe, requests } = client([{ json: { id: 'cus_1', object: 'customer', livemode: false } }]);
+    const { stripe, requests } = client([
+      { json: { id: 'cus_1', object: 'customer', livemode: false } },
+    ]);
     await stripe.createCustomer({ idempotencyKey: 'k1' });
     const request = requests[0];
     expect(request).toBeDefined();
@@ -153,7 +153,9 @@ describe('keys and secrets', () => {
 
 describe('mutating calls', () => {
   it('BILL-066 every mutating call carries an Idempotency-Key and the pinned API version', async () => {
-    const { stripe, requests } = client([{ json: { id: 'cus_1', object: 'customer', livemode: false } }]);
+    const { stripe, requests } = client([
+      { json: { id: 'cus_1', object: 'customer', livemode: false } },
+    ]);
     await stripe.createCustomer({ idempotencyKey: 'customer:ws_1', email: 'a@example.com' });
     expect(requests[0]?.method).toBe('POST');
     expect(requests[0]?.headers['idempotency-key']).toBe('customer:ws_1');
@@ -162,9 +164,9 @@ describe('mutating calls', () => {
 
   it('BILL-067 an idempotency key over Stripe’s 255-character limit is refused before sending', async () => {
     const { stripe, requests } = client([{ json: {} }]);
-    await expect(
-      stripe.createCustomer({ idempotencyKey: 'x'.repeat(256) }),
-    ).rejects.toThrow(StripeError);
+    await expect(stripe.createCustomer({ idempotencyKey: 'x'.repeat(256) })).rejects.toThrow(
+      StripeError,
+    );
     expect(requests).toHaveLength(0);
   });
 
@@ -228,9 +230,9 @@ describe('mutating calls', () => {
 
   it('BILL-070 a refund needs exactly one of a payment intent or a charge', async () => {
     const { stripe, requests } = client([{ json: {} }]);
-    await expect(
-      stripe.createRefund({ idempotencyKey: 'r1', amountMinor: 2900 }),
-    ).rejects.toThrow(StripeError);
+    await expect(stripe.createRefund({ idempotencyKey: 'r1', amountMinor: 2900 })).rejects.toThrow(
+      StripeError,
+    );
     await expect(
       stripe.createRefund({
         idempotencyKey: 'r1',
@@ -486,7 +488,9 @@ describe('current API object shapes', () => {
   it('BILL-084 the period end is read from the subscription item, where it now lives', () => {
     const withItem: StripeSubscription = {
       ...subscription,
-      items: { data: [{ id: 'si_1', current_period_end: 1_760_000_000, price: { id: 'price_1' } }] },
+      items: {
+        data: [{ id: 'si_1', current_period_end: 1_760_000_000, price: { id: 'price_1' } }],
+      },
     };
     expect(subscriptionPeriodEnd(withItem)).toBe(1_760_000_000);
     expect(subscriptionPriceId(withItem)).toBe('price_1');

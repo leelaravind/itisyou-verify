@@ -11,9 +11,9 @@
     "lint": "eslint . --max-warnings=0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "vitest run",
-    "test:unit": "vitest run tests/unit",
-    "test:integration": "vitest run tests/integration",
+    "test": "node scripts/run-tests.mjs",
+    "test:unit": "node scripts/run-tests.mjs tests/unit",
+    "test:integration": "node scripts/run-tests.mjs tests/integration",
     "test:e2e": "playwright test",
     "test:report": "node scripts/build-test-report.mjs",
     "scan:secrets": "node scripts/scan-secrets.mjs",
@@ -26,7 +26,7 @@
     "migrate:production": "node scripts/migrate.mjs --env production",
     "release:staging": "node scripts/release.mjs --env staging",
     "release:production": "node scripts/release.mjs --env production",
-    "test:security": "vitest run tests/security",
+    "test:security": "node scripts/run-tests.mjs tests/security",
     "verify:story": "node scripts/verify-story.mjs"
   },
   "devDependencies": {

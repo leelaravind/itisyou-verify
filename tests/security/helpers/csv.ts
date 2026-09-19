@@ -38,6 +38,8 @@ export function csvRow(values: readonly (string | number | null | undefined)[]):
   return values.map(csvCell).join(',');
 }
 
-export function csvDocument(rows: readonly (readonly (string | number | null | undefined)[])[]): string {
+export function csvDocument(
+  rows: readonly (readonly (string | number | null | undefined)[])[],
+): string {
   return rows.map(csvRow).join('\r\n');
 }

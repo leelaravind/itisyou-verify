@@ -115,7 +115,10 @@ export function parseIpv4Loose(host: string): ParsedIp | null {
   const bytes: number[] = [];
   for (let i = 0; i < leadingCount; i++) bytes.push(nums[i] as number);
   for (let i = 3 - leadingCount; i >= 0; i--) bytes.push((last >>> (8 * i)) & 0xff);
-  return { version: 4, bytes: [bytes[0] as number, bytes[1] as number, bytes[2] as number, bytes[3] as number] };
+  return {
+    version: 4,
+    bytes: [bytes[0] as number, bytes[1] as number, bytes[2] as number, bytes[3] as number],
+  };
 }
 
 /** Expands `::`, accepts a trailing dotted-quad (`::ffff:127.0.0.1`). */
@@ -247,12 +250,16 @@ export function checkUrl(raw: string, opts: UrlGuardOptions): UrlGuardResult {
     return fail('invalid_url', raw);
   }
   if (url.username !== '' || url.password !== '') {
-    return fail('userinfo_present', `${url.username ? 'user' : ''}${url.password ? ':pass' : ''}@${url.hostname}`);
+    return fail(
+      'userinfo_present',
+      `${url.username ? 'user' : ''}${url.password ? ':pass' : ''}@${url.hostname}`,
+    );
   }
   if (url.protocol !== 'https:') return fail('scheme_not_allowed', url.protocol);
   const allowedPorts = opts.allowedPorts ?? [443];
   const port = url.port === '' ? 443 : Number(url.port);
-  if (!Number.isInteger(port) || !allowedPorts.includes(port)) return fail('port_not_allowed', String(port));
+  if (!Number.isInteger(port) || !allowedPorts.includes(port))
+    return fail('port_not_allowed', String(port));
   const host = normaliseHost(url.hostname);
   const ip = parseIpLiteral(host);
   if (ip !== null) {

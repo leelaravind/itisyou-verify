@@ -32,13 +32,15 @@
  * comparison — so the stand-in key is not a credential and being able to read it buys
  * nothing.
  */
-import { Hono } from 'hono';
+import { Hono, type Context } from 'hono';
 import { sha256Hex } from '@verify/security';
 import { verifyStripeSignature } from '@verify/security';
-import { handleStripeEvent, type StripeEventShape } from '../../billing/events';
+import { handleStripeEvent, type EventOutcome, type StripeEventShape } from '../../billing/events';
 import { MAX_WEBHOOK_BODY_BYTES } from '../../billing/config';
 import { providerModeMatches } from '../../billing/state';
 import type { BillingRuntime } from '../../billing/runtime';
+import { notificationsForStripeEvent } from '../../notifications/billingEvents';
+import type { NotificationDelivery } from '../../notifications/delivery';
 
 /** Resolve the endpoint signing secret for an opaque path id, or `null` if unknown. */
 export type StripeEndpointSecretResolver = (opaqueId: string) => Promise<string | null>;
@@ -59,6 +61,19 @@ export interface StripeWebhookDeps extends BillingRuntime {
    * one, and therefore takes the same time.
    */
   readonly unknownEndpointKey?: string;
+  /**
+   * Where a customer notification actually goes.
+   *
+   * **This is the wire that was missing.** `handleStripeEvent` has always built a
+   * `payment_problem` request for a failed renewal and returned it in
+   * `outcome.notifications`; this route logged the outcome and dropped it, so no template
+   * in the product had a live send path and the customer was never told their runs had
+   * paused. Absent here, the route behaves exactly as it did before — which is why it is
+   * optional rather than required: a deployment that has not configured email must still
+   * take payments, and the tests that predate this wiring must still describe the money
+   * path rather than being rewritten around a new mandatory collaborator.
+   */
+  readonly notifications?: NotificationDelivery | undefined;
 }
 
 /**
@@ -199,6 +214,22 @@ export function createStripeWebhookRoute(deps: StripeWebhookDeps): Hono {
         effect: outcome.effect,
         status: outcome.status,
       });
+
+      // (7) Tell the customer. After the receipt is completed, never before: the money
+      // state is the thing that must survive, and an announcement about a change we have
+      // not finished committing is a lie we would then have to retract.
+      //
+      // The promise is built once and handed either to the platform or to `await`. Both
+      // paths run the *same* function on the *same* promise — a route that sends inline in
+      // a test and through `waitUntil` in production is two code paths, and the one that
+      // is not tested is the one that breaks. `waitUntil` is used when the platform
+      // supplies an execution context so a Resend timeout cannot push the response past
+      // Stripe's own webhook deadline and turn a processed event into a retry.
+      const delivery = deliverNotifications(deps, event, outcome, log);
+      const ctx = executionContextOf(c);
+      if (ctx === null) await delivery;
+      else ctx.waitUntil(delivery);
+
       return c.json({ received: true, duplicate: false }, 200);
     } catch (error) {
       // Give the event back so the retry is a fresh attempt. Without this, one internal
@@ -238,6 +269,71 @@ export function createStripeWebhookRoute(deps: StripeWebhookDeps): Hono {
   });
 
   return app;
+}
+
+/**
+ * Build and send every notification this delivery earns.
+ *
+ * Never rejects. A notification is an announcement about something that has already been
+ * committed; if it cannot be sent, the money state is still correct and the response must
+ * still be a 200. Returning anything else would make Stripe retry an event we applied,
+ * the receipt would deduplicate the retry, and the only lasting effect would be a
+ * processed payment showing as failed in the Stripe dashboard.
+ *
+ * Idempotency is not re-implemented here. Every request carries a `notification_key`
+ * derived from the event — workspace, recovery-window anchor, stage, or subscription id —
+ * and `notification_deliveries.notification_key` is `UNIQUE`, so a second arrival claims
+ * nothing and sends nothing.
+ */
+async function deliverNotifications(
+  deps: StripeWebhookDeps,
+  event: StripeEventShape,
+  outcome: EventOutcome,
+  log: (entry: Record<string, string | number | boolean>) => void,
+): Promise<void> {
+  if (deps.notifications === undefined) return;
+  try {
+    const requests = await notificationsForStripeEvent({
+      event,
+      outcome,
+      billingContact: deps.billingContact,
+    });
+    if (requests.length === 0) return;
+    const report = await deps.notifications.deliver(requests, log);
+    log({
+      event: 'stripe_webhook_notifications',
+      event_id: event.id,
+      event_type: event.type,
+      attempted: report.attempted,
+      sent: report.sent,
+      duplicates: report.duplicates,
+      suppressed: report.suppressed,
+      failed: report.failed,
+    });
+  } catch (error) {
+    log({
+      event: 'stripe_webhook_notifications_failed',
+      event_id: event.id,
+      event_type: event.type,
+      error_name: error instanceof Error ? error.name : 'unknown',
+    });
+  }
+}
+
+/**
+ * The platform's execution context, or `null` when there is not one.
+ *
+ * Hono's accessor *throws* when a request was made without an `ExecutionContext` — which
+ * is every `app.request(...)` in a test. Catching that is the difference between a route
+ * that is testable and a route that only works in workerd.
+ */
+function executionContextOf(c: Context): ExecutionContext | null {
+  try {
+    const ctx = c.executionCtx as ExecutionContext | undefined;
+    return ctx !== undefined && typeof ctx.waitUntil === 'function' ? ctx : null;
+  } catch {
+    return null;
+  }
 }
 
 /**

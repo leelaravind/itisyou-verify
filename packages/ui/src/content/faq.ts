@@ -2,7 +2,13 @@
  * Frequently asked questions. Answers must match implemented behaviour — see
  * docs/product-scope.md's claims-to-implementation map. Do not answer a question with a
  * claim that isn't in that map.
+ *
+ * Figures are read from `LIMITS`, never retyped. Two answers used to say "30 days" and
+ * "Thirty days" as literals while `EVIDENCE_RETENTION_NOTE` and the privacy page rendered
+ * the constant beside them: four copies of one number, three of which a change to the
+ * retention period would have left behind.
  */
+import { LIMITS } from '@verify/contracts';
 
 export interface FaqEntry {
   readonly id: string;
@@ -27,13 +33,12 @@ export const FAQ_ENTRIES: readonly FaqEntry[] = [
     id: 'run-never-started',
     question: 'Can you tell me when a run never started?',
     answer:
-      'Only if your workflow is set up with an independently sourced trigger, rather than relying on your own automation to call us. By default, we only find out about an enquiry when your automation sends us a signed event — if it never sends one, we have nothing to check, and we show nothing rather than treating silence as a pass. Which coverage mode your workflow uses is always shown next to its results, so you know which kind of blind spot you still have.',
+      'No. We only find out about an enquiry when your automation sends us a signed event — if it never sends one, we have nothing to check, and we show nothing rather than treating silence as a pass. We have built no way to find enquiries your automation never reported, and we would rather name that blind spot than sell you a setting that does not close it. Every result shows the coverage we actually have next to it.',
   },
   {
     id: 'store-customer-data',
     question: 'Do you store my customer data?',
-    answer:
-      "We store the specific pieces of evidence needed to check your rules — the CRM record fields and email status your workflow's assertions reference, and the source event your automation sent us — scoped to your workspace. We do not import or mirror your whole CRM. Evidence is kept for 30 days by default and then removed.",
+    answer: `We store the specific pieces of evidence needed to check your rules — the CRM record fields and email status your workflow's assertions reference, and the source event your automation sent us — scoped to your workspace. We do not import or mirror your whole CRM. Evidence is kept for ${LIMITS.EVIDENCE_RETENTION_DAYS} days by default and then removed.`,
   },
   {
     id: 'how-cancel',
@@ -57,7 +62,7 @@ export const FAQ_ENTRIES: readonly FaqEntry[] = [
     id: 'what-do-i-need-before-starting',
     question: 'What do I need before I can start?',
     answer:
-      'A HubSpot account you can grant us read access to, a property on your HubSpot contact records that carries a correlation value for each enquiry, a Resend account whose message events we can read, and a small change to your existing automation so it sends us one signed event per enquiry. This is real setup work, not a one-click connection — see our onboarding guide for the exact steps.',
+      'A HubSpot account you can grant us read access to, a property on your HubSpot contact records that carries a correlation value for each enquiry, a Resend account whose message events we can read, and a small change to your existing automation so it sends us one signed event per enquiry. This is real setup work, not a one-click connection. There is no separate onboarding guide yet — the how-it-works page is the full instructions until one is written.',
   },
   {
     id: 'what-counts-as-a-run',
@@ -87,12 +92,12 @@ export const FAQ_ENTRIES: readonly FaqEntry[] = [
     id: 'what-is-coverage-mode',
     question: 'What does "coverage mode" mean?',
     answer:
-      'It tells you how a workflow finds out about a run. "Customer triggered" (the default) means we only see an enquiry when your automation tells us about it — so we can\'t see a run that never started at all. "Independently sourced" means the trigger comes from somewhere outside your automation, so a run that never started can itself be shown as a gap. It\'s always shown next to your results, so you know which kind applies.',
+      'It tells you how a workflow finds out about a run. There is one coverage mode today — "customer triggered" — and it means we only see an enquiry when your automation tells us about it, so we cannot see a run that never started at all. It is shown next to your results so the blind spot is never out of sight. A second mode, where we would find the enquiries ourselves, is on the roadmap and is not built; it is not offered, because offering it would mean promising to spot enquiries we have no way to see.',
   },
   {
     id: 'how-long-evidence-kept',
     question: 'How long do you keep evidence?',
-    answer: 'Thirty days by default, then it is removed.',
+    answer: `${LIMITS.EVIDENCE_RETENTION_DAYS} days by default, then it is removed.`,
   },
   {
     id: 'invite-team',

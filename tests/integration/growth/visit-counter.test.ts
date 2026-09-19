@@ -55,7 +55,11 @@ function counterOver(port: ReturnType<typeof createMemoryGrowthPort>, salt: stri
   });
 }
 
-const VISITOR = { 'cf-connecting-ip': '81.2.69.142', 'user-agent': CHROME, 'accept-language': 'en-GB' };
+const VISITOR = {
+  'cf-connecting-ip': '81.2.69.142',
+  'user-agent': CHROME,
+  'accept-language': 'en-GB',
+};
 
 describe('visit counter middleware', () => {
   it('ADS-114 one request to the landing page writes exactly one visit row', async () => {
@@ -97,7 +101,10 @@ describe('visit counter middleware', () => {
     await Promise.all(c.waited);
 
     expect([...port.rows.values()][0]?.classification).toBe('bot_suspected');
-    const counts = await port.countVisits({ since: '2026-10-01T00:00:00.000Z', until: '2026-11-01T00:00:00.000Z' });
+    const counts = await port.countVisits({
+      since: '2026-10-01T00:00:00.000Z',
+      until: '2026-11-01T00:00:00.000Z',
+    });
     expect(counts?.external).toBe(0);
     expect(counts?.botSuspected).toBe(1);
   });
@@ -118,7 +125,10 @@ describe('visit counter middleware', () => {
     await counter(stranger, async () => undefined);
     await Promise.all(stranger.waited);
 
-    const counts = await port.countVisits({ since: '2026-10-01T00:00:00.000Z', until: '2026-11-01T00:00:00.000Z' });
+    const counts = await port.countVisits({
+      since: '2026-10-01T00:00:00.000Z',
+      until: '2026-11-01T00:00:00.000Z',
+    });
     expect(counts?.external).toBe(1);
     expect(counts?.internalTest).toBe(1);
   });
@@ -254,7 +264,10 @@ describe('visit counter middleware', () => {
 
   it('ADS-127 no raw address reaches the stored row or the port', async () => {
     const port = createMemoryGrowthPort();
-    const c = contextFor('https://verify.itisyou.app/?utm_campaign=organic_launch_2026_09', VISITOR);
+    const c = contextFor(
+      'https://verify.itisyou.app/?utm_campaign=organic_launch_2026_09',
+      VISITOR,
+    );
     await counterOver(port, SALT)(c, async () => undefined);
     await Promise.all(c.waited);
 

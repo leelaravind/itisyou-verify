@@ -388,15 +388,15 @@ that claims wiring.
 
 ### 10.1 Claims that are true and wired (entry point given, not just the module)
 
-| Claim | Entry point |
-| --- | --- |
-| Stripe billing events (checkout completion, subscription/invoice changes, refunds) are processed | `app.all('/api/v1/webhooks/stripe/*', ...)` in `apps/app/src/index.ts`, mounted and calling `createStripeWebhookRoute` |
-| Due verification runs are observed against HubSpot/Resend, retried within budget, and decided | `handleScheduled` → `runSchedulerTick` → the `due_job` pass, in `IMPLEMENTED_SCHEDULER_PASSES` (`apps/app/src/scheduler/tick.ts`) |
-| Outbox events (e.g. notification dispatch on a run decision) are delivered | The `outbox` pass, same `IMPLEMENTED_SCHEDULER_PASSES` list |
-| Evidence/source-events/etc. are swept on their retention schedule | The `retention` pass, same list, backed by `apps/app/src/privacy/retention.ts` and checked against the doc by `API-330` |
-| Sign-in, onboarding pages, run/connection/usage dashboards, support form, cancellation | `app.route('/app', createAppRoutes(...))`, mounted against real D1 (`createCustomerDataPort`) |
+| Claim                                                                                                                                      | Entry point                                                                                                                                                                             |
+| ------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Stripe billing events (checkout completion, subscription/invoice changes, refunds) are processed                                           | `app.all('/api/v1/webhooks/stripe/*', ...)` in `apps/app/src/index.ts`, mounted and calling `createStripeWebhookRoute`                                                                  |
+| Due verification runs are observed against HubSpot/Resend, retried within budget, and decided                                              | `handleScheduled` → `runSchedulerTick` → the `due_job` pass, in `IMPLEMENTED_SCHEDULER_PASSES` (`apps/app/src/scheduler/tick.ts`)                                                       |
+| Outbox events (e.g. notification dispatch on a run decision) are delivered                                                                 | The `outbox` pass, same `IMPLEMENTED_SCHEDULER_PASSES` list                                                                                                                             |
+| Evidence/source-events/etc. are swept on their retention schedule                                                                          | The `retention` pass, same list, backed by `apps/app/src/privacy/retention.ts` and checked against the doc by `API-330`                                                                 |
+| Sign-in, onboarding pages, run/connection/usage dashboards, support form, cancellation                                                     | `app.route('/app', createAppRoutes(...))`, mounted against real D1 (`createCustomerDataPort`)                                                                                           |
 | Owner dashboard, once A02's session/TOTP wiring lands (explicitly gated to 404 for everyone until then, per the comment at the mount site) | `app.route('/owner/*', ...)` etc. — correctly **not** claiming to work yet; the code comment says so and the content on `/owner` is not customer-facing, so no public claim rests on it |
-| The health check | `app.get('/health', ...)`, genuinely probes D1 |
+| The health check                                                                                                                           | `app.get('/health', ...)`, genuinely probes D1                                                                                                                                          |
 
 ### 10.2 Claims that must be qualified now (exact replacement wording given)
 
@@ -444,9 +444,9 @@ finding so nobody has to re-derive it:
   `apps/app/src/scheduler/tick.ts`, whose `IMPLEMENTED_SCHEDULER_PASSES` list is exactly
   `['due_job', 'outbox', 'retention']`). Recommended replacement wording for A09's email,
   until wired: replace "Checking starts again when a payment is actually confirmed by our
-  payment provider" with *"Checking starts again once a confirmed payment reaches us — we
+  payment provider" with _"Checking starts again once a confirmed payment reaches us — we
   are still finishing the automatic check for this, so if it feels slow after you have
-  paid, contact us and we will resolve it by hand."* This is honest without frightening a
+  paid, contact us and we will resolve it by hand."_ This is honest without frightening a
   customer who has genuinely paid.
 - **The pre-checkout disclosure** (`PRE_CHECKOUT_DISCLOSURE` /
   `preCheckoutPanel()` in `apps/app/src/billing/disclosure.ts`) has zero callers in
@@ -478,7 +478,7 @@ signed event":
 for `api/v1/events` (the path named in `packages/contracts/src/events.ts`'s own comments,
 in `packages/security/src/signatures.ts`, and shown to customers as their event endpoint
 by `apps/app/src/db/customerPort.ts`) across every route file and `apps/app/src/index.ts`:
-it appears only as a *string constant displayed to the customer* — never as a mounted
+it appears only as a _string constant displayed to the customer_ — never as a mounted
 path. `apps/app/src/scheduler/observe.ts` parses a `sourceEventSchema` payload once one
 already exists as a stored run, and `apps/app/src/db/runs.ts` can create one, but nothing
 in the routing layer turns an inbound HTTP request into that call. The single mechanism
@@ -517,3 +517,174 @@ site stays, purchase and activation paths come down — the concrete actions are
   `packages/ui/src/content/legal.ts` (`OWNER_LEGAL_IDENTITY`) and
   `docs/privacy-retention.md`. Confirmed still visibly marked, not invented.
 
+## 11. Public-claims audit — 2026-09-19, third pass (A18)
+
+§9 asked "is this implemented". §10 asked "does a real request reach it". This pass asks a
+third question that neither answered: **would a visitor reading the page today be told
+something untrue?** — and it was answered by fetching every public page through
+`apps/app/src/index.ts`, the Worker entry point, and reading the rendered HTML. Not by
+rendering a page function, and not by reading this document, which had itself drifted.
+
+The regression tests are `tests/integration/public/claims.test.ts` (`CUST-330`..`CUST-340`).
+Every case builds a real `Request` and asserts against the response body. All eleven were
+committed red against the site as it stood and are green against the site as it now stands.
+
+### 11.1 Claims corrected
+
+| #   | Claim as published                                                                                                                                 | Where                                                                                                                                                                                        | Verdict                                                               | What it now says                                                                                                                                                                                                                                                                                      |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | "Only workflows configured with an independently sourced trigger can show a run that never started at all"                                         | `packages/ui/src/content/home.ts`, `HOME_WHAT_THIS_DOES_NOT_DO[3]` — rendered on `/` and `/how-it-works`                                                                                     | **Not true today**                                                    | "We have built no way to find enquiries your automation never reported." No second mode is offered.                                                                                                                                                                                                   |
+| 2   | "By default we cannot tell you a run never started at all — only workflows set up with an independently sourced trigger can show that"             | `packages/ui/src/content/site.ts`, `STANDING_LIMITATIONS_PARAGRAPH` — rendered on `/how-it-works`, `/pricing`, `/security`, `/support`, `/terms`, `/status`, `/demo` and the app's run pages | **Not true today**                                                    | The same sentence without the escape hatch.                                                                                                                                                                                                                                                           |
+| 3   | "Only if your workflow is set up with an independently sourced trigger…"                                                                           | `packages/ui/src/content/faq.ts`, `run-never-started`                                                                                                                                        | **Not true today**                                                    | "No." Followed by why, and by the statement that we would rather name the blind spot than sell a setting that does not close it.                                                                                                                                                                      |
+| 4   | '"Independently sourced" means the trigger comes from somewhere outside your automation, so a run that never started can itself be shown as a gap' | `packages/ui/src/content/faq.ts`, `what-is-coverage-mode`                                                                                                                                    | **Not true today**                                                    | "There is one coverage mode today." The second is named as roadmap and explicitly not offered.                                                                                                                                                                                                        |
+| 5   | "We read the CRM record and the email outcome back from HubSpot and Resend ourselves", and every variant of it                                     | `/`, `/how-it-works`, `/security`                                                                                                                                                            | **True but unproven against a real provider**                         | Unchanged — the code is real — but each of those three pages now renders `PROVIDER_PROOF_NOTICE`, which states that the connectors have never been run against a real HubSpot or Resend account and that every connector test to date runs against stubs built from published provider documentation. |
+| 6   | Nothing at all about what happens if a payment fails                                                                                               | `/pricing`                                                                                                                                                                                   | **Not true by omission**                                              | `/pricing` now renders the seven-day payment-recovery policy — headline, what pauses, what keeps working, what happens on day 8, and what happens to the customer's data — read from `PAYMENT_RECOVERY_POLICY` rather than retyped.                                                                   |
+| 7   | "ITISYOU Verify reads your HubSpot record and Resend email status back itself and tells you what the evidence shows."                              | `/` meta description                                                                                                                                                                         | **Not true today**                                                    | "…is built to read … and not yet accepting live traffic, so nothing is on sale today."                                                                                                                                                                                                                |
+| 8   | "Cancel from the billing portal at any time."                                                                                                      | `/pricing` meta description                                                                                                                                                                  | **Not true today**                                                    | An instruction to a subscriber, quoted where nobody can subscribe. Replaced with the terms and the fact that we are not taking payment.                                                                                                                                                               |
+| 9   | "see our onboarding guide for the exact steps"                                                                                                     | `packages/ui/src/content/faq.ts`, `what-do-i-need-before-starting` — rendered on `/`, `/how-it-works` and `/support`                                                                         | **Not true today**                                                    | "There is no separate onboarding guide yet — the how-it-works page is the full instructions until one is written." The contradicting callout on `/how-it-works` now only says where the instructions are.                                                                                             |
+| 10  | "A service that reads HubSpot and Resend back itself and reports what the evidence shows."                                                         | `packages/ui/src/layout/layouts.ts` footer — every public page, including the last line of `/terms`                                                                                          | **Not true today**                                                    | `FOOTER_SERVICE_DESCRIPTION`: what it is built to do, plus one line saying we are not accepting live traffic.                                                                                                                                                                                         |
+| 11  | "Start with the worked example and the setup requirements before you sign up"                                                                      | `apps/app/src/routes/app/authPages.ts` — served at `GET /app`, which answers 401 with this page                                                                                              | **Not true today**                                                    | "There is nothing to sign up for yet." The page now carries the activation notice. The sign-in form itself is untouched.                                                                                                                                                                              |
+| 12  | "The mode was made unavailable rather than reworded: … it is marked unsupported as data the onboarding UI reads"                                   | `apps/app/src/routes/public/story/narrative.ts`, rendered at `/development-story/visual`                                                                                                     | **Not true today — the claim described a fix that had not been made** | Made true rather than softened: see §11.2.                                                                                                                                                                                                                                                            |
+
+### 11.2 Activation paths disabled or corrected
+
+- **The onboarding coverage-mode selector still offered the unimplemented mode.**
+  `apps/app/src/routes/app/onboardingPages.ts` listed two hard-coded options, the second
+  labelled "We find enquiries ourselves", and `apps/app/src/routes/app/index.ts` stored
+  whichever came back. `packages/domain/src/coverage.ts` has marked that mode
+  `supported: false, selectable: false` since commit `3c94f8d`, and the public development
+  story has claimed since then that the onboarding UI reads that data. It did not.
+  The option list now comes from `SELECTABLE_COVERAGE_MODES`, so the mode cannot be offered
+  by forgetting to delete a line; the unavailable mode is rendered through
+  `UnavailableAction` with A03's own reason rather than disappearing unexplained; and the
+  `POST` handler resolves the submitted value against `SELECTABLE_COVERAGE_MODES` instead of
+  a string literal, so a hand-posted form gets the coverage we can deliver rather than a
+  stored promise nothing implements.
+- **The sign-in page** (`GET /app`, answering 401) now carries `SERVICE_ACTIVATION_NOTICE`
+  and no longer invites a sign-up. Signing in is deliberately **not** disabled: the owner's
+  instruction was to preserve every working control, and an existing account must still be
+  able to reach its workspace.
+- Nothing else was disabled. The purchase path was already closed by the previous pass
+  (`UnavailableAction` on `/pricing`, on the onboarding entry point, and in place of the
+  checkout submit control) and those controls were left exactly as they are.
+
+### 11.3 Claims that should be removed rather than qualified
+
+Recorded here for the owner; **not acted on**, because removing a page or a policy is a
+product decision rather than a copy correction.
+
+1. **The `independently_sourced` coverage mode should come out of the customer-facing
+   vocabulary entirely**, not only out of the selector. It remains in
+   `packages/contracts/src/status.ts` (frozen, not mine to touch) and is still named on
+   `/development-story/visual`. Keeping it visible anywhere a buyer reads invites the
+   question "can I have that one?", and the honest answer is a roadmap item with no date.
+2. **"Cancel from the billing portal at any time"** — as an FAQ answer (`how-cancel`), not
+   just as a meta description. No customer can reach a Stripe billing portal, because no
+   customer can subscribe. It currently reads as an instruction; it should either come out
+   until checkout opens or be rewritten as a future term of the plan.
+3. **The `/status` page's "Environment" row.** On production it reads `production`, which
+   tells a visitor nothing they can act on, and the page already says plainly that there is
+   no monitoring behind it. A deployment label is internal detail dressed as a status signal.
+4. **The `Stripe` row of the subprocessor table** states that Stripe processes "billing
+   details and subscription status". No live key exists and no payment has ever been taken,
+   so Stripe processes nothing for us at present. It belongs in the list because it will,
+   but the table has no column that can say "not yet in use", and inventing one for a single
+   row is worse than saying so in the surrounding prose.
+
+### 11.4 Ruling out the claim classes found on the Stitch-generated landing page
+
+A design audit of a _generated_ landing page — not our shipped site — found four classes of
+claim we do not make, plus a pricing mismatch. The owner asked for these to be ruled out on
+the real site, and for the negatives to be stated rather than left silent. Method for each:
+fetch every page through `apps/app/src/index.ts`, strip tags to visible text, and pattern-match
+both the text and the raw markup; then grep the source tree for the same, in case something is
+written but unrendered. Regression cases `CUST-342`..`CUST-347` keep each check running.
+
+**1. Compliance and certification claims — one finding, now corrected.**
+No `SOC 2`, `SOC-2`, `ISO 27001`, `PCI DSS`, `HIPAA`, `Type II`, "certified", "accredited",
+"trust seal" or "trust badge" appears on any page. Every one of the 21 occurrences of
+"certification" across the site is a **denial** ("We hold no certification and do not claim
+one", "We make no accuracy, security or uptime certification") or a visible
+`TODO_OWNER_INPUT` gap on `/security` and `/terms`. There are **no `<img>` elements anywhere
+on the site** — checked on every page, not inferred — so no badge graphic can carry a claim
+the text does not; the only three `alt` attributes belong to the three inline diagrams on
+`/development-story/visual` and read "journey", "system", "timeline".
+
+The one finding: `/development-story/visual` carried a heading reading **"Independently
+audited"**. It described one specialist agent on this project reviewing another's work
+against the code — not a third-party attestation — but "independently audited" is the exact
+register a security attestation uses, and a reader scanning headings could not tell. The
+heading is now "Reviewed by a second specialist, in-house" and the body opens by saying what
+it is not. Severity: lower than a badge, because the surrounding text never claimed a
+standard, but corrected on the owner's rule that an attestation claim is not ordinary
+overclaiming.
+
+**2. Attributed quotes, named individuals and competitor claims — nothing found.**
+No `<blockquote>`, no `<cite>`, no testimonial or review component exists in
+`packages/ui/src/components/` at all, so the site has no markup capable of presenting an
+attributed quote. No "trusted by", no customer count, no case study, no G2/Capterra/
+Trustpilot reference, and no text matching the shape `— Firstname Lastname, Company`.
+No individual is named anywhere on a public page.
+
+Competitors are mentioned in exactly one sentence, on `/` and `/how-it-works`: _"We never see
+inside n8n, Make, Zapier or whatever runs your workflow."_ That is a statement about our own
+blindness, not a claim about their products, and it is the only one. `docs/competitors.md`
+contains comparative analysis and is not published — it is a repository document, not a route.
+`CUST-343` bars the shape that would be a problem: a competitor name within eighty characters
+of "fails", "cannot", "doesn't" or "misses".
+
+**3. Auto-remediation claims — nothing found, and the opposite is stated.**
+No "auto-healed", "AUTO-REMEDIATED", "self-healing", "auto-fix", "self-repair" or "we will fix
+your…" in any tense, on any page, in any source file under `packages/ui/src` or
+`apps/app/src/routes`. The frozen contract is observe-only, so this is not a gap waiting to be
+filled — it can never become true under the current design. What the site says instead is the
+inverse, prominently: _"It does not fix anything"_ as a full card on `/` and `/how-it-works`,
+_"We only ever read"_ in the FAQ and on the connections page, and _"We never modify your CRM,
+send a replacement email, or fix your automation"_ in the standing limitations paragraph on
+seven pages. Two greps matched on `/development-story/visual` — "forcing a rollback" (a D1
+transaction) and "Dependabot auto-fixes" (our own CI) — neither of which is a product claim.
+
+**4. Package or SDK install instructions — nothing found.**
+No `pip install`, `npm install`, `pnpm add`, `yarn add`, `gem install`, `go get`, `cargo add`
+or `brew install`; no reference to PyPI, npmjs.com, crates.io, Packagist or RubyGems; no SDK
+or CLI is offered. **There is no `<pre>` or `<code>` block on any public page** — the site
+publishes no copyable command at all. So there is no unclaimed-registry-name exposure: nothing
+tells a reader to fetch anything from a namespace we do not control.
+
+**5. Pricing accuracy — correct, and four retyped figures removed.**
+Every published figure matches the implementation. The only numbers the site publishes are
+£29.00 (`LIMITS.PLAN_PRICE_PENCE` through `formatMoney`), 500 runs
+(`LIMITS.PLAN_RUNS_PER_PERIOD`), 30 days retention (`LIMITS.EVIDENCE_RETENTION_DAYS`) and the
+7-day recovery window (`PAYMENT_FAILURE_GRACE_DAYS`). **No `$`, `€`, `USD` or `EUR` appears on
+any page** — one plan, one currency, and no tier structure.
+
+Four figures were nonetheless **retyped as literals** where a change to the constant would have
+left them behind. All four now interpolate the constant:
+
+| Literal                         | File                                                                | Now reads                                                    |
+| ------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------ |
+| "kept for 30 days by default"   | `packages/ui/src/content/faq.ts` (`store-customer-data`)            | `${LIMITS.EVIDENCE_RETENTION_DAYS}`                          |
+| "Thirty days by default"        | `packages/ui/src/content/faq.ts` (`how-long-evidence-kept`)         | `${LIMITS.EVIDENCE_RETENTION_DAYS}`                          |
+| "kept for 30 days by default"   | `packages/ui/src/content/legal.ts` (`EVIDENCE_RETENTION_NOTE`)      | `${LIMITS.EVIDENCE_RETENTION_DAYS}`                          |
+| "500 runs a month … seven days" | `apps/app/src/routes/public/index.ts` (`/pricing` meta description) | `${LIMITS.PLAN_RUNS_PER_PERIOD}`, `${PAYMENT_RECOVERY_DAYS}` |
+
+`CUST-347` reads those modules **as source** and fails on a hard-coded duplicate of a governed
+number. A rendering assertion cannot catch this class: four copies of "30" all render correctly
+right up to the moment somebody changes the constant, which is precisely when a claims test
+should fire.
+
+### 11.5 Checked and left alone
+
+- `/demo` — the four verdicts really are produced by `evaluateAssertions()`,
+  `decideRunStatus()` and `explainRun()` over the shared synthetic fixtures. The page says
+  "real verdicts about fake facts" and that is exactly what it is. **True today.**
+- `/status` — publishes no uptime figure, and `/health` genuinely probes D1. **True today.**
+- `TODO_OWNER_INPUT` placeholders on `/terms`, `/privacy`, `/security` and `/support` — still
+  rendered as visible gaps, never filled with anything plausible. **True today.**
+- Open Graph text — there is none. `packages/ui/src/layout/shell.ts` emits `charset`,
+  `viewport`, `title`, `description`, `robots`, `color-scheme` and a favicon link, and no
+  `og:` or `twitter:` tags at all. Nothing to correct, and none were added: a share card is
+  a claim surface and this is not the week to open one.
+- No testimonial, customer count, case study or statistic appears anywhere on the site. The
+  only figures published are the price, the allowance, the retention period and the demo's
+  own 33%, and all four are read from constants.

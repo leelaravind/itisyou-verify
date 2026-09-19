@@ -67,7 +67,8 @@ const HUBSPOT_ENABLED = OPTED_IN && HUBSPOT_READY && BLOCKED_BY === null;
 const RESEND_ENABLED = OPTED_IN && RESEND_READY && BLOCKED_BY === null;
 
 function reasonFor(credentialPresent: boolean, provider: string): string {
-  if (!OPTED_IN) return 'VERIFY_PROVIDER_PROOF is not 1 — a real provider read must be asked for explicitly';
+  if (!OPTED_IN)
+    return 'VERIFY_PROVIDER_PROOF is not 1 — a real provider read must be asked for explicitly';
   if (!credentialPresent) return `no ${provider} test credential is configured`;
   return BLOCKED_BY ?? '';
 }
@@ -188,7 +189,9 @@ describe('provider-backed: a real HubSpot read', () => {
         expect(Number.isNaN(Date.parse(evidence.created_at))).toBe(false);
       }
       for (const [key, value] of Object.entries(evidence.properties)) {
-        expect(value === null || typeof value === 'string', `${key} was not a string or null`).toBe(true);
+        expect(value === null || typeof value === 'string', `${key} was not a string or null`).toBe(
+          true,
+        );
       }
     },
     30_000,

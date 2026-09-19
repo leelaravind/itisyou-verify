@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_dashboard" name="shell-type"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;family=Plus+Jakarta+Sans:wght@600;700&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = {"darkMode":"class","theme":{"extend":{"colors":{"outline":"#86948a","on-primary":"#003824","on-secondary-fixed-variant":"#004e5c","surface-bright":"#353943","primary":"#4edea3","outline-variant":"#3c4a42","secondary":"#4cd7f6","on-secondary-fixed":"#001f26","surface-container-lowest":"#0a0e17","primary-container":"#10b981","primary-fixed":"#6ffbbe","surface-container-high":"#262a34","inverse-surface":"#dfe2ef","on-tertiary":"#472a00","surface":"#0f131c","surface-container-highest":"#31353f","on-secondary-container":"#00424e","secondary-fixed-dim":"#4cd7f6","surface-container-low":"#181b25","on-background":"#dfe2ef","surface-tint":"#4edea3","on-primary-container":"#00422b","surface-variant":"#31353f","on-tertiary-container":"#523200","on-secondary":"#003640","surface-container":"#1c1f29","inverse-primary":"#006c49","secondary-fixed":"#acedff","surface-dim":"#0f131c","on-error-container":"#ffdad6","on-primary-fixed-variant":"#005236","on-surface-variant":"#bbcabf","error":"#ffb4ab","on-primary-fixed":"#002113","secondary-container":"#03b5d3","tertiary":"#ffb95f","on-tertiary-fixed-variant":"#653e00","on-surface":"#dfe2ef","error-container":"#93000a","tertiary-fixed":"#ffddb8","primary-fixed-dim":"#4edea3","tertiary-fixed-dim":"#ffb95f","inverse-on-surface":"#2c303a","on-tertiary-fixed":"#2a1700","background":"#0f131c","on-error":"#690005","tertiary-container":"#e29100"},"borderRadius":{"DEFAULT":"0.125rem","lg":"0.25rem","xl":"0.5rem","full":"0.75rem"},"spacing":{"margin-sm":"1rem","space-xl":"2.5rem","gutter-sm":"1rem","space-sm":"0.5rem","space-md":"1rem","margin":"2rem","margin-lg":"4rem","space-xs":"0.25rem","space-lg":"1.5rem","gutter-lg":"2rem","gutter":"1.5rem"},"fontFamily":{"headline-sm":["Plus Jakarta Sans"],"body-sm":["Inter"],"label-code-md":["JetBrains Mono"],"display-lg":["Plus Jakarta Sans"],"headline-lg":["Plus Jakarta Sans"],"display-lg-mobile":["Plus Jakarta Sans"],"label-code-lg":["JetBrains Mono"],"body-lg":["Inter"],"headline-xl":["Plus Jakarta Sans"],"label-code-sm":["JetBrains Mono"],"display-md":["Plus Jakarta Sans"],"display-md-mobile":["Plus Jakarta Sans"],"body-md":["Inter"]},"fontSize":{"headline-sm":["18px",{"lineHeight":"26px","letterSpacing":"-0.01em","fontWeight":"600"}],"body-sm":["13px",{"lineHeight":"18px","letterSpacing":"0.005em","fontWeight":"400"}],"label-code-md":["12px",{"lineHeight":"16px","letterSpacing":"0em","fontWeight":"500"}],"display-lg":["56px",{"lineHeight":"64px","letterSpacing":"-0.03em","fontWeight":"700"}],"headline-lg":["24px",{"lineHeight":"32px","letterSpacing":"-0.015em","fontWeight":"600"}],"display-lg-mobile":["36px",{"lineHeight":"44px","letterSpacing":"-0.02em","fontWeight":"700"}],"label-code-lg":["14px",{"lineHeight":"20px","letterSpacing":"-0.01em","fontWeight":"500"}],"body-lg":["16px",{"lineHeight":"24px","letterSpacing":"-0.005em","fontWeight":"400"}],"headline-xl":["30px",{"lineHeight":"38px","letterSpacing":"-0.02em","fontWeight":"600"}],"label-code-sm":["11px",{"lineHeight":"14px","letterSpacing":"0.04em","fontWeight":"600"}],"display-md":["40px",{"lineHeight":"48px","letterSpacing":"-0.02em","fontWeight":"600"}],"display-md-mobile":["28px",{"lineHeight":"36px","letterSpacing":"-0.02em","fontWeight":"600"}],"body-md":["14px",{"lineHeight":"20px","letterSpacing":"0em","fontWeight":"400"}]}}}};</script></head><body class="bg-background font-body-md text-on-surface antialiased"><aside class="fixed left-0 top-0 h-full w-72 bg-surface-container-lowest z-50 flex flex-col justify-between shadow-[0_0_24px_rgba(0,0,0,0.6)]"><div class="flex flex-col"><div class="h-16 px-space-md flex items-center justify-between bg-surface-container-low"><div class="flex items-center gap-space-xs"><span class="w-2 h-2 rounded-full bg-primary-container animate-pulse"></span><span class="font-label-code-sm text-label-code-sm text-primary tracking-wider uppercase">ENCLAVE: ACTIVE</span></div><span class="font-label-code-sm text-label-code-sm px-space-xs py-0.5 rounded bg-surface-container text-on-surface-variant">v4.19-SEC</span></div><div class="px-space-md py-space-sm"><div class="text-label-code-sm font-label-code-sm text-outline uppercase tracking-wider mb-space-xs">OPERATOR CORE MATRIX</div><div class="font-label-code-sm text-label-code-sm text-on-surface-variant truncate">SESSION // 0x88F2...EA01</div></div><nav class="flex flex-col gap-space-xs px-space-sm mt-space-xs" data-active-classes="bg-surface-container-high text-primary font-bold"><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors font-label-code-md text-label-code-md" data-path="telemetry-stream" href="#"><span class="material-symbols-outlined text-[18px]">monitoring</span><span>Telemetry Stream</span></a><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors font-label-code-md text-label-code-md" data-path="discrepancies" href="#"><span class="material-symbols-outlined text-[18px]">warning</span><span>Discrepancies</span></a><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors font-label-code-md text-label-code-md" data-path="operator-actions" href="#"><span class="material-symbols-outlined text-[18px]">terminal</span><span>Operator Actions</span></a><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors font-label-code-md text-label-code-md" data-path="node-topology" href="#"><span class="material-symbols-outlined text-[18px]">hub</span><span>Node Topology</span></a><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors font-label-code-md text-label-code-md" data-path="forensic-audit" href="#"><span class="material-symbols-outlined text-[18px]">fingerprint</span><span>Forensic Audit</span></a><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors font-label-code-md text-label-code-md" data-path="state-registers" href="#"><span class="material-symbols-outlined text-[18px]">memory</span><span>State Registers</span></a><a aria-current="page" class="flex items-center gap-space-sm px-space-md py-space-sm rounded transition-colors bg-surface-container-high text-primary font-bold" data-path="automated-testing-and-cleanup-centre" href="#"><span class="material-symbols-outlined text-[18px]">cleaning_services</span><span>Testing &amp; Cleanup</span></a></nav></div><div class="p-space-md bg-surface-container-low flex flex-col gap-space-xs"><div class="flex items-center justify-between font-label-code-sm text-label-code-sm text-outline"><span>MEMORY LOCK</span><span class="text-primary">ISOLATED</span></div><div class="w-full h-1 bg-surface-container rounded-full overflow-hidden"><div class="w-full h-full bg-primary-container"></div></div><div class="font-label-code-sm text-label-code-sm text-on-surface-variant mt-space-xs">HARDWARE VERIFIED ENCLAVE</div></div></aside><div class="pl-72 flex flex-col min-h-screen"><header class="fixed top-0 left-72 right-0 h-16 bg-surface-container-lowest/90 backdrop-blur-xl z-40 flex items-center justify-between px-space-lg shadow-[0_1px_8px_rgba(0,0,0,0.5)]"><div class="flex items-center gap-space-md"><div class="flex items-center gap-space-xs"><span class="material-symbols-outlined text-primary text-[20px]">verified_user</span><span class="font-headline-sm text-headline-sm text-on-surface tracking-tight uppercase">ITISYOU VERIFY</span><span class="font-label-code-md text-label-code-md text-error tracking-wider">// OPERATOR INTERNAL (RESTRICTED)</span></div></div><div class="flex items-center gap-space-md"><div class="hidden xl:flex items-center gap-space-xs px-space-sm py-1 rounded bg-surface-container font-label-code-sm text-label-code-sm text-on-surface-variant"><span class="w-1.5 h-1.5 rounded-full bg-primary"></span><span>ENV: PRODUCTION-US01</span></div><div class="hidden lg:flex items-center gap-space-xs px-space-sm py-1 rounded bg-surface-container font-label-code-sm text-label-code-sm text-on-surface-variant"><span>CLUSTER_ID: 0x9AF04B</span></div><div class="flex items-center gap-space-xs px-space-sm py-1 rounded bg-surface-container-high font-label-code-sm text-label-code-sm text-secondary font-semibold"><span>ROLE: SYS_OWNER_LVL0</span></div><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></header><main class="w-full pt-16 pb-12 px-space-lg flex-1 bg-surface"><div class="flex flex-col w-full">
+<!-- Interactive View State Controller Logic -->
+<script>
+    function setScreenState(state) {
+      const authCard = document.getElementById('view-authoritative');
+      const inProgCard = document.getElementById('view-inprogress');
+      const staleBanner = document.getElementById('view-stale-banner');
+      
+      const btnAuth = document.getElementById('btn-state-auth');
+      const btnInprog = document.getElementById('btn-state-inprog');
+      const btnStale = document.getElementById('btn-state-stale');
+
+      const activeClasses = ['bg-surface-container-high', 'text-primary', 'shadow-sm'];
+      const inactiveClasses = ['text-on-surface-variant', 'hover:bg-surface-container', 'hover:text-on-surface'];
+
+      // Reset buttons
+      [btnAuth, btnInprog, btnStale].forEach(btn => {
+        btn.classList.remove(...activeClasses);
+        btn.classList.add(...inactiveClasses);
+      });
+
+      if (state === 'auth') {
+        btnAuth.classList.add(...activeClasses);
+        btnAuth.classList.remove(...inactiveClasses);
+        authCard.classList.remove('hidden');
+        inProgCard.classList.add('hidden');
+        staleBanner.classList.add('hidden');
+      } else if (state === 'inprogress') {
+        btnInprog.classList.add(...activeClasses);
+        btnInprog.classList.remove(...inactiveClasses);
+        authCard.classList.add('hidden');
+        inProgCard.classList.remove('hidden');
+        staleBanner.classList.add('hidden');
+      } else if (state === 'stale') {
+        btnStale.classList.add(...activeClasses);
+        btnStale.classList.remove(...inactiveClasses);
+        authCard.classList.remove('hidden');
+        inProgCard.classList.add('hidden');
+        staleBanner.classList.remove('hidden');
+      }
+    }
+
+    function checkPurgeInput(val) {
+      const targetStr = 'CONFIRM PURGE e8f2b01';
+      const checkbox = document.getElementById('purge-ack-checkbox');
+      const btn = document.getElementById('purge-execute-btn');
+      if (val.trim() === targetStr && checkbox.checked) {
+        btn.removeAttribute('disabled');
+        btn.classList.remove('opacity-40', 'cursor-not-allowed');
+        btn.classList.add('bg-error', 'text-on-error', 'hover:bg-error-container', 'shadow-md');
+      } else {
+        btn.setAttribute('disabled', 'true');
+        btn.classList.add('opacity-40', 'cursor-not-allowed');
+        btn.classList.remove('bg-error', 'text-on-error', 'hover:bg-error-container', 'shadow-md');
+      }
+    }
+
+    function togglePurgeCheck() {
+      const input = document.getElementById('purge-confirm-input');
+      checkPurgeInput(input.value);
+    }
+  </script>
+<!-- Surface Mode Switcher & Operational State Strip -->
+<section class="flex flex-col gap-space-sm mb-space-lg">
+<div class="flex flex-col xl:flex-row xl:items-center justify-between gap-space-md p-space-md bg-surface-container-low rounded-lg shadow-sm">
+<div class="flex items-center gap-space-sm">
+<span class="material-symbols-outlined text-outline text-[20px]">science</span>
+<span class="font-label-code-md text-label-code-md text-outline uppercase tracking-wider">VIEWPORT TELEMETRY MODE:</span>
+</div>
+<div class="flex flex-wrap items-center gap-space-xs bg-surface-container-lowest p-1 rounded">
+<button class="px-space-md py-1.5 rounded font-label-code-sm text-label-code-sm uppercase tracking-wider transition-colors bg-surface-container-high text-primary shadow-sm flex items-center gap-space-xs" id="btn-state-auth" onclick="setScreenState('auth')">
+<span class="w-1.5 h-1.5 rounded-full bg-primary-container"></span>
+<span>Authoritative Run (Pinned: e8f2b01)</span>
+</button>
+<button class="px-space-md py-1.5 rounded font-label-code-sm text-label-code-sm uppercase tracking-wider transition-colors text-on-surface-variant hover:bg-surface-container hover:text-on-surface flex items-center gap-space-xs" id="btn-state-inprog" onclick="setScreenState('inprogress')">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+<span>Preview: Test Run in Progress</span>
+</button>
+<button class="px-space-md py-1.5 rounded font-label-code-sm text-label-code-sm uppercase tracking-wider transition-colors text-on-surface-variant hover:bg-surface-container hover:text-on-surface flex items-center gap-space-xs" id="btn-state-stale" onclick="setScreenState('stale')">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+<span>Preview: Stale Report Drift Warning</span>
+</button>
+</div>
+</div>
+<!-- Forensic Notice Banner: Working Tree vs Pinned Record -->
+<div class="flex items-start gap-space-md p-space-md bg-surface-container rounded-lg shadow-sm">
+<div class="p-2 rounded bg-surface-container-high text-secondary mt-0.5 shrink-0">
+<span class="material-symbols-outlined text-[20px]">shield_lock</span>
+</div>
+<div class="flex flex-col gap-0.5 min-w-0">
+<div class="flex items-center gap-space-sm">
+<span class="font-label-code-sm text-label-code-sm text-secondary uppercase font-semibold">WORKING TREE VS PINNED RECORD</span>
+<span class="font-label-code-sm text-label-code-sm text-outline">// REF: RFC-904 DETERMINISTIC AUDIT</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
+          An inspection taken on a live working tree is merely a transient reading, not an authoritative verification result. Authoritative verification figures derive exclusively from clean checkouts strictly pinned to an immutable git commit SHA. Never treat working tree assertions as cryptographic sign-off.
+        </p>
+</div>
+</div>
+</section>
+<!-- STALE REPORT WARNING COMPARATOR (Dynamic View Switch) -->
+<div class="hidden mb-space-lg" id="view-stale-banner">
+<div class="p-space-md bg-surface-container-high rounded-lg shadow-md flex flex-col gap-space-sm relative overflow-hidden">
+<div class="absolute left-0 top-0 bottom-0 w-1.5 bg-tertiary"></div>
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-space-sm pl-space-xs">
+<div class="flex items-center gap-space-sm">
+<span class="material-symbols-outlined text-tertiary text-[22px]">history_toggle_off</span>
+<span class="font-label-code-sm text-label-code-sm uppercase text-tertiary font-bold tracking-wider">STALE TEST RECORD WARNING // COMMIT DRIFT DETECTED</span>
+</div>
+<span class="font-label-code-sm text-label-code-sm text-outline">DRIFT DELTA: +4 COMMITS</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface leading-relaxed pl-space-xs">
+        Authoritative report was generated against commit <code class="px-1.5 py-0.5 rounded bg-surface-container-lowest font-label-code-md text-label-code-md text-primary font-bold">e8f2b01</code> (merged 18h ago). The target branch <code class="px-1.5 py-0.5 rounded bg-surface-container-lowest font-label-code-md text-label-code-md text-secondary">main</code> has moved forward by 4 commits to <code class="px-1.5 py-0.5 rounded bg-surface-container-lowest font-label-code-md text-label-code-md text-tertiary font-bold">d419c8f</code>. This test record reflects historical execution and does not represent the current working branch state. A re-run against pinned <code class="px-1.5 py-0.5 rounded bg-surface-container-lowest font-label-code-md text-label-code-md text-tertiary font-bold">d419c8f</code> is required for release clearance.
+      </p>
+<div class="flex items-center gap-space-md pt-space-xs pl-space-xs font-label-code-sm text-label-code-sm">
+<span class="text-on-surface-variant">COMMITTED RECORD: <span class="text-on-surface">e8f2b01... (24 Feb 03:15 UTC)</span></span>
+<span class="text-outline">/</span>
+<span class="text-on-surface-variant">REMOTE HEAD: <span class="text-tertiary">d419c8f... (Merge PR #149)</span></span>
+</div>
+</div>
+</div>
+<!-- SECTION: AUTHORITATIVE RUN OVERVIEW -->
+<div class="flex flex-col gap-space-lg mb-space-xl" id="view-authoritative">
+<!-- Meta Strip for Authoritative Run -->
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-space-sm px-space-md py-space-sm bg-surface-container-lowest rounded-lg shadow-sm">
+<div class="flex items-center gap-space-md flex-wrap">
+<span class="font-label-code-sm text-label-code-sm text-outline uppercase">RECORD REF: <span class="text-on-surface font-semibold">TR-2025-02-24-001</span></span>
+<span class="text-outline-variant">|</span>
+<span class="font-label-code-sm text-label-code-sm text-outline uppercase">PINNED COMMIT: <span class="text-primary font-bold">e8f2b0189a74c20</span> (dirty flag: <span class="text-primary">false</span>)</span>
+<span class="text-outline-variant">|</span>
+<span class="font-label-code-sm text-label-code-sm text-outline uppercase">CHECKOUT ENV: <span class="text-on-surface">isolated-ephemeral-chroot</span></span>
+</div>
+<div class="flex items-center gap-space-xs">
+<span class="w-2 h-2 rounded-full bg-primary-container"></span>
+<span class="font-label-code-sm text-label-code-sm text-primary uppercase font-bold tracking-wider">PINNED RECORD ASSERTED</span>
+</div>
+</div>
+<!-- Honest Execution Buckets (6 Non-Absolutist Decomposition Cards) -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-space-md">
+<!-- Card 1: Estate Total -->
+<div class="p-space-md bg-surface-container-low rounded-lg shadow-sm flex flex-col justify-between">
+<div class="flex items-center justify-between text-outline font-label-code-sm text-label-code-sm mb-space-sm">
+<span>CATALOGED ESTATE</span>
+<span class="material-symbols-outlined text-[16px]">folder_special</span>
+</div>
+<div class="font-headline-xl text-headline-xl text-on-surface font-bold">1,482</div>
+<div class="font-label-code-sm text-label-code-sm text-on-surface-variant mt-space-xs">
+          42 test suites registered across repository core
+        </div>
+</div>
+<!-- Card 2: Dispatched Coverage -->
+<div class="p-space-md bg-surface-container-low rounded-lg shadow-sm flex flex-col justify-between">
+<div class="flex items-center justify-between text-secondary font-label-code-sm text-label-code-sm mb-space-sm">
+<span>DISPATCHED TESTS</span>
+<span class="material-symbols-outlined text-[16px]">send</span>
+</div>
+<div class="font-headline-xl text-headline-xl text-secondary font-bold">1,390</div>
+<div class="font-label-code-sm text-label-code-sm text-on-surface-variant mt-space-xs">
+          93.7% overall estate execution coverage in this run
+        </div>
+</div>
+<!-- Card 3: Passed -->
+<div class="p-space-md bg-surface-container-low rounded-lg shadow-sm flex flex-col justify-between relative overflow-hidden">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-primary-container"></div>
+<div class="flex items-center justify-between text-primary font-label-code-sm text-label-code-sm mb-space-sm pl-space-xs">
+<span>PASSED [✓]</span>
+<span class="material-symbols-outlined text-[16px]">check_circle</span>
+</div>
+<div class="font-headline-xl text-headline-xl text-primary font-bold pl-space-xs">1,368</div>
+<div class="font-label-code-sm text-label-code-sm text-on-surface-variant mt-space-xs pl-space-xs">
+          Deterministic assertions matched ground truth
+        </div>
+</div>
+<!-- Card 4: Failed -->
+<div class="p-space-md bg-surface-container-low rounded-lg shadow-sm flex flex-col justify-between relative overflow-hidden">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-error"></div>
+<div class="flex items-center justify-between text-error font-label-code-sm text-label-code-sm mb-space-sm pl-space-xs">
+<span>FAILED [✕]</span>
+<span class="material-symbols-outlined text-[16px]">cancel</span>
+</div>
+<div class="font-headline-xl text-headline-xl text-error font-bold pl-space-xs">14</div>
+<div class="font-label-code-sm text-label-code-sm text-error mt-space-xs pl-space-xs">
+          Observed non-zero exit or assertion mismatch
+        </div>
+</div>
+<!-- Card 5: Skipped -->
+<div class="p-space-md bg-surface-container-low rounded-lg shadow-sm flex flex-col justify-between">
+<div class="flex items-center justify-between text-outline font-label-code-sm text-label-code-sm mb-space-sm">
+<span>SKIPPED [-]</span>
+<span class="material-symbols-outlined text-[16px]">remove_circle_outline</span>
+</div>
+<div class="font-headline-xl text-headline-xl text-outline font-bold">8</div>
+<div class="font-label-code-sm text-label-code-sm text-on-surface-variant mt-space-xs">
+          Explicit skip annotations (e.g. pending mock HSM)
+        </div>
+</div>
+<!-- Card 6: Existed But Did Not Execute -->
+<div class="p-space-md bg-surface-container-low rounded-lg shadow-sm flex flex-col justify-between relative overflow-hidden">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-tertiary"></div>
+<div class="flex items-center justify-between text-tertiary font-label-code-sm text-label-code-sm mb-space-sm pl-space-xs">
+<span>DID NOT RUN [!]</span>
+<span class="material-symbols-outlined text-[16px]">filter_alt_off</span>
+</div>
+<div class="font-headline-xl text-headline-xl text-tertiary font-bold pl-space-xs">92</div>
+<div class="font-label-code-sm text-label-code-sm text-tertiary mt-space-xs pl-space-xs">
+          Filtered out by selector (<code class="font-label-code-sm text-label-code-sm">-tag=live-crm</code>). Never counted as passed.
+        </div>
+</div>
+</div>
+<!-- Decomposition Breakdown Visual Chart & Discrepancy Diagnostics -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-space-lg">
+<!-- Diagnostic Vector Strip / Stacked Bar -->
+<div class="lg:col-span-8 p-space-lg bg-surface-container-low rounded-lg shadow-sm flex flex-col justify-between gap-space-md">
+<div class="flex flex-col gap-1">
+<div class="flex items-center justify-between">
+<span class="font-headline-sm text-headline-sm text-on-surface font-semibold">Test Estate Decomposition Matrix</span>
+<span class="font-label-code-sm text-label-code-sm text-outline">SAMPLE RECORD #TR-2025-02-24-001</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+            Visual apportionment of all 1,482 cataloged tests. 92 unexecuted tests are strictly segregated from verified successes.
+          </p>
+</div>
+<!-- Proportional Segmented Graph -->
+<div class="flex flex-col gap-space-xs">
+<div class="w-full h-8 bg-surface-container-lowest rounded overflow-hidden flex shadow-inner">
+<div class="h-full bg-primary-container flex items-center justify-center font-label-code-sm text-label-code-sm text-on-primary font-bold" style="width: 92.3%;" title="1,368 Verified Passed">
+              1,368 Passed (92.3%)
+            </div>
+<div class="h-full bg-error" style="width: 0.94%;" title="14 Failed"></div>
+<div class="h-full bg-surface-container-high" style="width: 0.54%;" title="8 Skipped"></div>
+<div class="h-full bg-tertiary flex items-center justify-center font-label-code-sm text-label-code-sm text-on-tertiary font-bold" style="width: 6.22%;" title="92 Unexecuted Excluded">
+              92 Filtered
+            </div>
+</div>
+<div class="flex items-center justify-between font-label-code-sm text-label-code-sm text-outline pt-1">
+<div class="flex items-center gap-space-md">
+<span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded bg-primary-container"></span><span>Passed (92.3%)</span></span>
+<span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded bg-error"></span><span>Failed (0.9%)</span></span>
+<span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded bg-surface-container-high"></span><span>Skipped (0.5%)</span></span>
+<span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded bg-tertiary"></span><span>Unexecuted Tag Filter (6.2%)</span></span>
+</div>
+<span>TOTAL: 1,482 CASES</span>
+</div>
+</div>
+<!-- Failure Inventory Sample Table -->
+<div class="flex flex-col gap-space-xs bg-surface-container-lowest p-space-md rounded">
+<div class="flex items-center justify-between font-label-code-sm text-label-code-sm pb-space-xs text-outline">
+<span class="font-bold text-error uppercase">Active Assertion Failures (14 observed)</span>
+<span>SHOWING 3 OF 14 RECORDS</span>
+</div>
+<div class="flex flex-col gap-1 font-label-code-sm text-label-code-sm">
+<div class="p-2 rounded bg-surface-container-low flex flex-col md:flex-row md:items-center justify-between gap-2">
+<div class="flex items-center gap-2">
+<span class="text-error font-bold">[✕]</span>
+<span class="text-on-surface font-semibold">TestEgressProxy_LatencyCutoff</span>
+<span class="text-outline">pkg/proxy/egress_test.go:142</span>
+</div>
+<span class="text-error font-mono">AssertionError: latency 42.1ms &gt; threshold 25.0ms</span>
+</div>
+<div class="p-2 rounded bg-surface-container-low flex flex-col md:flex-row md:items-center justify-between gap-2">
+<div class="flex items-center gap-2">
+<span class="text-error font-bold">[✕]</span>
+<span class="text-on-surface font-semibold">TestSignatureValidation_CorruptNonce</span>
+<span class="text-outline">pkg/crypto/verifier_test.go:89</span>
+</div>
+<span class="text-error font-mono">Expected StatusErrInvalidNonce, received StatusErrTimeout</span>
+</div>
+<div class="p-2 rounded bg-surface-container-low flex flex-col md:flex-row md:items-center justify-between gap-2">
+<div class="flex items-center gap-2">
+<span class="text-error font-bold">[✕]</span>
+<span class="text-on-surface font-semibold">TestStateRegister_ConcurrentDrain</span>
+<span class="text-outline">pkg/registers/drain_test.go:310</span>
+</div>
+<span class="text-error font-mono">Race condition flagged: lock contention 18ms on worker_3</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Execution Environment & Integrity Audit Card -->
+<div class="lg:col-span-4 p-space-lg bg-surface-container-low rounded-lg shadow-sm flex flex-col justify-between gap-space-md">
+<div class="flex flex-col gap-1">
+<span class="font-headline-sm text-headline-sm text-on-surface font-semibold">Execution Integrity Card</span>
+<span class="font-label-code-sm text-label-code-sm text-outline">ENVIRONMENT HARNESS ATTESTATION</span>
+</div>
+<div class="flex flex-col gap-space-sm font-label-code-sm text-label-code-sm">
+<div class="flex justify-between py-1.5 bg-surface-container-lowest px-space-sm rounded">
+<span class="text-outline">SANDBOX HARNESS:</span>
+<span class="text-on-surface font-mono">cgroup_v2_ns_isolate</span>
+</div>
+<div class="flex justify-between py-1.5 bg-surface-container-lowest px-space-sm rounded">
+<span class="text-outline">BASE IMAGE SHA256:</span>
+<span class="text-on-surface font-mono">81f0...42e9</span>
+</div>
+<div class="flex justify-between py-1.5 bg-surface-container-lowest px-space-sm rounded">
+<span class="text-outline">RECORD CREATED:</span>
+<span class="text-on-surface font-mono">2025-02-24 03:15:20 UTC</span>
+</div>
+<div class="flex justify-between py-1.5 bg-surface-container-lowest px-space-sm rounded">
+<span class="text-outline">RECORD DIGEST:</span>
+<span class="text-primary font-mono font-semibold">7f9b2c3a...a891</span>
+</div>
+<div class="flex justify-between py-1.5 bg-surface-container-lowest px-space-sm rounded">
+<span class="text-outline">AUTOMATION STATUS:</span>
+<span class="text-tertiary font-semibold">MANUAL SIGN-OFF REQUIRED</span>
+</div>
+</div>
+<div class="p-space-sm rounded bg-surface-container-highest flex items-center gap-space-xs text-on-surface-variant font-label-code-sm text-label-code-sm">
+<span class="material-symbols-outlined text-[16px] text-tertiary">lock_clock</span>
+<span>Zero auto-remediation enabled. Failures require engineer triaging.</span>
+</div>
+</div>
+</div>
+</div>
+<!-- SECTION: ACTIVE / IN-PROGRESS RUN STATE (Interactive Card) -->
+<div class="hidden flex flex-col gap-space-md mb-space-xl" id="view-inprogress">
+<div class="p-space-lg bg-surface-container-low rounded-lg shadow-md flex flex-col gap-space-md relative overflow-hidden">
+<div class="absolute left-0 top-0 bottom-0 w-1.5 bg-secondary"></div>
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-space-sm pl-space-xs">
+<div class="flex items-center gap-space-sm">
+<span class="w-3 h-3 rounded-full bg-secondary animate-pulse"></span>
+<span class="font-headline-sm text-headline-sm text-on-surface font-bold">RUN_20250224_8819A: Integration &amp; Readback Probe Suite</span>
+<span class="px-2 py-0.5 rounded bg-surface-container-high font-label-code-sm text-label-code-sm text-secondary uppercase font-semibold">IN FLIGHT</span>
+</div>
+<div class="flex items-center gap-space-md font-label-code-sm text-label-code-sm text-outline">
+<span>TRAILING RUNTIME: <span class="text-on-surface font-mono font-bold">4m 12s</span></span>
+<span class="text-outline-variant">|</span>
+<span>WORKER: <span class="text-secondary font-mono">runner-ci-worker-04</span></span>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-4 gap-space-md font-label-code-sm text-label-code-sm pl-space-xs">
+<div class="bg-surface-container-lowest p-space-sm rounded">
+<div class="text-outline mb-1">PINNED TARGET COMMIT</div>
+<div class="text-primary font-mono font-bold truncate">git@github.com:... @ commit f48a19c</div>
+</div>
+<div class="bg-surface-container-lowest p-space-sm rounded">
+<div class="text-outline mb-1">WORKING TREE DIRTY FLAG</div>
+<div class="text-primary font-mono font-bold">false (clean checkout)</div>
+</div>
+<div class="bg-surface-container-lowest p-space-sm rounded">
+<div class="text-outline mb-1">EXECUTION DISPATCH</div>
+<div class="text-on-surface font-mono font-bold">842 / 1,390 test cases executed</div>
+</div>
+<div class="bg-surface-container-lowest p-space-sm rounded">
+<div class="text-outline mb-1">CURRENT PASS RATE (INTERIM)</div>
+<div class="text-on-surface font-mono font-bold">831 pass / 11 fail / 0 unrun</div>
+</div>
+</div>
+<!-- Progress Meter -->
+<div class="flex flex-col gap-space-xs pl-space-xs">
+<div class="flex justify-between font-label-code-sm text-label-code-sm">
+<span class="text-on-surface-variant">PROGRESS METRIC (FLOORED VALUE)</span>
+<span class="text-secondary font-mono font-bold">60% (842 / 1,390)</span>
+</div>
+<div class="w-full h-2 bg-surface-container-lowest rounded overflow-hidden">
+<div class="h-full bg-secondary rounded transition-all duration-500" style="width: 60.5%;"></div>
+</div>
+</div>
+<!-- Live STDOUT Telemetry Stream Drawer -->
+<div class="flex flex-col gap-1 bg-surface-container-lowest p-space-md rounded pl-space-xs">
+<div class="flex items-center justify-between font-label-code-sm text-label-code-sm text-outline pb-1">
+<span class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[14px] text-secondary">terminal</span><span>LIVE TELEMETRY STDOUT SNIPPET</span></span>
+<span class="text-outline">SANDBOX PID: 40991</span>
+</div>
+<div class="font-label-code-sm text-label-code-sm text-on-surface-variant flex flex-col gap-1 overflow-x-auto">
+<div class="text-outline">14:08:10.191 [DEBUG] worker-04: spawning probe runner for pkg/crypto/zk_snark_test.go</div>
+<div class="text-outline">14:08:10.982 [INFO]  worker-04: zero-trust proof verification step 01/04 passed (32ms)</div>
+<div class="text-outline">14:08:11.401 [INFO]  worker-04: zero-trust proof verification step 02/04 passed (29ms)</div>
+<div class="text-secondary">14:08:12.023 [READ]  worker-04: telemetry probe readback on interface eth0: nonces matched deterministically</div>
+<div class="text-primary font-bold">14:08:12.110 [PASS]  --- PASS: TestZkSnark_DeterministicProofGeneration (0.92s)</div>
+<div class="text-on-surface flex items-center gap-1">
+<span class="animate-pulse text-secondary">&gt;</span>
+<span class="text-outline">14:08:12.115 [EXEC]  dispatching batch 843-850: pkg/ledger/concurrency_matrix_test.go...</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- SECTION: DOWNLOADABLE TEST & RELEASE REPORTS (Structured Immutable Ledger) -->
+<section class="flex flex-col gap-space-md mb-space-xl">
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-space-sm">
+<div>
+<h2 class="font-headline-lg text-headline-lg text-on-surface font-bold tracking-tight">Downloadable Test &amp; Release Reports</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-0.5">
+          Immutable cryptographic test record manifests strictly bound to clean git commits.
+        </p>
+</div>
+<span class="font-label-code-sm text-label-code-sm text-outline uppercase tracking-wider">RETENTION POLICY: INDEFINITE LEDGER RECORD</span>
+</div>
+<div class="bg-surface-container-low rounded-lg shadow-sm overflow-x-auto">
+<table class="w-full text-left border-collapse font-label-code-sm text-label-code-sm">
+<thead>
+<tr class="bg-surface-container-lowest text-outline">
+<th class="py-space-sm px-space-md font-medium uppercase">Artifact Ref / Suite</th>
+<th class="py-space-sm px-space-md font-medium uppercase">Pinned Commit</th>
+<th class="py-space-sm px-space-md font-medium uppercase">Execution Timestamp (UTC)</th>
+<th class="py-space-sm px-space-md font-medium uppercase">Test Breakdown (P / F / S / U)</th>
+<th class="py-space-sm px-space-md font-medium uppercase">Size</th>
+<th class="py-space-sm px-space-md font-medium uppercase">SHA-256 Digest</th>
+<th class="py-space-sm px-space-md font-medium uppercase text-right">Signed Export</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-container-high/40 text-on-surface">
+<!-- Entry 1 -->
+<tr class="hover:bg-surface-container transition-colors">
+<td class="py-space-md px-space-md">
+<div class="font-bold text-on-surface font-mono">TR-2025-02-24-001</div>
+<div class="text-outline text-[10px]">Nightly Complete Regression</div>
+</td>
+<td class="py-space-md px-space-md font-mono text-primary font-bold">
+              e8f2b01
+            </td>
+<td class="py-space-md px-space-md text-on-surface-variant font-mono">
+              24 Feb 2025 03:15:20
+            </td>
+<td class="py-space-md px-space-md font-mono">
+<span class="text-primary font-semibold">1,368</span> / 
+              <span class="text-error font-semibold">14</span> / 
+              <span class="text-outline">8</span> / 
+              <span class="text-tertiary">92</span>
+</td>
+<td class="py-space-md px-space-md text-outline">
+              12.4 MB
+            </td>
+<td class="py-space-md px-space-md font-mono text-outline truncate max-w-[140px]" title="7f9b2c19f201488da4bc721a998b041a0294119d881fa891">
+              7f9b2c...a891
+            </td>
+<td class="py-space-md px-space-md text-right">
+<div class="flex items-center justify-end gap-space-xs">
+<button class="px-2 py-1 bg-surface-container-high hover:bg-surface-container-highest text-secondary rounded transition-colors text-[10px] font-bold uppercase">JSON</button>
+<button class="px-2 py-1 bg-surface-container-high hover:bg-surface-container-highest text-on-surface rounded transition-colors text-[10px] font-bold uppercase">XML</button>
+<button class="px-2 py-1 bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant rounded transition-colors text-[10px] font-bold uppercase">PDF</button>
+</div>
+</td>
+</tr>
+<!-- Entry 2 -->
+<tr class="hover:bg-surface-container transition-colors">
+<td class="py-space-md px-space-md">
+<div class="font-bold text-on-surface font-mono">TR-2025-02-23-004</div>
+<div class="text-outline text-[10px]">Pre-Release Verification Stage</div>
+</td>
+<td class="py-space-md px-space-md font-mono text-primary font-bold">
+              b7410cd
+            </td>
+<td class="py-space-md px-space-md text-on-surface-variant font-mono">
+              23 Feb 2025 18:40:12
+            </td>
+<td class="py-space-md px-space-md font-mono">
+<span class="text-primary font-semibold">1,382</span> / 
+              <span class="text-primary font-semibold">0</span> / 
+              <span class="text-outline">8</span> / 
+              <span class="text-tertiary">92</span>
+</td>
+<td class="py-space-md px-space-md text-outline">
+              11.9 MB
+            </td>
+<td class="py-space-md px-space-md font-mono text-outline truncate max-w-[140px]" title="3e1104d4a8990141ccbd51109a909419b489a22144ebd5b2">
+              3e1104...d5b2
+            </td>
+<td class="py-space-md px-space-md text-right">
+<div class="flex items-center justify-end gap-space-xs">
+<button class="px-2 py-1 bg-surface-container-high hover:bg-surface-container-highest text-secondary rounded transition-colors text-[10px] font-bold uppercase">JSON</button>
+<button class="px-2 py-1 bg-surface-container-high hover:bg-surface-container-highest text-on-surface rounded transition-colors text-[10px] font-bold uppercase">XML</button>
+<button class="px-2 py-1 bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant rounded transition-colors text-[10px] font-bold uppercase">PDF</button>
+</div>
+</td>
+</tr>
+<!-- Entry 3 -->
+<tr class="hover:bg-surface-container transition-colors">
+<td class="py-space-md px-space-md">
+<div class="font-bold text-on-surface font-mono">TR-2025-02-22-002</div>
+<div class="text-outline text-[10px]">Egress Proxy Conformance</div>
+</td>
+<td class="py-space-md px-space-md font-mono text-primary font-bold">
+              a904ef2
+            </td>
+<td class="py-space-md px-space-md text-on-surface-variant font-mono">
+              22 Feb 2025 11:05:44
+            </td>
+<td class="py-space-md px-space-md font-mono">
+<span class="text-primary font-semibold">412</span> / 
+              <span class="text-primary font-semibold">0</span> / 
+              <span class="text-outline">0</span> / 
+              <span class="text-outline">0</span>
+</td>
+<td class="py-space-md px-space-md text-outline">
+              3.8 MB
+            </td>
+<td class="py-space-md px-space-md font-mono text-outline truncate max-w-[140px]" title="a5829104fa289199d2140a8716b901a5538914ba991009ee">
+              a58291...09ee
+            </td>
+<td class="py-space-md px-space-md text-right">
+<div class="flex items-center justify-end gap-space-xs">
+<button class="px-2 py-1 bg-surface-container-high hover:bg-surface-container-highest text-secondary rounded transition-colors text-[10px] font-bold uppercase">JSON</button>
+<button class="px-2 py-1 bg-surface-container-high hover:bg-surface-container-highest text-on-surface rounded transition-colors text-[10px] font-bold uppercase">XML</button>
+<button class="px-2 py-1 bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant rounded transition-colors text-[10px] font-bold uppercase">PDF</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<!-- SECTION: DRY-RUN CLEANUP & ARTIFACT PURGE PANEL -->
+<section class="flex flex-col gap-space-md mb-space-xl">
+<div class="flex flex-col gap-1">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-tertiary text-[22px]">cleaning_services</span>
+<h2 class="font-headline-lg text-headline-lg text-on-surface font-bold tracking-tight">Dry-Run Cleanup &amp; Ephemeral Artifact Purge</h2>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+        Forensic two-phase hygiene protocol. Scans and isolates transient mock scratch data, expired probe fixtures, and temporary sandbox states without affecting customer ledgers.
+      </p>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-space-lg">
+<!-- Phase 1: Dry-Run Inspection Inventory (Read Only) -->
+<div class="lg:col-span-7 p-space-lg bg-surface-container-low rounded-lg shadow-sm flex flex-col justify-between gap-space-md">
+<div class="flex flex-col gap-1">
+<div class="flex items-center justify-between">
+<span class="font-label-code-sm text-label-code-sm text-secondary font-bold uppercase tracking-wider">PHASE 1 // DRY-RUN INSPECTION AUDIT</span>
+<span class="px-2 py-0.5 rounded bg-surface-container-high font-label-code-sm text-label-code-sm text-primary font-mono font-bold">ZERO PROD IMPACT</span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant">
+            Deterministic inventory calculated from active sandbox cgroups and transient database namespaces:
+          </span>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-space-sm font-label-code-sm text-label-code-sm">
+<div class="bg-surface-container-lowest p-space-sm rounded">
+<div class="text-outline mb-1">TRANSIENT SCRATCH ROWS</div>
+<div class="font-headline-sm text-headline-sm text-on-surface font-bold">4,118</div>
+<div class="text-outline text-[11px] mt-0.5">Payload size: 48.2 MB</div>
+</div>
+<div class="bg-surface-container-lowest p-space-sm rounded">
+<div class="text-outline mb-1">EXPIRED TEST FIXTURES</div>
+<div class="font-headline-sm text-headline-sm text-on-surface font-bold">14</div>
+<div class="text-outline text-[11px] mt-0.5">Containers detached</div>
+</div>
+<div class="bg-surface-container-lowest p-space-sm rounded">
+<div class="text-outline mb-1">PRODUCTION RECORDS</div>
+<div class="font-headline-sm text-headline-sm text-primary font-bold">0</div>
+<div class="text-primary text-[11px] mt-0.5">Partition airgapped</div>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-space-md rounded flex flex-col gap-space-xs font-label-code-sm text-label-code-sm">
+<div class="flex justify-between text-outline">
+<span>CALCULATED MANIFEST DIGEST:</span>
+<span>ALGORITHM: SHA-256</span>
+</div>
+<div class="font-mono text-on-surface select-all break-all bg-surface-container p-space-xs rounded">
+            e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+          </div>
+<div class="flex justify-between text-outline pt-1 text-[11px]">
+<span>INSPECTION TIMESTAMP: 2025-02-24 14:02:18 UTC</span>
+<span>EXPIRATION WINDOW: 35 MIN</span>
+</div>
+</div>
+<div class="p-space-sm rounded bg-surface-container-high text-on-surface-variant font-label-code-sm text-label-code-sm">
+<strong>Physical Boundary Note:</strong> Cleanup operations touch only ephemeral test scratch spaces; production ledger tables and active customer verification queues are partitioned on separate hardware clusters and remain physically untouchable by this utility.
+        </div>
+</div>
+<!-- Phase 2: Safety Lock & Operator Confirmation Gate -->
+<div class="lg:col-span-5 p-space-lg bg-surface-container-low rounded-lg shadow-sm flex flex-col justify-between gap-space-md relative overflow-hidden">
+<div class="absolute left-0 top-0 bottom-0 w-1.5 bg-error"></div>
+<div class="flex flex-col gap-1 pl-space-xs">
+<div class="flex items-center gap-space-xs text-error font-label-code-sm text-label-code-sm font-bold uppercase tracking-wider">
+<span class="material-symbols-outlined text-[16px]">lock_reset</span>
+<span>PHASE 2 // SAFETY CONFIRMATION GATE</span>
+</div>
+<span class="font-headline-sm text-headline-sm text-on-surface font-semibold">Operator Affirmation Required</span>
+</div>
+<div class="flex flex-col gap-space-md pl-space-xs">
+<!-- Step A: Explicit Verification Checkbox -->
+<label class="flex items-start gap-space-sm cursor-pointer select-none">
+<input class="mt-1 w-4 h-4 rounded bg-surface-container-lowest text-primary border-0 focus:ring-0 focus:outline-none" id="purge-ack-checkbox" onchange="togglePurgeCheck()" type="checkbox"/>
+<span class="font-body-sm text-body-sm text-on-surface leading-relaxed">
+              I verify that the calculated Inventory Hash matches the signed dry-run manifest and understand that purged mock artifacts cannot be recovered.
+            </span>
+</label>
+<!-- Step B: Typed String Affirmation -->
+<div class="flex flex-col gap-1">
+<label class="font-label-code-sm text-label-code-sm text-outline" for="purge-confirm-input">
+              TYPE STRING EXACTLY: <code class="font-mono text-tertiary font-bold select-all">CONFIRM PURGE e8f2b01</code>
+</label>
+<input autocomplete="off" class="w-full bg-surface-container-lowest text-on-surface font-mono font-label-code-md text-label-code-md p-space-sm rounded border-0 outline-none focus:bg-surface-container-high transition-colors" id="purge-confirm-input" oninput="checkPurgeInput(this.value)" placeholder="CONFIRM PURGE e8f2b01" spellcheck="false" type="text"/>
+</div>
+<!-- Step C: Purge Button -->
+<div class="flex flex-col gap-space-xs pt-space-xs">
+<button class="w-full py-space-sm px-space-md rounded font-label-code-sm text-label-code-sm uppercase tracking-wider font-bold transition-all opacity-40 cursor-not-allowed bg-surface-container text-outline flex items-center justify-center gap-space-xs" disabled="" id="purge-execute-btn">
+<span class="material-symbols-outlined text-[18px]">delete_sweep</span>
+<span>Execute Ephemeral Artifact Purge</span>
+</button>
+<span class="font-label-code-sm text-label-code-sm text-outline text-center">
+              Targeted cluster: ephem-worker-pool-us01 // Non-reversible operation
+            </span>
+</div>
+</div>
+<div class="p-space-xs font-label-code-sm text-label-code-sm text-outline text-right pl-space-xs">
+          ENCLAVE GATEWAY AUDIT ID: <span class="font-mono text-on-surface">SYS_OP_7749</span>
+</div>
+</div>
+</div>
+</section>
+</div></main><footer class="fixed bottom-0 left-72 right-0 h-8 bg-surface-container-lowest z-40 px-space-lg flex items-center justify-between font-label-code-sm text-label-code-sm text-on-surface-variant shadow-[0_-1px_4px_rgba(0,0,0,0.4)]"><div class="flex items-center gap-space-md"><span>NONCE: <span class="text-on-surface font-semibold">4FA9-C091-B722-118E</span></span><div class="flex items-center gap-space-xs"><span class="w-1.5 h-1.5 rounded-full bg-primary-container"></span><span class="text-primary">VERIFIED REALITY: DETERMINISTIC</span></div></div><div class="flex items-center gap-space-md"><span>SURFACE: ZERO CUSTOMER ACCESS [AIRGAP_ASSERTED]</span><span class="text-outline">ENCLAVE EPOCH: 4192.01</span></div></footer></div></body></html>

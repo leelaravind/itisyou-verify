@@ -147,6 +147,30 @@ const failures = distinct.filter((c) => c.status === 'failed');
 const GATE = 500;
 const gateMet = counts.passed >= GATE && counts.failed === 0;
 
+/**
+ * What this report is a reading OF.
+ *
+ * This script runs the suite against the working tree as it stands, so its totals belong
+ * to a machine at a moment, not to a commit. Measured on this repository with several
+ * agents committing: 1,793 -> 2,196 distinct cases in twenty minutes, and one category
+ * read 0 passing because thirteen files landed after the run had started.
+ *
+ * The number that gates a production deploy is produced by CI on a clean checkout
+ * (scripts/build-gate-artefact.mjs) and carried in the `release-gate-<sha>` artefact;
+ * scripts/release.mjs refuses to deploy to production on anything else. This report says
+ * so in every output it writes, because "gate met" in a document is quoted long after the
+ * conditions it was measured under are forgotten.
+ */
+const producedInCi = process.env.GITHUB_ACTIONS === 'true';
+const READING_OF =
+  `a reading of a working tree at ${meta.commit_sha?.slice(0, 12) ?? 'an unknown commit'}` +
+  `${meta.tree_clean ? '' : ' with uncommitted changes'}` +
+  `${producedInCi ? '' : ', taken on a developer machine'}`;
+const GATE_LABEL =
+  producedInCi && meta.tree_clean
+    ? 'vitest suite result for this commit — the citable gate number is in reports/release-gate.json'
+    : 'NOT a gate result';
+
 // ---------- test-results.json ----------
 writeFileSync(
   `${OUT}/test-results.json`,
@@ -172,9 +196,14 @@ md.push(`| Skipped / other | ${counts.skipped} |`);
 md.push(`| Total executions | ${counts.executions} |`);
 md.push(`| Executions with no case id | ${counts.unidentified_executions} |`);
 md.push(
-  `| Release gate (${GATE} distinct passing, zero failures) | ${gateMet ? 'MET' : 'NOT MET'} |`,
+  `| Local threshold check (${GATE} distinct passing, zero failures) | ${gateMet ? 'met' : 'not met'} |`,
 );
 md.push('');
+md.push(
+  `> **This is ${READING_OF} — ${GATE_LABEL}.** The release gate number is produced by CI on a clean checkout ` +
+    'and carried in the `release-gate-<sha>` build artefact. `scripts/release.mjs` refuses a production deploy ' +
+    'when that artefact was not produced at HEAD. Quote the artefact, never this table.\n',
+);
 md.push('## Coverage by category\n');
 md.push('| Category | Cases | Passed | Failed | Skipped |');
 md.push('| --- | ---: | ---: | ---: | ---: |');
@@ -217,7 +246,12 @@ const rr = [];
 rr.push('# Release readiness\n');
 rr.push(`Commit \`${meta.commit_sha?.slice(0, 12) ?? 'unknown'}\` · ${meta.generated_at}\n`);
 rr.push(
-  `**Decision: ${gateMet ? 'the automated gate is met' : 'NOT READY — the automated gate is not met'}.**\n`,
+  `**Local check: ${gateMet ? 'the automated thresholds are met in this run' : 'NOT READY — the automated thresholds are not met in this run'}.**\n`,
+);
+rr.push(
+  `This is ${READING_OF} — ${GATE_LABEL}. A deploy decision is made against the ` +
+    '`release-gate-<sha>` artefact produced by CI on a clean checkout, which `scripts/release.mjs` ' +
+    'requires to have been produced at the commit being deployed.\n',
 );
 rr.push('| Gate | Required | Actual | Result |');
 rr.push('| --- | --- | --- | --- |');
@@ -291,7 +325,7 @@ pre{overflow-x:auto;background:color-mix(in srgb,var(--fg) 5%,transparent);paddi
 </style></head><body><main>
 <h1>Test report</h1>
 <p class="meta">Commit <code>${esc(meta.commit_sha?.slice(0, 12))}</code> on <code>${esc(meta.branch)}</code> · ${esc(meta.generated_at)} · Node ${esc(meta.node)} · vitest ${esc(meta.vitest)}${meta.tree_clean ? '' : ' · <strong class="warn">working tree dirty</strong>'}</p>
-<div class="gate"><strong class="${gateMet ? 'ok' : 'bad'}">Release gate ${gateMet ? 'met' : 'not met'}</strong> — requires ${GATE} distinct passing cases and zero failures. Actual: ${counts.passed} passing, ${counts.failed} failing.</div>
+<div class="gate"><strong class="${gateMet ? 'ok' : 'bad'}">Local threshold ${gateMet ? 'met' : 'not met'}</strong> — ${GATE} distinct passing cases and zero failures. Actual: ${counts.passed} passing, ${counts.failed} failing.<br><span class="warn">${esc(READING_OF.charAt(0).toUpperCase() + READING_OF.slice(1))} — ${esc(GATE_LABEL)}.</span> The release gate number is produced by CI on a clean checkout and carried in the <code>release-gate-&lt;sha&gt;</code> artefact; <code>scripts/release.mjs</code> refuses a production deploy when that artefact was not produced at HEAD.</div>
 <div class="cards">
 <div class="card"><div class="n">${counts.distinct_cases}</div><div class="l">Distinct cases</div></div>
 <div class="card"><div class="n ok">${counts.passed}</div><div class="l">Passed</div></div>
@@ -321,7 +355,11 @@ console.log(
 console.log(
   `  ${counts.distinct_cases} distinct cases · ${counts.passed} passed · ${counts.failed} failed · ${counts.skipped} skipped`,
 );
-console.log(`  release gate (${GATE} passing, 0 failing): ${gateMet ? 'MET' : 'NOT MET'}`);
+console.log(`  local threshold (${GATE} passing, 0 failing): ${gateMet ? 'met' : 'not met'}`);
+console.log(`  This is ${READING_OF} — ${GATE_LABEL}.`);
+console.log(
+  '  The citable gate number comes from CI: scripts/build-gate-artefact.mjs on a clean checkout.',
+);
 if (counts.duplicate_ids > 0)
   console.log(`  note: ${counts.duplicate_ids} execution(s) reused an existing case id`);
 if (counts.unidentified_executions > 0)

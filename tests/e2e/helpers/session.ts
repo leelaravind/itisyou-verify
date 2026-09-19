@@ -22,7 +22,7 @@
  * skips with a reason rather than proceeding — a browser suite that quietly measures the
  * signed-out version of a page is the failure mode this whole file is written against.
  */
-import type { BrowserContext } from '@playwright/test';
+import type { BrowserContext, Page } from '@playwright/test';
 
 export interface AutomationSeed {
   readonly sessionCookieName: string;
@@ -85,5 +85,35 @@ export async function automationCookieIsPresent(context: BrowserContext): Promis
   const seed = automationSeed();
   if (seed === null) return false;
   const jar = await context.cookies(seed.baseUrl);
-  return jar.some((cookie) => cookie.name === seed.sessionCookieName && cookie.value === seed.sessionCookieValue);
+  return jar.some(
+    (cookie) => cookie.name === seed.sessionCookieName && cookie.value === seed.sessionCookieValue,
+  );
+}
+
+/**
+ * The customer surface needs one more thing than the owner surface does.
+ *
+ * `scripts/seed-automation-identity.mjs` creates a user and a session. It creates **no
+ * workspace and no membership**, and `/app` resolves its data from a workspace the session
+ * belongs to — so with the identity seeded, `/owner` answers 200 and `/app` answers 401.
+ * Verified against the running Worker.
+ *
+ * That is a missing fixture, not a broken guard, and the difference matters: a suite that
+ * fails sixteen times here looks like sixteen defects in the customer pages. It is one
+ * missing row.
+ *
+ * **What A02 needs to add to the seed:** a synthetic workspace (`workspaces.is_synthetic = 1`)
+ * and a `memberships` row joining the automation user to it as `workspace_viewer` — the
+ * read-only role, so the identity gains a surface to measure without gaining the ability to
+ * change a customer's configuration.
+ */
+export const CUSTOMER_WORKSPACE_MISSING =
+  'The automation identity has a session but no workspace membership, so /app answers 401 while /owner answers 200. ' +
+  'The seed needs a synthetic workspace and a memberships row for the automation user as workspace_viewer. ' +
+  'Until then the authenticated customer layouts cannot be measured — this is one missing fixture, not a page defect.';
+
+/** True when the seeded identity can actually reach the customer surface. */
+export async function customerSurfaceReady(page: Page): Promise<boolean> {
+  const response = await page.goto('/app');
+  return response?.status() === 200;
 }

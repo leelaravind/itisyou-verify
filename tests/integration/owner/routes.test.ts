@@ -12,7 +12,11 @@ import { createOwnerRoutes, UnconfiguredOwnerRouterError } from '@app/routes/own
 import { publicRoutes } from '@app/routes/public/index';
 import { appRoutes } from '@app/routes/app/index';
 import { ANONYMOUS_PRINCIPAL, type OwnerPrincipal } from '@app/owner/access';
-import { MemoryOwnerDataPort, syntheticAutomationPrincipal, syntheticOwnerPrincipal } from '@app/owner/memory';
+import {
+  MemoryOwnerDataPort,
+  syntheticAutomationPrincipal,
+  syntheticOwnerPrincipal,
+} from '@app/owner/memory';
 import { StaticQualityArtifactStore } from '@app/owner/quality';
 import type { RouteBindings } from '@app/routes/public/shared';
 
@@ -39,10 +43,20 @@ interface Harness {
   readonly app: Hono<RouteBindings>;
   readonly port: MemoryOwnerDataPort;
   get(path: string): Promise<Response>;
-  post(path: string, fields?: Record<string, string | readonly string[]>, options?: { omitCsrf?: boolean; origin?: string | null }): Promise<Response>;
+  post(
+    path: string,
+    fields?: Record<string, string | readonly string[]>,
+    options?: { omitCsrf?: boolean; origin?: string | null },
+  ): Promise<Response>;
 }
 
-function harness(options: { principal?: OwnerPrincipal; artifacts?: StaticQualityArtifactStore; port?: MemoryOwnerDataPort } = {}): Harness {
+function harness(
+  options: {
+    principal?: OwnerPrincipal;
+    artifacts?: StaticQualityArtifactStore;
+    port?: MemoryOwnerDataPort;
+  } = {},
+): Harness {
   const port =
     options.port ??
     new MemoryOwnerDataPort({ principal: options.principal ?? ownerPrincipal(), now: () => NOW });
@@ -77,7 +91,11 @@ function harness(options: { principal?: OwnerPrincipal; artifacts?: StaticQualit
       };
       const origin = opts.origin === undefined ? ORIGIN : opts.origin;
       if (origin !== null) headers['origin'] = origin;
-      return app.request(`${ORIGIN}${path}`, { method: 'POST', body: body.toString(), headers }, ENV);
+      return app.request(
+        `${ORIGIN}${path}`,
+        { method: 'POST', body: body.toString(), headers },
+        ENV,
+      );
     },
   };
 }
@@ -168,7 +186,11 @@ describe('owner routes — access', () => {
 
 describe('owner routes — strong authentication', () => {
   it('OWNER-170 a consequential action without recent MFA is refused', async () => {
-    const h = harness({ principal: ownerPrincipal({ mfaVerifiedAt: new Date(NOW.getTime() - 3_600_000).toISOString() }) });
+    const h = harness({
+      principal: ownerPrincipal({
+        mfaVerifiedAt: new Date(NOW.getTime() - 3_600_000).toISOString(),
+      }),
+    });
     const response = await h.post('/owner/controls/ads', { paused: 'yes' });
     expect(response.status).toBe(403);
     expect(await response.text()).toContain('Confirm it is you');
@@ -202,7 +224,11 @@ describe('owner routes — strong authentication', () => {
 
   it('OWNER-174 a mutation from another origin changes nothing', async () => {
     const h = harness();
-    const response = await h.post('/owner/controls/ads', { paused: 'yes' }, { origin: 'https://evil.example' });
+    const response = await h.post(
+      '/owner/controls/ads',
+      { paused: 'yes' },
+      { origin: 'https://evil.example' },
+    );
     expect(response.status).toBe(403);
     expect((await h.port.controls()).ads.paused).toBe(false);
   });
@@ -229,7 +255,10 @@ describe('owner routes — the automation identity', () => {
 
   it('OWNER-181 the automation identity cannot activate a campaign', async () => {
     const h = automationHarness();
-    const response = await h.post('/owner/ads/cmp_first_test/activate', { approval_id: 'apr_x', confirm: 'activate' });
+    const response = await h.post('/owner/ads/cmp_first_test/activate', {
+      approval_id: 'apr_x',
+      confirm: 'activate',
+    });
     expect(response.status).toBe(403);
     expect(await response.text()).toContain('data-refusal="capability_denied"');
     expect((await h.port.campaign('cmp_first_test'))?.state).toBe('awaiting_owner');
@@ -246,7 +275,9 @@ describe('owner routes — the automation identity', () => {
       policy_rule: 'within_14_days_unused',
     });
     expect(response.status).toBe(403);
-    expect((await h.port.auditTrail(50)).filter((row) => row.action === 'owner.refund.issue')).toHaveLength(0);
+    expect(
+      (await h.port.auditTrail(50)).filter((row) => row.action === 'owner.refund.issue'),
+    ).toHaveLength(0);
   });
 
   it('OWNER-183 the automation identity cannot move budget', async () => {
@@ -261,7 +292,12 @@ describe('owner routes — the automation identity', () => {
         now: NOW,
         requestId: 'test',
       },
-      { actionType: 'budget_limit_change', payloadJson: '{}', maximumAmountMinor: 10_000, summary: 'raise it' },
+      {
+        actionType: 'budget_limit_change',
+        payloadJson: '{}',
+        maximumAmountMinor: 10_000,
+        summary: 'raise it',
+      },
     );
     expect(direct.ok).toBe(false);
     expect(await h.port.approvals()).toHaveLength(0);
@@ -270,7 +306,12 @@ describe('owner routes — the automation identity', () => {
   it('OWNER-184 the automation identity cannot become the platform owner', async () => {
     const h = automationHarness();
     const result = await h.port.writeSetting(
-      { principal: syntheticAutomationPrincipal(NOW), capability: 'owner.grant', now: NOW, requestId: 'test' },
+      {
+        principal: syntheticAutomationPrincipal(NOW),
+        capability: 'owner.grant',
+        now: NOW,
+        requestId: 'test',
+      },
       'owner.access_mode',
       JSON.stringify({ mode: 'PUBLIC_LOGIN' }),
     );
@@ -281,7 +322,9 @@ describe('owner routes — the automation identity', () => {
   it('OWNER-185 the automation identity can still dispatch a test suite and preview a cleanup', async () => {
     const h = automationHarness();
     expect((await h.post('/owner/quality/run', { suite_id: 'unit' })).status).toBe(202);
-    expect((await h.post('/owner/cleanup/preview', { categories: ['expired_sessions'] })).status).toBe(200);
+    expect(
+      (await h.post('/owner/cleanup/preview', { categories: ['expired_sessions'] })).status,
+    ).toBe(200);
   });
 });
 
@@ -332,7 +375,10 @@ describe('owner routes — ads', () => {
 
   it('OWNER-196 activating with no usable approval does not activate anything', async () => {
     const h = harness();
-    const response = await h.post('/owner/ads/cmp_first_test/activate', { approval_id: 'apr_missing', confirm: 'activate' });
+    const response = await h.post('/owner/ads/cmp_first_test/activate', {
+      approval_id: 'apr_missing',
+      confirm: 'activate',
+    });
     expect(response.status).toBe(422);
     expect((await h.port.campaign('cmp_first_test'))?.state).toBe('awaiting_owner');
   });
@@ -382,7 +428,12 @@ describe('owner routes — quality centre', () => {
   it('OWNER-106 a bound evidence pack is served to the owner as an attachment', async () => {
     const h = harness({
       artifacts: new StaticQualityArtifactStore([
-        { id: 'test-report.md', body: '# ITISYOU Verify — test report\n', generatedAt: NOW.toISOString(), commitSha: 'abc' },
+        {
+          id: 'test-report.md',
+          body: '# ITISYOU Verify — test report\n',
+          generatedAt: NOW.toISOString(),
+          commitSha: 'abc',
+        },
       ]),
     });
     const response = await h.get('/owner/quality/report/test-report.md');
@@ -415,7 +466,9 @@ describe('owner routes — cleanup', () => {
   it('OWNER-109 the preview lists the exact owned synthetic resources', async () => {
     const h = harness();
     const body = await (
-      await h.post('/owner/cleanup/preview', { categories: ['expired_sessions', 'synthetic_workspaces'] })
+      await h.post('/owner/cleanup/preview', {
+        categories: ['expired_sessions', 'synthetic_workspaces'],
+      })
     ).text();
     expect(body).toContain('data-resource-id="sess_expired_0001"');
     expect(body).toContain('data-resource-id="ws_synthetic_old_demo"');
@@ -423,7 +476,9 @@ describe('owner routes — cleanup', () => {
 
   it('OWNER-103 the preview excludes real customer records, retained evidence and other projects', async () => {
     const h = harness();
-    const body = await (await h.post('/owner/cleanup/preview', { categories: ['synthetic_workspaces'] })).text();
+    const body = await (
+      await h.post('/owner/cleanup/preview', { categories: ['synthetic_workspaces'] })
+    ).text();
     expect(body).toContain('data-excluded="true"');
     expect(body).toContain('ws_real_customer');
     expect(body).toContain('evd_under_retention');
@@ -443,24 +498,39 @@ describe('owner routes — cleanup', () => {
   it('OWNER-038 a changed inventory hash rejects the run and deletes nothing', async () => {
     const h = harness();
     await h.post('/owner/cleanup/preview', { categories: ['expired_sessions'] });
-    const response = await h.post('/owner/cleanup/run', { inventory_hash: 'a-hash-from-a-different-preview', confirm: 'delete' });
+    const response = await h.post('/owner/cleanup/run', {
+      inventory_hash: 'a-hash-from-a-different-preview',
+      confirm: 'delete',
+    });
     expect(response.status).toBe(422);
-    expect(await (await h.get('/owner/cleanup')).text()).not.toContain('data-cleanup-state="completed"');
+    expect(await (await h.get('/owner/cleanup')).text()).not.toContain(
+      'data-cleanup-state="completed"',
+    );
     expect(await h.port.lastCleanupReport()).toBeNull();
   });
 
   it('OWNER-039 a matching hash removes exactly what was previewed and preserves everything else', async () => {
     const h = harness();
-    const previewBody = await (await h.post('/owner/cleanup/preview', { categories: ['expired_sessions'] })).text();
+    const previewBody = await (
+      await h.post('/owner/cleanup/preview', { categories: ['expired_sessions'] })
+    ).text();
     const hash = /data-inventory-hash="([0-9a-f]+)"/.exec(previewBody)?.[1];
     expect(hash).toBeDefined();
-    const response = await h.post('/owner/cleanup/run', { inventory_hash: hash ?? '', confirm: 'delete' });
+    const response = await h.post('/owner/cleanup/run', {
+      inventory_hash: hash ?? '',
+      confirm: 'delete',
+    });
     expect(response.status).toBe(200);
     const report = await h.port.lastCleanupReport();
     expect(report?.state).toBe('completed');
-    expect(report?.resources.map((r) => r.resourceId).sort()).toEqual(['sess_expired_0001', 'sess_expired_0002']);
+    expect(report?.resources.map((r) => r.resourceId).sort()).toEqual([
+      'sess_expired_0001',
+      'sess_expired_0002',
+    ]);
     // The real customer workspace is still there afterwards.
-    const after = await (await h.post('/owner/cleanup/preview', { categories: ['synthetic_workspaces'] })).text();
+    const after = await (
+      await h.post('/owner/cleanup/preview', { categories: ['synthetic_workspaces'] })
+    ).text();
     expect(after).toContain('ws_real_customer');
   });
 
@@ -488,7 +558,9 @@ describe('owner routes — admin entry point', () => {
   });
 
   it('OWNER-057 the login page leaks no customer data, counts or existence signal', async () => {
-    const body = await (await harness({ principal: ANONYMOUS_PRINCIPAL }).get('/admin/login')).text();
+    const body = await (
+      await harness({ principal: ANONYMOUS_PRINCIPAL }).get('/admin/login')
+    ).text();
     expect(body).not.toMatch(/@example\.invalid/);
     expect(body).not.toMatch(/\bws_[a-z0-9_]+/i);
     expect(body).not.toMatch(/customers?:\s*\d/i);
@@ -502,18 +574,24 @@ describe('owner routes — admin entry point', () => {
     expect(unknown.status).toBe(known.status);
     // Normalise the echoed address and the per-render CSRF token; everything else must match.
     const normalise = (text: string) =>
-      text.replace(/nobody@example\.invalid|owner@example\.invalid/g, 'X').replace(/value="[0-9a-f]{64}"/g, 'value="T"');
+      text
+        .replace(/nobody@example\.invalid|owner@example\.invalid/g, 'X')
+        .replace(/value="[0-9a-f]{64}"/g, 'value="T"');
     expect(normalise(await unknown.text())).toBe(normalise(await known.text()));
   });
 
   it('OWNER-059 /admin sends a signed-in owner to the panel and everyone else to the login page', async () => {
     expect((await harness().get('/admin')).headers.get('location')).toBe('/owner');
-    expect((await harness({ principal: ANONYMOUS_PRINCIPAL }).get('/admin')).headers.get('location')).toBe('/admin/login');
+    expect(
+      (await harness({ principal: ANONYMOUS_PRINCIPAL }).get('/admin')).headers.get('location'),
+    ).toBe('/admin/login');
   });
 
   it('OWNER-077 bootstrap refuses when the deployment carries no secret', async () => {
     const h = harness({ principal: ANONYMOUS_PRINCIPAL });
-    const response = await h.post('/admin/bootstrap', { token: ['not', 'a', 'real', 'token'].join('-') });
+    const response = await h.post('/admin/bootstrap', {
+      token: ['not', 'a', 'real', 'token'].join('-'),
+    });
     expect(response.status).toBe(403);
     expect(await response.text()).toMatch(/no owner bootstrap secret/i);
   });
@@ -564,7 +642,10 @@ describe('owner routes — honest rendering', () => {
 
     // A restore now checks what it can check first: no approval means the refusal names the
     // missing approval, not a vague dependency.
-    const noApproval = await h.post('/owner/operations/restore', { deployment_id: 'dep_0001', confirm: 'restore' });
+    const noApproval = await h.post('/owner/operations/restore', {
+      deployment_id: 'dep_0001',
+      confirm: 'restore',
+    });
     expect(noApproval.status).toBe(422);
     expect(await noApproval.text()).toMatch(/needs an approval bound to the exact deployment/i);
 
@@ -574,7 +655,12 @@ describe('owner routes — honest rendering', () => {
       action_type: 'cleanup_execute',
       summary: 'Restore the previous deployment after the bad release',
       maximum_amount: '',
-      payload_json: JSON.stringify({ categories: [], inventory_hash: 'dep_0001', resource_count: 0, environment: 'development' }),
+      payload_json: JSON.stringify({
+        categories: [],
+        inventory_hash: 'dep_0001',
+        resource_count: 0,
+        environment: 'development',
+      }),
     });
     const approvalId = (await h.port.approvals())[0]?.id ?? '';
     const restore = await h.post('/owner/operations/restore', {
@@ -663,7 +749,12 @@ describe('owner routes — honest rendering', () => {
       action_type: 'cleanup_execute',
       summary: 'Clean up the old synthetic workspaces',
       maximum_amount: '',
-      payload_json: JSON.stringify({ categories: ['expired_sessions'], inventory_hash: 'h', resource_count: 2, environment: 'development' }),
+      payload_json: JSON.stringify({
+        categories: ['expired_sessions'],
+        inventory_hash: 'h',
+        resource_count: 2,
+        environment: 'development',
+      }),
     });
     const approvals = await h.port.approvals();
     const id = approvals[0]?.id ?? '';
@@ -724,7 +815,11 @@ describe('owner routes — an unconfigured mount', () => {
       {
         method: 'POST',
         body: new URLSearchParams({ csrf_token: CSRF, paused: 'yes' }).toString(),
-        headers: { cookie: `verify_csrf=${CSRF}`, origin: ORIGIN, 'content-type': 'application/x-www-form-urlencoded' },
+        headers: {
+          cookie: `verify_csrf=${CSRF}`,
+          origin: ORIGIN,
+          'content-type': 'application/x-www-form-urlencoded',
+        },
       },
       ENV,
     );
@@ -733,7 +828,9 @@ describe('owner routes — an unconfigured mount', () => {
 
   it('OWNER-191 an unconfigured mount refuses to exist in production rather than serving invented data', async () => {
     // Loud at construction when the environment is declared…
-    expect(() => createOwnerRoutes({ environment: 'production' })).toThrow(UnconfiguredOwnerRouterError);
+    expect(() => createOwnerRoutes({ environment: 'production' })).toThrow(
+      UnconfiguredOwnerRouterError,
+    );
     // …and loud at request time when it is not, because the lead's mount passes no options.
     const instance = unconfigured();
     const response = await instance.request(
@@ -744,7 +841,10 @@ describe('owner routes — an unconfigured mount', () => {
     expect(response.status).toBeGreaterThanOrEqual(500);
     // A configured production mount is unaffected.
     expect(() =>
-      createOwnerRoutes({ environment: 'production', resolvePort: async () => new MemoryOwnerDataPort() }),
+      createOwnerRoutes({
+        environment: 'production',
+        resolvePort: async () => new MemoryOwnerDataPort(),
+      }),
     ).not.toThrow();
   });
 });

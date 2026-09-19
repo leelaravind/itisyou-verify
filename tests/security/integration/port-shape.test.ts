@@ -40,14 +40,15 @@ const WORKSPACE_ARG = /\bworkspace(_?id|Id)\b/i;
 describe('CustomerDataPort: the tenant cannot be named', () => {
   const source = read('apps', 'app', 'src', 'routes', 'app', 'port.ts');
 
-  it('AUTH-401 the interface file exists and declares methods', () => {
+  it('AUTH-406 the interface file exists and declares methods', () => {
     const methods = methodSignatures(source);
-    expect(methods.length, 'no method signatures parsed — has the file shape changed?').toBeGreaterThan(
-      5,
-    );
+    expect(
+      methods.length,
+      'no method signatures parsed — has the file shape changed?',
+    ).toBeGreaterThan(5);
   });
 
-  it('AUTH-402 no CustomerDataPort method accepts a workspace id', () => {
+  it('AUTH-407 no CustomerDataPort method accepts a workspace id', () => {
     // THE property. If this fails, a page can now ask for a tenant by name, and every
     // customer-facing route needs re-reviewing for who supplies that argument.
     const offenders = methodSignatures(source)
@@ -56,7 +57,7 @@ describe('CustomerDataPort: the tenant cannot be named', () => {
     expect(offenders).toEqual([]);
   });
 
-  it('AUTH-403 no customer-facing page passes a workspace id into the port', () => {
+  it('AUTH-408 no customer-facing page passes a workspace id into the port', () => {
     // The interface could stay clean while a page smuggles the id through an options
     // object. Check the call sites too.
     const offenders: string[] = [];
@@ -77,7 +78,7 @@ describe('CustomerDataPort: the tenant cannot be named', () => {
     expect(offenders).toEqual([]);
   });
 
-  it('AUTH-404 the session view carries the workspace, so the page never has to ask', () => {
+  it('AUTH-409 the session view carries the workspace, so the page never has to ask', () => {
     // The positive half: the id exists exactly once, on the server-resolved session.
     expect(source).toMatch(/interface SessionView[\s\S]*?readonly workspaceId: string/);
   });
@@ -115,7 +116,7 @@ describe('SupportDataPort: the one deliberate cross-tenant read', () => {
 describe('BillingDataPort: provider identifiers never arrive from a browser', () => {
   const source = read('apps', 'app', 'src', 'billing', 'port.ts');
 
-  it('AUTH-420 the checkout-session reverse lookup exists only on the billing port', () => {
+  it('AUTH-412 the checkout-session reverse lookup exists only on the billing port', () => {
     // It is legitimate — Stripe hands us a session id in a signature-verified webhook and
     // nothing else — but it must not be reachable from a customer page. `CustomerDataPort`
     // is what the pages hold, and it must not expose it.
@@ -124,7 +125,7 @@ describe('BillingDataPort: provider identifiers never arrive from a browser', ()
     expect(customerPort).not.toMatch(/findOrderByCheckoutSession|checkoutSessionId\s*:/);
   });
 
-  it('AUTH-421 the reverse lookup is reachable only from the billing and data layers', () => {
+  it('AUTH-413 the reverse lookup is reachable only from the billing and data layers', () => {
     // If a customer-facing route ever calls it with a session id from a query string, that
     // is T-TEN-05: paste another tenant's `cs_...` and read their order. The lookup is
     // legitimate exactly once — inside the signature-verified webhook path.

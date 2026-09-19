@@ -37,7 +37,9 @@ describe('credential envelopes', () => {
     const envelope = await seal('hubspot-pat-secret-value');
     expect(envelope.key_version).toBe(1);
     expect(envelope.aad).toBe(bindKeyVersion(AAD, 1));
-    expect(await openCredential(envelope, { keyBase64: KEY_A, expectedAad: AAD })).toBe('hubspot-pat-secret-value');
+    expect(await openCredential(envelope, { keyBase64: KEY_A, expectedAad: AAD })).toBe(
+      'hubspot-pat-secret-value',
+    );
   });
 
   it('API-002 never stores the plaintext in the envelope', async () => {
@@ -61,7 +63,10 @@ describe('credential envelopes', () => {
     ).rejects.toBeInstanceOf(AppError);
     // and with the stored AAD column relabelled to match, GCM still refuses
     await expect(
-      openCredential({ ...envelope, aad: bindKeyVersion(other, 1) }, { keyBase64: KEY_A, expectedAad: other }),
+      openCredential(
+        { ...envelope, aad: bindKeyVersion(other, 1) },
+        { keyBase64: KEY_A, expectedAad: other },
+      ),
     ).rejects.toBeInstanceOf(AppError);
   });
 
@@ -84,7 +89,10 @@ describe('credential envelopes', () => {
   it('API-007 rejects a row whose stored AAD does not match the caller context', async () => {
     // The row and its AAD were copied together into another tenant, so GCM alone would
     // still decrypt. The expectedAad check is what stops it.
-    const envelope = await sealCredentialFor('secret', CONTEXT, { keyBase64: KEY_A, keyVersion: 1 });
+    const envelope = await sealCredentialFor('secret', CONTEXT, {
+      keyBase64: KEY_A,
+      keyVersion: 1,
+    });
     await expect(
       openCredential(envelope, {
         keyBase64: KEY_A,
@@ -92,14 +100,16 @@ describe('credential envelopes', () => {
       }),
     ).rejects.toBeInstanceOf(AppError);
     // and succeeds for the right tenant
-    await expect(
-      openCredential(envelope, { keyBase64: KEY_A, expectedAad: AAD }),
-    ).resolves.toBe('secret');
+    await expect(openCredential(envelope, { keyBase64: KEY_A, expectedAad: AAD })).resolves.toBe(
+      'secret',
+    );
   });
 
   it('API-008 fails to open with a different key', async () => {
     const envelope = await seal('secret');
-    await expect(openCredential(envelope, { keyBase64: KEY_B, expectedAad: AAD })).rejects.toBeInstanceOf(AppError);
+    await expect(
+      openCredential(envelope, { keyBase64: KEY_B, expectedAad: AAD }),
+    ).rejects.toBeInstanceOf(AppError);
   });
 
   it('API-009 fails to open when one ciphertext byte is flipped', async () => {
@@ -109,7 +119,10 @@ describe('credential envelopes', () => {
     expect(target).toBeDefined();
     bytes[3] = (target as number) ^ 0x01;
     await expect(
-      openCredential({ ...envelope, ciphertext: toBase64(bytes) }, { keyBase64: KEY_A, expectedAad: AAD }),
+      openCredential(
+        { ...envelope, ciphertext: toBase64(bytes) },
+        { keyBase64: KEY_A, expectedAad: AAD },
+      ),
     ).rejects.toBeInstanceOf(AppError);
   });
 
@@ -118,14 +131,20 @@ describe('credential envelopes', () => {
     const nonce = fromBase64(envelope.nonce);
     nonce[0] = (nonce[0] as number) ^ 0xff;
     await expect(
-      openCredential({ ...envelope, nonce: toBase64(nonce) }, { keyBase64: KEY_A, expectedAad: AAD }),
+      openCredential(
+        { ...envelope, nonce: toBase64(nonce) },
+        { keyBase64: KEY_A, expectedAad: AAD },
+      ),
     ).rejects.toBeInstanceOf(AppError);
   });
 
   it('API-011 rejects a nonce of the wrong length', async () => {
     const envelope = await seal('secret');
     await expect(
-      openCredential({ ...envelope, nonce: toBase64(randomBytes(8)) }, { keyBase64: KEY_A, expectedAad: AAD }),
+      openCredential(
+        { ...envelope, nonce: toBase64(randomBytes(8)) },
+        { keyBase64: KEY_A, expectedAad: AAD },
+      ),
     ).rejects.toBeInstanceOf(AppError);
   });
 
@@ -134,9 +153,9 @@ describe('credential envelopes', () => {
   });
 
   it('API-013 refuses to seal without an AAD', async () => {
-    await expect(sealCredential('secret', { keyBase64: KEY_A, keyVersion: 1, aad: '' })).rejects.toThrow(
-      /aad/i,
-    );
+    await expect(
+      sealCredential('secret', { keyBase64: KEY_A, keyVersion: 1, aad: '' }),
+    ).rejects.toThrow(/aad/i);
   });
 
   it('API-014 builds a canonical, order-stable AAD and rejects separator injection', () => {
@@ -168,7 +187,10 @@ describe('credential envelopes', () => {
   });
 
   it('API-017 openCredentialFor rebuilds the AAD from context, so there is nothing to forget', async () => {
-    const envelope = await sealCredentialFor('secret', CONTEXT, { keyBase64: KEY_A, keyVersion: 1 });
+    const envelope = await sealCredentialFor('secret', CONTEXT, {
+      keyBase64: KEY_A,
+      keyVersion: 1,
+    });
     expect(await openCredentialFor(envelope, CONTEXT, { keyBase64: KEY_A })).toBe('secret');
     await expect(
       openCredentialFor(envelope, { ...CONTEXT, workspaceId: 'ws_beta' }, { keyBase64: KEY_A }),
@@ -217,7 +239,9 @@ describe('credential envelopes', () => {
 
   it('API-015 does not leak the cause in the thrown error', async () => {
     const envelope = await seal('secret');
-    const error = await openCredential(envelope, { keyBase64: KEY_B, expectedAad: AAD }).catch((e: unknown) => e);
+    const error = await openCredential(envelope, { keyBase64: KEY_B, expectedAad: AAD }).catch(
+      (e: unknown) => e,
+    );
     expect(error).toBeInstanceOf(AppError);
     const message = (error as AppError).publicMessage;
     expect(message).not.toContain(envelope.ciphertext);

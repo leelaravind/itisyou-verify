@@ -83,16 +83,23 @@ describe('attribution', () => {
         '2026-10-07T09:00:00.000Z',
         CAMPAIGN,
       );
-      expect(result, classification).toMatchObject({ attributed: false, reason: 'not_external_traffic' });
+      expect(result, classification).toMatchObject({
+        attributed: false,
+        reason: 'not_external_traffic',
+      });
     }
   });
 
   it('ADS-103 a session with a different campaign tag, or none, is not attributed to this campaign', () => {
-    expect(attributeSignup(session({ utm_campaign: 'other' }), '2026-10-07T12:00:00.000Z', CAMPAIGN)).toMatchObject({
+    expect(
+      attributeSignup(session({ utm_campaign: 'other' }), '2026-10-07T12:00:00.000Z', CAMPAIGN),
+    ).toMatchObject({
       attributed: false,
       reason: 'different_campaign',
     });
-    expect(attributeSignup(session({ utm_campaign: null }), '2026-10-07T12:00:00.000Z', CAMPAIGN)).toMatchObject({
+    expect(
+      attributeSignup(session({ utm_campaign: null }), '2026-10-07T12:00:00.000Z', CAMPAIGN),
+    ).toMatchObject({
       attributed: false,
       reason: 'no_campaign_utm',
     });
@@ -129,7 +136,12 @@ describe('growth reporting', () => {
   it('ADS-105 platform clicks and observed sessions are reported separately and never reconciled', () => {
     const r = summariseGrowth({
       sessions: [session({ id: 'a' }), session({ id: 'b' }), session({ id: 'c' })],
-      platform: { impressions: 1_200, clicks: 14, spend_minor: 1_150, retrieved_at: '2026-10-07T09:55:00.000Z' },
+      platform: {
+        impressions: 1_200,
+        clicks: 14,
+        spend_minor: 1_150,
+        retrieved_at: '2026-10-07T09:55:00.000Z',
+      },
       campaign_utm: CAMPAIGN,
       qualified_signups: 1,
       paid_customers: 0,

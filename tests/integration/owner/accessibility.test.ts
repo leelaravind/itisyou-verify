@@ -28,7 +28,14 @@ function app(): Hono<RouteBindings> {
   return instance;
 }
 
-const PAGES = ['/owner', '/owner/operations', '/owner/controls', '/owner/ads', '/owner/quality', '/owner/cleanup'];
+const PAGES = [
+  '/owner',
+  '/owner/operations',
+  '/owner/controls',
+  '/owner/ads',
+  '/owner/quality',
+  '/owner/cleanup',
+];
 
 async function bodyOf(path: string): Promise<string> {
   const response = await app().request(`${ORIGIN}${path}`, {}, ENV);
@@ -101,14 +108,20 @@ describe('owner panel — keyboard and small screens', () => {
   });
 
   it('OWNER-187 an error is announced rather than only coloured', async () => {
-    const port = new MemoryOwnerDataPort({ principal: syntheticOwnerPrincipal(NOW), now: () => NOW });
+    const port = new MemoryOwnerDataPort({
+      principal: syntheticOwnerPrincipal(NOW),
+      now: () => NOW,
+    });
     const instance = new Hono<RouteBindings>();
     instance.route('/', createOwnerRoutes({ resolvePort: async () => port, now: () => NOW }));
     const response = await instance.request(
       `${ORIGIN}/owner/settings/business`,
       {
         method: 'POST',
-        body: new URLSearchParams({ csrf_token: syntheticOwnerPrincipal(NOW).csrfToken, tradingName: 'Only this' }).toString(),
+        body: new URLSearchParams({
+          csrf_token: syntheticOwnerPrincipal(NOW).csrfToken,
+          tradingName: 'Only this',
+        }).toString(),
         headers: {
           cookie: `verify_csrf=${syntheticOwnerPrincipal(NOW).csrfToken}`,
           origin: ORIGIN,

@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_standard" name="shell-type"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;family=Plus+Jakarta+Sans:wght@600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{colors:{"border-active":"#4cd7f6","on-primary-fixed":"#002114","outline-variant":"#3c4a42","status-confirmed":"#4edea3","surface":"#0f131c","on-tertiary-fixed-variant":"#653e00","tertiary-fixed-dim":"#ffb95f","on-primary-container":"#005f40","on-surface-variant":"#bbcac0","surface-container-low":"#181b25","surface-panel":"#181b25","on-error-container":"#ffdad6","inverse-surface":"#dfe2ef","inverse-on-surface":"#2c303a","surface-dim":"#0f131c","status-pending":"#94a3b8","surface-container-lowest":"#0a0e17","surface-container":"#1c2029","surface-container-highest":"#31353f","surface-raised":"#262a34","tertiary-container":"#ffb95f","tertiary":"#ffddb8","error-container":"#93000a","on-tertiary-container":"#754900","surface-variant":"#31353f","secondary-container":"#03b5d4","on-error":"#690005","outline":"#86948a","border-hairline":"#3c4a42","primary-fixed-dim":"#4edea3","surface-bright":"#353943","background":"#0f131c","secondary-fixed-dim":"#4cd7f6","tertiary-fixed":"#ffddb8","inverse-primary":"#006c4a","surface-container-high":"#262a34","surface-canvas":"#0a0e17","primary":"#6ffbbe","on-tertiary":"#472a00","error":"#ffb4ab","primary-fixed":"#6ffbbe","on-secondary-container":"#00424e","on-background":"#dfe2ef","on-primary-fixed-variant":"#005236","on-secondary":"#003640","on-secondary-fixed":"#001f26","status-discrepancy":"#ffb4ab","status-inconclusive":"#ffb95f","secondary":"#4cd7f6","primary-container":"#4edea3","on-tertiary-fixed":"#2a1700","secondary-fixed":"#acedff","surface-tint":"#4edea3","on-surface":"#dfe2ef","on-secondary-fixed-variant":"#004e5c","on-primary":"#003824"},borderRadius:{DEFAULT:"0.125rem",lg:"0.25rem",xl:"0.5rem",full:"0.75rem"},spacing:{"margin-lg":"3rem","space-xs":"0.25rem","space-md":"1rem","space-sm":"0.5rem",gutter:"1.5rem","space-lg":"1.5rem","gutter-lg":"2rem",margin:"2rem","margin-sm":"1rem","gutter-sm":"1rem","space-xl":"2.5rem"},fontFamily:{"body-md":["Inter"],"headline-xl":["Plus Jakarta Sans"],"display-md":["Plus Jakarta Sans"],"label-code-sm":["JetBrains Mono"],"display-md-mobile":["Plus Jakarta Sans"],"label-code-lg":["JetBrains Mono"],"display-lg":["Plus Jakarta Sans"],"headline-lg":["Plus Jakarta Sans"],"display-lg-mobile":["Plus Jakarta Sans"],"body-sm":["Inter"],"label-code-md":["JetBrains Mono"],"body-lg":["Inter"],"headline-sm":["Plus Jakarta Sans"]},fontSize:{"body-md":["14px",{lineHeight:"20px",letterSpacing:"0em",fontWeight:"400"}],"headline-xl":["30px",{lineHeight:"38px",letterSpacing:"-0.02em",fontWeight:"600"}],"display-md":["40px",{lineHeight:"48px",letterSpacing:"-0.02em",fontWeight:"600"}],"label-code-sm":["11px",{lineHeight:"14px",letterSpacing:"0.04em",fontWeight:"600"}],"display-md-mobile":["28px",{lineHeight:"36px",letterSpacing:"-0.02em",fontWeight:"600"}],"label-code-lg":["14px",{lineHeight:"20px",letterSpacing:"-0.01em",fontWeight:"500"}],"display-lg":["56px",{lineHeight:"64px",letterSpacing:"-0.03em",fontWeight:"700"}],"headline-lg":["24px",{lineHeight:"32px",letterSpacing:"-0.015em",fontWeight:"600"}],"display-lg-mobile":["36px",{lineHeight:"44px",letterSpacing:"-0.02em",fontWeight:"700"}],"body-sm":["13px",{lineHeight:"18px",letterSpacing:"0.005em",fontWeight:"400"}],"label-code-md":["12px",{lineHeight:"16px",letterSpacing:"0em",fontWeight:"500"}],"body-lg":["16px",{lineHeight:"24px",letterSpacing:"-0.005em",fontWeight:"400"}],"headline-sm":["18px",{lineHeight:"26px",letterSpacing:"-0.01em",fontWeight:"600"}]}}}}</script></head><body class="bg-background font-body-md text-on-surface antialiased min-h-screen flex flex-col selection:bg-primary-container selection:text-on-primary-container"><header class="fixed top-0 left-0 right-0 w-full z-50 bg-surface/90 backdrop-blur-md shadow-[0_1px_8px_rgba(0,0,0,0.4)]"><div class="h-16 w-full max-w-7xl mx-auto px-margin-sm lg:px-margin flex items-center justify-between gap-space-md"><div class="flex items-center gap-space-md shrink-0"><a class="flex items-center gap-space-sm group" data-path="how-it-works" href="#"><img alt="Brand logo. - Primary color: #10b981
+- Font: plusJakartaSans
+- Mode: dark
+- Roundness: rounded-sm
+" class="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1U7B5ZTJffMnV9nd87k-oSX0MbVJFr9ADq2wg5kjNspqTjmWXgOeiOc49rAfQRfCujiC8j3UYH3A71mB2XGBaz8XsX12Uxt7nz1vLFzAJlF-_OeIf-D_KWsMWHWFLXJpx-e9JYP2Qn5ERMbTvz7VAITuJgNPE1WhyiI9CveuRmTRi1QkXufv5P5qamvcrRkPN4g6Xpo2hesOtice_aZ2fLPQpSsn47P4apvhvs5Do71KgycyToCwwbYLkJ3"/><div class="flex flex-col"><span class="font-headline-sm text-headline-sm tracking-tight text-on-surface group-hover:text-primary transition-colors">ITISYOU Verify</span><span class="font-label-code-sm text-label-code-sm text-primary tracking-widest uppercase">VERIFY PROTOCOL</span></div></a></div><nav class="hidden md:flex items-center gap-space-xs p-space-xs" data-active-classes="bg-surface-container-high text-on-surface font-headline-sm rounded-lg"><a aria-current="page" class="px-space-md py-space-xs transition-all bg-surface-container-high text-on-surface font-headline-sm rounded-lg" data-path="how-it-works" href="#">How It Works</a><a class="px-space-md py-space-xs font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-all rounded-lg" data-path="pricing-and-policy" href="#">Pricing &amp; Policy</a><a class="px-space-md py-space-xs font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-all rounded-lg" data-path="docs" href="#">Docs</a><a class="px-space-md py-space-xs font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-all rounded-lg flex items-center gap-space-xs" data-path="live-telemetry" href="#"><span class="w-1.5 h-1.5 rounded-full bg-status-confirmed animate-pulse"></span>Live Telemetry</a></nav><div class="flex items-center gap-space-sm sm:gap-space-md shrink-0"><a class="hidden sm:inline-block font-label-code-md text-label-code-md text-on-surface-variant hover:text-on-surface transition-colors px-space-sm py-space-xs" data-path="login" href="#">Sign In</a><a class="inline-flex items-center gap-space-xs bg-primary-container hover:bg-primary text-on-primary font-headline-sm text-body-sm px-space-md py-space-sm rounded-lg transition-all tracking-tight shadow-[0_0_12px_rgba(78,222,163,0.15)]" data-path="start-verification-test" href="#"><span>Start Verification Test // No CC</span></a><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div></header><main class="w-full pt-16 bg-surface-canvas flex-1"><div class="flex flex-col w-full text-on-surface">
+<!-- Top Forensic Breadcrumb & Architectural Anchor -->
+<section class="w-full max-w-7xl mx-auto px-margin-sm lg:px-margin pt-space-lg pb-space-md">
+<div class="flex flex-wrap items-center justify-between gap-space-sm pb-space-sm">
+<div class="flex items-center gap-space-xs font-label-code-sm text-label-code-sm text-on-surface-variant">
+<span class="text-primary font-bold">SPEC-02</span>
+<span class="text-outline">/</span>
+<span>VERIFICATION_METHODOLOGY</span>
+<span class="text-outline">/</span>
+<span class="text-secondary">INDEPENDENT_READBACK</span>
+</div>
+<div class="flex items-center gap-space-sm font-label-code-sm text-label-code-sm bg-surface-container-low px-space-sm py-1 rounded">
+<span class="w-2 h-2 rounded-full bg-status-confirmed"></span>
+<span class="text-on-surface-variant">OBSERVER ENGINE:</span>
+<span class="text-on-surface">v4.18.2-prod (london-dc1)</span>
+</div>
+</div>
+</section>
+<!-- SECTION 1: The Core Argument & Architectural Contrast -->
+<section class="w-full max-w-7xl mx-auto px-margin-sm lg:px-margin pb-space-xl">
+<div class="bg-surface-container-low p-space-md lg:p-space-xl rounded-lg shadow-md relative overflow-hidden">
+<!-- Ambient technical backdrop accent -->
+<div class="absolute -right-24 -top-24 w-96 h-96 bg-primary/5 rounded-full blur-3xl pointer-events-none"></div>
+<div class="max-w-3xl flex flex-col gap-space-sm relative z-10">
+<div class="inline-flex items-center gap-space-xs font-label-code-sm text-label-code-sm text-secondary tracking-widest uppercase">
+<span class="material-symbols-outlined text-[14px]">science</span>
+<span>EMPIRICAL TELEMETRY MODEL</span>
+</div>
+<h1 class="font-headline-xl text-headline-xl text-on-surface font-semibold tracking-tight text-balance">
+          An automation platform reporting success is only reporting on its own work.
+        </h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant leading-relaxed text-pretty pt-space-xs">
+          When Make, Zapier, n8n, or an internal Python runner finishes with an HTTP 200, it only confirms the runner process did not crash while dispatching its outbound socket write. It does not prove the destination CRM wrote the row, the mail exchange accepted the message, or the database committed the transaction. We wait for an agreed settling window, query the destination APIs independently with read-only tokens, and record what actually landed.
+        </p>
+</div>
+<!-- Contrast Split Panes -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-gutter-lg mt-space-xl pt-space-lg relative z-10">
+<!-- Left: Runner Self-Report -->
+<div class="bg-surface-container p-space-md lg:p-space-lg rounded flex flex-col justify-between gap-space-md">
+<div class="flex flex-col gap-space-sm">
+<div class="flex items-center justify-between">
+<span class="font-label-code-sm text-label-code-sm text-outline uppercase tracking-wider">OBSERVATION SOURCE: LOCAL PROCESS</span>
+<span class="font-label-code-sm text-label-code-sm bg-surface-raised text-on-surface-variant px-space-xs py-0.5 rounded">SUBJECTIVE LOG</span>
+</div>
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Runner Self-Report (Subjective)</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+              The worker node dispatched its request payload over TLS and received an immediate HTTP 200 acknowledgement from the edge reverse proxy. The automation closes its state machine and logs success.
+            </p>
+</div>
+<div class="bg-surface-container-lowest p-space-sm rounded font-label-code-sm text-label-code-sm flex flex-col gap-1">
+<div class="text-outline-variant">// Runner Local Console Snapshot</div>
+<div class="text-status-confirmed">» [14:22:01.109] POST https://api.crm-target.example/contacts -&gt; 200 OK</div>
+<div class="text-on-surface-variant">» [14:22:01.112] Execution completed in 143ms. Task marked succeeded.</div>
+<div class="text-status-discrepancy mt-space-xs">⚠ Downstream write not observed. Socket closed immediately.</div>
+</div>
+<div class="flex items-center justify-between text-on-surface-variant font-label-code-sm text-label-code-sm pt-space-xs">
+<span>Downstream Evidence: <strong class="text-on-surface">Zero</strong></span>
+<span class="text-status-discrepancy">UNVERIFIED AT TARGET</span>
+</div>
+</div>
+<!-- Right: Independent Readback -->
+<div class="bg-surface-container p-space-md lg:p-space-lg rounded flex flex-col justify-between gap-space-md">
+<div class="flex flex-col gap-space-sm">
+<div class="flex items-center justify-between">
+<span class="font-label-code-sm text-label-code-sm text-primary uppercase tracking-wider">OBSERVATION SOURCE: SECONDARY READBACK</span>
+<span class="font-label-code-sm text-label-code-sm bg-surface-raised text-primary px-space-xs py-0.5 rounded">EMPIRICAL RECEIPT</span>
+</div>
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Independent Readback Inspection (Empirical)</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+              ITISYOU Verify observes the pipeline trigger, initiates a configured settling window (e.g. 15.0s) to allow downstream DB commits and async workers to finalize, then executes an isolated GET query.
+            </p>
+</div>
+<div class="bg-surface-container-lowest p-space-sm rounded font-label-code-sm text-label-code-sm flex flex-col gap-1">
+<div class="text-outline-variant">// ITISYOU Secondary Inspection Probe</div>
+<div class="text-secondary">» [14:22:16.110] Settling delay 15.0s elapsed. Querying endpoint...</div>
+<div class="text-on-surface">» GET https://api.crm-target.example/contacts/search?q=alex.taylor</div>
+<div class="text-status-confirmed mt-space-xs">✓ HTTP 200 OK — Entity confirmed written (id: cnt_9941a). Fields matched.</div>
+</div>
+<div class="flex items-center justify-between text-on-surface-variant font-label-code-sm text-label-code-sm pt-space-xs">
+<span>Downstream Evidence: <strong class="text-status-confirmed">Direct Readback</strong></span>
+<span class="text-status-confirmed">OBSERVED DIRECTLY</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- SECTION 2 & 4 & 5: Worked Example — Inbound Enquiry Pipeline & Interactive Demonstration -->
+<section class="w-full max-w-7xl mx-auto px-margin-sm lg:px-margin pb-space-xl">
+<div class="flex flex-col gap-space-md">
+<!-- Section Context Header -->
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-space-sm">
+<div class="flex flex-col gap-space-xs max-w-2xl">
+<div class="flex items-center gap-space-xs font-label-code-sm text-label-code-sm text-primary">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+<span class="tracking-widest uppercase">WORKED DEMONSTRATION RECORD</span>
+</div>
+<h2 class="font-headline-lg text-headline-lg text-on-surface">Scenario: Inbound Lead &amp; Acknowledgement Pipeline</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+            Enquiry payload received from <code class="bg-surface-container px-1 py-0.5 rounded font-label-code-sm text-on-surface">alex.taylor@northfield-advisors.example</code>. The workflow must write a CRM contact, allocate a pipeline deal, and issue a delivery receipt via transaction mail.
+          </p>
+</div>
+<!-- Meta Bar -->
+<div class="bg-surface-container-low px-space-md py-space-sm rounded font-label-code-sm text-label-code-sm flex flex-wrap items-center gap-x-space-md gap-y-1 text-on-surface-variant">
+<div>ID: <span class="text-on-surface">enq_984f_demo</span></div>
+<div>Settling: <span class="text-on-surface">15.0s</span></div>
+<div>Ingress: <span class="text-on-surface">14:22:01.108 UTC</span></div>
+<div>Node: <span class="text-secondary">eu-west-2-oracle</span></div>
+</div>
+</div>
+<!-- Demonstration State Switcher -->
+<div class="bg-surface-container-low p-space-xs rounded-lg flex flex-wrap items-center justify-between gap-space-sm">
+<div class="flex items-center gap-space-xs" id="demo-tabs">
+<button class="px-space-md py-space-xs rounded font-headline-sm text-body-sm transition-colors bg-surface-container-high text-on-surface" id="tab-default" onclick="switchState('default')" type="button">
+            Standard Inspection (All 4 Statuses)
+          </button>
+<button class="px-space-md py-space-xs rounded font-headline-sm text-body-sm transition-colors text-on-surface-variant hover:text-on-surface hover:bg-surface-container" id="tab-loading" onclick="switchState('loading')" type="button">
+            Demonstration Loading State
+          </button>
+<button class="px-space-md py-space-xs rounded font-headline-sm text-body-sm transition-colors text-on-surface-variant hover:text-on-surface hover:bg-surface-container" id="tab-outage" onclick="switchState('outage')" type="button">
+            Provider Outage / Failure State
+          </button>
+</div>
+<div class="px-space-sm py-1 font-label-code-sm text-label-code-sm text-outline flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-status-confirmed"></span>
+<span>LIVE REPLAY BUFFER ACTIVE</span>
+</div>
+</div>
+<!-- CONTAINER FOR DEMO VIEWS -->
+<div class="relative bg-surface-container-low rounded-lg overflow-hidden shadow-lg">
+<!-- VIEW A: Standard Inspection (All 4 Statuses Visible) -->
+<div class="flex flex-col w-full" id="view-default">
+<!-- Top Guidance Alert on UNVERIFIED -->
+<div class="bg-surface-container px-space-md py-space-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-space-sm">
+<div class="flex items-center gap-space-sm">
+<span class="text-tertiary font-bold font-label-code-lg text-label-code-lg">◐</span>
+<span class="font-body-sm text-body-sm text-on-surface">
+<strong>Forensic Standard:</strong> UNVERIFIED is a first-class empirical result, not a failure or soft pass. It explicitly means: <em>"We were unable to inspect destination state."</em>
+</span>
+</div>
+<div class="font-label-code-sm text-label-code-sm text-on-surface-variant shrink-0">
+              CHECKS RUN: 5 • STRICT REVISION: 2025.2
+            </div>
+</div>
+<!-- The Single Results Table -->
+<div class="w-full overflow-x-auto">
+<table class="w-full text-left font-body-sm text-body-sm border-collapse">
+<thead>
+<tr class="bg-surface-container text-on-surface-variant font-label-code-sm text-label-code-sm uppercase">
+<th class="py-space-sm px-space-md font-semibold">Check ID &amp; Target</th>
+<th class="py-space-sm px-space-sm font-semibold">Policy Gate</th>
+<th class="py-space-sm px-space-md font-semibold">Evidence Origin</th>
+<th class="py-space-sm px-space-md font-semibold">Observed Destination State</th>
+<th class="py-space-sm px-space-md font-semibold">Status (Glyph + Label)</th>
+<th class="py-space-sm px-space-sm font-semibold">Latency / Window</th>
+</tr>
+</thead>
+<tbody class="divide-none">
+<!-- ROW 1: VERIFIED -->
+<tr class="hover:bg-surface-container/50 transition-colors">
+<td class="py-space-md px-space-md align-top">
+<div class="flex flex-col">
+<span class="font-label-code-md text-label-code-md text-on-surface font-medium">chk_hubspot_contact</span>
+<span class="font-label-code-sm text-label-code-sm text-outline">HubSpot CRM /contacts/v1/search</span>
+</div>
+</td>
+<td class="py-space-md px-space-sm align-top">
+<span class="font-label-code-sm text-label-code-sm bg-surface-container-highest text-on-surface px-space-xs py-0.5 rounded">MANDATORY</span>
+</td>
+<td class="py-space-md px-space-md align-top">
+<div class="flex items-center gap-1.5 font-label-code-sm text-label-code-sm text-status-confirmed">
+<span class="material-symbols-outlined text-[16px]">key</span>
+<span>Read back from provider by us</span>
+</div>
+<span class="font-label-code-sm text-label-code-sm text-outline-variant block">Secondary scoped GET via API token</span>
+</td>
+<td class="py-space-md px-space-md align-top">
+<div class="font-label-code-sm text-label-code-sm text-on-surface">
+                      Record confirmed <span class="text-status-confirmed font-semibold">vid: 84920194</span>. Email matches <code class="text-primary">alex.taylor@...</code>. Schema verified.
+                    </div>
+</td>
+<td class="py-space-md px-space-md align-top">
+<div class="inline-flex items-center gap-1.5 px-space-sm py-1 rounded font-label-code-sm text-label-code-sm bg-status-confirmed/10 text-status-confirmed font-bold">
+<span class="text-base leading-none">✓</span>
+<span>VERIFIED</span>
+</div>
+</td>
+<td class="py-space-md px-space-sm align-top font-label-code-sm text-label-code-sm text-on-surface-variant">
+                    15.18s (+180ms delay)
+                  </td>
+</tr>
+<!-- ROW 2: FAILED -->
+<tr class="bg-surface-container/30 hover:bg-surface-container/60 transition-colors">
+<td class="py-space-md px-space-md align-top">
+<div class="flex flex-col">
+<span class="font-label-code-md text-label-code-md text-on-surface font-medium">chk_hubspot_deal</span>
+<span class="font-label-code-sm text-label-code-sm text-outline">HubSpot CRM /deals/v1/deal</span>
+</div>
+</td>
+<td class="py-space-md px-space-sm align-top">
+<span class="font-label-code-sm text-label-code-sm bg-surface-container-highest text-on-surface px-space-xs py-0.5 rounded">MANDATORY</span>
+</td>
+<td class="py-space-md px-space-md align-top">
+<div class="flex items-center gap-1.5 font-label-code-sm text-label-code-sm text-status-confirmed">
+<span class="material-symbols-outlined text-[16px]">key</span>
+<span>Read back from provider by us</span>
+</div>
+<span class="font-label-code-sm text-label-code-sm text-outline-variant block">Secondary scoped GET via API token</span>
+</td>
+<td class="py-space-md px-space-md align-top">
+<div class="font-label-code-sm text-label-code-sm text-status-discrepancy">
+                      Query returned 0 records matching identifier after 3 attempts across 15s settling window. Destination write dropped.
+                    </div>
+<div class="font-label-code-sm text-label-code-sm text-outline mt-1">
+<em>Automation runner falsely claimed HTTP 200 execution.</em>
+</div>
+</td>
+<td class="py-space-md px-space-md align-top">
+<div class="inline-flex items-center gap-1.5 px-space-sm py-1 rounded font-label-code-sm text-label-code-sm bg-status-discrepancy/10 text-status-discrepancy font-bold">
+<span class="text-base leading-none">✕</span>
+<span>FAILED</span>
+</div>
+</td>
+<td class="py-space-md px-space-sm align-top font-label-code-sm text-label-code-sm text-on-surface-variant">
+                    15.42s (3 retry passes)
+                  </td>
+</tr>
+<!-- ROW 3: UNVERIFIED (First-Class Result) -->
+<tr class="bg-tertiary-container/5 hover:bg-tertiary-container/10 transition-colors">
+<td class="py-space-md px-space-md align-top">
+<div class="flex flex-col">
+<span class="font-label-code-md text-label-code-md text-on-surface font-medium">chk_postmark_delivery</span>
+<span class="font-label-code-sm text-label-code-sm text-outline">Postmark Messages API /messages/outbound</span>
+</div>
+</td>
+<td class="py-space-md px-space-sm align-top">
+<span class="font-label-code-sm text-label-code-sm bg-surface-container-highest text-on-surface px-space-xs py-0.5 rounded">MANDATORY</span>
+</td>
+<td class="py-space-md px-space-md align-top">
+<div class="flex items-center gap-1.5 font-label-code-sm text-label-code-sm text-status-confirmed">
+<span class="material-symbols-outlined text-[16px]">key</span>
+<span>Read back from provider by us</span>
+</div>
+<span class="font-label-code-sm text-label-code-sm text-outline-variant block">Secondary scoped GET via API token</span>
+</td>
+<td class="py-space-md px-space-md align-top">
+<div class="font-label-code-sm text-label-code-sm text-tertiary">
+                      HTTP 429 Too Many Requests (Rate limit active on destination telemetry endpoint). Target uninspectable.
+                    </div>
+<!-- Inline empirical callout card -->
+<div class="bg-surface-container p-space-xs rounded mt-space-xs font-label-code-sm text-label-code-sm text-on-surface-variant">
+<span class="text-tertiary font-semibold">Note:</span> We could not check. This is <strong class="text-on-surface">NOT a failure of the email</strong>; it means we were unable to inspect the server independently.
+                    </div>
+</td>
+<td class="py-space-md px-space-md align-top">
+<div class="inline-flex items-center gap-1.5 px-space-sm py-1 rounded font-label-code-sm text-label-code-sm bg-tertiary-container/20 text-tertiary font-bold shadow-sm">
+<span class="text-base leading-none">◐</span>
+<span>UNVERIFIED</span>
+</div>
+</td>
+<td class="py-space-md px-space-sm align-top font-label-code-sm text-label-code-sm text-on-surface-variant">
+                    15.10s (timeout abort)
+                  </td>
+</tr>
+<!-- ROW 4: PENDING -->
+<tr class="hover:bg-surface-container/50 transition-colors">
+<td class="py-space-md px-space-md align-top">
+<div class="flex flex-col">
+<span class="font-label-code-md text-label-code-md text-on-surface font-medium">chk_stripe_customer</span>
+<span class="font-label-code-sm text-label-code-sm text-outline">Stripe API /v1/customers</span>
+</div>
+</td>
+<td class="py-space-md px-space-sm align-top">
+<span class="font-label-code-sm text-label-code-sm bg-surface-container text-on-surface-variant px-space-xs py-0.5 rounded">OPTIONAL</span>
+</td>
+<td class="py-space-md px-space-md align-top">
+<div class="flex items-center gap-1.5 font-label-code-sm text-label-code-sm text-status-confirmed">
+<span class="material-symbols-outlined text-[16px]">key</span>
+<span>Read back from provider by us</span>
+</div>
+<span class="font-label-code-sm text-label-code-sm text-outline-variant block">Secondary scoped GET via API token</span>
+</td>
+<td class="py-space-md px-space-md align-top">
+<div class="font-label-code-sm text-label-code-sm text-on-surface-variant">
+                      Settling window active (9.2s remaining). Awaiting configured 15.0s propagation delay before query dispatch.
+                    </div>
+<div class="w-full bg-surface-container h-1.5 rounded-full mt-2 overflow-hidden">
+<div class="bg-status-pending h-full w-[38%] animate-pulse"></div>
+</div>
+</td>
+<td class="py-space-md px-space-md align-top">
+<div class="inline-flex items-center gap-1.5 px-space-sm py-1 rounded font-label-code-sm text-label-code-sm bg-status-pending/10 text-status-pending font-bold">
+<span class="text-base leading-none">⏱</span>
+<span>PENDING</span>
+</div>
+</td>
+<td class="py-space-md px-space-sm align-top font-label-code-sm text-label-code-sm text-on-surface-variant">
+                    5.80s / 15.0s
+                  </td>
+</tr>
+<!-- ROW 5: REJECTED AS EVIDENCE -->
+<tr class="bg-surface-container/20 hover:bg-surface-container/40 transition-colors opacity-90">
+<td class="py-space-md px-space-md align-top">
+<div class="flex flex-col">
+<span class="font-label-code-md text-label-code-md text-on-surface font-medium line-through">chk_runner_self_report</span>
+<span class="font-label-code-sm text-label-code-sm text-outline">Automation Runner Log: Zapier Step 4</span>
+</div>
+</td>
+<td class="py-space-md px-space-sm align-top">
+<span class="font-label-code-sm text-label-code-sm bg-error/10 text-error px-space-xs py-0.5 rounded font-medium">DISALLOWED</span>
+</td>
+<td class="py-space-md px-space-md align-top">
+<div class="flex items-center gap-1.5 font-label-code-sm text-label-code-sm text-error">
+<span class="material-symbols-outlined text-[16px]">block</span>
+<span>Customer's own system saying so</span>
+</div>
+<span class="font-label-code-sm text-label-code-sm text-error/80 block">Unverified claim: “success=true”</span>
+</td>
+<td class="py-space-md px-space-md align-top">
+<div class="font-label-code-sm text-label-code-sm text-on-surface-variant">
+                      Self-reported assertion cannot verify its own execution. Rejected as independent evidence by verification policy engine.
+                    </div>
+</td>
+<td class="py-space-md px-space-md align-top">
+<div class="inline-flex items-center gap-1.5 px-space-sm py-1 rounded font-label-code-sm text-label-code-sm bg-surface-raised text-on-surface-variant font-medium">
+<span class="text-base leading-none">✕</span>
+<span>REJECTED AS EVIDENCE</span>
+</div>
+</td>
+<td class="py-space-md px-space-sm align-top font-label-code-sm text-label-code-sm text-outline">
+                    0.00s (immediate)
+                  </td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Bottom Summary Bar of the Table -->
+<div class="bg-surface-container p-space-sm px-space-md flex flex-wrap items-center justify-between gap-space-sm font-label-code-sm text-label-code-sm text-on-surface-variant">
+<div class="flex items-center gap-space-md">
+<span>OUTCOME AUDIT:</span>
+<span class="text-status-confirmed">1 VERIFIED</span>
+<span class="text-status-discrepancy">1 FAILED</span>
+<span class="text-tertiary">1 UNVERIFIED</span>
+<span class="text-status-pending">1 PENDING</span>
+<span class="text-outline">1 REJECTED</span>
+</div>
+<div class="text-outline">READBACK_POLICY: RFC-9110-SEC-INSPECT</div>
+</div>
+</div>
+<!-- VIEW B: Demonstration Loading State (Hidden by default, switched via JS) -->
+<div class="hidden flex-col w-full p-space-xl gap-space-lg bg-surface-container-low" id="view-loading">
+<div class="flex items-center gap-space-md bg-surface-container p-space-md rounded">
+<div class="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin shrink-0"></div>
+<div class="flex flex-col gap-1">
+<span class="font-headline-sm text-headline-sm text-on-surface">Querying destination APIs independently...</span>
+<span class="font-label-code-sm text-label-code-sm text-on-surface-variant">
+                2 of 4 endpoints checked. Waiting on Postmark rate-limit cooldown (3.4s remaining)... UI remains fully responsive.
+              </span>
+</div>
+</div>
+<!-- Active Settle Progress Indicators -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-gutter">
+<div class="bg-surface-container p-space-md rounded flex flex-col gap-space-xs">
+<div class="flex justify-between items-center font-label-code-sm text-label-code-sm">
+<span class="text-on-surface">HubSpot /contacts</span>
+<span class="text-status-confirmed">COMPLETED</span>
+</div>
+<div class="w-full bg-surface-container-highest h-1 rounded overflow-hidden mt-2">
+<div class="bg-status-confirmed h-full w-full"></div>
+</div>
+<span class="font-label-code-sm text-label-code-sm text-outline mt-1">Found record vid: 84920194</span>
+</div>
+<div class="bg-surface-container p-space-md rounded flex flex-col gap-space-xs">
+<div class="flex justify-between items-center font-label-code-sm text-label-code-sm">
+<span class="text-on-surface">Postmark /messages</span>
+<span class="text-tertiary animate-pulse">SETTLING COOLDOWN</span>
+</div>
+<div class="w-full bg-surface-container-highest h-1 rounded overflow-hidden mt-2">
+<div class="bg-tertiary h-full w-2/3 animate-pulse"></div>
+</div>
+<span class="font-label-code-sm text-label-code-sm text-outline mt-1">Backing off HTTP 429 • retry 2 in 3.4s</span>
+</div>
+<div class="bg-surface-container p-space-md rounded flex flex-col gap-space-xs">
+<div class="flex justify-between items-center font-label-code-sm text-label-code-sm">
+<span class="text-on-surface">Stripe /customers</span>
+<span class="text-status-pending">QUEUED</span>
+</div>
+<div class="w-full bg-surface-container-highest h-1 rounded overflow-hidden mt-2">
+<div class="bg-status-pending h-full w-1/4"></div>
+</div>
+<span class="font-label-code-sm text-label-code-sm text-outline mt-1">Propagation gate 9.2s remaining</span>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-space-md rounded font-label-code-sm text-label-code-sm text-on-surface-variant flex flex-col gap-1">
+<span class="text-outline-variant">// Real-time inspection event bus streaming</span>
+<div>[14:22:15.802] Dispatching probe 0x9f -&gt; HubSpot CRM via scoped TLS 1.3 session</div>
+<div>[14:22:15.981] Response HTTP 200 OK received (179ms). Evaluating matching criteria.</div>
+<div class="text-primary">[14:22:16.004] Contact schema assertion PASS: vid: 84920194.</div>
+<div class="text-tertiary">[14:22:16.102] Dispatching probe 0xa1 -&gt; Postmark endpoint: Remote rate limit 429 observed. Backoff initiated.</div>
+</div>
+</div>
+<!-- VIEW C: Provider Outage / Reachability Failure State -->
+<div class="hidden flex-col w-full p-space-xl gap-space-lg bg-surface-container-low" id="view-outage">
+<!-- Prominent inspection notification card -->
+<div class="bg-surface-container p-space-lg lg:p-space-xl rounded-lg shadow-md flex flex-col gap-space-md">
+<div class="flex items-center gap-space-sm text-tertiary">
+<span class="material-symbols-outlined text-[28px]">cloud_off</span>
+<h3 class="font-headline-lg text-headline-lg text-on-surface font-semibold">Our Outage Is Not Your Failure</h3>
+</div>
+<p class="font-body-lg text-body-lg text-on-surface-variant leading-relaxed text-pretty">
+              The inspection adapter in <code class="text-on-surface font-label-code-sm bg-surface-raised px-1 py-0.5 rounded">eu-west-2</code> timed out attempting to reach destination API endpoints (Connection reset by peer). Because ITISYOU Verify could not independently inspect the target system, this check is marked <strong class="text-tertiary font-label-code-md">[◐ UNVERIFIED]</strong>.
+            </p>
+<p class="font-body-md text-body-md text-on-surface-variant">
+              We will never mark an automation as <strong class="text-status-discrepancy">FAILED</strong> because of our own network or adapter downtime, nor will we guess that it succeeded. An uninspected state is always recorded with empirical skepticism.
+            </p>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-space-md pt-space-xs">
+<div class="bg-surface-container-lowest p-space-sm rounded font-label-code-sm text-label-code-sm flex flex-col gap-1">
+<span class="text-outline-variant">// Downstream Network Incident Diagnostic</span>
+<span class="text-tertiary">Error: ECONNRESET at eu-west-2-oracle.readback</span>
+<span class="text-on-surface-variant">Target: api.postmarkapp.com:443 (TLS handshake timeout 5000ms)</span>
+<span class="text-outline">Action: Retries exhausted. Recorded as UNVERIFIED.</span>
+</div>
+<div class="bg-surface-container-lowest p-space-sm rounded font-label-code-sm text-label-code-sm flex flex-col justify-between">
+<div>
+<span class="text-outline-variant block mb-1">// Policy Guarantee</span>
+<span class="text-on-surface">Client SLA is protected. No false discrepancies are registered on client scorecards during upstream network partitions.</span>
+</div>
+<div class="mt-2 text-status-confirmed font-medium">SLA INTEGRITY: SECURE</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- SECTION 3: MANDATORY CHECKS TABLE & EVIDENCE PROVENANCE MODEL -->
+<section class="w-full max-w-7xl mx-auto px-margin-sm lg:px-margin pb-space-xl">
+<div class="flex flex-col gap-space-md">
+<div class="flex flex-col gap-space-xs max-w-2xl">
+<div class="inline-flex items-center gap-space-xs font-label-code-sm text-label-code-sm text-secondary uppercase tracking-widest">
+<span class="material-symbols-outlined text-[14px]">policy</span>
+<span>EVIDENCE PROVENANCE CLASSIFICATION</span>
+</div>
+<h2 class="font-headline-lg text-headline-lg text-on-surface">Evidence Provenance: Three Distinct Categories</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+          Not all signals carry equal probative value. The verification policy engine classifies every check against strict provenance standards before accepting an outcome.
+        </p>
+</div>
+<!-- Provenance Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-gutter">
+<!-- Category 1 -->
+<div class="bg-surface-container-low p-space-lg rounded-lg flex flex-col justify-between gap-space-md">
+<div class="flex flex-col gap-space-sm">
+<div class="flex items-center justify-between">
+<div class="w-8 h-8 rounded bg-status-confirmed/10 flex items-center justify-center text-status-confirmed">
+<span class="material-symbols-outlined text-[20px]">key</span>
+</div>
+<span class="font-label-code-sm text-label-code-sm bg-status-confirmed/20 text-status-confirmed px-space-xs py-0.5 rounded font-bold">
+                VALID MANDATORY GATE
+              </span>
+</div>
+<div>
+<span class="font-label-code-sm text-label-code-sm text-outline">ORIGIN CATEGORY 01</span>
+<h3 class="font-headline-sm text-headline-sm text-on-surface mt-1">Read back from provider by us</h3>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+              Direct secondary GET query initiated by ITISYOU Verify workers using scoped, read-only customer credentials after the settling window elapses.
+            </p>
+</div>
+<div class="bg-surface-container p-space-sm rounded font-label-code-sm text-label-code-sm text-on-surface">
+<span class="text-status-confirmed">✓ Probative Value: High</span>
+<div class="text-outline text-xs mt-1">Inspects actual database record at destination.</div>
+</div>
+</div>
+<!-- Category 2 -->
+<div class="bg-surface-container-low p-space-lg rounded-lg flex flex-col justify-between gap-space-md">
+<div class="flex flex-col gap-space-sm">
+<div class="flex items-center justify-between">
+<div class="w-8 h-8 rounded bg-secondary/10 flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined text-[20px]">verified</span>
+</div>
+<span class="font-label-code-sm text-label-code-sm bg-secondary/20 text-secondary px-space-xs py-0.5 rounded font-bold">
+                VALID MANDATORY GATE
+              </span>
+</div>
+<div>
+<span class="font-label-code-sm text-label-code-sm text-outline">ORIGIN CATEGORY 02</span>
+<h3 class="font-headline-sm text-headline-sm text-on-surface mt-1">Signed webhook from provider</h3>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+              Cryptographically verified callback direct from the delivery platform (e.g. Postmark webhook signed with HMAC secret, Stripe event signature).
+            </p>
+</div>
+<div class="bg-surface-container p-space-sm rounded font-label-code-sm text-label-code-sm text-on-surface">
+<span class="text-secondary">✓ Probative Value: High</span>
+<div class="text-outline text-xs mt-1">Direct cryptographic proof of platform intake.</div>
+</div>
+</div>
+<!-- Category 3 -->
+<div class="bg-surface-container-low p-space-lg rounded-lg flex flex-col justify-between gap-space-md">
+<div class="flex flex-col gap-space-sm">
+<div class="flex items-center justify-between">
+<div class="w-8 h-8 rounded bg-error/10 flex items-center justify-center text-error">
+<span class="material-symbols-outlined text-[20px]">block</span>
+</div>
+<span class="font-label-code-sm text-label-code-sm bg-error/20 text-error px-space-xs py-0.5 rounded font-bold">
+                DISALLOWED FOR MANDATORY
+              </span>
+</div>
+<div>
+<span class="font-label-code-sm text-label-code-sm text-outline">ORIGIN CATEGORY 03</span>
+<h3 class="font-headline-sm text-headline-sm text-on-surface mt-1">Customer's own system saying so</h3>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+              The runner, Zapier step, or custom Python microservice emitting a self-asserted payload: <code class="text-error font-label-code-sm">{"success": true}</code>.
+            </p>
+</div>
+<div class="bg-surface-container p-space-sm rounded font-label-code-sm text-label-code-sm text-error">
+<span>✕ Probative Value: Zero (Self-report)</span>
+<div class="text-on-surface-variant text-xs mt-1">Self-reported assertion cannot verify its own execution.</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- STRICT FOUR STATUSES COMPREHENSIVE DEFINITIONS -->
+<section class="w-full max-w-7xl mx-auto px-margin-sm lg:px-margin pb-space-xl">
+<div class="bg-surface-container-low p-space-md lg:p-space-xl rounded-lg">
+<div class="flex flex-col gap-space-xs pb-space-md">
+<span class="font-label-code-sm text-label-code-sm text-outline uppercase tracking-wider">TAXONOMY REFERENCE</span>
+<h2 class="font-headline-lg text-headline-lg text-on-surface">The Strict Four Statuses Rule</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+          In forensic inspection, color is never used as the sole conveyor of information. Each state is strictly defined by an unambiguous glyph and immutable text string.
+        </p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-space-md pt-space-sm">
+<!-- Status 1: VERIFIED -->
+<div class="bg-surface-container p-space-md rounded flex flex-col gap-space-sm">
+<div class="flex items-center gap-space-sm">
+<span class="w-7 h-7 rounded bg-status-confirmed/20 text-status-confirmed font-bold flex items-center justify-center text-base">✓</span>
+<span class="font-label-code-md text-label-code-md text-status-confirmed font-bold">VERIFIED</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+            Target API responded with matching entity payload during or after the settling delay. Fields confirmed written in target ledger.
+          </p>
+</div>
+<!-- Status 2: FAILED -->
+<div class="bg-surface-container p-space-md rounded flex flex-col gap-space-sm">
+<div class="flex items-center gap-space-sm">
+<span class="w-7 h-7 rounded bg-status-discrepancy/20 text-status-discrepancy font-bold flex items-center justify-center text-base">✕</span>
+<span class="font-label-code-md text-label-code-md text-status-discrepancy font-bold">FAILED</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+            Destination target responded with 404 Not Found or zero records after the settling window expired. Work did not land.
+          </p>
+</div>
+<!-- Status 3: UNVERIFIED -->
+<div class="bg-surface-container p-space-md rounded flex flex-col gap-space-sm">
+<div class="flex items-center gap-space-sm">
+<span class="w-7 h-7 rounded bg-tertiary-container/20 text-tertiary font-bold flex items-center justify-center text-base">◐</span>
+<span class="font-label-code-md text-label-code-md text-tertiary font-bold">UNVERIFIED</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+            We could not check. Downstream endpoint returned rate-limits (429), gateway timeouts (504), or network resets. First-class outcome.
+          </p>
+</div>
+<!-- Status 4: PENDING -->
+<div class="bg-surface-container p-space-md rounded flex flex-col gap-space-sm">
+<div class="flex items-center gap-space-sm">
+<span class="w-7 h-7 rounded bg-status-pending/20 text-status-pending font-bold flex items-center justify-center text-base">⏱</span>
+<span class="font-label-code-md text-label-code-md text-status-pending font-bold">PENDING</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+            Settling timer currently counting down. Query dispatch is intentionally paused to allow async backend pipelines to finalize.
+          </p>
+</div>
+</div>
+</div>
+</section>
+<!-- SECTION 6: "What this cannot detect" (Honest Closing Limitation Section) -->
+<section class="w-full max-w-7xl mx-auto px-margin-sm lg:px-margin pb-space-xl">
+<div class="bg-surface-container-low p-space-md lg:p-space-xl rounded-lg flex flex-col gap-space-md">
+<div class="flex items-center gap-space-sm text-outline">
+<span class="material-symbols-outlined text-[24px]">visibility_off</span>
+<h2 class="font-headline-lg text-headline-lg text-on-surface font-semibold">What this cannot detect</h2>
+</div>
+<div class="max-w-3xl flex flex-col gap-space-md font-body-md text-body-md text-on-surface-variant leading-relaxed">
+<p class="text-on-surface font-medium">
+          If a workflow never starts, and the workflow is the thing that tells us a run was expected, we will not know a run was missing.
+        </p>
+<p>
+          Readback verification works by observing an ingress trigger or scheduled expectation, waiting out the settling window, and querying destination APIs. If your incoming webhook is dropped before it reaches your runner, or if a schedule trigger fails silently at the platform provider before notifying our webhook listener, our ledger has no record that an event was supposed to occur.
+        </p>
+<p>
+          To detect silent workflow non-starts, you must configure external synthetic heartbeats or dead-man switches at the primary event source itself. We verify what was attempted; we cannot invent awareness of events that never announced their existence.
+        </p>
+</div>
+<div class="pt-space-xs">
+<div class="inline-flex items-center gap-space-xs font-label-code-sm text-label-code-sm text-outline bg-surface-container px-space-md py-space-xs rounded">
+<span class="material-symbols-outlined text-[16px] text-primary">info</span>
+<span>RECOMMENDED PATTERN: Pair ITISYOU Verify with external cron heartbeats at primary webhook intake gateways.</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Interactive JavaScript for Demo View Switching -->
+<script>
+    function switchState(state) {
+      const views = {
+        default: document.getElementById('view-default'),
+        loading: document.getElementById('view-loading'),
+        outage: document.getElementById('view-outage')
+      };
+
+      const tabs = {
+        default: document.getElementById('tab-default'),
+        loading: document.getElementById('tab-loading'),
+        outage: document.getElementById('tab-outage')
+      };
+
+      // Hide all views
+      Object.keys(views).forEach(k => {
+        if (views[k]) views[k].classList.add('hidden');
+      });
+
+      // Reset all tab styling
+      Object.keys(tabs).forEach(k => {
+        if (tabs[k]) {
+          tabs[k].className = 'px-space-md py-space-xs rounded font-headline-sm text-body-sm transition-colors text-on-surface-variant hover:text-on-surface hover:bg-surface-container';
+        }
+      });
+
+      // Show selected view and activate tab
+      if (views[state]) {
+        views[state].classList.remove('hidden');
+      }
+      if (tabs[state]) {
+        tabs[state].className = 'px-space-md py-space-xs rounded font-headline-sm text-body-sm transition-colors bg-surface-container-high text-on-surface';
+      }
+    }
+  </script>
+</div></main><footer class="w-full bg-surface-container-lowest py-margin lg:py-margin-lg shadow-[0_-1px_0_rgba(255,255,255,0.03)]"><div class="max-w-7xl mx-auto px-margin-sm lg:px-margin flex flex-col gap-space-xl"><div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-space-lg pb-space-lg"><div class="flex flex-col gap-space-xs max-w-xl"><div class="flex items-center gap-space-sm"><span class="font-label-code-sm text-label-code-sm text-secondary tracking-widest uppercase">FORENSIC READBACK STANDARD</span></div><p class="font-headline-sm text-headline-sm text-on-surface">Don't rely on the runner log alone. Inspect the destination directly.</p></div><div class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg bg-surface-panel shadow-[inset_0_0_0_1px_rgba(78,222,163,0.2)]"><span class="w-2 h-2 rounded-full bg-status-confirmed"></span><span class="font-label-code-sm text-label-code-sm text-status-confirmed uppercase tracking-wide">READBACK ENGINES OPERATIONAL 99.92%</span></div></div><div class="grid grid-cols-1 md:grid-cols-3 gap-gutter-lg py-space-lg"><div class="flex flex-col gap-space-md"><span class="font-label-code-sm text-label-code-sm text-on-surface-variant uppercase tracking-widest">ENGINE SPECS</span><ul class="flex flex-col gap-space-sm font-label-code-md text-label-code-md text-on-surface-variant"><li><a class="hover:text-primary transition-colors flex items-center gap-space-xs" data-path="docs" href="#"><span class="text-outline">›</span> Direct API Readbacks</a></li><li><a class="hover:text-primary transition-colors flex items-center gap-space-xs" data-path="docs" href="#"><span class="text-outline">›</span> Settling Latency Windows</a></li><li><a class="hover:text-primary transition-colors flex items-center gap-space-xs" data-path="docs" href="#"><span class="text-outline">›</span> Payload Diffs &amp; Receipts</a></li><li><a class="hover:text-primary transition-colors flex items-center gap-space-xs" data-path="docs" href="#"><span class="text-outline">›</span> Webhook Idempotency Proof</a></li></ul></div><div class="flex flex-col gap-space-md"><span class="font-label-code-sm text-label-code-sm text-on-surface-variant uppercase tracking-widest">VERIFICATION HUB</span><ul class="flex flex-col gap-space-sm font-label-code-md text-label-code-md text-on-surface-variant"><li><a class="hover:text-primary transition-colors flex items-center gap-space-xs" data-path="live-telemetry" href="#"><span class="text-outline">›</span> Live Gateway Telemetry</a></li><li><a class="hover:text-primary transition-colors flex items-center gap-space-xs" data-path="how-it-works" href="#"><span class="text-outline">›</span> Multi-Tenant Runbooks</a></li><li><a class="hover:text-primary transition-colors flex items-center gap-space-xs" data-path="pricing-and-policy" href="#"><span class="text-outline">›</span> Agency Quota Tiers</a></li><li><a class="hover:text-primary transition-colors flex items-center gap-space-xs" data-path="docs" href="#"><span class="text-outline">›</span> Destination Rate Limits</a></li></ul></div><div class="flex flex-col gap-space-md"><span class="font-label-code-sm text-label-code-sm text-on-surface-variant uppercase tracking-widest">TRUST &amp; SECURITY</span><div class="flex flex-col gap-space-sm font-label-code-sm text-label-code-sm text-on-surface-variant"><div class="flex items-center gap-space-xs"><span class="text-status-confirmed material-symbols-outlined text-[14px]">verified_user</span><span>SOC2 TYPE II ATTESTATION</span></div><div class="flex items-center gap-space-xs"><span class="text-status-confirmed material-symbols-outlined text-[14px]">lock</span><span>ISO/IEC 27001 AUDITED</span></div><div class="flex items-center gap-space-xs"><span class="text-status-confirmed material-symbols-outlined text-[14px]">shield</span><span>ZERO RESIDUAL PAYLOAD STORAGE</span></div><div class="flex items-center gap-space-xs"><span class="text-status-confirmed material-symbols-outlined text-[14px]">history_toggle_off</span><span>90-DAY FORENSIC TRACE AUDIT</span></div></div></div></div><div class="pt-space-md flex flex-col sm:flex-row items-center justify-between gap-space-sm font-label-code-sm text-label-code-sm text-on-surface-variant"><div class="flex items-center gap-space-sm"><span>© 2025 ITISYOU Verify Inc.</span><span>//</span><span class="text-outline">Independent Readback Architecture</span></div><div class="flex items-center gap-space-md"><a class="hover:text-on-surface transition-colors" data-path="pricing-and-policy" href="#">Privacy Policy</a><a class="hover:text-on-surface transition-colors" data-path="pricing-and-policy" href="#">Verification SLA</a><a class="hover:text-on-surface transition-colors" data-path="docs" href="#">Security Whitepaper</a></div></div></div></footer></body></html>

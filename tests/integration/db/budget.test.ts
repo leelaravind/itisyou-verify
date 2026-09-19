@@ -101,14 +101,16 @@ describe('budget', () => {
     expect(outcomes.filter((o) => o.ok)).toHaveLength(2);
     const account = await budget.getAccount(h.db, 'bac_two');
     expect(account?.reserved_minor).toBe(200);
-    expect(budgetAvailableMinor({
-      authorised_limit_minor: account?.authorised_limit_minor ?? 0,
-      spent_minor: account?.spent_minor ?? 0,
-      reserved_minor: account?.reserved_minor ?? 0,
-      committed_minor: account?.committed_minor ?? 0,
-      safety_buffer_minor: account?.safety_buffer_minor ?? 0,
-      currency: 'GBP',
-    })).toBe(0);
+    expect(
+      budgetAvailableMinor({
+        authorised_limit_minor: account?.authorised_limit_minor ?? 0,
+        spent_minor: account?.spent_minor ?? 0,
+        reserved_minor: account?.reserved_minor ?? 0,
+        committed_minor: account?.committed_minor ?? 0,
+        safety_buffer_minor: account?.safety_buffer_minor ?? 0,
+        currency: 'GBP',
+      }),
+    ).toBe(0);
   });
 
   it('PERSIST-126 release hands a reservation back and cannot release more than is held', async () => {

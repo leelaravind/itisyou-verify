@@ -57,7 +57,9 @@ describe('A09 export writer vs the reviewed reference', () => {
       const shipped = shippedCsvCell(value as never);
       const reference = referenceCsvCell(value ?? null);
       if (shipped !== reference) {
-        disagreements.push(`${JSON.stringify(value)}: shipped=${JSON.stringify(shipped)} reference=${JSON.stringify(reference)}`);
+        disagreements.push(
+          `${JSON.stringify(value)}: shipped=${JSON.stringify(shipped)} reference=${JSON.stringify(reference)}`,
+        );
       }
     }
     expect(disagreements).toEqual([]);
@@ -82,12 +84,15 @@ describe('A09 export writer vs the reviewed reference', () => {
   });
 
   it('SEC-1204 a hostile CRM value cannot break out of its field into a new record', () => {
-    const hostile = '=cmd|\'/c calc\'!A0\r\nattacker,row,injected';
+    const hostile = "=cmd|'/c calc'!A0\r\nattacker,row,injected";
     const row = shippedCsvRow(['run_1', 'FAILED', hostile, 'ok']);
     // The whole hostile value must remain one quoted field: exactly three commas at the
     // top level, and no bare CRLF outside quotes.
     expect(row.split('"').length % 2, 'unbalanced quoting').toBe(1);
-    const doc = csvDocument([['a', hostile], ['b', 'c']]);
+    const doc = csvDocument([
+      ['a', hostile],
+      ['b', 'c'],
+    ]);
     // Two records plus the trailing terminator — the injected CRLF stays inside the field.
     expect(doc.split(/\r\n(?=(?:[^"]*"[^"]*")*[^"]*$)/).filter((p) => p.length > 0).length).toBe(2);
   });
@@ -154,9 +159,9 @@ describe('A05 UI escaping vs the reviewed reference', () => {
     // 1. The guard itself.
     expect(safeHrefShipped('javascript:alert(1)')).toBeNull();
     // 2. The backstop for a caller who builds attributes by hand.
-    expect(await render(html`<a ${attrs({ href: 'javascript:alert(1)' })}>click</a>`)).not.toContain(
-      'javascript:',
-    );
+    expect(
+      await render(html`<a ${attrs({ href: 'javascript:alert(1)' })}>click</a>`),
+    ).not.toContain('javascript:');
     // 3. The component path.
     expect(await render(Button({ label: 'click', href: 'javascript:alert(1)' }))).not.toContain(
       'javascript:',
@@ -171,7 +176,9 @@ describe('A05 UI escaping vs the reviewed reference', () => {
       expect(rendered, name).not.toContain('javascript:');
     }
     // `data-*` is not a navigation attribute and must NOT be swallowed by a prefix match.
-    expect(await render(html`<x ${attrs({ 'data-run': 'run_1' })} />`)).toContain('data-run="run_1"');
+    expect(await render(html`<x ${attrs({ 'data-run': 'run_1' })} />`)).toContain(
+      'data-run="run_1"',
+    );
   });
 
   it('SEC-1217 a rejected target is dropped, never rendered inert-but-clickable', async () => {
@@ -243,7 +250,12 @@ describe('A05 UI escaping vs the reviewed reference', () => {
 
   it('SEC-1215 the reference guard rejects what the UI currently lets through', () => {
     // Kept alongside SEC-1214 so the fix has something to be tested against.
-    for (const bad of ['javascript:alert(1)', 'JaVaScRiPt:alert(1)', 'data:text/html,<script>1</script>', 'vbscript:msgbox(1)']) {
+    for (const bad of [
+      'javascript:alert(1)',
+      'JaVaScRiPt:alert(1)',
+      'data:text/html,<script>1</script>',
+      'vbscript:msgbox(1)',
+    ]) {
       expect(safeHref(bad), bad).toBeNull();
     }
     expect(safeHref('/app/runs/run_1')).toBe('/app/runs/run_1');

@@ -23,7 +23,7 @@ import {
 import { T_INSIDE_WINDOW } from '../../fixtures/index.js';
 
 const WORKSPACE = 'ws_00000000000000000001';
-const HUBSPOT_TOKEN = ['pat','na1','11111111-2222-3333-4444-555555555555'].join('-');
+const HUBSPOT_TOKEN = ['pat', 'na1', '11111111-2222-3333-4444-555555555555'].join('-');
 const RESEND_TOKEN = 're' + '_' + '0'.repeat(28);
 const WEBHOOK_SECRET = 'whsec' + '_' + 'MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw';
 const PORTAL = '1020304';
@@ -44,7 +44,8 @@ function json(body: unknown, status = 200, headers: Record<string, string> = {})
 }
 
 function hubspotFetch(
-  tokenInfo: () => Response = () => json({ userId: 1, hubId: Number(PORTAL), appId: 2, scopes: [READ_SCOPE] }),
+  tokenInfo: () => Response = () =>
+    json({ userId: 1, hubId: Number(PORTAL), appId: 2, scopes: [READ_SCOPE] }),
 ): { fetchImpl: typeof fetch; calls: string[] } {
   const calls: string[] = [];
   const fetchImpl = (async (url: string) => {
@@ -194,7 +195,9 @@ describe('establishConnection — HubSpot', () => {
   });
 
   it('CONN-171 stores nothing and names the missing scope when the private app lacks it', async () => {
-    const { fetchImpl } = hubspotFetch(() => json({ hubId: Number(PORTAL), scopes: ['crm.objects.companies.read'] }));
+    const { fetchImpl } = hubspotFetch(() =>
+      json({ hubId: Number(PORTAL), scopes: ['crm.objects.companies.read'] }),
+    );
     const result = await establishConnection({ ...base, fetchImpl });
     expect(result.ok).toBe(false);
     expect(result.credentials).toHaveLength(0);
@@ -299,7 +302,14 @@ describe('establishConnection — Resend', () => {
 
   it('CONN-180 tells a customer with a send-only key exactly what is wrong, and stores nothing', async () => {
     const { fetchImpl } = resendFetch(() =>
-      json({ statusCode: 401, name: 'restricted_api_key', message: 'This API key is restricted to only send emails.' }, 401),
+      json(
+        {
+          statusCode: 401,
+          name: 'restricted_api_key',
+          message: 'This API key is restricted to only send emails.',
+        },
+        401,
+      ),
     );
     const result = await establishConnection({ ...base, fetchImpl });
     expect(result.ok).toBe(false);
@@ -355,7 +365,14 @@ describe('markWebhookVerified — the only route to ready', () => {
     const result = markWebhookVerified('resend', {
       valid: true,
       evidence: [],
-      gaps: [{ source: 'email_event', code: 'UNSUPPORTED_CAPABILITY', retryable: false, detail: 'unknown event' }],
+      gaps: [
+        {
+          source: 'email_event',
+          code: 'UNSUPPORTED_CAPABILITY',
+          retryable: false,
+          detail: 'unknown event',
+        },
+      ],
       event_id: 'msg_2',
       event_type: 'email.teleported',
     });
@@ -383,7 +400,9 @@ describe('revalidateConnection — catching a swapped token', () => {
   });
 
   it('CONN-186 degrades a connection whose token now points at a different portal', async () => {
-    const { fetchImpl } = hubspotFetch(() => json({ hubId: Number(FOREIGN_PORTAL), scopes: [READ_SCOPE] }));
+    const { fetchImpl } = hubspotFetch(() =>
+      json({ hubId: Number(FOREIGN_PORTAL), scopes: [READ_SCOPE] }),
+    );
     const result = await revalidateConnection({
       provider: 'hubspot',
       credentials: { accessToken: HUBSPOT_TOKEN },
@@ -446,7 +465,9 @@ describe('opening what was stored', () => {
       fetchImpl,
     });
     const api = established.credentials.find((c) => c.purpose === CREDENTIAL_PURPOSE.API_TOKEN);
-    const hook = established.credentials.find((c) => c.purpose === CREDENTIAL_PURPOSE.WEBHOOK_SECRET);
+    const hook = established.credentials.find(
+      (c) => c.purpose === CREDENTIAL_PURPOSE.WEBHOOK_SECRET,
+    );
     expect(api).toBeDefined();
     expect(hook).toBeDefined();
     if (api === undefined || hook === undefined) return;

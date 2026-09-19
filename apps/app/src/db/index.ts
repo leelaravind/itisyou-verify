@@ -146,3 +146,9 @@ export {
   createResendWebhookData,
   newWebhookPathId,
 } from './resendWebhookPort';
+
+// The money path's two D1 ports. They arrived late because they were written in the test
+// tree — SEC-201 forbids SQL outside this directory and their author did not own it — and
+// until they moved here nothing in production implemented the port at all.
+export { D1AllowanceRepair } from './allowanceRepair';
+export { D1WorkflowSigningKeys, createWorkflowSigningKeyStore } from './workflowSigningKeys';

@@ -41,7 +41,12 @@ import {
   NONCE_BYTES,
   type CredentialEnvelope,
 } from '@verify/security';
-import { signStripe as refSignStripe, signSvix as refSignSvix, verifyStripeSignature as refVerifyStripe, verifySvixSignature as refVerifySvix } from '../helpers/webhooks.js';
+import {
+  signStripe as refSignStripe,
+  signSvix as refSignSvix,
+  verifyStripeSignature as refVerifyStripe,
+  verifySvixSignature as refVerifySvix,
+} from '../helpers/webhooks.js';
 import { canonicalJson } from '../helpers/canonical.js';
 import { csvCell } from '../helpers/csv.js';
 
@@ -51,7 +56,7 @@ const KEY_B64 = btoa('0123456789abcdef0123456789abcdef');
 const SVIX_SECRET = `whsec_${btoa('svix-synthetic-32-byte-test-key!!')}`; // secret-scan:allow
 const STRIPE_SECRET = 'whsec_stripe_synthetic_test_secret'; // secret-scan:allow
 const NOW = 1_770_000_000;
-const TOKEN = ['pat','na1','00000000-0000-4000-8000-000000000001'].join('-');
+const TOKEN = ['pat', 'na1', '00000000-0000-4000-8000-000000000001'].join('-');
 
 const WS_A = { workspaceId: 'ws_aaaa', provider: 'hubspot', purpose: 'connection_token' } as const;
 const WS_B = { workspaceId: 'ws_bbbb', provider: 'hubspot', purpose: 'connection_token' } as const;
@@ -67,7 +72,9 @@ describe('credential envelope (A02 packages/security/src/crypto.ts)', () => {
 
   it('AUTH-102 round-trips only when the expected AAD matches', async () => {
     const envelope = await sealCredentialFor(TOKEN, WS_A, { keyBase64: KEY_B64, keyVersion: 1 });
-    expect(await openCredential(envelope, { keyBase64: KEY_B64, expectedAad: buildAad(WS_A) })).toBe(TOKEN);
+    expect(
+      await openCredential(envelope, { keyBase64: KEY_B64, expectedAad: buildAad(WS_A) }),
+    ).toBe(TOKEN);
   });
 
   it('AUTH-103 tenant A ciphertext will not open in tenant B context even with the key', async () => {
@@ -131,7 +138,11 @@ describe('credential envelope (A02 packages/security/src/crypto.ts)', () => {
       sealCredential(TOKEN, { keyBase64: btoa('short'), keyVersion: 1, aad: buildAad(WS_A) }),
     ).rejects.toThrow();
     await expect(
-      sealCredential(TOKEN, { keyBase64: 'not base64 at all!!', keyVersion: 1, aad: buildAad(WS_A) }),
+      sealCredential(TOKEN, {
+        keyBase64: 'not base64 at all!!',
+        keyVersion: 1,
+        aad: buildAad(WS_A),
+      }),
     ).rejects.toThrow();
   });
 
@@ -156,8 +167,16 @@ describe('credential envelope (A02 packages/security/src/crypto.ts)', () => {
     // key_version and steer decryption at the other key. Today that only causes a
     // failure, but it becomes a downgrade the moment a weaker or retired key is kept
     // readable. Bind it: `v1|kv=<n>|ws=...`.
-    const one = await sealCredential(TOKEN, { keyBase64: KEY_B64, keyVersion: 1, aad: buildAad(WS_A) });
-    const two = await sealCredential(TOKEN, { keyBase64: KEY_B64, keyVersion: 2, aad: buildAad(WS_A) });
+    const one = await sealCredential(TOKEN, {
+      keyBase64: KEY_B64,
+      keyVersion: 1,
+      aad: buildAad(WS_A),
+    });
+    const two = await sealCredential(TOKEN, {
+      keyBase64: KEY_B64,
+      keyVersion: 2,
+      aad: buildAad(WS_A),
+    });
     expect(one.aad, 'AAD must differ when key_version differs').not.toBe(two.aad);
   });
 });
@@ -184,7 +203,11 @@ describe('source-event signatures (our own scheme)', () => {
   });
 
   it('AUTH-111 a future-dated timestamp is rejected too', async () => {
-    const header = await signRequest({ secret: 'wf_key_a', rawBody: BODY, timestamp: NOW + 10_000 });
+    const header = await signRequest({
+      secret: 'wf_key_a',
+      rawBody: BODY,
+      timestamp: NOW + 10_000,
+    });
     const r = await verifyRequest({ secret: 'wf_key_a', header, rawBody: BODY, now: NOW * 1000 });
     expect(r.valid).toBe(false);
     if (!r.valid) expect(r.reason).toBe('timestamp_in_future');
@@ -194,7 +217,12 @@ describe('source-event signatures (our own scheme)', () => {
     // `workflows.signing_key_ref` is per workflow. The verifier must be handed the key
     // for the workflow named in the request and must never try a set of candidate keys.
     const header = await signRequest({ secret: 'wf_key_LEAKED', rawBody: BODY, timestamp: NOW });
-    const r = await verifyRequest({ secret: 'wf_key_other', header, rawBody: BODY, now: NOW * 1000 });
+    const r = await verifyRequest({
+      secret: 'wf_key_other',
+      header,
+      rawBody: BODY,
+      now: NOW * 1000,
+    });
     expect(r.valid).toBe(false);
     if (!r.valid) expect(r.reason).toBe('signature_mismatch');
   });
@@ -271,7 +299,12 @@ describe('interoperability: two independent readings of the vendor specs agree',
   });
 
   it('AUTH-124 A02 ignores the Stripe v0 scheme (downgrade)', async () => {
-    const r = await verifyStripeSignature(BODY, `t=${NOW},v0=${'a'.repeat(64)}`, STRIPE_SECRET, NOW * 1000);
+    const r = await verifyStripeSignature(
+      BODY,
+      `t=${NOW},v0=${'a'.repeat(64)}`,
+      STRIPE_SECRET,
+      NOW * 1000,
+    );
     expect(r.valid).toBe(false);
     if (!r.valid) expect(r.reason).toBe('missing_signature');
   });
@@ -329,7 +362,9 @@ describe('token hashing, redaction and CSRF', () => {
   it('AUTH-133 masks never return the original value', () => {
     expect(maskEmail('ada@example.com')).not.toContain('ada@');
     expect(maskEmail('a@example.com')).toBe('***@example.com');
-    expect(maskToken(['pat','na1','00000000-0000-4000-8000-000000000001'].join('-'))).not.toContain('pat-na1'); // secret-scan:allow
+    expect(
+      maskToken(['pat', 'na1', '00000000-0000-4000-8000-000000000001'].join('-')),
+    ).not.toContain('pat-na1'); // secret-scan:allow
     expect(maskToken('short')).toBe('********');
   });
 

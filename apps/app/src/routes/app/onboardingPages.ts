@@ -28,10 +28,15 @@ import {
   type Html,
   type StatusKey,
 } from '@verify/ui';
-import { explainAssertion, explainRunStatus } from '@verify/domain';
+import {
+  COVERAGE_MODE_SUPPORT,
+  SELECTABLE_COVERAGE_MODES,
+  explainAssertion,
+  explainRunStatus,
+} from '@verify/domain';
 import { setupGuide, type ProviderSetupGuide } from '@verify/connectors';
 import { preCheckoutPanel, type DisclosureSection } from '../../billing/index.js';
-import { LIMITS } from '@verify/contracts';
+import { LIMITS, type CoverageMode } from '@verify/contracts';
 import { connectionPresentation, formMessage, onboardingProgress, pageHead } from './chrome.js';
 import { formatDuration } from '../public/shared.js';
 import type {
@@ -302,14 +307,36 @@ function connectCard(connection: ConnectionView, options: ConnectPageOptions): H
 }
 
 export function ConnectPage(options: ConnectPageOptions): Html {
-  const allReady = options.connections.every((connection) => connection.status === 'ready');
+  /*
+   * The `length > 0` half is load bearing, not defensive noise. `[].every(...)` is `true`,
+   * so an empty connection list read as "everything is ready": it promoted the Continue
+   * button to primary and suppressed the callout warning that unfinished connections
+   * produce unverified runs. Zero connections is the furthest thing from ready, and this is
+   * a product that exists to refuse exactly that inference — absence is never a pass.
+   */
+  const allReady =
+    options.connections.length > 0 &&
+    options.connections.every((connection) => connection.status === 'ready');
   return stepShell({
     href: '/app/onboarding/connect',
     eyebrow: 'Step 2 of 7',
     title: 'Connect HubSpot and Resend',
     lede: 'Read what each credential can do before you paste it. Where a provider offers nothing narrower than we need, we say so rather than glossing over it.',
     body: html`<div class="stack-lg">
-      ${options.connections.map((connection) => connectCard(connection, options))}
+      ${
+        options.connections.length === 0
+          ? EmptyState({
+              title: 'No providers to connect',
+              body:
+                'We could not list the providers this workflow needs. That is a fault on our side, not ' +
+                'something you have done — nothing about your setup has changed. Try again shortly, and ' +
+                'tell us if it keeps happening.',
+              actions: [
+                Button({ label: 'Contact support', href: '/app/support', variant: 'quiet' }),
+              ],
+            })
+          : options.connections.map((connection) => connectCard(connection, options))
+      }
       ${ButtonRow([
         Button({
           label: 'Continue to field mapping',
@@ -387,6 +414,18 @@ export function MappingPage(options: MappingPageOptions): Html {
 
 /* --------------------------------------------------------- 4. expected outcome */
 
+/**
+ * Customer-facing labels for the coverage modes.
+ *
+ * Every mode in the contract gets a label, including the one that cannot be chosen — the
+ * unavailable control has to name what is unavailable, and a reader who is told a step
+ * exists but is closed is better served than one who never learns it existed.
+ */
+const COVERAGE_MODE_LABELS: Readonly<Record<CoverageMode, string>> = {
+  customer_triggered: 'Your automation tells us',
+  independently_sourced: 'We find enquiries ourselves',
+};
+
 export interface OutcomePageOptions {
   readonly workflow: WorkflowDetail;
   readonly csrfToken: string | null;
@@ -457,22 +496,42 @@ export function OutcomePage(options: OutcomePageOptions): Html {
         }),
       })}
 
+      <!--
+        Coverage mode.
+
+        This control used to offer "We find enquiries ourselves" (independently_sourced).
+        Nothing implements it: no connector can enumerate records it was never told about,
+        and no scheduler pass reconciles them — see packages/domain/src/coverage.ts, which
+        marks the mode supported:false, selectable:false. A customer who chose it would
+        have been told we detect enquiries their automation never reported. We cannot.
+
+        The development story page has publicly claimed since commit 3c94f8d that the mode
+        "is marked unsupported as data the onboarding UI reads". It was not: the option list
+        was two hard-coded literals. The list now genuinely comes from
+        SELECTABLE_COVERAGE_MODES, so an unsupported mode cannot be offered by forgetting
+        to remove a line, and the unavailable one is stated with A03's own reason rather
+        than vanishing without explanation.
+      -->
       ${Fieldset({
         legend: 'Coverage mode',
         hint: 'How we find out an enquiry happened at all. This decides whether we can ever tell you a run never started.',
-        body: Field({
+        body: html`${Field({
           name: 'coverageMode',
           label: 'How we learn about an enquiry',
           control: 'select',
           value: outcome.coverageMode,
           required: true,
-          options: [
-            { value: 'customer_triggered', label: 'Your automation tells us (default)' },
-            { value: 'independently_sourced', label: 'We find enquiries ourselves' },
-          ],
-          hint: 'With "your automation tells us", an enquiry your automation never reported is invisible to us.',
+          options: SELECTABLE_COVERAGE_MODES.map((mode) => ({
+            value: mode,
+            label: COVERAGE_MODE_LABELS[mode],
+          })),
+          hint: 'Your automation tells us. An enquiry your automation never reported is invisible to us.',
           error: errors['coverageMode'] ?? null,
-        }),
+        })}
+        ${UnavailableAction({
+          label: COVERAGE_MODE_LABELS.independently_sourced,
+          reason: COVERAGE_MODE_SUPPORT.independently_sourced.unavailable_reason ?? '',
+        })}`,
       })}
 
       ${ButtonRow([
@@ -592,11 +651,13 @@ export function ProofPage(options: ProofPageOptions): Html {
 function disclosureSection(section: DisclosureSection): Html {
   return html`<section class="disclosure__section" data-disclosure-section="${section.id}">
     <h4>${section.heading}</h4>
-    ${section.style === 'list'
-      ? html`<ul>
+    ${
+      section.style === 'list'
+        ? html`<ul>
           ${section.lines.map((line) => html`<li>${line}</li>`)}
         </ul>`
-      : section.lines.map((line) => html`<p>${line}</p>`)}
+        : section.lines.map((line) => html`<p>${line}</p>`)
+    }
   </section>`;
 }
 

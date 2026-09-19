@@ -33,8 +33,7 @@ function route(harness: BillingHarness, overrides: { data?: BillingDataPort } = 
   return createStripeWebhookRoute({
     ...harness,
     ...(overrides.data === undefined ? {} : { data: overrides.data }),
-    resolveEndpointSecret: async (opaqueId) =>
-      opaqueId === OPAQUE_ID ? WEBHOOK_SECRET : null,
+    resolveEndpointSecret: async (opaqueId) => (opaqueId === OPAQUE_ID ? WEBHOOK_SECRET : null),
   });
 }
 
@@ -228,7 +227,11 @@ describe('transport and signature', () => {
   it('BILL-109 a correctly signed body that is not JSON is a 400', async () => {
     const harness = createHarness();
     const body = 'not json at all';
-    const header = await signStripe(body, Math.floor(Date.parse(harness.at()) / 1000), WEBHOOK_SECRET);
+    const header = await signStripe(
+      body,
+      Math.floor(Date.parse(harness.at()) / 1000),
+      WEBHOOK_SECRET,
+    );
     const response = await route(harness).request(PATH, {
       method: 'POST',
       headers: { 'stripe-signature': header },
@@ -398,7 +401,12 @@ describe('subscription lifecycle', () => {
     expect(response.status).toBe(200);
     const allowances = harness.data.debug.allowances();
     expect(allowances).toHaveLength(1);
-    expect(allowances[0]).toMatchObject({ workspaceId: WS, runLimit: 500, consumed: 0, reserved: 0 });
+    expect(allowances[0]).toMatchObject({
+      workspaceId: WS,
+      runLimit: 500,
+      consumed: 0,
+      reserved: 0,
+    });
   });
 
   it('BILL-118 a stale customer.subscription.updated cannot re-enable a deleted subscription', async () => {

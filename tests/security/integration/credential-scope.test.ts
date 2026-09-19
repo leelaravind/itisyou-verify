@@ -128,7 +128,10 @@ describe('credential_versions.owner_scope', () => {
     const auth = readFileSync(join(ROOT, 'apps', 'app', 'src', 'lib', 'auth.ts'), 'utf8');
     const blanked = auth
       .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '))
-      .replace(/(^|[^:])(\/\/[^\n]*)/gm, (_a, b: string, c: string) => b + c.replace(/[^\n]/g, ' '));
+      .replace(
+        /(^|[^:])(\/\/[^\n]*)/gm,
+        (_a, b: string, c: string) => b + c.replace(/[^\n]/g, ' '),
+      );
     const re = /`(?:[^`\\]|\\[\s\S])*`|'(?:[^'\\\n]|\\[\s\S])*'/g;
     const offenders: string[] = [];
     for (const m of blanked.matchAll(re)) {

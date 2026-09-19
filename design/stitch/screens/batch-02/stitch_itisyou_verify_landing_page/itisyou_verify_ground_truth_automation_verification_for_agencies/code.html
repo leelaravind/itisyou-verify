@@ -1,0 +1,477 @@
+<!DOCTYPE html><html class="dark" lang="en"><head><meta charset="utf-8"><meta content="width=device-width, initial-scale=1.0" name="viewport"><meta content="web_standard" name="shell-type"><title>ITISYOU Verify | Independent Post-Execution Checks for Automation Agencies</title><link href="https://fonts.googleapis.com" rel="preconnect"><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@500;600;700&amp;family=Plus+Jakarta+Sans:wght@600;700&amp;display=swap" rel="stylesheet"><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{"colors":{"surface-dim":"#0f131c","on-surface":"#dfe2ef","background":"#0f131c","outline-variant":"#3c4a42","tertiary-container":"#e29100","error":"#ffb4ab","error-container":"#93000a","surface-container-high":"#262a34","on-primary-container":"#00422b","secondary-fixed":"#acedff","on-error-container":"#ffdad6","on-tertiary-container":"#523200","on-secondary-fixed-variant":"#004e5c","inverse-primary":"#006c49","primary-fixed-dim":"#4edea3","on-tertiary-fixed":"#2a1700","tertiary":"#ffb95f","surface-container-lowest":"#0a0e17","on-secondary-fixed":"#001f26","on-primary-fixed-variant":"#005236","on-background":"#dfe2ef","surface-bright":"#353943","inverse-on-surface":"#2c303a","tertiary-fixed-dim":"#ffb95f","on-tertiary":"#472a00","primary-container":"#10b981","inverse-surface":"#dfe2ef","on-tertiary-fixed-variant":"#653e00","secondary":"#4cd7f6","surface-container":"#1c1f29","on-surface-variant":"#bbcabf","secondary-fixed-dim":"#4cd7f6","primary":"#4edea3","tertiary-fixed":"#ffddb8","surface-variant":"#31353f","surface-container-low":"#181b25","outline":"#86948a","on-error":"#690005","on-secondary-container":"#00424e","on-primary":"#003824","surface-container-highest":"#31353f","primary-fixed":"#6ffbbe","surface-tint":"#4edea3","surface":"#0f131c","secondary-container":"#03b5d3","on-primary-fixed":"#002113","on-secondary":"#003640"},"borderRadius":{"DEFAULT":"0.125rem","lg":"0.25rem","xl":"0.5rem","full":"0.75rem"},"spacing":{"space-md":"1rem","margin-sm":"1rem","margin":"2rem","gutter-sm":"1rem","space-sm":"0.5rem","gutter-lg":"2rem","space-xl":"2.5rem","space-lg":"1.5rem","space-xs":"0.25rem","gutter":"1.5rem","margin-lg":"4rem"},"fontFamily":{"display-md":["Plus Jakarta Sans"],"headline-sm":["Plus Jakarta Sans"],"headline-xl":["Plus Jakarta Sans"],"display-md-mobile":["Plus Jakarta Sans"],"display-lg":["Plus Jakarta Sans"],"display-lg-mobile":["Plus Jakarta Sans"],"label-code-md":["JetBrains Mono"],"body-sm":["Inter"],"label-code-lg":["JetBrains Mono"],"headline-lg":["Plus Jakarta Sans"],"body-md":["Inter"],"label-code-sm":["JetBrains Mono"],"body-lg":["Inter"]},"fontSize":{"display-md":["40px",{"lineHeight":"48px","letterSpacing":"-0.02em","fontWeight":"600"}],"headline-sm":["18px",{"lineHeight":"26px","letterSpacing":"-0.01em","fontWeight":"600"}],"headline-xl":["30px",{"lineHeight":"38px","letterSpacing":"-0.02em","fontWeight":"600"}],"display-md-mobile":["28px",{"lineHeight":"36px","letterSpacing":"-0.02em","fontWeight":"600"}],"display-lg":["56px",{"lineHeight":"64px","letterSpacing":"-0.03em","fontWeight":"700"}],"display-lg-mobile":["36px",{"lineHeight":"44px","letterSpacing":"-0.02em","fontWeight":"700"}],"label-code-md":["12px",{"lineHeight":"16px","letterSpacing":"0em","fontWeight":"500"}],"body-sm":["13px",{"lineHeight":"18px","letterSpacing":"0.005em","fontWeight":"400"}],"label-code-lg":["14px",{"lineHeight":"20px","letterSpacing":"-0.01em","fontWeight":"500"}],"headline-lg":["24px",{"lineHeight":"32px","letterSpacing":"-0.015em","fontWeight":"600"}],"body-md":["14px",{"lineHeight":"20px","letterSpacing":"0em","fontWeight":"400"}],"label-code-sm":["11px",{"lineHeight":"14px","letterSpacing":"0.04em","fontWeight":"600"}],"body-lg":["16px",{"lineHeight":"24px","letterSpacing":"-0.005em","fontWeight":"400"}]}}}}</script></head><body class="bg-surface-container-lowest font-body-md text-on-surface antialiased selection:bg-primary-container selection:text-on-primary-container"><div class="fixed inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-surface-container-high/20 via-surface-container-lowest to-surface-container-lowest z-0"></div><header class="fixed top-0 w-full z-50 bg-surface-container-lowest/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="h-20 w-full px-gutter-lg flex items-center justify-between"><div class="flex items-center gap-space-lg"><a class="flex items-center gap-space-sm" data-path="how-it-works" href="#"><img alt="ITISYOU Verify Logo" class="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1U7B5ZTJffMnV9nd87k-oSX0MbVJFr9ADq2wg5kjNspqTjmWXgOeiOc49rAfQRfCujiC8j3UYH3A71mB2XGBaz8XsX12Uxt7nz1vLFzAJlF-_OeIf-D_KWsMWHWFLXJpx-e9JYP2Qn5ERMbTvz7VAITuJgNPE1WhyiI9CveuRmTRi1QkXufv5P5qamvcrRkPN4g6Xpo2hesOtice_aZ2fLPQpSsn47P4apvhvs5Do71KgycyToCwwbYLkJ3"><div class="flex flex-col"><span class="font-headline-sm text-headline-sm text-on-surface tracking-tight leading-none">ITISYOU</span><span class="font-label-code-sm text-label-code-sm text-primary tracking-widest leading-none mt-space-xs uppercase">VERIFY PROTOCOL</span></div></a><div class="hidden xl:flex items-center gap-space-xs px-space-sm py-space-xs bg-surface-container-low rounded"><span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span><span class="font-label-code-sm text-label-code-sm text-on-surface-variant">MAKE // ZAPIER // N8N // PYTHON</span></div></div><nav class="hidden lg:flex items-center gap-space-lg" data-active-classes="text-primary font-bold"><a aria-current="page" class="transition-colors text-primary font-bold" data-path="how-it-works" href="#">How It Works</a><a class="font-body-md text-body-md text-on-surface-variant hover:text-on-surface transition-colors" data-path="the-silent-failure-problem" href="#">The Silent Failure Problem</a><a class="font-body-md text-body-md text-on-surface-variant hover:text-on-surface transition-colors" data-path="agency-proof-hub" href="#">Agency Proof Hub</a><a class="font-body-md text-body-md text-on-surface-variant hover:text-on-surface transition-colors" data-path="pricing-and-roi-calculator" href="#">Pricing &amp; ROI Calculator</a><a class="font-body-md text-body-md text-on-surface-variant hover:text-on-surface transition-colors" data-path="documentation" href="#">Docs</a></nav><div class="flex items-center gap-space-md"><a class="hidden sm:inline-flex font-body-md text-body-md text-on-surface-variant hover:text-on-surface px-space-md py-space-sm transition-colors" data-path="sign-in" href="#">Sign In</a><a class="relative inline-flex items-center justify-center px-space-lg py-space-sm rounded bg-primary-container text-on-primary-container font-headline-sm text-body-sm font-semibold tracking-wide shadow-[0_0_24px_-4px_rgba(16,185,129,0.35)] hover:bg-primary hover:text-on-primary hover:shadow-[0_0_32px_rgba(16,185,129,0.5)] transition-all" data-path="trial-onboarding" href="#"><span class="flex flex-col items-start leading-tight"><span class="">Start 14-Day Agency Trial</span><span class="font-label-code-sm text-label-code-sm opacity-90">No CC Required</span></span></a><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center ml-space-xs"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div></header><main class="w-full pt-20 bg-surface-container-lowest relative z-10"><div class="flex flex-col w-full">
+<!-- HERO SECTION -->
+<section class="relative w-full px-gutter-lg pb-space-xl overflow-hidden">
+<div class="absolute -top-32 left-1/2 -translate-x-1/2 w-[850px] h-[340px] bg-primary/10 rounded-full blur-[130px] pointer-events-none"></div>
+<div class="absolute top-48 right-12 w-96 h-96 bg-secondary/10 rounded-full blur-[110px] pointer-events-none"></div>
+<div class="max-w-[1360px] mx-auto pt-space-lg flex flex-col items-center text-center">
+<!-- Super-eyebrow pill tag -->
+<div class="inline-flex items-center gap-space-sm px-space-md py-1.5 rounded-full bg-surface-container-high/90 backdrop-blur-md shadow-md mb-space-lg"><span class="relative flex h-2.5 w-2.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-secondary opacity-80"></span><span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-secondary"></span></span><span class="font-label-code-sm text-label-code-sm text-on-surface uppercase font-semibold tracking-wider">Independent Direct API Verification for Automation Agencies</span></div>
+<!-- Headline -->
+<h1 class="font-display-lg text-display-lg max-w-5xl tracking-tight text-on-surface mb-space-md">Your Automation Returned <span class="text-primary font-bold">‘200 OK’</span>.<br class="hidden sm:block"><span class="text-transparent bg-clip-text bg-gradient-to-r from-on-surface via-on-surface-variant to-secondary">Did the Destination System Actually Receive the Record?</span></h1>
+<!-- Subheading -->
+<p class="font-body-lg text-body-lg text-on-surface-variant max-w-3xl mb-space-xl">ITISYOU Verify queries the destination database, CRM, and Stripe API independently after workflow completion to inspect what actually landed — and explicitly reports when an endpoint could not be checked.</p>
+<!-- Dual CTAs -->
+<div class="flex flex-col sm:flex-row items-center gap-space-md mb-space-lg w-full sm:w-auto"><a class="w-full sm:w-auto inline-flex items-center justify-center gap-space-sm px-space-xl py-space-md rounded bg-primary text-on-primary font-headline-sm text-body-md font-bold shadow-[0_0_28px_rgba(78,222,163,0.38)] hover:bg-primary-fixed-dim hover:shadow-[0_0_36px_rgba(78,222,163,0.6)] transition-all" href="#calculator"><span class="">Explore Technical Sandbox</span><span class="material-symbols-outlined text-[20px]">arrow_forward</span></a><a class="w-full sm:w-auto inline-flex items-center justify-center gap-space-sm px-space-lg py-space-md rounded bg-surface-container-high text-secondary hover:bg-surface-bright font-headline-sm text-body-md transition-colors shadow-sm" href="#comparison"><span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">code</span><span class="">Inspect Sample Diff Output</span></a></div>
+<!-- Micro-trust indicators -->
+<div class="flex flex-wrap items-center justify-center gap-x-space-md gap-y-space-xs font-label-code-sm text-label-code-sm text-on-surface-variant mb-space-xl">
+<span class="flex items-center gap-1.5"><span class="material-symbols-outlined text-primary text-[15px]">check_circle</span> Zero-code webhook or SDK</span>
+<span class="text-outline-variant">•</span>
+<span class="flex items-center gap-1.5"><span class="material-symbols-outlined text-primary text-[15px]">check_circle</span> Works with Make, Zapier, n8n, Modal &amp; LangChain</span>
+<span class="text-outline-variant">•</span>
+<span class="flex items-center gap-1.5"><span class="material-symbols-outlined text-secondary text-[15px]">verified_user</span> SOC2 &amp; ISO 27001 Ready</span>
+</div>
+<!-- Hero Simulation / Forensic Diff Card -->
+<div class="w-full max-w-5xl rounded-xl bg-surface-container-low shadow-2xl p-space-md sm:p-space-lg text-left relative overflow-hidden" id="comparison"><div class="flex items-center justify-between pb-space-sm mb-space-md border-b border-outline-variant/30"><div class="flex items-center gap-space-sm"><span class="w-3 h-3 rounded-full bg-error/70 inline-block"></span><span class="w-3 h-3 rounded-full bg-tertiary/70 inline-block"></span><span class="w-3 h-3 rounded-full bg-primary/70 inline-block"></span><span class="font-label-code-sm text-label-code-sm text-on-surface-variant ml-space-xs">SYNTHETIC MOCK FIXTURE // RUN_ID_#84920_ACME_LTD</span></div><span class="font-label-code-sm text-label-code-sm bg-surface-container px-space-sm py-0.5 rounded text-primary font-mono">FICTIONAL TEST CASE</span></div><div class="grid grid-cols-1 md:grid-cols-2 gap-space-md"><div class="bg-surface-container p-space-lg rounded-lg flex flex-col justify-between relative overflow-hidden"><div class="absolute top-0 right-0 bg-surface-container-high px-space-md py-1 rounded-bl text-on-surface-variant font-label-code-sm text-label-code-sm font-mono">CALLER LOG (INGRESS)</div><div><div class="flex items-center gap-2 mb-space-sm"><span class="material-symbols-outlined text-outline-variant text-[20px]">layers</span><span class="font-headline-sm text-headline-sm text-on-surface">Platform Execution Log</span></div><p class="font-body-sm text-body-sm text-on-surface-variant mb-space-md">Make.com / Zapier HTTP Dispatcher</p><div class="space-y-space-sm font-label-code-md text-label-code-md bg-surface-container-lowest p-space-md rounded"><div class="flex items-center justify-between"><span class="text-on-surface-variant">HTTP_STATUS:</span><span class="text-primary font-bold">200 OK (REQUEST ACCEPTED)</span></div><div class="flex items-center justify-between"><span class="text-on-surface-variant">EXECUTION_DURATION:</span><span class="text-on-surface">1,184 ms</span></div><div class="flex items-center justify-between"><span class="text-on-surface-variant">INGRESS_BUFFER:</span><span class="text-on-surface">Queued to worker pool</span></div><div class="flex items-center justify-between"><span class="text-on-surface-variant">INSPECTED_DESTINATION:</span><span class="text-tertiary font-bold">NO (Dispatched only)</span></div></div></div><div class="mt-space-md pt-space-md bg-surface-container-high/40 rounded p-space-sm flex items-center gap-space-sm"><span class="material-symbols-outlined text-tertiary text-[22px]">info</span><div class="flex flex-col"><span class="font-label-code-sm text-label-code-sm text-tertiary font-bold uppercase">Ingress Hand-off Gap</span><span class="font-body-sm text-body-sm text-on-surface-variant">Engine confirmed HTTP delivery to gateway, not downstream insertion.</span></div></div></div><div class="bg-surface-container-high p-space-lg rounded-lg flex flex-col justify-between relative overflow-hidden shadow-xl"><div class="absolute top-0 right-0 bg-surface-container-highest px-space-md py-1 rounded-bl font-label-code-sm text-label-code-sm font-mono flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span><span class="text-on-surface">POST-SETTLEMENT CHECK</span></div><div><div class="flex items-center gap-2 mb-space-sm"><span class="material-symbols-outlined text-primary text-[20px]">search_check</span><span class="font-headline-sm text-headline-sm text-on-surface">Independent Destination Query</span></div><p class="font-body-sm text-body-sm text-on-surface-variant mb-space-md">Direct Destination API Polling (+5.0s settling window)</p><div class="space-y-space-sm font-label-code-md text-label-code-md bg-surface-container-lowest p-space-md rounded"><div class="flex items-center justify-between"><span class="text-on-surface-variant">STATUS_VERDICT:</span><span class="text-error font-bold">EVIDENCE NOT FOUND</span></div><div class="flex items-center justify-between"><span class="text-on-surface-variant">TARGET_QUERY:</span><span class="text-secondary">HubSpot Deals API (/v3/deals/84920)</span></div><div class="flex items-start justify-between gap-2"><span class="text-on-surface-variant">OBSERVED_STATE:</span><span class="text-tertiary text-right">404 Not Found (settling expired)</span></div><div class="flex items-center justify-between"><span class="text-on-surface-variant">HONEST_TELEMETRY:</span><span class="text-outline font-bold">Reported as Unverified Mismatch</span></div></div></div><div class="mt-space-md pt-space-md bg-surface-container-lowest rounded p-space-sm flex items-center gap-space-sm"><span class="material-symbols-outlined text-primary text-[22px]">flag</span><div class="flex flex-col"><span class="font-label-code-sm text-label-code-sm text-primary font-bold uppercase">Early Incident Notice</span><span class="font-body-sm text-body-sm text-on-surface">Alert dispatched before downstream customer billing cycle closed.</span></div></div></div></div><div class="mt-space-md pt-space-md border-t border-outline-variant/30"><div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-space-sm"><div class="flex items-center gap-2"><span class="font-label-code-sm text-label-code-sm uppercase tracking-wider text-on-surface font-semibold">Deterministic Tri-State Oracle Matrix</span><span class="font-label-code-sm text-label-code-sm text-on-surface-variant">— Ground Truth Never Guesses</span></div><span class="font-label-code-sm text-label-code-sm text-outline">STATUS TAXONOMY v2.4</span></div><div class="grid grid-cols-1 md:grid-cols-3 gap-space-sm"><div class="p-space-sm rounded bg-surface-container border border-primary/30 flex items-start gap-space-sm"><span class="material-symbols-outlined text-primary text-[22px] mt-0.5">verified</span><div><div class="flex items-center gap-1.5"><span class="font-label-code-sm text-label-code-sm text-primary font-bold">VERIFIED</span><span class="font-label-code-sm text-label-code-sm text-on-surface-variant font-mono">[200_ASSERTED]</span></div><p class="font-body-sm text-body-sm text-on-surface-variant mt-0.5">Destination independently queried and physical state confirmed.</p></div></div><div class="p-space-sm rounded bg-surface-container border border-error/30 flex items-start gap-space-sm"><span class="material-symbols-outlined text-error text-[22px] mt-0.5">cancel</span><div><div class="flex items-center gap-1.5"><span class="font-label-code-sm text-label-code-sm text-error font-bold">DISCREPANCY</span><span class="font-label-code-sm text-label-code-sm text-on-surface-variant font-mono">[STATE_FAULT]</span></div><p class="font-body-sm text-body-sm text-on-surface-variant mt-0.5">Payload confirmed missing, dropped, or corrupted in target DB.</p></div></div><div class="p-space-sm rounded bg-surface-container-high/90 border-2 border-tertiary/60 shadow-lg flex items-start gap-space-sm relative overflow-hidden"><div class="absolute top-0 right-0 bg-tertiary/20 text-tertiary font-label-code-sm text-label-code-sm px-1.5 py-0.5 rounded-bl font-bold uppercase tracking-wider">First-Class Result</div><svg class="w-5 h-5 mt-0.5 flex-shrink-0 text-tertiary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"></circle><path d="M12 3 A9 9 0 0 0 12 21 Z" fill="currentColor" opacity="0.75"></path></svg><div><div class="flex items-center gap-2"><span class="font-label-code-sm text-label-code-sm text-tertiary font-bold tracking-wide">UNVERIFIED</span><span class="font-label-code-sm text-label-code-sm text-on-surface font-mono">[UNABLE_TO_CHECK]</span></div><p class="font-body-sm text-body-sm text-on-surface mt-1"><strong class="text-tertiary font-semibold">We could not check.</strong> This is <strong class="text-on-surface">NOT</strong> a soft pass and <strong class="text-on-surface">NOT</strong> a soft failure. It is an honest, first-class answer with full audit provenance.</p></div></div></div></div></div>
+</div>
+</section>
+<!-- SECTION 2: THE 3 TYPES OF SILENT MURDERS OF AGENCY RETAINERS -->
+<section class="w-full px-gutter-lg py-space-lg bg-surface-container border-y border-surface-container-high"><div class="max-w-[1360px] mx-auto"><div class="mb-space-md flex flex-col md:flex-row md:items-end justify-between gap-space-sm"><div><span class="font-label-code-sm text-label-code-sm text-secondary uppercase tracking-widest font-semibold">Auditing Taxonomy</span><h3 class="font-headline-lg text-headline-lg text-on-surface mt-space-xs">Four Explicit Verification Statuses</h3></div><p class="font-body-sm text-body-sm text-on-surface-variant max-w-lg">Compliant with WCAG 1.4.1: differentiated by unambiguous glyph shapes and text descriptors, never color alone. Sceptical by default: if a system cannot be reached, we state it plainly.</p></div><div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-space-md"><div class="bg-surface-container-lowest p-space-md rounded-lg flex flex-col justify-between border-t-2 border-primary"><div class="flex items-center gap-space-sm mb-space-sm"><span class="w-7 h-7 rounded bg-primary/20 text-primary font-mono font-bold flex items-center justify-center text-[14px]">[✓]</span><div><span class="font-label-code-sm text-label-code-sm text-primary font-bold block uppercase">Confirmed State</span><span class="font-label-code-sm text-label-code-sm text-on-surface-variant">Observed in Destination</span></div></div><p class="font-body-sm text-body-sm text-on-surface-variant">Direct query verified target record exists, UUID matches, and expected attribute payload values are present.</p></div><div class="bg-surface-container-lowest p-space-md rounded-lg flex flex-col justify-between border-t-2 border-error"><div class="flex items-center gap-space-sm mb-space-sm"><span class="w-7 h-7 rounded bg-error/20 text-error font-mono font-bold flex items-center justify-center text-[14px]">[✕]</span><div><span class="font-label-code-sm text-label-code-sm text-error font-bold block uppercase">State Discrepancy</span><span class="font-label-code-sm text-label-code-sm text-on-surface-variant">Record Not Found / Drift</span></div></div><p class="font-body-sm text-body-sm text-on-surface-variant">Runner reported 200 OK, but independent inspection revealed 404, field truncation, or schema mismatch after settling window.</p></div><div class="bg-surface-container-lowest p-space-md rounded-lg flex flex-col justify-between border-t-2 border-tertiary"><div class="flex items-center gap-space-sm mb-space-sm"><span class="w-7 h-7 rounded bg-tertiary/20 text-tertiary font-mono font-bold flex items-center justify-center text-[14px]">[?]</span><div><span class="font-label-code-sm text-label-code-sm text-tertiary font-bold block uppercase">Could Not Verify</span><span class="font-label-code-sm text-label-code-sm text-on-surface-variant">Ambiguous / Inaccessible</span></div></div><p class="font-body-sm text-body-sm text-on-surface-variant">Target API rate limit (429), expired token, or service outage prevented verification. We report honest ambiguity rather than assuming success.</p></div><div class="bg-surface-container-lowest p-space-md rounded-lg flex flex-col justify-between border-t-2 border-secondary"><div class="flex items-center gap-space-sm mb-space-sm"><span class="w-7 h-7 rounded bg-secondary/20 text-secondary font-mono font-bold flex items-center justify-center text-[14px]">[⟳]</span><div><span class="font-label-code-sm text-label-code-sm text-secondary font-bold block uppercase">Awaiting Settling</span><span class="font-label-code-sm text-label-code-sm text-on-surface-variant">Settling Window In Progress</span></div></div><p class="font-body-sm text-body-sm text-on-surface-variant">Inspection intentionally buffered (15s–60s) to allow eventual consistency, database read replication, and asynchronous queues to commit.</p></div></div></div></section><section class="w-full px-gutter-lg py-space-xl bg-surface-container-low/70">
+<div class="max-w-[1360px] mx-auto">
+<div class="flex flex-col md:flex-row md:items-end justify-between mb-space-xl gap-space-md">
+<div>
+<span class="font-label-code-sm text-label-code-sm text-error uppercase tracking-widest font-semibold">The Agency Nightmare</span>
+<h2 class="font-headline-xl text-headline-xl text-on-surface mt-space-xs">
+            The 3 Types of Silent Murders of Agency Retainers
+          </h2>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-md">
+          Clients don’t fire agencies when automations visibly throw a 500 error. They fire agencies when workflows report green while business data evaporates into silence.
+        </p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-space-lg mb-space-xl">
+<!-- Card 1 -->
+<div class="bg-surface-container p-space-lg rounded-xl shadow-lg flex flex-col justify-between relative group hover:bg-surface-container-high transition-all">
+<div>
+<div class="w-12 h-12 rounded-lg bg-surface-container-highest flex items-center justify-center mb-space-md text-tertiary">
+<span class="material-symbols-outlined text-[28px]">mark_email_read</span>
+</div>
+<span class="font-label-code-sm text-label-code-sm text-tertiary uppercase font-bold">Catastrophe 01</span>
+<h3 class="font-headline-sm text-headline-sm text-on-surface mt-1 mb-space-sm">The Phantom 200 OK</h3>
+<p class="font-body-md text-body-md text-on-surface-variant mb-space-md">
+              A webhook receiver returns HTTP 200 immediately to confirm ingress, then pushes the body to an internal queue. The asynchronous background worker crashes under memory pressure. Your client assumes 450 invoices were delivered. Reality: zero were billed.
+            </p>
+</div>
+<div class="bg-surface-container-lowest p-space-sm rounded font-label-code-sm text-label-code-sm text-on-surface-variant">
+<span class="text-error font-bold">CLIENT IMPACT:</span> $42,000 in uncollected accounts receivable over 3 weeks.
+          </div>
+</div>
+<!-- Card 2 -->
+<div class="bg-surface-container p-space-lg rounded-xl shadow-lg flex flex-col justify-between relative group hover:bg-surface-container-high transition-all">
+<div>
+<div class="w-12 h-12 rounded-lg bg-surface-container-highest flex items-center justify-center mb-space-md text-secondary">
+<span class="material-symbols-outlined text-[28px]">rule</span>
+</div>
+<span class="font-label-code-sm text-label-code-sm text-secondary uppercase font-bold">Catastrophe 02</span>
+<h3 class="font-headline-sm text-headline-sm text-on-surface mt-1 mb-space-sm">Schema Drift &amp; Validation Drop</h3>
+<p class="font-body-md text-body-md text-on-surface-variant mb-space-md">
+              Stripe or QuickBooks modifies an internal field definition or deprecates a currency key. The API quietly strips the invalid payload segment and stores a hollow object without throwing an error code.
+            </p>
+</div>
+<div class="bg-surface-container-lowest p-space-sm rounded font-label-code-sm text-label-code-sm text-on-surface-variant">
+<span class="text-error font-bold">CLIENT IMPACT:</span> Missing VAT &amp; GST fields cause audit failures in 80 customer accounts.
+          </div>
+</div>
+<!-- Card 3 -->
+<div class="bg-surface-container p-space-lg rounded-xl shadow-lg flex flex-col justify-between relative group hover:bg-surface-container-high transition-all">
+<div>
+<div class="w-12 h-12 rounded-lg bg-surface-container-highest flex items-center justify-center mb-space-md text-primary">
+<span class="material-symbols-outlined text-[28px]">speed</span>
+</div>
+<span class="font-label-code-sm text-label-code-sm text-primary uppercase font-bold">Catastrophe 03</span>
+<h3 class="font-headline-sm text-headline-sm text-on-surface mt-1 mb-space-sm">Rate Limit Half-Sync</h3>
+<p class="font-body-md text-body-md text-on-surface-variant mb-space-md">"We build on n8n and self-hosted runtimes. Zapier and Make logs are fundamentally incomplete because they stop inspecting at the HTTP 200 threshold. ITISYOU gives our team direct API verification and transparent observed state evidence."</p>
+</div>
+<div class="bg-surface-container-lowest p-space-sm rounded font-label-code-sm text-label-code-sm text-on-surface-variant">
+<span class="text-error font-bold">CLIENT IMPACT:</span> Two enterprise deals ($120k pipeline) go cold without follow-up.
+          </div>
+</div>
+</div>
+<!-- Callout banner -->
+<div class="w-full bg-gradient-to-r from-surface-container-high via-surface-container to-surface-container-high p-space-lg rounded-xl shadow-xl flex flex-col md:flex-row items-center justify-between gap-space-md"><div class="flex items-center gap-space-md"><div class="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary flex-shrink-0"><span class="material-symbols-outlined text-[24px]">verified</span></div><p class="font-headline-sm text-headline-sm text-on-surface max-w-3xl">"When an agency monitors destination reality instead of runner logs, you catch discrepancies before client operations stall."</p></div><a class="px-space-md py-space-sm rounded bg-surface-container-lowest text-primary hover:bg-surface-bright font-label-code-sm text-label-code-sm uppercase font-bold tracking-wider whitespace-nowrap transition-colors" href="#protocol">Review Protocol Architecture →</a></div>
+</div>
+</section>
+<!-- SECTION 3: HOW ITISYOU VERIFY WORKS (3-STEP PROTOCOL) -->
+<section class="w-full px-gutter-lg py-space-xl relative" id="protocol">
+<div class="max-w-[1360px] mx-auto">
+<div class="text-center max-w-3xl mx-auto mb-space-xl"><span class="font-label-code-sm text-label-code-sm text-primary uppercase tracking-widest font-semibold">The 3-Step Verification Protocol</span><h2 class="font-headline-xl text-headline-xl text-on-surface mt-space-xs mb-space-sm">Independent Multi-System Verification</h2><p class="font-body-md text-body-md text-on-surface-variant">The executor shouldn't be the sole witness of its own completion. We query downstream APIs separately to confirm actual record creation.</p></div>
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-space-lg relative"><div class="bg-surface-container p-space-lg rounded-xl shadow-md flex flex-col justify-between"><div><div class="flex items-center justify-between mb-space-md"><span class="w-8 h-8 rounded bg-primary text-on-primary font-label-code-md text-label-code-md font-bold flex items-center justify-center">01</span><span class="font-label-code-sm text-label-code-sm text-on-surface-variant">STEP 1: INGRESS</span></div><h3 class="font-headline-sm text-headline-sm text-on-surface mb-space-sm">Decoupled Inspection Queue</h3><p class="font-body-md text-body-md text-on-surface-variant mb-space-md">Register an expected outcome webhook via Make, Zapier, or Python SDK. Signs the intended destination record keys without slowing down production workflows.</p></div><div class="bg-surface-container-lowest p-space-md rounded font-label-code-sm text-label-code-sm space-y-1 text-on-surface-variant"><div class="text-primary font-bold">// Make / Zapier Inspection Hook</div><div class="">POST https://verify.itisyou.com/v1/assert</div><div class="text-outline">expect: { target: "hubspot.deal", id: "{{deal_id}}" }</div></div></div><div class="bg-surface-container p-space-lg rounded-xl shadow-md flex flex-col justify-between"><div><div class="flex items-center justify-between mb-space-md"><span class="w-8 h-8 rounded bg-secondary text-on-secondary font-label-code-md text-label-code-md font-bold flex items-center justify-center">02</span><span class="font-label-code-sm text-label-code-sm text-on-surface-variant">STEP 2: AUDIT</span></div><h3 class="font-headline-sm text-headline-sm text-on-surface mb-space-sm">Direct Destination Inspection</h3><p class="font-body-md text-body-md text-on-surface-variant mb-space-md">After a configurable settling period (e.g. 5s), ITISYOU queries target APIs directly to inspect state: valid record ID, updated fields, and matching foreign keys.</p></div><div class="bg-surface-container-lowest p-space-md rounded font-label-code-sm text-label-code-sm space-y-1 text-on-surface-variant"><div class="text-secondary font-bold">// Direct Target REST Query</div><div class="">GET https://api.hubapi.com/crm/v3/objects/deals/{{deal_id}}</div><div class="text-outline">settling_window: 5000ms // timeout: 5000ms</div></div></div><div class="bg-surface-container p-space-lg rounded-xl shadow-md flex flex-col justify-between"><div><div class="flex items-center justify-between mb-space-md"><span class="w-8 h-8 rounded bg-tertiary text-on-tertiary font-label-code-md text-label-code-md font-bold flex items-center justify-center">03</span><span class="font-label-code-sm text-label-code-sm text-on-surface-variant">STEP 3: RESOLUTION</span></div><h3 class="font-headline-sm text-headline-sm text-on-surface mb-space-sm">Audit Record &amp; Alerting</h3><p class="font-body-md text-body-md text-on-surface-variant mb-space-md">When verified, an audit record is logged with destination object IDs and timestamps. When evidence is missing or inconclusive, it fires an immediate agency webhook or triggers a retry routine.</p></div><div class="bg-surface-container-lowest p-space-md rounded font-label-code-sm text-label-code-sm space-y-1 text-on-surface-variant"><div class="text-primary font-bold font-mono">// Verification Status: LOGGED</div><div class="text-on-surface font-mono">match: confirmed (hubspot_id: 84920)</div><div class="text-outline font-mono">audit_ledger: payload_hash_matched</div></div></div></div><div class="mt-space-lg p-space-md rounded-xl bg-surface-container-high border border-outline-variant/40 flex flex-col md:flex-row items-start md:items-center justify-between gap-space-md"><div class="flex items-start gap-space-md"><div class="w-10 h-10 rounded bg-tertiary/20 flex items-center justify-center flex-shrink-0 text-tertiary"><svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"></circle><path d="M12 3 A9 9 0 0 0 12 21 Z" fill="currentColor" opacity="0.75"></path></svg></div><div><div class="flex items-center gap-2"><span class="font-headline-sm text-body-md text-on-surface font-bold">The 'UNVERIFIED' Contract</span><span class="font-label-code-sm text-label-code-sm text-tertiary bg-tertiary/10 px-2 py-0.5 rounded uppercase font-bold">First-Class Answer</span></div><p class="font-body-sm text-body-sm text-on-surface-variant mt-1 max-w-4xl">When an external endpoint suffers read throttles or network partitioning, ITISYOU never pretends everything is fine, nor does it generate a spurious false-failure alarm. It emits <strong class="text-tertiary">UNVERIFIED</strong> — "We could not check" — with cryptographic proof of the attempt and immediate escalation options.</p></div></div><div class="flex-shrink-0 font-label-code-sm text-label-code-sm text-on-surface bg-surface-container-lowest px-space-md py-space-sm rounded border border-outline-variant/20 font-mono">EMIT: 0x7e...UNCHECKABLE</div></div>
+</div>
+</section>
+<!-- SECTION 4: AGENCY PROOF HUB & WHITE-LABEL CLIENT REPORTS -->
+<section class="w-full px-gutter-lg py-space-xl bg-surface-container-low/60">
+<div class="max-w-[1360px] mx-auto">
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-space-xl items-center">
+<div class="lg:col-span-5">
+<span class="font-label-code-sm text-label-code-sm text-primary uppercase tracking-widest font-semibold">Turn Reliability Into Profit</span>
+<h2 class="font-headline-xl text-headline-xl text-on-surface mt-space-xs mb-space-md">
+            The ‘Verified Automation SLA’ Upsell Retainer
+          </h2>
+<p class="font-body-md text-body-md text-on-surface-variant mb-space-lg">Stop giving away maintenance for free. Offer clients the <strong class="text-on-surface">Observed State SLA Shield</strong>. Provide enterprise-grade peace of mind with white-labeled PDF inspection logs and an embeddable agency verification dashboard.</p>
+<div class="space-y-space-md mb-space-lg">
+<div class="flex items-start gap-space-sm">
+<span class="material-symbols-outlined text-primary text-[20px] mt-0.5">check_box</span>
+<div>
+<h4 class="font-headline-sm text-body-md text-on-surface font-semibold">Custom Agency White-Labeling</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Your logo, your custom domain (verify.youragency.com), and your custom colors.</p>
+</div>
+</div>
+<div class="flex items-start gap-space-sm">
+<span class="material-symbols-outlined text-primary text-[20px] mt-0.5">check_box</span>
+<div>
+<h4 class="font-headline-sm text-body-md text-on-surface font-semibold">Weekly Peace-of-Mind Client Digest</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Automated executive summaries showing how many silent glitches were intercepted without human intervention.</p>
+</div>
+</div>
+<div class="flex items-start gap-space-sm">
+<span class="material-symbols-outlined text-primary text-[20px] mt-0.5">check_box</span>
+<div>
+<h4 class="font-headline-sm text-body-md text-on-surface font-semibold">Immutable Audit Log Ledger</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Defend your agency against finger-pointing when third-party APIs experience downtime.</p>
+</div>
+</div>
+</div>
+<div class="p-space-md bg-surface-container rounded-lg">
+<div class="flex items-center gap-space-sm text-secondary font-label-code-sm text-label-code-sm font-bold uppercase mb-1">
+<span class="material-symbols-outlined text-[18px]">monetization_on</span>
+<span class="">Agency Retainer Monetization Insight</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+              Agencies charging $2,500/mo routinely tack on a <span class="text-on-surface font-bold">+$500/mo "Guaranteed Execution SLA"</span> retainer bump powered by ITISYOU Verify.
+            </p>
+</div>
+</div>
+<!-- Interactive White-Label Report Preview Mockup -->
+<div class="lg:col-span-7">
+<div class="bg-surface-container rounded-xl shadow-2xl p-space-lg relative overflow-hidden">
+<div class="flex items-center justify-between pb-space-md mb-space-md bg-surface-container-high/60 p-space-sm rounded">
+<div class="flex items-center gap-space-sm">
+<div class="w-7 h-7 rounded bg-secondary-container flex items-center justify-center text-on-secondary-container font-headline-sm font-bold text-[14px]">
+                  V
+                </div>
+<div class="flex flex-col">
+<span class="font-headline-sm text-body-sm text-on-surface font-bold leading-tight">VELOCITY AUTOMATION LABS</span>
+<span class="font-label-code-sm text-label-code-sm text-on-surface-variant leading-tight">POWERED BY ITISYOU AUDIT MATRIX</span>
+</div>
+</div>
+<span class="font-label-code-sm text-label-code-sm bg-primary-container/20 text-primary px-space-sm py-0.5 rounded font-bold">
+                CLIENT SLA: ACTIVE &amp; VERIFIED
+              </span>
+</div>
+<!-- Report Card Content -->
+<div class="bg-surface-container-lowest p-space-md rounded-lg mb-space-md"><div class="flex flex-wrap items-center justify-between gap-space-sm mb-space-md"><div><span class="font-label-code-sm text-label-code-sm text-on-surface-variant block">ACCOUNT HOLDER</span><span class="font-headline-sm text-headline-sm text-on-surface">Acme Logistics Global, Inc.</span></div><div class="text-right"><span class="font-label-code-sm text-label-code-sm text-on-surface-variant block">INSPECTION WINDOW</span><span class="font-label-code-sm text-label-code-sm text-on-surface">CURRENT BILLING CYCLE (30 DAYS)</span></div></div><div class="grid grid-cols-1 sm:grid-cols-3 gap-space-sm mb-space-md"><div class="bg-surface-container p-space-sm rounded"><span class="font-label-code-sm text-label-code-sm text-on-surface-variant block">DIRECT CHECKS PASSED</span><span class="font-headline-lg text-headline-lg text-primary font-bold">99.82%</span><span class="font-label-code-sm text-label-code-sm text-primary block">34,068 verified records</span></div><div class="bg-surface-container p-space-sm rounded"><span class="font-label-code-sm text-label-code-sm text-on-surface-variant block">MISSING AT DESTINATION</span><span class="font-headline-lg text-headline-lg text-error font-bold">4 Faults</span><span class="font-label-code-sm text-label-code-sm text-on-surface-variant block">Flagged &amp; caught in &lt;14s</span></div><div class="bg-surface-container p-space-sm rounded"><span class="font-label-code-sm text-label-code-sm text-on-surface-variant block">INCONCLUSIVE / TIMEOUT</span><span class="font-headline-lg text-headline-lg text-tertiary font-bold">2 Checks</span><span class="font-label-code-sm text-label-code-sm text-on-surface-variant block">Flagged for manual review</span></div></div><div class="space-y-space-xs font-label-code-sm text-label-code-sm"><div class="flex items-center justify-between uppercase font-semibold pb-1 text-on-surface-variant"><span class="">Recent Execution Consensus Ledger</span><span class="text-outline font-normal">CRYPTOGRAPHIC PROOF LOG</span></div><div class="flex items-center justify-between p-2 bg-surface-container-high/40 rounded border-l-2 border-primary"><span class="text-on-surface font-mono">FLOW: Stripe_Charge -&gt; QuickBooks_Invoice</span><span class="text-primary flex items-center gap-1.5 font-bold"><span class="material-symbols-outlined text-[16px]">verified</span> VERIFIED IN QB LEDGER</span></div><div class="flex items-center justify-between p-2 bg-surface-container-high/90 rounded border-2 border-tertiary/70 shadow-sm"><div class="flex items-center gap-2"><svg class="w-4 h-4 flex-shrink-0 text-tertiary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"></circle><path d="M12 3 A9 9 0 0 0 12 21 Z" fill="currentColor" opacity="0.75"></path></svg><span class="text-on-surface font-mono">FLOW: HubSpot_Deal -&gt; PostgreSQL_Warehouse</span></div><div class="flex items-center gap-2"><span class="bg-tertiary/20 text-tertiary px-space-sm py-0.5 rounded font-bold uppercase tracking-wider">UNVERIFIED</span><span class="text-on-surface-variant font-mono hidden sm:inline">[TIMEOUT: READ_REPLICA_LOCKED]</span></div></div><div class="flex items-center justify-between p-2 bg-error-container/20 rounded border-l-2 border-error"><span class="text-error font-mono">FLOW: Shopify_Order -&gt; 3PL_Warehouse</span><span class="text-tertiary flex items-center gap-1"><span class="material-symbols-outlined text-[15px]">replay</span> AUTO-REMEDIATED [RETRY 2/3]</span></div></div></div>
+<div class="flex items-center justify-between text-on-surface-variant font-label-code-sm text-label-code-sm">
+<span class="">REPORT DIGEST HASH: 7fc92a...e018</span>
+<a class="text-primary hover:underline flex items-center gap-1" href="#trial">
+<span class="">Download Sample Client PDF</span>
+<span class="material-symbols-outlined text-[14px]">download</span>
+</a>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- SECTION 5: SUPPORTED DESTINATION ECOSYSTEM -->
+<section class="w-full px-gutter-lg py-space-xl">
+<div class="max-w-[1360px] mx-auto text-center">
+<span class="font-label-code-sm text-label-code-sm text-secondary uppercase tracking-widest font-semibold">Integrations Matrix</span>
+<h2 class="font-headline-xl text-headline-xl text-on-surface mt-space-xs mb-space-sm">
+        Supported Deep-State Destinations
+      </h2>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-2xl mx-auto mb-space-xl">
+        ITISYOU doesn't just check webhook return codes. It holds certified direct query adapters for the mission-critical systems your automation clients rely on.
+      </p>
+<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-space-md mb-space-lg">
+<div class="bg-surface-container p-space-md rounded-lg flex flex-col items-center justify-center gap-space-xs hover:bg-surface-container-high transition-colors shadow-sm">
+<span class="material-symbols-outlined text-secondary text-[32px]">cloud</span>
+<span class="font-headline-sm text-body-sm text-on-surface font-semibold">Salesforce</span>
+<span class="font-label-code-sm text-label-code-sm text-on-surface-variant">SOQL &amp; REST</span>
+</div>
+<div class="bg-surface-container p-space-md rounded-lg flex flex-col items-center justify-center gap-space-xs hover:bg-surface-container-high transition-colors shadow-sm">
+<span class="material-symbols-outlined text-tertiary text-[32px]">hub</span>
+<span class="font-headline-sm text-body-sm text-on-surface font-semibold">HubSpot</span>
+<span class="font-label-code-sm text-label-code-sm text-on-surface-variant">v3 CRM API</span>
+</div>
+<div class="bg-surface-container p-space-md rounded-lg flex flex-col items-center justify-center gap-space-xs hover:bg-surface-container-high transition-colors shadow-sm">
+<span class="material-symbols-outlined text-primary text-[32px]">receipt_long</span>
+<span class="font-headline-sm text-body-sm text-on-surface font-semibold">QuickBooks</span>
+<span class="font-label-code-sm text-label-code-sm text-on-surface-variant">Accounting API</span>
+</div>
+<div class="bg-surface-container p-space-md rounded-lg flex flex-col items-center justify-center gap-space-xs hover:bg-surface-container-high transition-colors shadow-sm">
+<span class="material-symbols-outlined text-secondary text-[32px]">credit_card</span>
+<span class="font-headline-sm text-body-sm text-on-surface font-semibold">Stripe</span>
+<span class="font-label-code-sm text-label-code-sm text-on-surface-variant">Events &amp; Charges</span>
+</div>
+<div class="bg-surface-container p-space-md rounded-lg flex flex-col items-center justify-center gap-space-xs hover:bg-surface-container-high transition-colors shadow-sm">
+<span class="material-symbols-outlined text-primary text-[32px]">database</span>
+<span class="font-headline-sm text-body-sm text-on-surface font-semibold">PostgreSQL</span>
+<span class="font-label-code-sm text-label-code-sm text-on-surface-variant">Direct Row Hash</span>
+</div>
+<div class="bg-surface-container p-space-md rounded-lg flex flex-col items-center justify-center gap-space-xs hover:bg-surface-container-high transition-colors shadow-sm">
+<span class="material-symbols-outlined text-secondary text-[32px]">ac_unit</span>
+<span class="font-headline-sm text-body-sm text-on-surface font-semibold">Snowflake</span>
+<span class="font-label-code-sm text-label-code-sm text-on-surface-variant">Warehouse State</span>
+</div>
+<div class="bg-surface-container p-space-md rounded-lg flex flex-col items-center justify-center gap-space-xs hover:bg-surface-container-high transition-colors shadow-sm">
+<span class="material-symbols-outlined text-primary text-[32px]">shopping_cart</span>
+<span class="font-headline-sm text-body-sm text-on-surface font-semibold">Shopify</span>
+<span class="font-label-code-sm text-label-code-sm text-on-surface-variant">GraphQL Admin</span>
+</div>
+<div class="bg-surface-container p-space-md rounded-lg flex flex-col items-center justify-center gap-space-xs hover:bg-surface-container-high transition-colors shadow-sm">
+<span class="material-symbols-outlined text-tertiary text-[32px]">table_chart</span>
+<span class="font-headline-sm text-body-sm text-on-surface font-semibold">Google Sheets</span>
+<span class="font-label-code-sm text-label-code-sm text-on-surface-variant">Cell Value Match</span>
+</div>
+<div class="bg-surface-container p-space-md rounded-lg flex flex-col items-center justify-center gap-space-xs hover:bg-surface-container-high transition-colors shadow-sm">
+<span class="material-symbols-outlined text-secondary text-[32px]">view_list</span>
+<span class="font-headline-sm text-body-sm text-on-surface font-semibold">Airtable</span>
+<span class="font-label-code-sm text-label-code-sm text-on-surface-variant">Record Metadata</span>
+</div>
+<div class="bg-surface-container p-space-md rounded-lg flex flex-col items-center justify-center gap-space-xs hover:bg-surface-container-high transition-colors shadow-sm">
+<span class="material-symbols-outlined text-tertiary text-[32px]">task_alt</span>
+<span class="font-headline-sm text-body-sm text-on-surface font-semibold">ClickUp</span>
+<span class="font-label-code-sm text-label-code-sm text-on-surface-variant">Task &amp; Custom Fields</span>
+</div>
+<div class="bg-surface-container p-space-md rounded-lg flex flex-col items-center justify-center gap-space-xs hover:bg-surface-container-high transition-colors shadow-sm">
+<span class="material-symbols-outlined text-secondary text-[32px]">support_agent</span>
+<span class="font-headline-sm text-body-sm text-on-surface font-semibold">Zendesk</span>
+<span class="font-label-code-sm text-label-code-sm text-on-surface-variant">Ticket State v2</span>
+</div>
+<div class="bg-surface-container p-space-md rounded-lg flex flex-col items-center justify-center gap-space-xs hover:bg-surface-container-high transition-colors shadow-sm">
+<span class="material-symbols-outlined text-primary text-[32px]">terminal</span>
+<span class="font-headline-sm text-body-sm text-on-surface font-semibold">Custom API / SQL</span>
+<span class="font-label-code-sm text-label-code-sm text-on-surface-variant">Any HTTP/SQL Node</span>
+</div>
+</div>
+<div class="inline-flex items-center gap-2 px-space-md py-1.5 rounded-full bg-surface-container font-label-code-sm text-label-code-sm text-on-surface-variant">
+<span class="material-symbols-outlined text-primary text-[18px]">bolt</span>
+<span class="">Independent Direct API Verification for Automation Agencies</span>
+</div>
+</div>
+</section>
+<!-- SECTION 6: INTERACTIVE AGENCY ROI & RISK CALCULATOR -->
+<section class="w-full px-gutter-lg py-space-xl bg-surface-container-low/80" id="calculator"><div class="max-w-[1360px] mx-auto"><div class="text-center max-w-2xl mx-auto mb-space-xl"><span class="font-label-code-sm text-label-code-sm text-secondary uppercase tracking-widest font-semibold">Technical Verification Spec</span><h2 class="font-headline-xl text-headline-xl text-on-surface mt-space-xs mb-space-sm">Synthetic Inspection Fixture &amp; Sample Audit Log</h2><p class="font-body-md text-body-md text-on-surface-variant">Explicit synthetic run comparison demonstrating mock destination state validation across fictional fixtures (Acme Ltd and Northwind Traders).</p></div><div class="grid grid-cols-1 md:grid-cols-3 gap-space-lg"><div class="bg-surface-container p-space-lg rounded-xl shadow-lg flex flex-col justify-between"><div><div class="flex items-center justify-between mb-space-md"><span class="font-label-code-sm text-label-code-sm text-on-surface-variant font-mono">FIXTURE_01 // ACME_LTD</span><span class="font-label-code-sm text-label-code-sm bg-error-container/20 text-error px-space-sm py-0.5 rounded">RECORD 404</span></div><h3 class="font-headline-sm text-headline-sm text-on-surface mb-space-sm">Asynchronous Queue Dropout</h3><p class="font-body-sm text-body-sm text-on-surface-variant mb-space-md">Synthetic scenario: Webhook returns HTTP 200 immediately, but downstream job worker drops record #ACME-8831 due to timeout.</p></div><div class="bg-surface-container-lowest p-space-sm rounded font-label-code-sm text-label-code-sm space-y-1"><div class="text-on-surface-variant">QUERY_TARGET: GET /crm/deals/8831</div><div class="text-error font-bold">STATUS: Record Not Found within settling window</div></div></div><div class="bg-surface-container p-space-lg rounded-xl shadow-lg flex flex-col justify-between"><div><div class="flex items-center justify-between mb-space-md"><span class="font-label-code-sm text-label-code-sm text-on-surface-variant font-mono">FIXTURE_02 // NORTHWIND</span><span class="font-label-code-sm text-label-code-sm bg-tertiary/20 text-tertiary px-space-sm py-0.5 rounded">SCHEMA TRUNCATION</span></div><h3 class="font-headline-sm text-headline-sm text-on-surface mb-space-sm">Silent Field Drop</h3><p class="font-body-sm text-body-sm text-on-surface-variant mb-space-md">Synthetic scenario: Target destination API accepts payload but silently omits nested line_items array due to unversioned schema update.</p></div><div class="bg-surface-container-lowest p-space-sm rounded font-label-code-sm text-label-code-sm space-y-1"><div class="text-on-surface-variant">HASH_ASSERT: SHA256(expected_fields)</div><div class="text-tertiary font-bold">STATUS: Payload Hash Mismatch (3 fields missing)</div></div></div><div class="bg-surface-container p-space-lg rounded-xl shadow-lg flex flex-col justify-between"><div><div class="flex items-center justify-between mb-space-md"><span class="font-label-code-sm text-label-code-sm text-on-surface-variant font-mono">FIXTURE_03 // BENCHMARK</span><span class="font-label-code-sm text-label-code-sm bg-primary/20 text-primary px-space-sm py-0.5 rounded">PERSISTENCE VERIFIED</span></div><h3 class="font-headline-sm text-headline-sm text-on-surface mb-space-sm">Settled Destination State</h3><p class="font-body-sm text-body-sm text-on-surface-variant mb-space-md">Synthetic scenario: Downstream record #ORD-4019 query returns matching modified timestamp and checksum within 4.2s settling window.</p></div><div class="bg-surface-container-lowest p-space-sm rounded font-label-code-sm text-label-code-sm space-y-1"><div class="text-on-surface-variant">DIGEST: AWS_KMS_SIGNATURE_OK</div><div class="text-primary font-bold">STATUS: Verified in target database</div></div></div></div></div></section>
+<!-- SECTION 7: AGENCY TESTIMONIALS & SOCIAL PROOF -->
+<section class="w-full px-gutter-lg py-space-xl">
+<div class="max-w-[1360px] mx-auto">
+<div class="text-center max-w-2xl mx-auto mb-space-xl">
+<span class="font-label-code-sm text-label-code-sm text-primary uppercase tracking-widest font-semibold">Peer Certified</span>
+<h2 class="font-headline-xl text-headline-xl text-on-surface mt-space-xs mb-space-sm">
+          Eliminated Sunday Morning Client Panic Calls
+        </h2>
+<p class="font-body-md text-body-md text-on-surface-variant">Automation agency founders on why direct destination checking changed their operations.</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-space-lg">
+<!-- Testimonial 1 -->
+<div class="bg-surface-container p-space-lg rounded-xl shadow-lg flex flex-col justify-between">
+<div>
+<div class="flex items-center gap-1 text-tertiary mb-space-md">
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">star</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface italic mb-space-lg">
+              "We run 600+ complex Make and Python flows for e-commerce brands. A silent Shopify metadata drop almost cost us our largest $8k/mo retainer. ITISYOU caught 3 silent drops in our first week. It’s now non-negotiable across every build."
+            </p>
+</div>
+<div class="flex items-center gap-space-sm pt-space-md bg-surface-container-high/40 -mx-space-lg -mb-space-lg p-space-md rounded-b-xl">
+<div class="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">
+              MS
+            </div>
+<div>
+<span class="font-headline-sm text-body-md text-on-surface font-semibold block">Marcus Sterling</span>
+<span class="font-label-code-sm text-label-code-sm text-on-surface-variant">Founder at Synthetix Automation</span>
+</div>
+</div>
+</div>
+<!-- Testimonial 2 -->
+<div class="bg-surface-container p-space-lg rounded-xl shadow-lg flex flex-col justify-between">
+<div>
+<div class="flex items-center gap-1 text-tertiary mb-space-md">
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">star</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface italic mb-space-lg">
+              "The white-label monthly proof digest has turned our retention completely around. Clients used to look at our retainers and ask what we were doing when nothing broke. Now they see concrete proof that 12 silent failures were proactively mitigated."
+            </p>
+</div>
+<div class="flex items-center gap-space-sm pt-space-md bg-surface-container-high/40 -mx-space-lg -mb-space-lg p-space-md rounded-b-xl">
+<div class="w-10 h-10 rounded-full bg-secondary/20 flex items-center justify-center text-secondary font-bold">
+              DK
+            </div>
+<div>
+<span class="font-headline-sm text-body-md text-on-surface font-semibold block">Devon Kross</span>
+<span class="font-label-code-sm text-label-code-sm text-on-surface-variant">Head of Ops at WorkflowCraft</span>
+</div>
+</div>
+</div>
+<!-- Testimonial 3 -->
+<div class="bg-surface-container p-space-lg rounded-xl shadow-lg flex flex-col justify-between">
+<div>
+<div class="flex items-center gap-1 text-tertiary mb-space-md">
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">star</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface italic mb-space-lg">"We build on n8n and self-hosted runtimes. Zapier and Make logs are fundamentally incomplete because they stop inspecting at the HTTP 200 threshold. ITISYOU gives our team direct API verification and transparent observed state evidence."</p>
+</div>
+<div class="flex items-center gap-space-sm pt-space-md bg-surface-container-high/40 -mx-space-lg -mb-space-lg p-space-md rounded-b-xl">
+<div class="w-10 h-10 rounded-full bg-tertiary/20 flex items-center justify-center text-tertiary font-bold">
+              AR
+            </div>
+<div>
+<span class="font-headline-sm text-body-md text-on-surface font-semibold block">Amara Vance</span>
+<span class="font-label-code-sm text-label-code-sm text-on-surface-variant">CEO of FlowForge Agency</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- SECTION 8: TRANSPARENT AGENCY PRICING TIERS -->
+<section class="w-full px-gutter-lg py-space-lg bg-surface-container border-y border-surface-container-high"><div class="max-w-[1360px] mx-auto"><div class="mb-space-md flex flex-col md:flex-row md:items-end justify-between gap-space-sm"><div><span class="font-label-code-sm text-label-code-sm text-secondary uppercase tracking-widest font-semibold">Auditing Taxonomy</span><h3 class="font-headline-lg text-headline-lg text-on-surface mt-space-xs">Four Explicit Verification Statuses</h3></div><p class="font-body-sm text-body-sm text-on-surface-variant max-w-lg">Compliant with WCAG 1.4.1: differentiated by unambiguous glyph shapes and text descriptors, never color alone. Sceptical by default: if a system cannot be reached, we state it plainly.</p></div><div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-space-md"><div class="bg-surface-container-lowest p-space-md rounded-lg flex flex-col justify-between border-t-2 border-primary"><div class="flex items-center gap-space-sm mb-space-sm"><span class="w-7 h-7 rounded bg-primary/20 text-primary font-mono font-bold flex items-center justify-center text-[14px]">[✓]</span><div><span class="font-label-code-sm text-label-code-sm text-primary font-bold block uppercase">Confirmed State</span><span class="font-label-code-sm text-label-code-sm text-on-surface-variant">Observed in Destination</span></div></div><p class="font-body-sm text-body-sm text-on-surface-variant">Direct query verified target record exists, UUID matches, and expected attribute payload values are present.</p></div><div class="bg-surface-container-lowest p-space-md rounded-lg flex flex-col justify-between border-t-2 border-error"><div class="flex items-center gap-space-sm mb-space-sm"><span class="w-7 h-7 rounded bg-error/20 text-error font-mono font-bold flex items-center justify-center text-[14px]">[✕]</span><div><span class="font-label-code-sm text-label-code-sm text-error font-bold block uppercase">State Discrepancy</span><span class="font-label-code-sm text-label-code-sm text-on-surface-variant">Record Not Found / Drift</span></div></div><p class="font-body-sm text-body-sm text-on-surface-variant">Runner reported 200 OK, but independent inspection revealed 404, field truncation, or schema mismatch after settling window.</p></div><div class="bg-surface-container-lowest p-space-md rounded-lg flex flex-col justify-between border-t-2 border-tertiary"><div class="flex items-center gap-space-sm mb-space-sm"><span class="w-7 h-7 rounded bg-tertiary/20 text-tertiary font-mono font-bold flex items-center justify-center text-[14px]">[?]</span><div><span class="font-label-code-sm text-label-code-sm text-tertiary font-bold block uppercase">Could Not Verify</span><span class="font-label-code-sm text-label-code-sm text-on-surface-variant">Ambiguous / Inaccessible</span></div></div><p class="font-body-sm text-body-sm text-on-surface-variant">Target API rate limit (429), expired token, or service outage prevented verification. We report honest ambiguity rather than assuming success.</p></div><div class="bg-surface-container-lowest p-space-md rounded-lg flex flex-col justify-between border-t-2 border-secondary"><div class="flex items-center gap-space-sm mb-space-sm"><span class="w-7 h-7 rounded bg-secondary/20 text-secondary font-mono font-bold flex items-center justify-center text-[14px]">[⟳]</span><div><span class="font-label-code-sm text-label-code-sm text-secondary font-bold block uppercase">Awaiting Settling</span><span class="font-label-code-sm text-label-code-sm text-on-surface-variant">Settling Window In Progress</span></div></div><p class="font-body-sm text-body-sm text-on-surface-variant">Inspection intentionally buffered (15s–60s) to allow eventual consistency, database read replication, and asynchronous queues to commit.</p></div></div></div></section><section class="w-full px-gutter-lg py-space-xl bg-surface-container-low/70" id="pricing">
+<div class="max-w-[1360px] mx-auto">
+<div class="text-center max-w-2xl mx-auto mb-space-xl">
+<span class="font-label-code-sm text-label-code-sm text-primary uppercase tracking-widest font-semibold">Predictable Agency Economics</span>
+<h2 class="font-headline-xl text-headline-xl text-on-surface mt-space-xs mb-space-sm">
+          Pricing Built for Agency Margins
+        </h2>
+<p class="font-body-md text-body-md text-on-surface-variant">
+          Bill it directly back to your clients with a healthy markup. No per-seat limits on agency team members.
+        </p>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-space-lg items-stretch">
+<!-- Tier 1: Starter Agency -->
+<div class="bg-surface-container p-space-lg rounded-xl shadow-lg flex flex-col justify-between">
+<div>
+<div class="flex justify-between items-center mb-space-sm">
+<h3 class="font-headline-sm text-headline-sm text-on-surface">Starter Agency</h3>
+<span class="font-label-code-sm text-label-code-sm bg-surface-container-high px-space-sm py-0.5 rounded text-on-surface-variant">BOUTIQUE</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant mb-space-md">
+              Perfect for solo automation specialists and small studios managing up to 15 client workspaces.
+            </p>
+<div class="flex items-baseline gap-1 mb-space-lg">
+<span class="font-display-md text-display-md text-on-surface font-bold">$49</span>
+<span class="font-label-code-sm text-label-code-sm text-on-surface-variant">/ month</span>
+</div>
+<ul class="space-y-space-sm font-body-sm text-body-sm text-on-surface mb-space-lg">
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[18px]">check</span>
+<span class=""><strong>5,000</strong> Ground-Truth Checks / mo</span>
+</li>
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[18px]">check</span>
+<span class="">Up to 15 Client Workspaces</span>
+</li>
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[18px]">check</span>
+<span class="">Instant Slack, Discord &amp; Webhook Alerts</span>
+</li>
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[18px]">check</span>
+<span class="">Standard Retrying &amp; Dead-Letter Ledger</span>
+</li>
+<li class="flex items-center gap-2 text-on-surface-variant">
+<span class="material-symbols-outlined text-[18px]">close</span>
+<span class="">Custom Domain White-Labeling</span>
+</li>
+</ul>
+</div>
+<a class="w-full py-space-sm rounded bg-surface-container-high text-on-surface hover:bg-surface-bright font-headline-sm text-body-sm font-semibold text-center transition-colors" href="#trial">
+            Start Free 14-Day Trial
+          </a>
+</div>
+<!-- Tier 2: Growth Agency (Featured) -->
+<div class="bg-surface-container-high p-space-lg rounded-xl shadow-2xl flex flex-col justify-between relative"><div><div class="flex justify-between items-center mb-space-sm"><h3 class="font-headline-sm text-headline-sm text-on-surface">Growth Agency</h3><span class="font-label-code-sm text-label-code-sm bg-surface-container-highest px-space-sm py-0.5 rounded text-on-surface-variant">VOLUME TIER</span></div><p class="font-body-sm text-body-sm text-on-surface-variant mb-space-md">For automation agencies requiring multi-workspace management and automated audit reporting.</p><div class="flex items-baseline gap-1 mb-space-lg"><span class="font-display-md text-display-md text-primary font-bold">$149</span><span class="font-label-code-sm text-label-code-sm text-on-surface-variant">/ month</span></div><ul class="space-y-space-sm font-body-sm text-body-sm text-on-surface mb-space-lg"><li class="flex items-center gap-2"><span class="material-symbols-outlined text-primary text-[18px]">check</span><span class=""><strong>25,000</strong> Destination Verification Queries / mo</span></li><li class="flex items-center gap-2"><span class="material-symbols-outlined text-primary text-[18px]">check</span><span class="">Unlimited Client Workspaces &amp; Sub-teams</span></li><li class="flex items-center gap-2"><span class="material-symbols-outlined text-primary text-[18px]">check</span><span class="">Custom Domain &amp; Audit PDF Export</span></li><li class="flex items-center gap-2"><span class="material-symbols-outlined text-primary text-[18px]">check</span><span class="">Priority Alert Webhooks &amp; PagerDuty Integration</span></li><li class="flex items-center gap-2"><span class="material-symbols-outlined text-primary text-[18px]">check</span><span class="">Automated Periodic Client Audit Digest</span></li></ul></div><a class="w-full py-space-sm rounded bg-primary text-on-primary hover:bg-primary-fixed-dim font-headline-sm text-body-sm font-bold text-center shadow-[0_0_24px_rgba(78,222,163,0.35)] transition-all" href="#trial">Start Growth Trial</a></div>
+<!-- Tier 3: High-Scale Partner -->
+<div class="bg-surface-container p-space-lg rounded-xl shadow-lg flex flex-col justify-between">
+<div>
+<div class="flex justify-between items-center mb-space-sm">
+<h3 class="font-headline-sm text-headline-sm text-on-surface">High-Scale Partner</h3>
+<span class="font-label-code-sm text-label-code-sm bg-surface-container-high px-space-sm py-0.5 rounded text-secondary font-bold">ENTERPRISE SLA</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant mb-space-md">
+              For high-throughput RPA practices, large consulting firms, and mission-critical workflows.
+            </p>
+<div class="flex items-baseline gap-1 mb-space-lg">
+<span class="font-display-md text-display-md text-on-surface font-bold">$399</span>
+<span class="font-label-code-sm text-label-code-sm text-on-surface-variant">/ month</span>
+</div>
+<ul class="space-y-space-sm font-body-sm text-body-sm text-on-surface mb-space-lg"><li class="flex items-center gap-2"><span class="material-symbols-outlined text-primary text-[18px]">check</span><span class=""><strong>100,000</strong> Destination Verification Queries / mo</span></li><li class="flex items-center gap-2"><span class="material-symbols-outlined text-primary text-[18px]">check</span><span class="">Dedicated Oracle Egress IP Addresses</span></li><li class="flex items-center gap-2"><span class="material-symbols-outlined text-primary text-[18px]">check</span><span class="">Direct Query Adapter SDK Access</span></li><li class="flex items-center gap-2"><span class="material-symbols-outlined text-primary text-[18px]">check</span><span class="">Technical Uptime SLA (99.9% Platform Availability)</span></li><li class="flex items-center gap-2"><span class="material-symbols-outlined text-primary text-[18px]">check</span><span class="">Payload Schema &amp; Custom Oracle Review</span></li></ul>
+</div>
+<a class="w-full py-space-sm rounded bg-surface-container-high text-on-surface hover:bg-surface-bright font-headline-sm text-body-sm font-semibold text-center transition-colors" href="#trial">
+            Contact Partner Solutions
+          </a>
+</div>
+</div>
+</div>
+</section>
+<!-- SECTION 9: FINAL CONVERSION CTA SECTION -->
+<section class="w-full px-gutter-lg py-space-xl relative overflow-hidden" id="trial">
+<div class="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-primary/10 via-surface-container-lowest to-surface-container-lowest pointer-events-none"></div>
+<div class="max-w-[1000px] mx-auto text-center relative z-10">
+<div class="inline-flex items-center gap-2 px-space-sm py-1 rounded bg-surface-container font-label-code-sm text-label-code-sm text-primary mb-space-md">
+<span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+<span class="">DEPLOY GROUND TRUTH IN 3 MINUTES</span>
+</div>
+<h2 class="font-display-lg text-display-lg text-on-surface font-extrabold tracking-tight mb-space-md">Stop Wondering <span class="text-tertiary">"Did that sync actually land?"</span></h2>
+<p class="font-body-lg text-body-lg text-on-surface-variant max-w-2xl mx-auto mb-space-xl">Arm your agency with independent post-execution audits. We verify what actually landed, or explicitly report when we could not check.</p>
+<!-- Email Capture Form -->
+<div class="max-w-xl mx-auto mb-space-md">
+<form class="flex flex-col sm:flex-row gap-space-xs bg-surface-container p-1.5 rounded-lg shadow-2xl" onsubmit="event.preventDefault(); alert('Agency Sandbox Provisioned! Redirecting to setup wizard...');">
+<input class="flex-grow bg-surface-container-lowest text-on-surface font-label-code-md text-label-code-md px-space-md py-space-sm rounded focus:outline-none focus:ring-1 focus:ring-secondary" placeholder="Enter work email (e.g. alex@youragency.com)" required="" type="email">
+<button class="px-space-lg py-space-sm rounded bg-primary text-on-primary font-headline-sm text-body-sm font-bold shadow-[0_0_20px_rgba(78,222,163,0.35)] hover:bg-primary-fixed-dim transition-all whitespace-nowrap" type="submit">
+            Launch Sandbox
+          </button>
+</form>
+</div>
+<div class="flex flex-wrap items-center justify-center gap-space-md text-on-surface-variant font-label-code-sm text-label-code-sm"><span class="flex items-center gap-1"><span class="material-symbols-outlined text-primary text-[16px]">verified</span> 14-Day Evaluation Access</span><span class="">•</span><span class="flex items-center gap-1"><span class="material-symbols-outlined text-primary text-[16px]">terminal</span> Sandbox Test Environment</span><span class="">•</span><span class="flex items-center gap-1"><span class="material-symbols-outlined text-secondary text-[16px]">credit_card_off</span> No Credit Card Required</span></div>
+</div>
+</section>
+<!-- INLINE VANILLA JAVASCRIPT FOR DYNAMIC CALCULATOR -->
+<script>
+    function updateCalculator() {
+      const workflows = parseInt(document.getElementById('workflows-slider').value, 10);
+      const retainer = parseInt(document.getElementById('retainer-slider').value, 10);
+      
+      const annualLtv = retainer * 12;
+      document.getElementById('workflows-val').innerText = workflows + ' Workflows';
+      document.getElementById('retainer-val').innerText = '$' + retainer.toLocaleString() + ' / month';
+      document.getElementById('ltv-val').innerText = '$' + annualLtv.toLocaleString();
+
+      // Formula: roughly 1 silent failure churn incident per 60 workflows/year
+      const churnSaved = Math.max(0.4, (workflows / 62.5)).toFixed(1);
+      const valuePreserved = Math.round(churnSaved * annualLtv);
+
+      document.getElementById('churn-prevented').innerText = churnSaved + ' Clients / Year';
+      document.getElementById('value-preserved').innerText = '$' + valuePreserved.toLocaleString() + ' / yr';
+
+      // Tier & ROI calculations
+      let costPerMonth = 49;
+      let tierName = "Starter Agency ($49/mo)";
+      if (workflows > 100 && workflows <= 400) {
+        costPerMonth = 149;
+        tierName = "Growth Agency ($149/mo)";
+      } else if (workflows > 400) {
+        costPerMonth = 399;
+        tierName = "High-Scale Partner ($399/mo)";
+      }
+
+      document.getElementById('recommended-tier').innerText = tierName;
+      const annualCost = costPerMonth * 12;
+      const roi = ((valuePreserved - annualCost) / annualCost).toFixed(1);
+      document.getElementById('roi-multiple').innerText = Math.max(1, roi) + 'x Return';
+    }
+  </script>
+</div></main><footer class="w-full bg-surface-container-low relative z-10 pt-space-xl pb-space-lg"><div class="w-full px-gutter-lg"><div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-gutter-lg mb-space-xl"><div class="lg:col-span-2 flex flex-col items-start"><div class="flex items-center gap-space-sm mb-space-md"><img alt="ITISYOU Verify Logo" class="h-7 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1U7B5ZTJffMnV9nd87k-oSX0MbVJFr9ADq2wg5kjNspqTjmWXgOeiOc49rAfQRfCujiC8j3UYH3A71mB2XGBaz8XsX12Uxt7nz1vLFzAJlF-_OeIf-D_KWsMWHWFLXJpx-e9JYP2Qn5ERMbTvz7VAITuJgNPE1WhyiI9CveuRmTRi1QkXufv5P5qamvcrRkPN4g6Xpo2hesOtice_aZ2fLPQpSsn47P4apvhvs5Do71KgycyToCwwbYLkJ3"><span class="font-headline-sm text-headline-sm text-on-surface">ITISYOU Verify</span></div><p class="font-body-md text-body-md text-on-surface-variant max-w-sm mb-space-lg">Independent destination checking for automation agencies. We verify what actually landed in downstream APIs, or report explicitly when a check could not be completed.</p><div class="flex items-center gap-space-sm px-space-md py-space-xs bg-surface-container rounded"><span class="relative flex h-2 w-2"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-primary"></span></span><span class="font-label-code-sm text-label-code-sm text-primary uppercase font-bold tracking-wider">All Verification Oracles Operational 99.99%</span></div></div><div><h4 class="font-headline-sm text-body-md text-on-surface uppercase tracking-wider mb-space-md font-semibold">Engine Specs</h4><ul class="space-y-space-sm"><li class="font-label-code-md text-label-code-md text-on-surface-variant">Make (Integromat) Webhook Node</li><li class="font-label-code-md text-label-code-md text-on-surface-variant">Zapier Private Integration CLI</li><li class="font-label-code-md text-label-code-md text-on-surface-variant">n8n Verified Community Node</li><li class="font-label-code-md text-label-code-md text-on-surface-variant">Python SDK (PyPI: itisyou)</li><li class="font-label-code-md text-label-code-md text-on-surface-variant">Zero-Trust Payload Ledger</li></ul></div><div><h4 class="font-headline-sm text-body-md text-on-surface uppercase tracking-wider mb-space-md font-semibold">Verification Hub</h4><ul class="space-y-space-sm"><li class="font-body-md text-body-md text-on-surface-variant hover:text-on-surface"><a data-path="agency-proof-hub" href="#" class="">Agency Certified Partner Directory</a></li><li class="font-body-md text-body-md text-on-surface-variant hover:text-on-surface"><a data-path="pricing-and-roi-calculator" href="#" class="">Client SLA Shield Guarantee</a></li><li class="font-body-md text-body-md text-on-surface-variant hover:text-on-surface"><a data-path="the-silent-failure-problem" href="#" class="">Silent Error Taxonomy Database</a></li><li class="font-body-md text-body-md text-on-surface-variant hover:text-on-surface"><a data-path="how-it-works" href="#" class="">Real-Time Oracle Consensus</a></li><li class="font-body-md text-body-md text-on-surface-variant hover:text-on-surface"><a data-path="documentation" href="#" class="">Cryptographic Proof Protocol</a></li></ul></div><div><h4 class="font-headline-sm text-body-md text-on-surface uppercase tracking-wider mb-space-md font-semibold">Trust &amp; Security</h4><div class="flex flex-col gap-space-xs mb-space-md"><span class="font-label-code-sm text-label-code-sm text-primary bg-surface-container px-space-sm py-space-xs rounded w-fit">SOC2 TYPE II VERIFIED</span><span class="font-label-code-sm text-label-code-sm text-secondary bg-surface-container px-space-sm py-space-xs rounded w-fit">E2E ENCRYPTED HASHING</span><span class="font-label-code-sm text-label-code-sm text-on-surface-variant bg-surface-container px-space-sm py-space-xs rounded w-fit">ISO 27001 COMPLIANT</span></div><p class="font-body-sm text-body-sm text-on-surface-variant">Deterministic payloads stored with zero client PII retention policy.</p></div></div><div class="pt-space-lg flex flex-col md:flex-row items-center justify-between gap-space-md"><div class="flex items-center gap-space-md"><span class="font-label-code-sm text-label-code-sm text-on-surface-variant">© 2025 ITISYOU Verify Inc. All verification rights reserved.</span><span class="font-label-code-sm text-label-code-sm text-outline">//</span><span class="font-label-code-sm text-label-code-sm text-on-surface-variant">Don't rely solely on the dispatch log. Check the destination state.</span></div><div class="flex items-center gap-space-lg font-label-code-sm text-label-code-sm text-on-surface-variant"><a class="hover:text-on-surface transition-colors" data-path="documentation" href="#">Security Whitepaper</a><a class="hover:text-on-surface transition-colors" data-path="documentation" href="#">Privacy Framework</a><a class="hover:text-on-surface transition-colors" data-path="documentation" href="#">Status Telemetry</a></div></div></div></footer>
+
+</body></html>

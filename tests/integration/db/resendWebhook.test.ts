@@ -16,7 +16,15 @@ import {
   newWebhookPathId,
 } from '@app/db';
 import type { Env } from '@app/lib/context';
-import { countRows, createTestDb, seedRun, seedWorkspace, T0, type SeededWorkspace, type TestDb } from './harness';
+import {
+  countRows,
+  createTestDb,
+  seedRun,
+  seedWorkspace,
+  T0,
+  type SeededWorkspace,
+  type TestDb,
+} from './harness';
 
 const NOW = '2026-09-19T10:00:00.000Z';
 // secret-scan:allow ephemeral per-run wrapping key; wraps nothing in the repository
@@ -236,8 +244,9 @@ describe('the endpoint resolver', () => {
       ).aad,
     );
     expect(row.aad).not.toContain(other.workspaceId);
-    expect(buildAad({ workspaceId: ws.workspaceId, provider: 'resend', purpose: 'webhook_secret' }))
-      .toContain(ws.workspaceId);
+    expect(
+      buildAad({ workspaceId: ws.workspaceId, provider: 'resend', purpose: 'webhook_secret' }),
+    ).toContain(ws.workspaceId);
   });
 });
 
@@ -246,7 +255,10 @@ describe('the webhook data port', () => {
   let ws: SeededWorkspace;
   let port: D1ResendWebhookDataPort;
 
-  const emailEvent = (messageId: string, status: EmailEventEvidence['status']): EmailEventEvidence => ({
+  const emailEvent = (
+    messageId: string,
+    status: EmailEventEvidence['status'],
+  ): EmailEventEvidence => ({
     kind: 'email_event',
     origin: 'provider_webhook',
     provider: 'resend',
@@ -319,8 +331,11 @@ describe('the webhook data port', () => {
       }),
     ).toBe(false);
     expect(
-      (h.raw.prepare('SELECT status FROM connections WHERE id = ?').get('conn_a') as { status: string })
-        .status,
+      (
+        h.raw.prepare('SELECT status FROM connections WHERE id = ?').get('conn_a') as {
+          status: string;
+        }
+      ).status,
     ).toBe('testing');
   });
 
@@ -362,7 +377,9 @@ describe('the webhook data port', () => {
     expect(countRows(h, 'evidence')).toBe(1);
 
     const row = h.raw
-      .prepare('SELECT workspace_id, provider, origin, provider_record_id, redacted_summary FROM evidence')
+      .prepare(
+        'SELECT workspace_id, provider, origin, provider_record_id, redacted_summary FROM evidence',
+      )
       .get() as {
       workspace_id: string;
       provider: string;

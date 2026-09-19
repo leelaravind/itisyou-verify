@@ -20,7 +20,13 @@ const JARGON = [
 ];
 
 /** Words that would make us sound certain when we are not, or blame the customer. */
-const FALSE_REASSURANCE = ['probably', 'should be fine', 'everything is working', 'your fault', 'you failed'];
+const FALSE_REASSURANCE = [
+  'probably',
+  'should be fine',
+  'everything is working',
+  'your fault',
+  'you failed',
+];
 
 describe('explainReasonCode', () => {
   it('VERIFY-160 every reason code in the contract has an honest sentence', () => {
@@ -34,7 +40,8 @@ describe('explainReasonCode', () => {
 
   it('VERIFY-161 no reason sentence uses internal jargon', () => {
     for (const code of REASON_CODE) {
-      const text = `${explainReasonCode(code).sentence} ${explainReasonCode(code).next_step ?? ''}`.toLowerCase();
+      const text =
+        `${explainReasonCode(code).sentence} ${explainReasonCode(code).next_step ?? ''}`.toLowerCase();
       for (const word of JARGON) {
         expect(text).not.toContain(word.toLowerCase());
       }
@@ -43,7 +50,8 @@ describe('explainReasonCode', () => {
 
   it('VERIFY-162 no reason sentence offers false reassurance or blame', () => {
     for (const code of REASON_CODE) {
-      const text = `${explainReasonCode(code).sentence} ${explainReasonCode(code).next_step ?? ''}`.toLowerCase();
+      const text =
+        `${explainReasonCode(code).sentence} ${explainReasonCode(code).next_step ?? ''}`.toLowerCase();
       for (const phrase of FALSE_REASSURANCE) {
         expect(text).not.toContain(phrase);
       }
@@ -88,12 +96,18 @@ describe('explainAssertion', () => {
   });
 
   it('VERIFY-168 an assertion with no retrieved value says so rather than inventing one', () => {
-    const result = makeResult({ status: 'UNKNOWN', reason_code: 'AWAITING_EVIDENCE', observed_display: null });
+    const result = makeResult({
+      status: 'UNKNOWN',
+      reason_code: 'AWAITING_EVIDENCE',
+      observed_display: null,
+    });
     expect(explainAssertion(result).detail).toContain('We did not retrieve a value.');
   });
 
   it('VERIFY-169 an unknown assertion is headlined as "could not confirm", never as a failure', () => {
-    const explanation = explainAssertion(mandatoryResult('rule_1', 'UNKNOWN', 'CONNECTION_UNAVAILABLE'));
+    const explanation = explainAssertion(
+      mandatoryResult('rule_1', 'UNKNOWN', 'CONNECTION_UNAVAILABLE'),
+    );
     expect(explanation.headline.startsWith('Could not confirm')).toBe(true);
     expect(explanation.headline.toLowerCase()).not.toContain('failed');
   });

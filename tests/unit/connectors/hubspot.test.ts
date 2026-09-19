@@ -73,7 +73,10 @@ function router(routes: {
   const fetchImpl = (async (url: string) => {
     calls.push(url);
     if (url.includes('/oauth/v2/private-apps/get/access-token-info')) {
-      return routes.tokenInfo?.() ?? json({ userId: 1, hubId: Number(PORTAL), appId: 2, scopes: [HUBSPOT_READ_SCOPE] });
+      return (
+        routes.tokenInfo?.() ??
+        json({ userId: 1, hubId: Number(PORTAL), appId: 2, scopes: [HUBSPOT_READ_SCOPE] })
+      );
     }
     if (url.includes('/crm/v3/objects/contacts/search')) {
       return routes.search?.() ?? json({ total: 0, results: [] });
@@ -116,24 +119,38 @@ describe('HubSpot capabilities', () => {
 describe('HubSpot property selection', () => {
   it('CONN-036 requests only the properties the rules need, plus the three we always need', () => {
     const props = selectProperties(['lifecyclestage'], CORRELATION_PROPERTY);
-    expect(props).toEqual(['hs_object_id', 'email', 'createdate', CORRELATION_PROPERTY, 'lifecyclestage']);
+    expect(props).toEqual([
+      'hs_object_id',
+      'email',
+      'createdate',
+      CORRELATION_PROPERTY,
+      'lifecyclestage',
+    ]);
   });
 
   it('CONN-037 refuses a property name that is not a valid HubSpot identifier', () => {
-    const props = selectProperties(['ok_name', 'bad name', 'worse,name', '../../x'], CORRELATION_PROPERTY);
+    const props = selectProperties(
+      ['ok_name', 'bad name', 'worse,name', '../../x'],
+      CORRELATION_PROPERTY,
+    );
     expect(props).toContain('ok_name');
     expect(props.some((p) => p.includes(' ') || p.includes(',') || p.includes('/'))).toBe(false);
   });
 
   it('CONN-038 caps the number of properties requested', () => {
     const many = Array.from({ length: 60 }, (_, i) => `p${i}`);
-    expect(selectProperties(many, CORRELATION_PROPERTY).length).toBeLessThanOrEqual(MAX_REQUESTED_PROPERTIES);
+    expect(selectProperties(many, CORRELATION_PROPERTY).length).toBeLessThanOrEqual(
+      MAX_REQUESTED_PROPERTIES,
+    );
   });
 });
 
 describe('HubSpot error classification', () => {
   it('CONN-039 maps 401 to AUTH_EXPIRED and marks it not retryable', () => {
-    const e = classifyHubSpotError({ status: 401, bodyText: '{"status":"error","message":"expired"}' });
+    const e = classifyHubSpotError({
+      status: 401,
+      bodyText: '{"status":"error","message":"expired"}',
+    });
     expect(e.code).toBe('AUTH_EXPIRED');
     expect(e.retryable).toBe(false);
   });
@@ -152,7 +169,8 @@ describe('HubSpot error classification', () => {
     const e = classifyHubSpotError({
       status: 429,
       headers: new Headers({ 'retry-after': '12' }),
-      bodyText: '{"status":"error","errorType":"RATE_LIMIT","message":"You have reached your daily limit."}',
+      bodyText:
+        '{"status":"error","errorType":"RATE_LIMIT","message":"You have reached your daily limit."}',
       now: new Date('2026-03-01T12:00:00Z'),
     });
     expect(e.code).toBe('RATE_LIMITED');
@@ -188,7 +206,10 @@ describe('HubSpot error classification', () => {
   });
 
   it('CONN-045 maps a transport timeout to PROVIDER_UNAVAILABLE and never to NOT_FOUND', () => {
-    const e = classifyHubSpotError({ status: null, cause: new ConnectorTransportError('timeout', 'no response') });
+    const e = classifyHubSpotError({
+      status: null,
+      cause: new ConnectorTransportError('timeout', 'no response'),
+    });
     expect(e.code).toBe('PROVIDER_UNAVAILABLE');
     expect(e.code).not.toBe('NOT_FOUND');
   });
@@ -202,7 +223,10 @@ describe('HubSpot error classification', () => {
   });
 
   it('CONN-047 maps a 200 carrying an error envelope to PROVIDER_UNAVAILABLE, never to a pass', () => {
-    const e = classifyHubSpotError({ status: 200, bodyText: '{"status":"error","message":"something odd"}' });
+    const e = classifyHubSpotError({
+      status: 200,
+      bodyText: '{"status":"error","message":"something odd"}',
+    });
     expect(e.code).toBe('PROVIDER_UNAVAILABLE');
   });
 });
@@ -255,7 +279,10 @@ describe('HubSpot normalisation', () => {
 
   it('CONN-052 coerces unexpected property value types instead of crashing', () => {
     const result = normaliseHubSpotContact(
-      { id: 7, properties: { email: RECIPIENT, count: 3, flag: true, nested: { a: 1 }, missing: null } },
+      {
+        id: 7,
+        properties: { email: RECIPIENT, count: 3, flag: true, nested: { a: 1 }, missing: null },
+      },
       ctx,
     );
     expect(result.ok).toBe(true);
@@ -311,7 +338,9 @@ describe('HubSpot fetchEvidence — the account identity', () => {
   });
 
   it('CONN-056 resolves the portal id live when the connection has never completed setup', async () => {
-    const { fetchImpl, calls } = router({ search: () => json({ total: 1, results: [contactPayload()] }) });
+    const { fetchImpl, calls } = router({
+      search: () => json({ total: 1, results: [contactPayload()] }),
+    });
     const result = await makeConnector(fetchImpl).fetchEvidence({
       credentials,
       connection: connection({ account_id: null }),
@@ -358,7 +387,8 @@ describe('HubSpot fetchEvidence — correlation search', () => {
 
   it('CONN-059 emits AMBIGUOUS_MATCH for two matches and never guesses between them', async () => {
     const { fetchImpl } = router({
-      search: () => json({ total: 2, results: [contactPayload(), contactPayload({ id: '33452' })] }),
+      search: () =>
+        json({ total: 2, results: [contactPayload(), contactPayload({ id: '33452' })] }),
     });
     const result = await makeConnector(fetchImpl).fetchEvidence(base);
     expect(result.evidence).toHaveLength(0);
@@ -400,7 +430,8 @@ describe('HubSpot fetchEvidence — correlation search', () => {
 
   it('CONN-064 emits RATE_LIMITED with Retry-After for a 429 from the search endpoint', async () => {
     const { fetchImpl } = router({
-      search: () => json({ status: 'error', errorType: 'RATE_LIMIT' }, 429, { 'retry-after': '20' }),
+      search: () =>
+        json({ status: 'error', errorType: 'RATE_LIMIT' }, 429, { 'retry-after': '20' }),
     });
     const result = await makeConnector(fetchImpl).fetchEvidence(base);
     expect(result.gaps[0]?.code).toBe('RATE_LIMITED');
@@ -450,9 +481,18 @@ describe('HubSpot fetchEvidence — correlation search', () => {
       return json({ hubId: Number(PORTAL) });
     }) as unknown as typeof fetch;
 
-    await makeConnector(fetchImpl).fetchEvidence({ ...base, requiredProperties: ['lifecyclestage'] });
+    await makeConnector(fetchImpl).fetchEvidence({
+      ...base,
+      requiredProperties: ['lifecyclestage'],
+    });
     const parsed = JSON.parse(body ?? '{}') as { properties: string[]; limit: number };
-    expect(parsed.properties).toEqual(['hs_object_id', 'email', 'createdate', CORRELATION_PROPERTY, 'lifecyclestage']);
+    expect(parsed.properties).toEqual([
+      'hs_object_id',
+      'email',
+      'createdate',
+      CORRELATION_PROPERTY,
+      'lifecyclestage',
+    ]);
     expect(parsed.limit).toBe(2);
   });
 
@@ -484,14 +524,17 @@ describe('HubSpot fetchEvidence — lookup by record id', () => {
 
   it('CONN-072 emits NOT_FOUND for HubSpot’s documented object-not-found 404', async () => {
     const { fetchImpl } = router({
-      contact: () => json({ status: 'error', message: 'resource not found', category: 'OBJECT_NOT_FOUND' }, 404),
+      contact: () =>
+        json({ status: 'error', message: 'resource not found', category: 'OBJECT_NOT_FOUND' }, 404),
     });
     const result = await makeConnector(fetchImpl).fetchEvidence(base);
     expect(result.gaps[0]?.code).toBe('NOT_FOUND');
   });
 
   it('CONN-073 refuses to call a 404 an absence when it is not HubSpot’s object-not-found envelope', async () => {
-    const { fetchImpl } = router({ contact: () => new Response('<html>404 from a proxy</html>', { status: 404 }) });
+    const { fetchImpl } = router({
+      contact: () => new Response('<html>404 from a proxy</html>', { status: 404 }),
+    });
     const result = await makeConnector(fetchImpl).fetchEvidence(base);
     expect(result.gaps[0]?.code).toBe('PROVIDER_UNAVAILABLE');
     expect(result.gaps.map((g) => g.code)).not.toContain('NOT_FOUND');
@@ -499,7 +542,8 @@ describe('HubSpot fetchEvidence — lookup by record id', () => {
 
   it('CONN-074 never percent-escapes its way out of the contacts endpoint', async () => {
     const { fetchImpl, calls } = router({
-      contact: () => json({ status: 'error', message: 'not found', category: 'OBJECT_NOT_FOUND' }, 404),
+      contact: () =>
+        json({ status: 'error', message: 'not found', category: 'OBJECT_NOT_FOUND' }, 404),
     });
     await makeConnector(fetchImpl).fetchEvidence({
       ...base,
@@ -511,7 +555,8 @@ describe('HubSpot fetchEvidence — lookup by record id', () => {
 
   it('CONN-075 does not fall back to a search when the id lookup authoritatively answers', async () => {
     const { fetchImpl, calls } = router({
-      contact: () => json({ status: 'error', message: 'not found', category: 'OBJECT_NOT_FOUND' }, 404),
+      contact: () =>
+        json({ status: 'error', message: 'not found', category: 'OBJECT_NOT_FOUND' }, 404),
     });
     await makeConnector(fetchImpl).fetchEvidence(base);
     expect(calls.some((c) => c.includes('/search'))).toBe(false);

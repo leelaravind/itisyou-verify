@@ -44,7 +44,10 @@ function one(spec: AssertionSpec, bundle: EvidenceBundle, ctx = CTX): AssertionR
 
 describe('evaluateAssertions — exists', () => {
   it('VERIFY-001 supports exists when the addressed field is present', () => {
-    const r = one(makeAssertion({ field: 'record.id', operator: 'exists', expected: '' }), makeEvidenceBundle());
+    const r = one(
+      makeAssertion({ field: 'record.id', operator: 'exists', expected: '' }),
+      makeEvidenceBundle(),
+    );
     expect(r.status).toBe('SUPPORTED');
     expect(r.reason_code).toBe('MATCHED');
     expect(r.evidence_ref).toBe('crm_record:hubspot:crm-rec-1');
@@ -52,19 +55,37 @@ describe('evaluateAssertions — exists', () => {
 
   it('VERIFY-002 contradicts exists when the retrieved record returns the field empty', () => {
     const bundle = makeEvidenceBundle({ crm: makeCrmEvidence({ email: null }) });
-    const r = one(makeAssertion({ rule_id: 'email_present', field: 'record.email', operator: 'exists', expected: '' }), bundle);
+    const r = one(
+      makeAssertion({
+        rule_id: 'email_present',
+        field: 'record.email',
+        operator: 'exists',
+        expected: '',
+      }),
+      bundle,
+    );
     expect(r.status).toBe('CONTRADICTED');
     expect(r.reason_code).toBe('VALUE_MISMATCH');
   });
 
   it('VERIFY-003 treats a whitespace-only value as absent at the exists boundary', () => {
     const bundle = makeEvidenceBundle({ crm: makeCrmEvidence({ email: '   ' }) });
-    const r = one(makeAssertion({ rule_id: 'email_present', field: 'record.email', operator: 'exists', expected: '' }), bundle);
+    const r = one(
+      makeAssertion({
+        rule_id: 'email_present',
+        field: 'record.email',
+        operator: 'exists',
+        expected: '',
+      }),
+      bundle,
+    );
     expect(r.status).toBe('CONTRADICTED');
   });
 
   it('VERIFY-004 returns UNKNOWN for exists when the evidence source was unavailable', () => {
-    const bundle = makeEmptyBundle({ gaps: [makeGap({ source: 'crm_record', code: 'PROVIDER_UNAVAILABLE' })] });
+    const bundle = makeEmptyBundle({
+      gaps: [makeGap({ source: 'crm_record', code: 'PROVIDER_UNAVAILABLE' })],
+    });
     const r = one(makeAssertion({ field: 'record.id', operator: 'exists', expected: '' }), bundle);
     expect(r.status).toBe('UNKNOWN');
     expect(r.reason_code).toBe('EVIDENCE_UNAVAILABLE');
@@ -73,7 +94,12 @@ describe('evaluateAssertions — exists', () => {
   it('VERIFY-005 reports CORRELATION_MISSING when the correlation property itself is absent', () => {
     const bundle = makeEvidenceBundle({ crm: makeCrmEvidence({ correlation_value: null }) });
     const r = one(
-      makeAssertion({ rule_id: 'correlation_present', field: 'record.correlation_id', operator: 'exists', expected: '' }),
+      makeAssertion({
+        rule_id: 'correlation_present',
+        field: 'record.correlation_id',
+        operator: 'exists',
+        expected: '',
+      }),
       bundle,
     );
     expect(r.status).toBe('CONTRADICTED');
@@ -102,12 +128,16 @@ describe('evaluateAssertions — equals and not_equals', () => {
   });
 
   it('VERIFY-008 trims surrounding whitespace at the equals boundary', () => {
-    const bundle = makeEvidenceBundle({ crm: makeCrmEvidence({ correlation_value: `  ${CORRELATION_VALUE}  ` }) });
+    const bundle = makeEvidenceBundle({
+      crm: makeCrmEvidence({ correlation_value: `  ${CORRELATION_VALUE}  ` }),
+    });
     expect(one(equalsSpec, bundle).status).toBe('SUPPORTED');
   });
 
   it('VERIFY-009 keeps equals case-sensitive on a non-email field', () => {
-    const bundle = makeEvidenceBundle({ crm: makeCrmEvidence({ correlation_value: CORRELATION_VALUE.toUpperCase() }) });
+    const bundle = makeEvidenceBundle({
+      crm: makeCrmEvidence({ correlation_value: CORRELATION_VALUE.toUpperCase() }),
+    });
     expect(one(equalsSpec, bundle).status).toBe('CONTRADICTED');
   });
 
@@ -143,7 +173,9 @@ describe('evaluateAssertions — equals and not_equals', () => {
       operator: 'equals',
       expected: 'lead',
     });
-    const bundle = makeEvidenceBundle({ crm: makeCrmEvidence({ properties: { lifecyclestage: null } }) });
+    const bundle = makeEvidenceBundle({
+      crm: makeCrmEvidence({ properties: { lifecyclestage: null } }),
+    });
     const r = one(spec, bundle);
     expect(r.status).toBe('CONTRADICTED');
     expect(r.reason_code).toBe('VALUE_MISMATCH');
@@ -162,19 +194,25 @@ describe('evaluateAssertions — equals and not_equals', () => {
   });
 
   it('VERIFY-014 contradicts not_equals when the value is the forbidden one', () => {
-    const bundle = makeEvidenceBundle({ crm: makeCrmEvidence({ properties: { lifecyclestage: 'duplicate' } }) });
+    const bundle = makeEvidenceBundle({
+      crm: makeCrmEvidence({ properties: { lifecyclestage: 'duplicate' } }),
+    });
     expect(one(notEqualsSpec, bundle).status).toBe('CONTRADICTED');
   });
 
   it('VERIFY-015 never infers not_equals success from an absent value', () => {
-    const bundle = makeEvidenceBundle({ crm: makeCrmEvidence({ properties: { lifecyclestage: null } }) });
+    const bundle = makeEvidenceBundle({
+      crm: makeCrmEvidence({ properties: { lifecyclestage: null } }),
+    });
     const r = one(notEqualsSpec, bundle);
     expect(r.status).toBe('UNKNOWN');
     expect(r.reason_code).toBe('EVIDENCE_NOT_RETURNED');
   });
 
   it('VERIFY-016 returns UNKNOWN for not_equals when the source was unavailable', () => {
-    const bundle = makeEmptyBundle({ gaps: [makeGap({ source: 'crm_record', code: 'RATE_LIMITED' })] });
+    const bundle = makeEmptyBundle({
+      gaps: [makeGap({ source: 'crm_record', code: 'RATE_LIMITED' })],
+    });
     expect(one(notEqualsSpec, bundle).status).toBe('UNKNOWN');
   });
 });
@@ -189,24 +227,32 @@ describe('evaluateAssertions — normalised_email_equals', () => {
   });
 
   it('VERIFY-017 supports a match that differs only by case and whitespace', () => {
-    const bundle = makeEvidenceBundle({ email_events: [makeEmailEvent({ recipient: '  ADA@EXAMPLE.TEST ' })] });
+    const bundle = makeEvidenceBundle({
+      email_events: [makeEmailEvent({ recipient: '  ADA@EXAMPLE.TEST ' })],
+    });
     expect(one(spec, bundle).status).toBe('SUPPORTED');
   });
 
   it('VERIFY-018 strips a display name and angle brackets before comparing', () => {
-    const bundle = makeEvidenceBundle({ email_events: [makeEmailEvent({ recipient: 'Ada Lovelace <ada@example.test>' })] });
+    const bundle = makeEvidenceBundle({
+      email_events: [makeEmailEvent({ recipient: 'Ada Lovelace <ada@example.test>' })],
+    });
     expect(one(spec, bundle).status).toBe('SUPPORTED');
   });
 
   it('VERIFY-019 does NOT strip a plus tag: a tagged address is a different mailbox', () => {
-    const bundle = makeEvidenceBundle({ email_events: [makeEmailEvent({ recipient: 'ada+anything@example.test' })] });
+    const bundle = makeEvidenceBundle({
+      email_events: [makeEmailEvent({ recipient: 'ada+anything@example.test' })],
+    });
     const r = one(spec, bundle);
     expect(r.status).toBe('CONTRADICTED');
     expect(r.reason_code).toBe('VALUE_MISMATCH');
   });
 
   it('VERIFY-020 does NOT strip dots from the local part: that equivalence is Gmail-specific', () => {
-    const bundle = makeEvidenceBundle({ email_events: [makeEmailEvent({ recipient: 'a.d.a@example.test' })] });
+    const bundle = makeEvidenceBundle({
+      email_events: [makeEmailEvent({ recipient: 'a.d.a@example.test' })],
+    });
     expect(one(spec, bundle).status).toBe('CONTRADICTED');
   });
 
@@ -216,7 +262,9 @@ describe('evaluateAssertions — normalised_email_equals', () => {
   });
 
   it('VERIFY-022 returns UNKNOWN for normalised_email_equals when the email source was unavailable', () => {
-    const bundle = makeEmptyBundle({ gaps: [makeGap({ source: 'email_event', code: 'PROVIDER_UNAVAILABLE' })] });
+    const bundle = makeEmptyBundle({
+      gaps: [makeGap({ source: 'email_event', code: 'PROVIDER_UNAVAILABLE' })],
+    });
     const r = one(spec, bundle);
     expect(r.status).toBe('UNKNOWN');
     expect(r.reason_code).toBe('EVIDENCE_UNAVAILABLE');
@@ -241,36 +289,48 @@ describe('evaluateAssertions — occurred_within', () => {
   });
 
   it('VERIFY-024 supports a timestamp one second inside the window', () => {
-    const bundle = makeEvidenceBundle({ crm: makeCrmEvidence({ created_at: isoAfter(T_EVENT, 299) }) });
+    const bundle = makeEvidenceBundle({
+      crm: makeCrmEvidence({ created_at: isoAfter(T_EVENT, 299) }),
+    });
     expect(one(spec, bundle).status).toBe('SUPPORTED');
   });
 
   it('VERIFY-025 supports a timestamp exactly on the boundary second', () => {
-    const bundle = makeEvidenceBundle({ crm: makeCrmEvidence({ created_at: isoAfter(T_EVENT, 300) }) });
+    const bundle = makeEvidenceBundle({
+      crm: makeCrmEvidence({ created_at: isoAfter(T_EVENT, 300) }),
+    });
     expect(one(spec, bundle).status).toBe('SUPPORTED');
   });
 
   it('VERIFY-026 contradicts a timestamp one second outside the window', () => {
-    const bundle = makeEvidenceBundle({ crm: makeCrmEvidence({ created_at: isoAfter(T_EVENT, 301) }) });
+    const bundle = makeEvidenceBundle({
+      crm: makeCrmEvidence({ created_at: isoAfter(T_EVENT, 301) }),
+    });
     const r = one(spec, bundle);
     expect(r.status).toBe('CONTRADICTED');
     expect(r.reason_code).toBe('OUTSIDE_TIME_WINDOW');
   });
 
   it('VERIFY-027 contradicts evidence that predates the business event', () => {
-    const bundle = makeEvidenceBundle({ crm: makeCrmEvidence({ created_at: isoAfter(T_EVENT, -1) }) });
+    const bundle = makeEvidenceBundle({
+      crm: makeCrmEvidence({ created_at: isoAfter(T_EVENT, -1) }),
+    });
     const r = one(spec, bundle);
     expect(r.status).toBe('CONTRADICTED');
     expect(r.reason_code).toBe('OUTSIDE_TIME_WINDOW');
   });
 
   it('VERIFY-028 contradicts a record created long before the enquiry rather than calling it evidence', () => {
-    const bundle = makeEvidenceBundle({ crm: makeCrmEvidence({ created_at: isoAfter(T_EVENT, -86_400) }) });
+    const bundle = makeEvidenceBundle({
+      crm: makeCrmEvidence({ created_at: isoAfter(T_EVENT, -86_400) }),
+    });
     expect(one(spec, bundle).status).toBe('CONTRADICTED');
   });
 
   it('VERIFY-029 supports a timestamp equal to the business event itself', () => {
-    const bundle = makeEvidenceBundle({ crm: makeCrmEvidence({ created_at: isoAfter(T_EVENT, 0) }) });
+    const bundle = makeEvidenceBundle({
+      crm: makeCrmEvidence({ created_at: isoAfter(T_EVENT, 0) }),
+    });
     expect(one(spec, bundle).status).toBe('SUPPORTED');
   });
 
@@ -282,12 +342,16 @@ describe('evaluateAssertions — occurred_within', () => {
   });
 
   it('VERIFY-031 returns UNKNOWN for occurred_within when the source was unavailable', () => {
-    const bundle = makeEmptyBundle({ gaps: [makeGap({ source: 'crm_record', code: 'PROVIDER_UNAVAILABLE' })] });
+    const bundle = makeEmptyBundle({
+      gaps: [makeGap({ source: 'crm_record', code: 'PROVIDER_UNAVAILABLE' })],
+    });
     expect(one(spec, bundle).status).toBe('UNKNOWN');
   });
 
   it('VERIFY-032 measures the window from the business event, not from now', () => {
-    const bundle = makeEvidenceBundle({ crm: makeCrmEvidence({ created_at: isoAfter(T_EVENT, 120) }) });
+    const bundle = makeEvidenceBundle({
+      crm: makeCrmEvidence({ created_at: isoAfter(T_EVENT, 120) }),
+    });
     const early = one(spec, bundle, { ...CTX, now: T_INSIDE_WINDOW });
     const late = one(spec, bundle, { ...CTX, now: T_AFTER_DEADLINE });
     expect(early.status).toBe('SUPPORTED');
@@ -413,12 +477,16 @@ describe('evaluateAssertions — one_of', () => {
   });
 
   it('VERIFY-046 contradicts one_of when the observed value is outside the list', () => {
-    const bundle = makeEvidenceBundle({ crm: makeCrmEvidence({ properties: { lifecyclestage: 'customer' } }) });
+    const bundle = makeEvidenceBundle({
+      crm: makeCrmEvidence({ properties: { lifecyclestage: 'customer' } }),
+    });
     expect(one(spec, bundle).status).toBe('CONTRADICTED');
   });
 
   it('VERIFY-047 trims the observed value at the one_of boundary', () => {
-    const bundle = makeEvidenceBundle({ crm: makeCrmEvidence({ properties: { lifecyclestage: ' lead ' } }) });
+    const bundle = makeEvidenceBundle({
+      crm: makeCrmEvidence({ properties: { lifecyclestage: ' lead ' } }),
+    });
     expect(one(spec, bundle).status).toBe('SUPPORTED');
   });
 
@@ -478,7 +546,9 @@ describe('evaluateAssertions — gaps, accounts and origin', () => {
   });
 
   it('VERIFY-054 a record in another provider account contradicts every CRM assertion', () => {
-    const bundle = makeEvidenceBundle({ crm: makeCrmEvidence({ provider_account_id: FOREIGN_ACCOUNT }) });
+    const bundle = makeEvidenceBundle({
+      crm: makeCrmEvidence({ provider_account_id: FOREIGN_ACCOUNT }),
+    });
     const results = evaluateAssertions(makeStandardWorkflow(), bundle, CTX);
     const crmResults = results.filter((r) => r.rule_id.startsWith('crm_'));
     expect(crmResults).toHaveLength(3);
@@ -503,14 +573,18 @@ describe('evaluateAssertions — gaps, accounts and origin', () => {
       operator: 'provider_status_in',
       expected: ['delivered'],
     });
-    const bundle = makeEvidenceBundle({ email_events: [makeEmailEvent({ provider_account_id: FOREIGN_ACCOUNT })] });
+    const bundle = makeEvidenceBundle({
+      email_events: [makeEmailEvent({ provider_account_id: FOREIGN_ACCOUNT })],
+    });
     const r = one(spec, bundle);
     expect(r.status).toBe('CONTRADICTED');
     expect(r.reason_code).toBe('RECORD_WRONG_ACCOUNT');
   });
 
   it('VERIFY-057 the account check is skipped when the caller asserts no connected account', () => {
-    const bundle = makeEvidenceBundle({ crm: makeCrmEvidence({ provider_account_id: FOREIGN_ACCOUNT }) });
+    const bundle = makeEvidenceBundle({
+      crm: makeCrmEvidence({ provider_account_id: FOREIGN_ACCOUNT }),
+    });
     const r = one(existsSpec, bundle, { occurredAt: T_EVENT, now: T_INSIDE_WINDOW } as typeof CTX);
     expect(r.status).toBe('SUPPORTED');
   });
@@ -534,7 +608,12 @@ describe('evaluateAssertions — gaps, accounts and origin', () => {
   });
 
   it('VERIFY-060 a customer claim may be evaluated normally for an optional assertion', () => {
-    const optional = makeAssertion({ field: 'record.id', operator: 'exists', expected: '', mandatory: false });
+    const optional = makeAssertion({
+      field: 'record.id',
+      operator: 'exists',
+      expected: '',
+      mandatory: false,
+    });
     const mandatory = makeAssertion({
       rule_id: 'correlation_present',
       field: 'record.correlation_id',
@@ -600,7 +679,9 @@ describe('evaluateAssertions — gaps, accounts and origin', () => {
     );
     const permission = one(
       existsSpec,
-      makeEmptyBundle({ gaps: [makeGap({ source: 'crm_record', code: 'PERMISSION_MISSING', retryable: false })] }),
+      makeEmptyBundle({
+        gaps: [makeGap({ source: 'crm_record', code: 'PERMISSION_MISSING', retryable: false })],
+      }),
     );
     expect(claim.reason_code).toBe('CLAIM_NOT_INDEPENDENT');
     expect(outage.reason_code).toBe('EVIDENCE_UNAVAILABLE');
@@ -620,7 +701,11 @@ describe('evaluateAssertions — gaps, accounts and origin', () => {
 
 describe('evaluateAssertions — configuration the evaluator refuses to guess at', () => {
   it('VERIFY-063 a rule addressing record.property without a property name is RULE_UNSUPPORTED', () => {
-    const spec = makeRawAssertion({ field: 'record.property', operator: 'equals', expected: 'lead' });
+    const spec = makeRawAssertion({
+      field: 'record.property',
+      operator: 'equals',
+      expected: 'lead',
+    });
     const r = one(spec, makeEvidenceBundle());
     expect(r.status).toBe('UNKNOWN');
     expect(r.reason_code).toBe('RULE_UNSUPPORTED');
@@ -637,7 +722,11 @@ describe('evaluateAssertions — configuration the evaluator refuses to guess at
   });
 
   it('VERIFY-065 occurred_within with a non-numeric window is RULE_UNSUPPORTED', () => {
-    const spec = makeRawAssertion({ field: 'record.created_at', operator: 'occurred_within', expected: 'soon' });
+    const spec = makeRawAssertion({
+      field: 'record.created_at',
+      operator: 'occurred_within',
+      expected: 'soon',
+    });
     expect(one(spec, makeEvidenceBundle()).reason_code).toBe('RULE_UNSUPPORTED');
   });
 
@@ -652,12 +741,21 @@ describe('evaluateAssertions — configuration the evaluator refuses to guess at
   });
 
   it('VERIFY-067 a field that belongs to the other evidence source is RULE_UNSUPPORTED', () => {
-    const spec = makeRawAssertion({ source: 'email_event', field: 'record.id', operator: 'exists', expected: '' });
+    const spec = makeRawAssertion({
+      source: 'email_event',
+      field: 'record.id',
+      operator: 'exists',
+      expected: '',
+    });
     expect(one(spec, makeEvidenceBundle()).reason_code).toBe('RULE_UNSUPPORTED');
   });
 
   it('VERIFY-068 an unknown field is RULE_UNSUPPORTED rather than silently absent', () => {
-    const spec = makeRawAssertion({ field: 'record.secret_sauce', operator: 'exists', expected: '' });
+    const spec = makeRawAssertion({
+      field: 'record.secret_sauce',
+      operator: 'exists',
+      expected: '',
+    });
     expect(one(spec, makeEvidenceBundle()).reason_code).toBe('RULE_UNSUPPORTED');
   });
 
@@ -673,7 +771,10 @@ describe('evaluateAssertions — configuration the evaluator refuses to guess at
 
   it('VERIFY-070 a workflow whose assertions are all optional is rejected', () => {
     const rules = makeRawWorkflowRules({
-      assertions: [makeRawAssertion({ mandatory: false }), makeRawAssertion({ rule_id: 'r2', mandatory: false })],
+      assertions: [
+        makeRawAssertion({ mandatory: false }),
+        makeRawAssertion({ rule_id: 'r2', mandatory: false }),
+      ],
     });
     expect(() => evaluateAssertions(rules, makeEvidenceBundle(), CTX)).toThrowError(AppError);
     try {
@@ -696,14 +797,18 @@ describe('evaluateAssertions — configuration the evaluator refuses to guess at
   });
 
   it('VERIFY-073 more assertions than the contract allows is rejected', () => {
-    const assertions = Array.from({ length: 11 }, (_, i) => makeRawAssertion({ rule_id: `rule_${i}` }));
-    expect(() => evaluateAssertions(makeRawWorkflowRules({ assertions }), makeEvidenceBundle(), CTX)).toThrowError(
-      AppError,
+    const assertions = Array.from({ length: 11 }, (_, i) =>
+      makeRawAssertion({ rule_id: `rule_${i}` }),
     );
+    expect(() =>
+      evaluateAssertions(makeRawWorkflowRules({ assertions }), makeEvidenceBundle(), CTX),
+    ).toThrowError(AppError);
   });
 
   it('VERIFY-074 the frozen contract itself rejects an all-optional workflow', () => {
-    expect(() => makeWorkflowRules({ assertions: [makeAssertion({ mandatory: false })] })).toThrowError();
+    expect(() =>
+      makeWorkflowRules({ assertions: [makeAssertion({ mandatory: false })] }),
+    ).toThrowError();
   });
 });
 
@@ -742,7 +847,9 @@ describe('evaluateAssertions — determinism and shape', () => {
       expected: ['delivered'],
     });
     const bundle = makeEvidenceBundle({
-      email_events: [makeEmailEvent({ occurred_at: isoAfter(T_EVENT, 45), observed_at: isoAfter(T_EVENT, 900) })],
+      email_events: [
+        makeEmailEvent({ occurred_at: isoAfter(T_EVENT, 45), observed_at: isoAfter(T_EVENT, 900) }),
+      ],
     });
     expect(one(spec, bundle).observed_at).toBe(isoAfter(T_EVENT, 45));
   });
@@ -754,6 +861,8 @@ describe('evaluateAssertions — determinism and shape', () => {
       operator: 'occurred_within',
       expected: 300,
     });
-    expect(one(spec, makeEvidenceBundle()).expected_display).toBe('within 300 seconds of the enquiry');
+    expect(one(spec, makeEvidenceBundle()).expected_display).toBe(
+      'within 300 seconds of the enquiry',
+    );
   });
 });

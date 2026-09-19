@@ -245,7 +245,12 @@ a:hover{text-decoration-thickness:2px}
 .callout--warn{border-left-color:var(--c-failed);background:var(--c-failed-tint)}
 .callout--warn .callout__body{color:var(--c-ink)}
 .callout--note{border-left-color:var(--c-rule-strong)}
-.callout--todo{border-left-color:var(--c-unverified);background:var(--c-unverified-tint)}
+/* A dashed edge, not a second amber. The limit and todo tones were pixel-identical: same
+   border colour, same tint, and only an invisible data-tone between them. They mean
+   opposite things — "this product cannot do that, permanently" versus "the owner has not
+   written this yet" — so one of them has to be separable without reading the hue. Todo
+   takes the dash, matching the story page's precedent for a thing that is not settled. */
+.callout--todo{border-left-color:var(--c-unverified);border-left-style:dashed;background:var(--c-unverified-tint)}
 .callout--todo .callout__body{color:var(--c-ink)}
 
 /* ---- forms --------------------------------------------------------------- */

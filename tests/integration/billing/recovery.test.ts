@@ -35,7 +35,9 @@ function withContact(harness: BillingHarness): BillingRuntime {
   return {
     ...harness,
     billingContact: async (workspaceId: string) =>
-      workspaceId === WS ? { email: 'owner@agency.example', workspaceName: 'Acme Automations' } : null,
+      workspaceId === WS
+        ? { email: 'owner@agency.example', workspaceName: 'Acme Automations' }
+        : null,
   };
 }
 
@@ -368,7 +370,10 @@ describe('requirements 4 and 5 — resume only on confirmed payment, allowance a
       ),
     );
 
-    const periods = harness.data.debug.allowances().map((row) => row.billingPeriod).sort();
+    const periods = harness.data.debug
+      .allowances()
+      .map((row) => row.billingPeriod)
+      .sort();
     expect(periods).toEqual(['2026-09-19', '2026-10-19']);
   });
 
