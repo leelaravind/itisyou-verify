@@ -33,6 +33,19 @@ import type { Db } from './d1';
 import { evidence } from './runs';
 import { webhookReceipts } from './webhooks';
 
+/**
+ * The three distinct answers correlation can give.
+ *
+ * `unmatched` and `ambiguous` are deliberately not the same value. When both were `null`,
+ * an ambiguous message id was indistinguishable from an unknown one, and the caller
+ * treated "we cannot tell which of these two" as "we found nothing" and carried on to a
+ * weaker handle. Neither is a match, and they are not the same problem.
+ */
+export type EvidenceCorrelation =
+  | { readonly outcome: 'matched'; readonly runId: string }
+  | { readonly outcome: 'unmatched'; readonly reason: string }
+  | { readonly outcome: 'ambiguous'; readonly reason: string };
+
 /** How long an email-evidence row is kept. Mirrors `LIMITS.EVIDENCE_RETENTION_DAYS`. */
 const EVIDENCE_RETENTION_SECONDS = 30 * 24 * 60 * 60;
 
@@ -177,6 +190,23 @@ export class D1ResendWebhookDataPort implements ResendWebhookDataPort {
   constructor(
     private readonly db: Db,
     private readonly provider = 'resend',
+    /**
+     * Called when a delivery event could not be bound to a run.
+     *
+     * Optional, and never throws into the webhook path: a provider callback must not fail
+     * because we could not tell whose it was. It exists so that "nothing correlated" is
+     * observable. A workspace whose automation never sends `expected.email_message_id`
+     * will bind no evidence at all and every run will end UNVERIFIED -- which is the
+     * correct verdict, and is a configuration problem that should be visible rather than
+     * looking like a quiet success.
+     */
+    readonly onCorrelationMiss?: (miss: {
+      workspaceId: string;
+      connectionId: string;
+      outcome: 'unmatched' | 'ambiguous';
+      reason: string;
+      messageId: string;
+    }) => void,
   ) {}
 
   async beginWebhookProcessing(params: {
@@ -246,13 +276,30 @@ export class D1ResendWebhookDataPort implements ResendWebhookDataPort {
     // and `DO NOTHING` makes the second one a no-op rather than a second row.
     const id = `evd_${digest.slice(0, 32)}`;
 
-    const runId = await this.#correlateEmailEvidence(params.workspaceId, params.evidence);
-    if (runId === null) {
+    const correlation = await this.#correlateEmailEvidence(
+      params.workspaceId,
+      params.connectionId,
+      params.evidence,
+    );
+    if (correlation.outcome !== 'matched') {
       // Nothing is written. Evidence we cannot place is not evidence about any particular
       // enquiry, and the run it would otherwise land on is somebody's real one. Missing
       // evidence reads as UNVERIFIED; misattributed evidence reads as a pass.
+      //
+      // The reason is surfaced rather than swallowed: a connection whose customer never
+      // sends `expected.email_message_id` will correlate nothing at all, and that should be
+      // visible as a configuration problem instead of looking like quiet success.
+      this.onCorrelationMiss?.({
+        workspaceId: params.workspaceId,
+        connectionId: params.connectionId,
+        outcome: correlation.outcome,
+        reason: correlation.reason,
+        // The provider's own id, which is not a secret and is the only way to trace one.
+        messageId: params.evidence.message_id,
+      });
       return;
     }
+    const runId = correlation.runId;
 
     await evidence.recordProviderEvent(this.db, {
       id,
@@ -275,72 +322,82 @@ export class D1ResendWebhookDataPort implements ResendWebhookDataPort {
   }
 
   /**
-   * Find the one run this delivery event is about, or decide that we cannot tell.
+   * Find the one run this delivery event is about, or say why we cannot.
    *
-   * Two handles, strongest first, and both require a *unique* answer:
+   * **The provider's message id is the only thing that binds. The recipient never binds.**
    *
-   *  1. `expected.email_message_id` — the customer told us which message to watch when they
-   *     sent the event. An exact match on the provider's own id is as good as correlation
-   *     gets and is not ambiguous even when two enquiries share a recipient.
-   *  2. `expected.email_recipient` — matched case-insensitively on the whole address. `+`
-   *     tags are deliberately NOT stripped, for the same reason `normalised_email_equals`
-   *     does not strip them: a customer-controlled variant of an address is a different
-   *     address, and treating them as equal would let one be substituted for another.
+   * An earlier version tried the message id and, failing that, fell back to matching the
+   * recipient address. That fallback is wrong in four distinct ways, each of which lets a
+   * delivery attach to an enquiry it has nothing to do with:
    *
-   * Returning `null` is a real answer and the safe one. If two pending runs are waiting on
-   * the same recipient and the event carries no message id, then this event genuinely does
-   * not identify which enquiry it belongs to, and picking either would be a coin toss
-   * decided in the customer's favour. The old code took that toss implicitly, by recency.
+   *  - A run naming message M1 would accept a delivery for some unrelated message, because
+   *    the unrelated id matched nothing and the address then matched everything.
+   *  - Two runs naming the SAME id -- genuinely ambiguous -- were disambiguated by address,
+   *    which is to say the ambiguity was resolved by a fact that says nothing about it.
+   *  - A delivery for an already-decided run fell through to a newer pending run sharing
+   *    the address, so an old callback silently answered a new enquiry.
+   *  - A run naming no id at all accepted any delivery to its address.
+   *
+   * The single rule that closes all four: an address is evidence about an address, not
+   * about an enquiry. Two enquiries to the same customer share a recipient and are still
+   * two enquiries. So recipient equality is an **assertion the evaluator makes after
+   * binding**, never a substitute for the binding itself -- which is why binding on the
+   * right id with the wrong recipient is correct here and produces a CONTRADICTED
+   * assertion downstream, rather than being quietly dropped as a mismatch.
+   *
+   * Zero matches and several matches are returned as different answers rather than both as
+   * null. Collapsing them is what allowed "ambiguous" to be treated as "not found" and fall
+   * onward to the address.
    *
    * Only `PENDING` runs are considered: a decided run is not waiting on anything, and
-   * re-opening one on a late webhook would change a published verdict.
+   * re-opening one on a late webhook would change a verdict already published.
    */
   async #correlateEmailEvidence(
     workspaceId: string,
+    connectionId: string,
     item: EmailEventEvidence,
-  ): Promise<string | null> {
-    const byMessageId = await this.#uniqueRun(
-      `SELECT r.id AS id
-         FROM runs r
-         JOIN source_events se
-           ON se.id = r.source_event_id AND se.workspace_id = r.workspace_id
-        WHERE r.workspace_id = ?
-          AND r.status = 'PENDING'
-          AND json_extract(se.payload_json, '$.expected.email_message_id') = ?
-        LIMIT 2`,
-      [workspaceId, item.message_id],
-    );
-    if (byMessageId !== null) return byMessageId;
+  ): Promise<EvidenceCorrelation> {
+    const messageId = (item.message_id ?? '').trim();
+    if (messageId === '') {
+      // No handle at all. There is nothing to bind on, and the address is not one.
+      return { outcome: 'unmatched', reason: 'event_carries_no_message_id' };
+    }
 
-    const recipient = (item.recipient ?? '').trim().toLowerCase();
-    if (recipient === '') return null;
+    // Tenant AND connection ownership. The endpoint resolver reads both from one
+    // connections row so they agree by construction; asserting it here means a future
+    // caller that assembles them separately cannot bind across a boundary by accident.
+    const owns = await this.db
+      .prepare(`SELECT 1 AS ok FROM connections WHERE id = ? AND workspace_id = ?`)
+      .bind(connectionId, workspaceId)
+      .first<{ ok: number }>();
+    if (owns === null) {
+      return { outcome: 'unmatched', reason: 'connection_not_owned_by_workspace' };
+    }
 
-    return this.#uniqueRun(
-      `SELECT r.id AS id
-         FROM runs r
-         JOIN source_events se
-           ON se.id = r.source_event_id AND se.workspace_id = r.workspace_id
-        WHERE r.workspace_id = ?
-          AND r.status = 'PENDING'
-          AND lower(trim(json_extract(se.payload_json, '$.expected.email_recipient'))) = ?
-        LIMIT 2`,
-      [workspaceId, recipient],
-    );
-  }
-
-  /**
-   * One row means one answer. Two mean we do not have one.
-   *
-   * Every query above selects `LIMIT 2` precisely so that ambiguity is visible here rather
-   * than hidden behind a `LIMIT 1` that would silently return the first of several.
-   */
-  async #uniqueRun(sql: string, binds: readonly unknown[]): Promise<string | null> {
     const result = await this.db
-      .prepare(sql)
-      .bind(...binds)
+      .prepare(
+        `SELECT r.id AS id
+           FROM runs r
+           JOIN source_events se
+             ON se.id = r.source_event_id AND se.workspace_id = r.workspace_id
+          WHERE r.workspace_id = ?
+            AND r.status = 'PENDING'
+            AND json_extract(se.payload_json, '$.expected.email_message_id') = ?
+          LIMIT 2`,
+      )
+      .bind(workspaceId, messageId)
       .all<{ id: string }>();
+
     const rows = result.results;
-    return rows.length === 1 ? (rows[0]?.id ?? null) : null;
+    // LIMIT 2 exists so that "more than one" is observable. A LIMIT 1 would return the
+    // first of several and look exactly like a clean single match.
+    if (rows.length === 0) return { outcome: 'unmatched', reason: 'no_run_expects_this_message' };
+    if (rows.length > 1) return { outcome: 'ambiguous', reason: 'several_runs_expect_this_message' };
+
+    const id = rows[0]?.id;
+    return id === undefined
+      ? { outcome: 'unmatched', reason: 'no_run_expects_this_message' }
+      : { outcome: 'matched', runId: id };
   }
 
   /**
