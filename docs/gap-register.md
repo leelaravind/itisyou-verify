@@ -201,3 +201,106 @@ closed cites a measurement; every row not marked closed is open regardless of ho
 confident any agent's summary was. Several rows are closed against a **local** probe and
 explicitly still need reproduction against a candidate deployment — that distinction is
 the difference between this register and a status report.
+
+---
+
+# 19 September 2026, evening — what running the deployed service actually showed
+
+Everything below was found by sending real requests to a real deployment with real
+provider credentials. None of it was visible to the local suite, which passed 2,569
+cases throughout.
+
+## Release-blocking
+
+**GAP-501 — Email evidence is bound to a run by recency, not by correlation.**
+`D1ResendWebhookDataPort.recordEmailEvidence` calls `evidence.recordProviderEvent`
+without a `runId`. That method's fallback is
+`SELECT r.id FROM runs r WHERE r.workspace_id = ? AND r.status = 'PENDING' ORDER BY
+r.created_at DESC LIMIT 1` — the most recently created pending run in the workspace,
+whatever it is for.
+
+Observed: two pending runs existed (`…R57DX…` created 21:11:34, `…R5GQ9…` created
+21:11:44). A delivery event for an email unrelated to either was attached to
+`…R5GQ9…` purely because it was newer.
+
+Two enquiries in flight in one workspace is not an edge case, it is a Tuesday. The
+consequence is that one enquiry's acknowledgement can satisfy another enquiry's
+check. The product's entire claim is that it tells you whether *this* enquiry was
+handled, and a correlation defect at this spot falsifies exactly that claim — while
+every assertion, every status mapping and every signature check around it stays
+correct. `expected.email_message_id` exists in the event envelope and is the obvious
+handle; nothing currently consumes it.
+Accountable: connectors/evidence owner. **This blocks release, and blocks taking the
+activation notice down.**
+
+## Closed today, with the evidence
+
+**GAP-502 — A signed Resend callback can promote a connection to `ready`.** Was
+unreachable: the resolver reported `last_check_at` as `webhookVerifiedAt`, and
+`last_check_at` is never NULL on a real connection, so the route's `=== null`
+promotion test could never fire. Fixed in `38f05b7` (migration 0005 adds the real
+column). Evidence: staging connection promoted at 2026-09-19T20:51:16.811Z by a
+genuine signed delivery. Regression test CONN-315 confirmed to fail against the old
+mapping.
+
+**GAP-503 — A malformed Stripe key no longer takes down event intake.** `POST
+/api/v1/events` answered 500 on staging *and production* because the mount built a
+Stripe client it never calls and `createStripeClient` throws on a bad key. Fixed in
+`cb02b02`; the stored key was also wrong and has been replaced from the sandbox.
+Evidence: staging answers 401 `SIGNATURE_INVALID` to an unsigned event. MONEY-470 and
+MONEY-471 confirmed to fail against the old guard.
+
+**GAP-504 — The release gate had never passed since the browser suite joined CI.**
+Two independent causes: a database name wrangler does not declare (`d50b632`), and
+the screenshot test dirtying the tracked tree the gate artefact is computed from
+(`5ac7be4`). Three commits shipped under a red gate, including a production deploy,
+while it was described as pinned to a passing one. Evidence: CI green at `5ac7be4`.
+
+**GAP-505 — The intake accepts a correctly signed event and creates a run.** Evidence:
+`run_01M2XR57DX42B55B1CFCF74B24`, 202, PENDING, deadline honoured. Denials all
+correct against the deployment: duplicate returns the same run with `duplicate:true`
+and takes no second allowance unit; wrong workflow 403 `WORKFLOW_MISMATCH`; stale 422
+`EVENT_STALE`; future 422 `EVENT_IN_FUTURE`; malformed 422 `EVENT_INVALID`; a
+rotated-out key 401.
+
+**GAP-506 — The plan allowance is enforced on the live request path.** Evidence:
+`reserved` moved to exactly 2 for two distinct runs and did not move for the
+duplicate; with the limit lowered to 2, a further event was refused 429
+`ALLOWANCE_EXHAUSTED` with an accurate message. This disproves the third clause of
+the activation notice.
+
+**GAP-507 — Provider evidence reaches a run.** Evidence: two rows, `origin
+provider_webhook`, `accepted` and `delivered` correctly distinguished. Correlation is
+wrong (GAP-501) but the transport, signature, storage and status mapping are real.
+
+## Open, not blocking release
+
+**GAP-508 — Activation issues a signing key for a workflow with no current version.**
+The key resolver inner-joins `workflow_versions` on `current_version_id`, so such a
+key resolves to `unknown_key` and the customer is told their *signature* is invalid.
+The truth is their setup is incomplete. A customer could hold a key that can never
+work and be sent to debug the wrong thing.
+
+**GAP-509 — Provider evidence arriving before any run exists is silently dropped.**
+`recordProviderEvent` writes only `WHERE EXISTS (SELECT 1 FROM runs …)`. A provider
+can deliver `email.sent` before our run row is committed; that evidence is lost with
+no record that it arrived.
+
+**GAP-510 — The scheduler had never run on any deployed environment but production.**
+Staging carried no cron by decision (plan §30, cost). The consequence was that the
+due-run pass, outbox, allowance settlement and billing recovery sweep were first
+exercised in front of customers. Revised: staging now takes a five-minute tick.
+**Not yet deployed — the deploy was refused by the permission classifier and has not
+been worked around.**
+
+**GAP-511 — CI prints the seeded automation session cookie and CSRF token into public
+build logs.** Per-run values against the local CI database with no remote validity, so
+not an exposure of anything usable, but they should be masked rather than echoed.
+
+**GAP-512 — Three ITISYOU Verify keys exist in Resend where one would do**, plus one
+sending-only key for the test automation. The superseded two should be revoked.
+
+**GAP-513 — The staging Resend webhook path id was exposed** in a page title captured
+into a session transcript. The endpoint is signature-gated so the path alone grants
+nothing, but it is meant to be unguessable. To be rotated; production must receive a
+freshly generated one.
