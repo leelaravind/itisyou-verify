@@ -1,0 +1,29 @@
+# Copy to `.dev.vars` for local development. NEVER commit the real file.
+# Production values are set with `wrangler secret put <NAME> --env production`.
+
+# 32-byte base64 key used to wrap stored provider credentials (AES-GCM).
+# Generate: node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+CREDENTIAL_KEY_V1=replace-with-base64-32-bytes
+
+# Signs session cookies and one-time login tokens.
+SESSION_SIGNING_KEY=replace-with-base64-32-bytes
+
+# Salt for the daily-rotating visit-session hash. Never a durable identifier.
+ANALYTICS_SALT=replace-with-random-string
+
+# Stripe (test mode first). Leave blank to run with commerce disabled.
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+STRIPE_PRICE_ID=
+
+# Resend: transactional email AND the first email-evidence connector.
+RESEND_API_KEY=
+RESEND_WEBHOOK_SECRET=
+RESEND_FROM_ADDRESS=
+
+# Optional assistant. The product works fully with all of these unset.
+OPENROUTER_API_KEY=
+
+# One-time owner bootstrap. Set, sign in once, then remove the secret.
+OWNER_BOOTSTRAP_EMAIL=
+OWNER_BOOTSTRAP_TOKEN=

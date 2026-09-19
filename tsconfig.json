@@ -1,0 +1,44 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "types": [
+      "node"
+    ],
+    "baseUrl": ".",
+    "paths": {
+      "@verify/contracts": [
+        "packages/contracts/src/index.ts"
+      ],
+      "@verify/domain": [
+        "packages/domain/src/index.ts"
+      ],
+      "@verify/security": [
+        "packages/security/src/index.ts"
+      ],
+      "@verify/connectors": [
+        "packages/connectors/src/index.ts"
+      ],
+      "@verify/ui": [
+        "packages/ui/src/index.ts"
+      ],
+      "@app/*": [
+        "apps/app/src/*"
+      ]
+    },
+    "lib": [
+      "ES2022",
+      "DOM"
+    ]
+  },
+  "include": [
+    "packages/*/src/**/*.ts",
+    "apps/app/src/**/*.ts",
+    "tests/**/*.ts",
+    "scripts/**/*.mjs",
+    "vitest.config.ts"
+  ]
+}

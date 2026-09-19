@@ -1,0 +1,72 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "verify-itisyou",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  "workers_dev": true,
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "not_found_handling": "none"
+  },
+  "vars": {
+    "ENVIRONMENT": "development",
+    "PUBLIC_BASE_URL": "http://localhost:8787",
+    "STRIPE_MODE": "test"
+  },
+  "env": {
+    "staging": {
+      "name": "verify-itisyou-staging",
+      "workers_dev": true,
+      "vars": {
+        "ENVIRONMENT": "staging",
+        "PUBLIC_BASE_URL": "https://verify-itisyou-staging.leelaravind.workers.dev",
+        "STRIPE_MODE": "test"
+      },
+      "assets": {
+        "directory": "./public",
+        "binding": "ASSETS",
+        "not_found_handling": "none"
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "verify-itisyou-db-staging",
+          "database_id": "b680f037-bcf4-4fd3-85d6-ad7f37cd65a1",
+          "migrations_dir": "../../migrations"
+        }
+      ],
+      // Staging deliberately has NO cron triggers. Plan §30: staging schedules are
+      // disabled by default so a test environment cannot generate recurring cost.
+      "observability": { "enabled": true }
+    },
+    "production": {
+      "name": "verify-itisyou-production",
+      "workers_dev": true,
+      "vars": {
+        "ENVIRONMENT": "production",
+        "PUBLIC_BASE_URL": "https://verify.itisyou.app",
+        "STRIPE_MODE": "test"
+      },
+      "assets": {
+        "directory": "./public",
+        "binding": "ASSETS",
+        "not_found_handling": "none"
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "verify-itisyou-db-production",
+          "database_id": "4c95be5b-e37d-450f-84f8-fd6c9d9406f5",
+          "migrations_dir": "../../migrations"
+        }
+      ],
+      // One scheduler tick per minute drives the single indexed due-job query,
+      // the outbox dispatcher and bounded retention deletes. Plan §22.
+      "triggers": { "crons": ["* * * * *"] },
+      "observability": { "enabled": true }
+    }
+  }
+}
