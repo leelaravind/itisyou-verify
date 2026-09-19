@@ -251,6 +251,8 @@ export interface AdmitOptions {
   readonly deadlineSeconds?: number;
   readonly correlationId?: string;
   readonly recipient?: string;
+  /** The provider message id this enquiry is waiting on. Binds delivery evidence. */
+  readonly emailMessageId?: string;
 }
 
 export interface RunSnapshot {
@@ -385,7 +387,12 @@ export function createSchedulerHarness(
         workflow_id: ws.workflowId,
         occurred_at: occurredAt,
         correlation_id: admitOptions.correlationId ?? 'enq_0000000000000001',
-        expected: { email_recipient: admitOptions.recipient ?? 'ada@example.test' },
+        expected: {
+          email_recipient: admitOptions.recipient ?? 'ada@example.test',
+          ...(admitOptions.emailMessageId === undefined
+            ? {}
+            : { email_message_id: admitOptions.emailMessageId }),
+        },
       };
       const result = await sourceEvents.admitOnce(h.db, {
         workspaceId: ws.workspaceId,

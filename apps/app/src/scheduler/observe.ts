@@ -35,6 +35,7 @@ import {
   type AssertionResult,
   type CoverageWarning,
 } from '@verify/domain';
+import { D1ResendWebhookDataPort } from '../db/resendWebhookPort.js';
 import {
   makeGap,
   toEvidenceBundle,
@@ -269,6 +270,32 @@ export async function observeRun(run: DueRun, deps: ObserveDeps): Promise<Observ
   const sourceEvent = await sourceEvents.getForRun(deps.db, run.workspace_id, run.id);
   const occurredAt = parseIso(sourceEvent?.occurred_at ?? row.created_at);
   const locator = readLocator(sourceEvent?.payload_json ?? null);
+
+  // A delivery event can arrive before the run that was waiting for it: the provider fires
+  // `email.sent` within milliseconds of the send, and the signed source event describing
+  // the enquiry arrives afterwards. Those callbacks are parked in the evidence inbox
+  // because nothing could bind them at the time. This is the run that can.
+  //
+  // Claimed BEFORE gathering, so the record is complete even when the readback below
+  // succeeds, and so a readback that fails still has whatever the provider already told us
+  // rather than nothing at all. Bounded, idempotent, and scoped to this workspace.
+  if (locator.message_id !== undefined) {
+    try {
+      await claimParkedEmailEvidenceForRun(deps.db, {
+        workspaceId: run.workspace_id,
+        runId: run.id,
+        messageId: locator.message_id,
+        now: toIso(deps.now),
+      });
+    } catch (error) {
+      // Draining the inbox is a bonus, never a precondition. A failure here must not stop
+      // the run being observed, because the readback is the authoritative path.
+      deps.logger?.warn?.('scheduler.inbox.claim_failed', {
+        run_id: run.id,
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
 
   // -------------------------------------------------------------------------
   // 2. Gather evidence, spending nothing we do not have to
@@ -823,6 +850,19 @@ async function loadRules(db: Db, run: DueRun): Promise<WorkflowRules | null> {
   } catch {
     return null;
   }
+}
+
+/**
+ * Drain any parked delivery events this run was waiting for.
+ *
+ * Constructs the webhook data port because the claim is its query; the scheduler owns when
+ * it happens, not how.
+ */
+async function claimParkedEmailEvidenceForRun(
+  db: Db,
+  params: { workspaceId: string; runId: string; messageId: string; now: string },
+): Promise<number> {
+  return new D1ResendWebhookDataPort(db).claimInboxForRun(params);
 }
 
 /** What the customer's automation told us. Locators only; nothing here is ever trusted. */
