@@ -632,6 +632,38 @@
       ],
       "limitations": "Three runs is not three million, so this says nothing about volume. It is export-and-restore, not point-in-time recovery. No live provider outage has been observed because no provider credential exists. An actual rollback of a deployed environment followed by a probe has not been done and is not claimed.",
       "next_step": "Roll back a deployed environment and probe it; observe a real provider outage once a credential exists."
+    },
+    {
+      "event_id": "EVT-0020",
+      "timestamp": "2026-09-19T19:35:00Z",
+      "milestone_id": "M-RELEASE",
+      "task_id": "T-PRODUCTION-DEPLOY",
+      "agent_role": "lead",
+      "model_id": "claude-opus-5",
+      "status": "deployed",
+      "goal": "Close a live information disclosure on production by deploying the current build through the full gate.",
+      "inputs": [
+        "reports/release-gate.json produced by github-actions at this commit"
+      ],
+      "changed_artifacts": [
+        "(deployment only)"
+      ],
+      "commit_sha": "fe58e9cf79e3737d871cd03b22eae873955cdb7b",
+      "decision_summary": "Deployed production at the commit the CI gate artefact was produced for. GET /api/v1/runner/status answered 200 to anyone on the internet on the previous build, behind a comment claiming a middleware that did not exist; it now answers 401 on production, staging and the custom domain.",
+      "alternatives_considered": [
+        "Deploy immediately when the exposure was found. Rejected: the gate exists to stop exactly that, and the disclosure was near-zero because nothing was paired and until that commit nothing could pair."
+      ],
+      "decision_reason": "The gate refused three separate attempts before this one and was right each time — first on three lint errors every specialist had labelled \"not mine\", then on a claim visible only in a page as actually served, then because a documentation commit had moved HEAD past the artefact. A gate that never refuses is not a gate, and each refusal cost minutes while catching something real.",
+      "test_evidence_refs": [
+        "artefact commit matches HEAD exactly, produced_by github-actions, tree clean",
+        "2213 citable distinct passing cases against a minimum of 500, all twelve category floors met",
+        "production /api/v1/runner/status 200 before, 401 after, on all three hostnames",
+        "POST /api/v1/events unsigned returns 401 on production",
+        "public surface healthy: /, /how-it-works, /pricing, /demo, /security and /admin/login all 200",
+        "post-deploy claim scan over the pages as actually served: clean"
+      ],
+      "limitations": "The Playwright suite did not execute in CI, so 31 browser cases sit outside the number that gated this deploy. No provider has ever been contacted, so the connector layer is proven against its own specification rather than against HubSpot or Resend. Live payments, payouts and paid advertising remain gated and untested end to end by design.",
+      "next_step": "Provider credentials from the owner; approval to publish the organic posts."
     }
   ]
 }
