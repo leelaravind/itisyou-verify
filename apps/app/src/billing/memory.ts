@@ -265,9 +265,12 @@ export function createMemoryBillingStore(): MemoryBillingStore {
       return refund !== undefined && refund.workspaceId === workspaceId ? refund : null;
     },
 
-    async findRefundByIdempotencyKey(idempotencyKey) {
+    async findRefundByIdempotencyKey(workspaceId, idempotencyKey) {
       const id = refundKeys.get(idempotencyKey);
-      return id === undefined ? null : (refunds.get(id) ?? null);
+      if (id === undefined) return null;
+      const refund = refunds.get(id);
+      // Scoped, like the real implementation's WHERE clause.
+      return refund !== undefined && refund.workspaceId === workspaceId ? refund : null;
     },
 
     async findRefundByProviderId(providerRefundId) {

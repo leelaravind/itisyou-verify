@@ -8,7 +8,7 @@
  */
 import { Hono } from 'hono';
 import { describe, expect, it } from 'vitest';
-import { createOwnerRoutes } from '@app/routes/owner/index';
+import { createOwnerRoutes, UnconfiguredOwnerRouterError } from '@app/routes/owner/index';
 import { publicRoutes } from '@app/routes/public/index';
 import { appRoutes } from '@app/routes/app/index';
 import { ANONYMOUS_PRINCIPAL, type OwnerPrincipal } from '@app/owner/access';
@@ -173,6 +173,12 @@ describe('owner routes — strong authentication', () => {
     expect(response.status).toBe(403);
     expect(await response.text()).toContain('Confirm it is you');
     expect((await h.port.controls()).ads.paused).toBe(false);
+
+    // Opening a runner pairing code is consequential too — A08's openPairing implements no
+    // access control of its own, so this call site is the only gate it has.
+    const pair = await h.post('/owner/operations/runner/pair', { label: 'my laptop' });
+    expect(pair.status).toBe(403);
+    expect(await pair.text()).toContain('Confirm it is you');
   });
 
   it('OWNER-171 the same action with recent MFA is permitted', async () => {
@@ -280,17 +286,14 @@ describe('owner routes — the automation identity', () => {
 });
 
 describe('owner routes — controls', () => {
-  it('OWNER-190 pausing ads leaves the customer cancellation page reachable', async () => {
+  // One property, one case: the brief states cancellation and support together, and
+  // OWNER-191 now carries the production-refusal composition case below.
+  it('OWNER-190 pausing ads leaves cancellation and support reachable', async () => {
     const h = harness();
     await h.post('/owner/controls/ads', { paused: 'yes' });
     expect((await h.port.controls()).ads.paused).toBe(true);
     const cancel = await h.app.request(`${ORIGIN}/app/cancel`, {}, ENV);
     expect(cancel.status).toBeLessThan(400);
-  });
-
-  it('OWNER-191 pausing ads leaves the public support page reachable', async () => {
-    const h = harness();
-    await h.post('/owner/controls/ads', { paused: 'yes' });
     const support = await h.app.request(`${ORIGIN}/support`, {}, ENV);
     expect(support.status).toBe(200);
   });
@@ -556,13 +559,21 @@ describe('owner routes — honest rendering', () => {
     expect(body).toMatch(/No maintenance runner is paired/i);
   });
 
-  it('OWNER-127 restoring a deployment reports the missing dependency rather than a success', async () => {
+  it('OWNER-127 an operations action that needs a runner reports the dependency rather than a success', async () => {
     const h = harness();
-    const response = await h.post('/owner/operations/restore', { deployment_id: 'dep_0001', confirm: 'restore' });
-    expect(response.status).toBe(422);
-    const body = await response.text();
-    expect(body).toContain('data-dependency="true"');
-    expect(body).toMatch(/Nothing has been restored/i);
+    const restore = await h.post('/owner/operations/restore', { deployment_id: 'dep_0001', confirm: 'restore' });
+    expect(restore.status).toBe(422);
+    const restoreBody = await restore.text();
+    expect(restoreBody).toContain('data-dependency="true"');
+    expect(restoreBody).toMatch(/Nothing has been restored/i);
+
+    // Pairing with no connector bound mints no code and says so.
+    const pair = await h.post('/owner/operations/runner/pair', { label: 'my laptop' });
+    expect(pair.status).toBe(422);
+    const pairBody = await pair.text();
+    expect(pairBody).toContain('data-dependency="true"');
+    expect(pairBody).toMatch(/No pairing code has been created/i);
+    expect(pairBody).not.toContain('data-pairing-code="true"');
   });
 
   it('OWNER-128 the settings page shows the business details as still needing the owner', async () => {
@@ -651,5 +662,68 @@ describe('owner routes — honest rendering', () => {
       expect(row.occurredAt).toBe(NOW.toISOString());
       expect(row.actor.length).toBeGreaterThan(0);
     }
+  });
+});
+
+/**
+ * Composition.
+ *
+ * The defect these exist for: `access.ts` was correct, every access case passed, and the
+ * panel was still world-readable on a staging deploy — because `MemoryOwnerDataPort`
+ * defaulted to a synthetic *owner*, and every test constructed its principal explicitly.
+ * Nothing exercised what an unconfigured caller actually gets.
+ *
+ * So these three construct the router exactly as a careless mount would: `createOwnerRoutes()`
+ * with no arguments at all.
+ */
+describe('owner routes — an unconfigured mount', () => {
+  function unconfigured(): Hono<RouteBindings> {
+    const instance = new Hono<RouteBindings>();
+    // Deliberately no options. This is the line the lead wrote on staging.
+    instance.route('/', createOwnerRoutes());
+    return instance;
+  }
+
+  it('OWNER-003 an unconfigured mount serves the panel to nobody', async () => {
+    const instance = unconfigured();
+    for (const path of OWNER_PATHS) {
+      const response = await instance.request(`${ORIGIN}${path}`, {}, ENV);
+      expect(response.status, path).toBe(404);
+      const body = await response.text();
+      expect(body, path).not.toContain('owner@example.invalid');
+      expect(body, path).not.toContain('How the business is doing');
+    }
+  });
+
+  it('OWNER-041 an unconfigured mount still leaves the way in public, and mutates nothing', async () => {
+    const instance = unconfigured();
+    expect((await instance.request(`${ORIGIN}/admin/login`, {}, ENV)).status).toBe(200);
+    const mutation = await instance.request(
+      `${ORIGIN}/owner/controls/ads`,
+      {
+        method: 'POST',
+        body: new URLSearchParams({ csrf_token: CSRF, paused: 'yes' }).toString(),
+        headers: { cookie: `verify_csrf=${CSRF}`, origin: ORIGIN, 'content-type': 'application/x-www-form-urlencoded' },
+      },
+      ENV,
+    );
+    expect(mutation.status).toBe(404);
+  });
+
+  it('OWNER-191 an unconfigured mount refuses to exist in production rather than serving invented data', async () => {
+    // Loud at construction when the environment is declared…
+    expect(() => createOwnerRoutes({ environment: 'production' })).toThrow(UnconfiguredOwnerRouterError);
+    // …and loud at request time when it is not, because the lead's mount passes no options.
+    const instance = unconfigured();
+    const response = await instance.request(
+      `${ORIGIN}/owner`,
+      {},
+      { ENVIRONMENT: 'production', PUBLIC_BASE_URL: ORIGIN },
+    );
+    expect(response.status).toBeGreaterThanOrEqual(500);
+    // A configured production mount is unaffected.
+    expect(() =>
+      createOwnerRoutes({ environment: 'production', resolvePort: async () => new MemoryOwnerDataPort() }),
+    ).not.toThrow();
   });
 });

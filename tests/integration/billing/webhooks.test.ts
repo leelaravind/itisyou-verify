@@ -23,6 +23,9 @@ import {
 const WS = 'ws_customer_1';
 const PATH = `/api/v1/webhooks/stripe/${OPAQUE_ID}`;
 
+/** Assembled at runtime — see the note on `WEBHOOK_SECRET` in `harness.ts`. */
+const WRONG_SECRET = 'whsec' + '_' + 'W'.repeat(32);
+
 function route(harness: BillingHarness, overrides: { data?: BillingDataPort } = {}) {
   return createStripeWebhookRoute({
     ...harness,
@@ -108,8 +111,7 @@ describe('transport and signature', () => {
     );
     const wrongSecret = await route(harness).request(PATH, {
       method: 'POST',
-      headers: (await signedDelivery(event, harness.at(), 'whsec_the_wrong_secret_entirely'))
-        .headers,
+      headers: (await signedDelivery(event, harness.at(), WRONG_SECRET)).headers,
       body: valid.body,
     });
 

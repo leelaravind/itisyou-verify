@@ -365,7 +365,11 @@ export async function applyProviderRefund(
   deps: BillingRuntime,
   params: {
     readonly providerRefundId: string;
-    readonly idempotencyKey?: string;
+    /**
+     * The fallback lookup, for a refund we submitted but never recorded a provider id
+     * against. Workspace and key travel together so the read stays tenant-scoped.
+     */
+    readonly expected?: { readonly workspaceId: string; readonly idempotencyKey: string };
     readonly status: string | null;
   },
 ): Promise<
@@ -377,9 +381,12 @@ export async function applyProviderRefund(
   const byProvider = await data.findRefundByProviderId(params.providerRefundId);
   const refund =
     byProvider ??
-    (params.idempotencyKey === undefined
+    (params.expected === undefined
       ? null
-      : await data.findRefundByIdempotencyKey(params.idempotencyKey));
+      : await data.findRefundByIdempotencyKey(
+          params.expected.workspaceId,
+          params.expected.idempotencyKey,
+        ));
   if (refund === null) return { outcome: 'unmatched', providerRefundId: params.providerRefundId };
 
   const transition = refundTransition(refund.state, providerRefundEvent(params.status));

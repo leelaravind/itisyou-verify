@@ -241,7 +241,20 @@ export interface BillingDataPort {
 
   findRefund(workspaceId: string, refundId: string): Promise<RefundRecord | null>;
 
-  findRefundByIdempotencyKey(idempotencyKey: string): Promise<RefundRecord | null>;
+  /**
+   * Our own refund key, scoped.
+   *
+   * The key already embeds the workspace (`refund:<workspaceId>:<orderId>:<amount>:…`),
+   * so a cross-tenant collision cannot be constructed — but a key-only signature gives the
+   * implementation nothing to put in a `WHERE` clause, which left it needing a
+   * tenant-scope exemption it did not deserve. Taking the workspace explicitly removes the
+   * exemption: an exemption that exists only because of a function signature is worth
+   * deleting. (A02's observation, 2026-09-19.)
+   */
+  findRefundByIdempotencyKey(
+    workspaceId: string,
+    idempotencyKey: string,
+  ): Promise<RefundRecord | null>;
 
   findRefundByProviderId(providerRefundId: string): Promise<RefundRecord | null>;
 

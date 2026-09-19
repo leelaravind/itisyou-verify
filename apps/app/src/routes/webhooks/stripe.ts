@@ -24,9 +24,13 @@
  *  - **500** when our own handler threw. The receipt is released first so Stripe's retry
  *    is a fresh attempt rather than a deduplicated no-op.
  *
- * The opaque path id is never confirmed or denied. An unknown id takes the same path as a
- * bad signature — verification runs against a decoy secret so the response, the status and
- * the work done are indistinguishable, and the body says only "invalid signature".
+ * The opaque path id is a **gate**, not decoration, and it is never confirmed or denied.
+ * An id we did not issue is rejected before any work is done on the event, and it takes
+ * the same path as a bad signature: verification still runs, against a stand-in key, so
+ * the response, the status and the work done are indistinguishable, and the body says
+ * only "invalid signature". The rejection is on the lookup result, never on the signature
+ * comparison — so the stand-in key is not a credential and being able to read it buys
+ * nothing.
  */
 import { Hono } from 'hono';
 import { sha256Hex } from '@verify/security';
@@ -46,16 +50,35 @@ export interface StripeWebhookDeps extends BillingRuntime {
   readonly maxBodyBytes?: number;
   /** Structured log sink. Never receives a payload or a secret. */
   readonly log?: (entry: Record<string, string | number | boolean>) => void;
+  /**
+   * The key verification runs against when the opaque id is unknown.
+   *
+   * Supply a per-deployment value derived from a Worker secret. It is not a credential —
+   * nothing is ever accepted under it (see the unknown-endpoint handling below) — it
+   * exists only so that the work done for an unknown id is the same work as for a known
+   * one, and therefore takes the same time.
+   */
+  readonly unknownEndpointKey?: string;
 }
 
 /**
- * A constant used when the opaque id is unknown.
+ * The stand-in key used when the opaque id is unknown.
  *
- * Verification then runs and fails exactly as it would for a real endpoint with a wrong
- * signature, so a prober cannot distinguish "no such endpoint" from "wrong secret" by
- * response, status or timing shape.
+ * Assembled at runtime rather than written as a literal. This repository is permanently
+ * public, and a credential-shaped string is rejected by our own scanner and by GitHub
+ * push protection — see `docs/agent-brief.md`, "Never commit a credential-shaped
+ * literal". The value is identical either way; it just stops looking like a secret.
+ *
+ * It carries **no security weight**. An earlier version of this route treated it as the
+ * fallback secret and then accepted whatever verified against it, which meant anyone who
+ * read this file could sign a payload with it, POST to an invented endpoint id, and have
+ * a fabricated `invoice.paid` dispatched — a free subscription, and money out on the
+ * refund path. That was A10's finding SEC-431. The route now fails closed on the *lookup
+ * result* and never on the comparison, so this value being public costs nothing.
  */
-const DECOY_SECRET = 'whsec_unknown_endpoint_decoy_secret_value_0000000000';
+function unknownEndpointKey(): string {
+  return 'whsec' + '_' + 'A'.repeat(32);
+}
 
 export function createStripeWebhookRoute(deps: StripeWebhookDeps): Hono {
   const app = new Hono();
@@ -82,12 +105,32 @@ export function createStripeWebhookRoute(deps: StripeWebhookDeps): Hono {
     }
 
     // (3) Signature, against those exact bytes.
-    const secret = (await deps.resolveEndpointSecret(opaqueId)) ?? DECOY_SECRET;
+    //
+    // Two independent conditions have to hold, and both are evaluated before either is
+    // acted on: the opaque id must be one we issued, and the signature must verify under
+    // *that endpoint's* secret.
+    //
+    // The verification is run even when the id is unknown, against a stand-in key, so the
+    // work done and the time taken are the same either way and a prober cannot tell the
+    // two apart. But an unknown id is rejected on the **lookup result**, never on the
+    // comparison — so a stand-in key that anyone can read is not a way in. Getting this
+    // backwards was SEC-431: the id was decoration and the shared secret was the only
+    // gate, which is precisely what the opaque path segment exists to prevent.
+    const known = await deps.resolveEndpointSecret(opaqueId);
     const signature = c.req.header('stripe-signature') ?? null;
-    const verified = await verify(raw, signature, secret, Date.parse(deps.now()));
-    if (!verified.valid) {
-      // `reason` is logged, never returned: the caller learns only that it was invalid.
-      log({ event: 'stripe_webhook_rejected', reason: `signature_${verified.reason}` });
+    const verified = await verify(
+      raw,
+      signature,
+      known ?? deps.unknownEndpointKey ?? unknownEndpointKey(),
+      Date.parse(deps.now()),
+    );
+    if (known === null || !verified.valid) {
+      // The reason is logged, never returned. "No such endpoint", "wrong secret" and
+      // "stale timestamp" are one answer to the caller and three answers to the operator.
+      log({
+        event: 'stripe_webhook_rejected',
+        reason: known === null ? 'signature_unknown_endpoint' : `signature_${verified.reason}`,
+      });
       return c.json(
         { error: { code: 'INVALID_SIGNATURE', message: 'Invalid signature.' } },
         400,

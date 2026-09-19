@@ -1,7 +1,9 @@
 # ITISYOU Verify — threat model
 
 **Reviewer:** A10 (security), independent of the implementing agents.
-**Review date:** 2026-09-19. **Scope:** the repository as it stands on that date.
+**Review date:** 2026-09-19 (pass 1 morning, **pass 2 afternoon against the assembled,
+deployed system**). **Scope:** the repository plus the live service at
+https://verify.itisyou.app, probed directly.
 **Method:** read the frozen contracts, `migrations/0001_init.sql`, `packages/security/`,
 `apps/app/src/db/`, `apps/app/src/lib/`, `packages/domain/`, `wrangler.jsonc`,
 `scripts/scan-secrets.mjs`; wrote independent reference implementations of the controls
@@ -717,3 +719,86 @@ needs a Cloudflare API token — and Wrangler requires them in config. Accepted.
 | F10 | DNS rebinding cannot be mitigated on Workers | **Medium** | — | `SEC-018` | ACCEPTED RISK |
 | F11 | `tests/unit/security/redact.test.ts:46` trips the secret scanner; it is a synthetic fixture missing a `secret-scan:allow` marker | **Low** | A02 | `SEC-ACC-27` | OPEN |
 | F12 | `pnpm-workspace.yaml` `allowBuilds` holds placeholder strings, so `pnpm install` halts and CI cannot install | **Low** | lead | — | OPEN |
+
+---
+
+## 12. Pass-two findings (2026-09-19, against the assembled system)
+
+Pass one's findings F1–F5 are **closed** by A02, and F6–F8 by the lead. The controls that
+were ABSENT because no route layer existed have now been re-judged against shipped code;
+the per-row verdicts live in `docs/security-acceptance.md`. Three new findings:
+
+### T-HOOK-06 — Forged event via an unknown webhook endpoint id · **CRITICAL** · **OPEN**
+
+**Attack.** `apps/app/src/routes/webhooks/stripe.ts` resolves the endpoint signing secret
+and falls back to a constant when the opaque path id is unknown:
+
+```ts
+const secret = (await deps.resolveEndpointSecret(opaqueId)) ?? DECOY_SECRET;
+const verified = await verify(raw, signature, secret, ...);
+if (!verified.valid) return 400;
+// ... parse, mode check, claim the event id, DISPATCH
+```
+
+The intent is right — run verification anyway so a prober cannot distinguish "no such
+endpoint" from "wrong secret". The mistake is that nothing afterwards remembers the
+endpoint was unknown. **This repository is public**, so `DECOY_SECRET` is not a secret.
+Anyone can read it, sign a body with it, POST to
+`/api/v1/webhooks/stripe/<any-id-they-invent>`, and have a fabricated
+`checkout.session.completed` or `invoice.paid` dispatched to the real handler: a free
+subscription, and on the refund path money out.
+
+**Reproduced**, not theorised: `SEC-431` expects 400 and receives **200**.
+
+**Not live today** — the route is not yet mounted in `apps/app/src/index.ts`. It becomes
+exploitable the moment it is mounted.
+
+**Control.** Fail closed on the lookup while keeping verification running, so the
+indistinguishability property (`SEC-433`) survives; and derive the decoy from a Worker
+secret rather than a repository constant.
+
+**Where.** `apps/app/src/routes/webhooks/stripe.ts` (A06).
+**Proving tests.** `SEC-431`, `SEC-432` — both FAILING.
+
+### T-TEN-08 — Tenant scope satisfied by a column list, not a predicate · **MEDIUM** · OPEN
+
+`SEC-202` accepts a statement when `workspace_id` appears anywhere in it, so
+`SELECT id, workspace_id FROM evidence WHERE expires_at <= ?` passes on its SELECT list
+while being deliberately cross-tenant. Four statements pass for that reason. All four are
+correct sweeps; none is declared, and an accidental pass is indistinguishable from a real
+one when a genuinely unscoped query is added beside them. `SEC-206` judges the predicate
+only, excluding INSERT (which has no predicate, and whose `workspace_id` column value is
+the scoping). **Proving test.** `SEC-206` — FAILING. Fix by adding a per-statement
+`tenant-scope:exempt <reason>`.
+
+### T-XSS-03 — `javascript:` survives into an href · **MEDIUM** · OPEN
+
+`packages/ui/src/components/button.ts` and `navigation.ts` interpolate a caller-supplied
+`href` directly. `hono/html` escapes the quotes, so there is no attribute breakout, but the
+scheme is unchecked. Not exploitable today for two independent reasons — every href in the
+shipped code is a literal, and the deployed CSP (`script-src` by hash, no `unsafe-inline`,
+`script-src-attr 'none'`) blocks `javascript:` navigation. It becomes live the moment a
+link target comes from a CRM value, a report link, a campaign destination or a support
+message, and it stops being mitigated if the CSP is loosened.
+
+**Control.** A scheme allowlist on every non-literal href; better, a branded `Url` type
+only the guard can produce, so an unguarded string cannot reach an `href` at all.
+**Where.** `packages/ui/src/` (A05). Reference: `safeHref` in `tests/security/helpers/html.ts`.
+**Proving tests.** `SEC-1214` (FAILING), `SEC-1215` (passing, tests the fix target).
+
+### Controls confirmed against shipped code in pass two
+
+| Threat | Status now | Evidence |
+| --- | --- | --- |
+| T-TEN-01/02/03 cross-tenant reads | PARTIAL → **largely IMPLEMENTED** | `SEC-202`, `SEC-204` pass; `CustomerDataPort` takes no workspace id (`AUTH-402`) |
+| T-TEN-05 checkout/portal binding | ABSENT → **IMPLEMENTED** | `AUTH-420`, `AUTH-421` |
+| T-HOOK-02 body-byte tampering | primitive → **route-level IMPLEMENTED** | `SEC-435`, `SEC-436` |
+| T-HOOK-04 replay/duplicate | PARTIAL → **IMPLEMENTED** | `SEC-440` behaviourally |
+| T-CRED-01/02 AAD binding | PARTIAL → **IMPLEMENTED** | `AUTH-114`, `AUTH-115` now pass |
+| T-AI-01 prompt injection | ABSENT → **IMPLEMENTED** | `SEC-710`–`SEC-714`, `SEC-720`–`SEC-722` |
+| T-OWN-01 404-not-403 | ABSENT → **IMPLEMENTED** | live `GET /owner` → 404; `AUTH-330` |
+| T-OWN-04 recent strong auth | PARTIAL → **IMPLEMENTED** | `AUTH-320`–`AUTH-323` |
+| T-CSV-01 formula injection | primitive → **IMPLEMENTED end to end** | `SEC-1201`–`SEC-1205` |
+| T-CACHE-01 shared-cache poisoning | ABSENT → **IMPLEMENTED** | live `no-store` + `Vary: Cookie` on `/app` |
+| T-XSS-01 stored XSS | reference → **IMPLEMENTED** | `SEC-1210`–`SEC-1213`; live CSP `default-src 'none'` |
+| T-PUB-03 secrets in history | IMPLEMENTED | clean over 362 tracked files |
