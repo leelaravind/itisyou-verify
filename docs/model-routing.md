@@ -17,8 +17,8 @@ is not proof an account can call it, so anything unconfirmed is marked `unknown`
 | Opus 5 (1M context) | Claude Code session model | yes — this session | Lead: architecture, contracts, schema, integration, release decisions |
 | Opus (subagent) | `Agent` tool, `model: opus` | yes — A02, A03, A04, A05, A10, A11 returned real work | Verification engine, data/security layer, connectors, payments, security review, test gate |
 | Sonnet (subagent) | `Agent` tool, `model: sonnet` | yes — A01 returned real work | Product scope, factual copy, competitor research, documentation |
-| Haiku (subagent) | `Agent` tool, `model: haiku` | unknown until first use | Reserved for bounded extraction, formatting and routine file work |
-| Fable (subagent) | `Agent` tool, `model: fable` | unknown until first use | Candidate for bounded deterministic scripting |
+| Haiku (subagent) | `Agent` tool, `model: haiku` | **yes** — produced CONTRIBUTING.md, issue forms and the PR template | Bounded documentation and repository scaffolding |
+| Fable (subagent) | `Agent` tool, `model: fable` | **yes** — launched for the dependency licence auditor | Bounded deterministic scripting |
 | OpenRouter free catalogue | Product feature, not a build tool | not configured | The optional in-product assistant only; requires an owner-supplied key |
 
 No model was purchased. No additional account was created. Claude Code subscription access
@@ -71,3 +71,25 @@ None of the above is in the request path of the service. The hosted application 
 verification, billing, notifications and reporting as deterministic code. The optional
 in-product assistant is off by default, and turning it on is never a prerequisite for
 support, payments, customer management or any owner control.
+
+## Observed in practice
+
+Recorded after the fact, not predicted.
+
+- **Opus** carried the lead role and eight specialists: contracts, data layer, verification
+  engine, connectors, commerce, customer experience, support and privacy, security review,
+  the test gate, and growth. Every one of those touches money, tenant isolation, credentials
+  or a public claim.
+- **Sonnet** settled the product scope and wrote the factual site copy. It cut seven claims
+  that nothing implemented — the most valuable single output of the cheaper tier.
+- **Haiku** produced the public-repository contribution docs and issue forms. It worked,
+  and it **hallucinated the repository URL** in the security contact link
+  (`github.com/itisyou/verify`, which does not exist). Caught by checking the link resolved
+  rather than accepting "validated" at face value. That is the tier's real failure mode:
+  confident, plausible, wrong in a detail nobody would notice until it mattered.
+- **Fable** was given the dependency licence auditor — bounded, deterministic, verifiable by
+  running it.
+
+The pattern worth keeping: cheaper tiers are good at producing the shape of a thing and
+unreliable about specific facts. Anything they emit that names a URL, a version, an
+endpoint or a price gets verified by a deterministic check before it is trusted.
