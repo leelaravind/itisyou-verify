@@ -25,6 +25,10 @@ import {
   runBillingNotificationTick,
   type BillingNotificationTickReport,
 } from '../notifications/billingTick';
+import { runMoneyMaintenance, type MoneyMaintenanceReport } from '../money/maintenance';
+import { checkBillingSecrets, createBillingRuntime } from '../billing/mount';
+import { createStripeClient } from '@verify/connectors/stripe';
+import { D1AllowanceRepair } from '../db/allowanceRepair';
 import type { NotificationDelivery, DeliveryLog } from '../notifications/delivery';
 import type { SubscriptionPeriodSource } from '../billing/period';
 import type { Db } from '../db/d1';
@@ -84,6 +88,16 @@ export interface TickReport {
    * scheduler's own tests and the operations view are unaffected by its presence.
    */
   readonly billing?: BillingNotificationTickReport | undefined;
+  /**
+   * The money pass: allowance-period reconciliation and the billing maintenance both it
+   * and the notification pass depend on.
+   *
+   * `undefined` when Stripe is not configured on this deployment, which is a legitimate
+   * state and not a failure. When present, `allowanceRepairSkipped` says why the repair
+   * did not run if it did not — `no_port` is a configuration fact an operator needs, not
+   * an absence to shrug at.
+   */
+  readonly money?: MoneyMaintenanceReport | undefined;
 }
 
 export interface TickDeps {
@@ -417,17 +431,69 @@ export async function handleScheduled(
   //
   // Never throws. A configuration failure is a populated `failures` list, which is a
   // number the operator can see; a rejection here would be a cron retry nobody asked for.
+  /*
+   * The money pass, which had no caller at all.
+   *
+   * `money/maintenance.ts` states in its own doc comment that this is the export
+   * `scheduler/tick.ts` calls. It did not — it called the notification tick instead. So
+   * `reconcileAllowancePeriods` was unreachable in production: every allowance row damaged
+   * by the period-identity split stayed damaged, and a workspace showing 2 of 10 used could
+   * sell eight runs nobody paid for.
+   *
+   * It runs BEFORE the notification pass and hands its billing report onward, because both
+   * call `runBillingMaintenance` and running that twice per tick is not merely wasteful.
+   * The guarantee it underwrites is that a paid period's allowance is applied exactly once,
+   * and two passes over the same subscriptions at two instants is the precise shape of the
+   * defect that would violate it. In production both clocks agree, so it would not be seen
+   * until it mattered.
+   *
+   * `runMoneyMaintenance` is the right producer of the pair: it pins the runtime clock to
+   * the tick instant, closing a split where the cadence was decided from one clock and the
+   * seven-day boundary read from another.
+   *
+   * Without an allowance-repair port the repair is reported as skipped with the reason
+   * `no_port`, never as done — a deployment lacking it is one where damaged rows are still
+   * damaged, and the report has to say so rather than shrug.
+   */
+  const billingEnv = {
+    ...env,
+    ENVIRONMENT: env.ENVIRONMENT ?? 'development',
+    PUBLIC_BASE_URL: env.PUBLIC_BASE_URL ?? '',
+  };
+
+  let money: MoneyMaintenanceReport | null = null;
+  if (checkBillingSecrets(billingEnv).ready) {
+    try {
+      money = await runMoneyMaintenance(
+        {
+          billing: createBillingRuntime(billingEnv, {
+            data: new D1BillingDataPort(db),
+            gateway: createStripeClient({ secretKey: env.STRIPE_SECRET_KEY ?? '' }),
+            billingContact: createBillingContactLookup(db),
+            newId: (prefix: string) => newId(prefix),
+            now: () => toIso(now),
+          }),
+          allowanceRepair: new D1AllowanceRepair(db),
+        },
+        { now: toIso(now) },
+      );
+    } catch (caught) {
+      // A tick must not reject. A cron retry nobody asked for is worse than a reported
+      // failure an operator can see.
+      money = null;
+      (options.logger ?? SILENT_LOGGER).warn('scheduler.money.failed', {
+        message: caught instanceof Error ? caught.message : String(caught),
+      });
+    }
+  }
+
   const billing = await runBillingNotificationTick({
     // `BillingEnv` requires both of these as strings; `SchedulerEnv` has them optional
     // because the scheduler itself needs neither. An empty `PUBLIC_BASE_URL` cannot
     // produce a half-configured money path: `checkBillingSecrets` skips the whole pass
     // when a Stripe secret is absent, and `buildBillingConfig` throws on an invalid base
     // URL, which is caught and reported rather than acted on.
-    env: {
-      ...env,
-      ENVIRONMENT: env.ENVIRONMENT ?? 'development',
-      PUBLIC_BASE_URL: env.PUBLIC_BASE_URL ?? '',
-    },
+    env: billingEnv,
     billingData: new D1BillingDataPort(db),
     supportPort: new D1SupportDataPort(db),
     billingContact: createBillingContactLookup(db),
@@ -438,9 +504,10 @@ export async function handleScheduled(
     ...(options.forceBillingMaintenance === undefined
       ? {}
       : { force: options.forceBillingMaintenance }),
+    ...(money?.billing === undefined ? {} : { maintenance: money.billing }),
   });
 
-  return { ...report, billing };
+  return { ...report, billing, ...(money === null ? {} : { money }) };
 }
 
 export { createRetentionSweeper };
