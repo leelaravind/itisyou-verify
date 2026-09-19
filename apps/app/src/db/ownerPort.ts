@@ -60,6 +60,8 @@ import {
   type InventoryItem,
 } from '../owner/cleanup';
 import type { NotificationHealth } from '../owner/notifications';
+import { createNotificationDelivery, type NotificationDelivery } from '../notifications/delivery';
+import { D1SupportDataPort } from './supportPort';
 import {
   dispatchQualityRun,
   isTerminalState,
@@ -180,6 +182,20 @@ function unknownHealth(component: string, detail: string): ServiceHealthView {
 /* -------------------------------------------------------------------------- */
 /* the data port                                                               */
 /* -------------------------------------------------------------------------- */
+
+/**
+ * What `requestSignInLink` actually did, so the page can stop guessing.
+ *
+ * It deliberately carries no information about the ADDRESS -- not whether it has an
+ * account, not whether it was rate limited -- because varying the reply on either would
+ * turn this public endpoint into an account oracle. It carries information about the
+ * DEPLOYMENT, which every visitor can already observe and which is the one thing the page
+ * was previously getting wrong: it said a link was on its way on deployments that send
+ * nothing at all.
+ */
+export interface SignInLinkOutcome {
+  readonly delivery: 'sent' | 'no_transport';
+}
 
 export interface OwnerPortInput {
   readonly db: Db;
@@ -1124,7 +1140,8 @@ export class D1OwnerDataPort implements OwnerDataPort {
     if (stored === null || typeof stored !== 'object' || stored.paused !== true) return null;
     const description = CONTROL_DESCRIPTION[key];
     const since = stored.since === null ? '' : ` It has been paused since ${stored.since}.`;
-    const note = stored.note === null || stored.note.length === 0 ? '' : ` Your note: ${stored.note}`;
+    const note =
+      stored.note === null || stored.note.length === 0 ? '' : ` Your note: ${stored.note}`;
     return (
       `${description.label} is paused, so this was refused and nothing has changed.${since}${note} ` +
       `Turn the switch back on in Controls if you want this to be possible again.`
@@ -2358,9 +2375,7 @@ function toQualityRun(row: Record<string, unknown>): QualityRun {
  * does answer it. Each branch returns two finished statements, so there is no interpolation
  * anywhere and nothing to reason about at the call site.
  */
-function cleanupTarget(
-  item: InventoryItem,
-): {
+function cleanupTarget(item: InventoryItem): {
   existsSql: string;
   deleteSql: string;
   bind: (now: string) => readonly unknown[];
@@ -2382,8 +2397,10 @@ function cleanupTarget(
       const rowid = Number(item.resourceId.slice('login_token:'.length));
       if (!Number.isSafeInteger(rowid)) return null;
       return {
-        existsSql: 'SELECT 1 AS present FROM login_tokens WHERE rowid = ? AND (consumed_at IS NOT NULL OR expires_at <= ?)',
-        deleteSql: 'DELETE FROM login_tokens WHERE rowid = ? AND (consumed_at IS NOT NULL OR expires_at <= ?)',
+        existsSql:
+          'SELECT 1 AS present FROM login_tokens WHERE rowid = ? AND (consumed_at IS NOT NULL OR expires_at <= ?)',
+        deleteSql:
+          'DELETE FROM login_tokens WHERE rowid = ? AND (consumed_at IS NOT NULL OR expires_at <= ?)',
         bind: (now) => [rowid, now],
       };
     }
@@ -2401,8 +2418,10 @@ function cleanupTarget(
       };
     case 'quality_run':
       return {
-        existsSql: "SELECT 1 AS present FROM quality_runs WHERE id = ? AND state NOT IN ('queued','awaiting_runner','running')",
-        deleteSql: "DELETE FROM quality_runs WHERE id = ? AND state NOT IN ('queued','awaiting_runner','running')",
+        existsSql:
+          "SELECT 1 AS present FROM quality_runs WHERE id = ? AND state NOT IN ('queued','awaiting_runner','running')",
+        deleteSql:
+          "DELETE FROM quality_runs WHERE id = ? AND state NOT IN ('queued','awaiting_runner','running')",
         bind: () => [item.resourceId],
       };
     case 'cleanup_preview':
@@ -2488,23 +2507,46 @@ export class D1OwnerAuth implements OwnerAuthPort {
   readonly #db: Db;
   readonly #env: Env;
 
+  /**
+   * Built lazily: most requests here never send anything.
+   * `createNotificationDelivery` records an unsent notification rather than throwing when
+   * `RESEND_API_KEY` or `RESEND_FROM_ADDRESS` is missing, so a deployment without a
+   * transport is a supported state -- and, now, a reportable one.
+   */
+  #delivery: NotificationDelivery | undefined = undefined;
+
   constructor(input: { db: Db; env: Env }) {
     this.#db = input.db;
     this.#env = input.env;
   }
 
+  get #notifications(): NotificationDelivery {
+    this.#delivery ??= createNotificationDelivery(
+      this.#env as never,
+      new D1SupportDataPort(this.#db),
+    );
+    return this.#delivery;
+  }
+
   /**
    * Accept a sign-in request and issue a token.
    *
-   * Returns nothing, always, whether or not the address has an account — A07's page shows
-   * the same sentence either way. The token is minted and stored hashed; when Resend is
-   * configured the mail path picks it up. Until then it is issued and simply never
-   * delivered, which is honest: the link genuinely exists and genuinely expires.
+   * The answer never varies with the ADDRESS -- not with whether it has an account, not
+   * with whether it was rate limited -- because either would turn this public endpoint into
+   * an account oracle. It does now report whether this DEPLOYMENT sent anything.
+   *
+   * This docblock used to say "when Resend is configured the mail path picks it up". No
+   * mail path ever picked it up. The token was minted, stored hashed, and never emailed,
+   * while `/admin/login` answered 200 and told the visitor a link was on its way -- on a
+   * public, unauthenticated endpoint, on live production. The independent auditor found it
+   * on 19 September 2026. It is the same failure this product exists to detect in other
+   * people's systems: a success reported by the system that was supposed to do the work,
+   * with no evidence behind it.
    */
-  async requestSignInLink(email: string): Promise<void> {
+  async requestSignInLink(email: string): Promise<SignInLinkOutcome> {
     const now = new Date();
     const address = email.trim().toLowerCase();
-    if (address.length === 0 || !address.includes('@')) return;
+    if (address.length === 0 || !address.includes('@')) return { delivery: 'no_transport' };
 
     // Rate limited on a hash of the address, never the address itself.
     const decision = await consume(
@@ -2514,9 +2556,29 @@ export class D1OwnerAuth implements OwnerAuthPort {
       15 * 60,
       now,
     );
-    if (!decision.allowed) return;
+    // Rate limiting is invisible to the caller on purpose: a different answer here would
+    // tell an attacker their probing is working. It reports as `sent` for the same reason
+    // the answer does not vary with whether the address has an account.
+    if (!decision.allowed) return { delivery: 'sent' };
 
-    await issueSignInToken(this.#db, { email: address, now });
+    const issued = await issueSignInToken(this.#db, { email: address, now });
+
+    const base = this.#env.PUBLIC_BASE_URL.replace(/\/+$/, '');
+    const report = await this.#notifications.deliver([
+      {
+        template: 'sign_in_link',
+        to: address,
+        variables: {
+          link: `${base}/admin/login/complete?token=${encodeURIComponent(issued.token)}`,
+          expires_at: issued.expiresAt,
+        },
+      },
+    ] as never);
+
+    // What actually happened, so the page can say it. `deliverNotifications` records an
+    // unsent notification as `no_email_transport_configured` rather than throwing, so a
+    // deployment without a transport reaches here with nothing sent.
+    return { delivery: report.sent > 0 ? 'sent' : 'no_transport' };
   }
 
   /**

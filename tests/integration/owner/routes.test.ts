@@ -580,6 +580,29 @@ describe('owner routes — admin entry point', () => {
     expect(normalise(await unknown.text())).toBe(normalise(await known.text()));
   });
 
+  /**
+   * The defect this exists for, found by the independent auditor on 19 September 2026.
+   *
+   * `POST /admin/login` answered 200 and rendered "a link is on its way" on live
+   * production, where nothing sends one: `requestSignInLink` minted a token and returned.
+   * A public, unauthenticated endpoint reporting a success it had not performed is the
+   * precise failure this product exists to detect in other people's systems.
+   *
+   * OWNER-058 could not catch it. It asserts the two answers are IDENTICAL, and they were:
+   * identically false. So this asserts the answer matches what the deployment did.
+   */
+  it('OWNER-200 a deployment that sends nothing does not tell the visitor a link is on its way', async () => {
+    const h = harness({ principal: ANONYMOUS_PRINCIPAL });
+    const body = await (await h.post('/admin/login', { email: 'owner@example.invalid' })).text();
+
+    // The harness wires `UnwiredOwnerAuth`, which sends nothing and now says so.
+    expect(body).toContain('No sign-in link was sent');
+    expect(body).not.toContain('a link is on its way');
+    expect(body).not.toContain('Check your email');
+    // Still no existence signal: the refusal is about the deployment, not the address.
+    expect(body).toContain('We do not say whether an account exists');
+  });
+
   it('OWNER-059 /admin sends a signed-in owner to the panel and everyone else to the login page', async () => {
     expect((await harness().get('/admin')).headers.get('location')).toBe('/owner');
     expect(

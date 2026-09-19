@@ -121,7 +121,7 @@ export interface TotpResult {
  */
 export interface OwnerAuthPort {
   /** Always returns. Never reveals whether the address has an account. */
-  requestSignInLink(email: string): Promise<void>;
+  requestSignInLink(email: string): Promise<{ readonly delivery: 'sent' | 'no_transport' }>;
   verifyTotp(principal: OwnerPrincipal, code: string, now: Date): Promise<TotpResult>;
   bootstrap(
     input: { readonly presentedToken: string; readonly verifiedAuthSubject: string | null },
@@ -137,8 +137,10 @@ export interface OwnerAuthPort {
  * a wrong code was entered.
  */
 export class UnwiredOwnerAuth implements OwnerAuthPort {
-  async requestSignInLink(): Promise<void> {
-    /* No mail path is configured. The page's answer is identical either way, by design. */
+  async requestSignInLink(): Promise<{ readonly delivery: 'sent' | 'no_transport' }> {
+    // This port is unwired by definition, so nothing was sent, and it says so. Returning
+    // `sent` here would reproduce the exact defect the real port was just fixed for.
+    return { delivery: 'no_transport' };
   }
 
   async verifyTotp(): Promise<TotpResult> {
@@ -521,12 +523,17 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
     const form = await readForm(c);
     const email = (form.single['email'] ?? '').trim().slice(0, 254);
     const looksLikeAddress = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-    if (looksLikeAddress) await auth.requestSignInLink(email.toLowerCase());
+    // What the deployment did, not what we would like it to have done. The answer still
+    // does not vary with the address -- only with whether this deployment can send at all.
+    const outcome = looksLikeAddress
+      ? await auth.requestSignInLink(email.toLowerCase())
+      : { delivery: 'no_transport' as const };
     return ownerPage(
       c,
       adminLoginDocument({
         csrfToken: newPageToken(c),
         submitted: looksLikeAddress,
+        delivery: outcome.delivery,
         fieldError: looksLikeAddress ? null : 'Enter an email address.',
         email,
       }),
