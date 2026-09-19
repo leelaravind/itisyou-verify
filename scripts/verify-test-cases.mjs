@@ -802,7 +802,12 @@ const accounting = {
   ledger_entries: cases.length,
   discovered: 0, // a test carrying this id exists in the tree
   planned: 0, // designed, no test written
-  executed: 0, // ran in the recorded run
+  // NOT "ran in the recorded run". This script never opens a run artefact; the bucket is
+  // derived from each ledger row's own `status` field. Saying otherwise invited the reader
+  // to treat this output as evidence of execution, which it is not and cannot be -- a row
+  // could claim `passing` and this script would agree. Only comparing the ledger against a
+  // real run report proves execution, and `build-gate-artefact.mjs` is what does that.
+  executed: 0,
   not_executed: 0, // test exists, absent from the recorded run
   passing: 0,
   failing: 0,
@@ -1032,7 +1037,9 @@ if (AS_JSON) {
   console.log(
     `    discovered                                          ${n(accounting.discovered)}`,
   );
-  console.log(`      executed     (ran in the recorded run)            ${n(accounting.executed)}`);
+  console.log(
+    `      executed     (status says it ran; unverified here)  ${n(accounting.executed)}`,
+  );
   console.log(
     `      not executed (exists, absent from that run)       ${n(accounting.not_executed)}`,
   );

@@ -513,6 +513,39 @@ export class D1ResendWebhookDataPort implements ResendWebhookDataPort {
     const messageId = (params.messageId ?? '').trim();
     if (messageId === '') return 0;
 
+    // Re-check the ambiguity rule HERE, at claim time, and not only at park time.
+    //
+    // The park-time check asks "does exactly one run expect this message?" against the
+    // runs that existed when the callback arrived. On the recovery path there were none:
+    // the delivery landed before its run, which is the whole reason it is parked. So a
+    // row parked as `unmatched` carries no assurance that it is still unambiguous once
+    // runs appear, and two runs naming the same message id would each be handed the same
+    // evidence, first one observed winning. That is the recipient-fallback defect again
+    // wearing different clothes -- a tie broken by arrival order -- and it can publish a
+    // VERIFIED verdict against the wrong enquiry.
+    //
+    // Found by the independent auditor on 19 September 2026, in the fix for the previous
+    // instance of the same class. `LIMIT 2` again, so "more than one" stays visible.
+    const claimants = await this.db
+      .prepare(
+        `SELECT r.id AS id
+           FROM runs r
+           JOIN source_events se
+             ON se.id = r.source_event_id AND se.workspace_id = r.workspace_id
+          WHERE r.workspace_id = ?
+            AND r.status = 'PENDING'
+            AND json_extract(se.payload_json, '$.expected.email_message_id') = ?
+          LIMIT 2`,
+      )
+      .bind(params.workspaceId, messageId)
+      .all<{ id: string }>();
+
+    // Exactly one pending claimant, and it must be the run asking. Anything else leaves
+    // the row parked: an ambiguity is not resolved by whichever run the scheduler reached
+    // first, and a run that is no longer PENDING must not have its verdict reopened.
+    if (claimants.results.length !== 1) return 0;
+    if (claimants.results[0]?.id !== params.runId) return 0;
+
     const parked = await this.db
       .prepare(
         `SELECT id, provider, content_digest, redacted_summary, observed_at, expires_at
