@@ -128,6 +128,19 @@ export interface TickDeps {
   readonly newId?: IdFactory;
   readonly digest?: DigestFn;
   readonly logger?: SchedulerLogger;
+  /**
+   * When true the due-run pass does not run at all.
+   *
+   * Set from the owner's  switch. The cost this control exists to
+   * stop is the provider reads and retries inside the due pass, so that is where it is
+   * enforced. Claimed runs are NOT lost: nothing is claimed, so nothing needs releasing,
+   * and every due run is simply still due on the next tick once the owner un-pauses.
+   *
+   * Deliberately a skip rather than a zero call budget. A zero budget would report the
+   * runs as deferred for want of capacity, which reads as the service struggling; this
+   * reports them as paused, which is what actually happened and what the owner did.
+   */
+  readonly suspendDueRuns?: boolean;
 }
 
 /**
@@ -190,11 +203,17 @@ export async function runSchedulerTick(deps: TickDeps): Promise<TickReport> {
   };
   let error: string | null = null;
 
+  if (deps.suspendDueRuns === true) {
+    logger.warn('scheduler.due_runs.suspended', {
+      reason: 'expensive_verification is paused by the owner',
+    });
+  } else {
   try {
     runPass = await runDuePass(deps, budget, logger);
   } catch (caught) {
     error = messageOf(caught);
     logger.warn('scheduler.runs.failed', { message: error });
+  }
   }
 
   try {
