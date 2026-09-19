@@ -1,33 +1,43 @@
 /**
- * SSRF guard — TEST-ONLY REFERENCE IMPLEMENTATION, owned by A10 (security review).
+ * SSRF / URL guard — ADOPTED VERBATIM (logic unchanged) from A10's reference
+ * implementation at `tests/security/helpers/url-guard.ts`.
  *
- * This file lives under `tests/security/` deliberately: A10 does not own
- * `packages/connectors/`. A04 must adopt this logic verbatim (or something provably
- * equivalent) as the single choke point through which every outbound fetch passes,
- * and must re-export it so `tests/security/unit/url-guard.test.ts` can be re-pointed
- * at the production implementation with a one-line import change.
+ * ATTRIBUTION: every function below (`normaliseHost`, `parseIpv4Loose`, `parseIpv6Loose`,
+ * `parseIpLiteral`, `isPrivateAddress`, `checkUrl`, `checkRedirect`,
+ * `checkResolvedAddress`) is A10's work, copied here because A10 does not own
+ * `packages/connectors/`. A04 owns this copy. `tests/security/unit/url-guard.test.ts`
+ * can be re-pointed at `@verify/connectors` with a one-line import change; the exported
+ * names, option defaults and failure reasons are identical.
  *
- * Threat: brief rule 8 says "No customer-controlled URL is ever fetched." Today that is
- * a sentence in a document, not a function. Customer-influenced URLs reach us through
- * at least: OAuth `redirect_uri` / `state` round-trips, HubSpot portal-supplied API
- * hosts, Resend webhook `Location` redirects, report/export links, campaign destination
- * URLs, and any assistant-proposed URL. From a Cloudflare Worker, `fetch()` to
- * `http://169.254.169.254/` or to an internal hostname is a real request; there is no
- * network boundary doing this job for us.
+ * A04's only additions are at the bottom of the file:
+ *   - `CONNECTOR_ALLOWED_HOSTS`, the *narrower* fixed allowlist the connector fetch layer
+ *     uses (three provider API hosts, no subdomain wildcarding).
+ *   - `CONNECTOR_URL_GUARD_OPTIONS`, the frozen option set `http.ts` passes.
+ * Nothing above those additions has been edited.
  *
- * Design rules encoded here:
- *  1. HTTPS only. No http, no file:, no gopher:, no data:, no blob:.
- *  2. No userinfo. `https://api.hubapi.com@evil.example/` has host `evil.example`.
- *  3. No bare IP literals at all — the allowlist is a list of hostnames, so an IP
- *     literal can never be a legitimate provider host. Private/loopback/link-local
- *     literals get their own reason code so tests can be precise.
- *  4. Host must equal an allowlisted host, or be a subdomain of one on a dot boundary.
- *     `api.hubapi.com.evil.example` and `evil-api.hubapi.com` both fail.
- *  5. Redirects are re-checked from scratch, with a hop budget. A 302 to
- *     `http://169.254.169.254/` must not be followed.
- *  6. `checkResolvedAddress()` exists for the post-DNS check that defeats DNS rebinding.
- *     The Workers runtime does not expose resolved addresses, so on Workers this is a
- *     DOCUMENTED RESIDUAL RISK, not an implemented control. Do not claim otherwise.
+ * Original header, preserved:
+ *
+ *   Threat: brief rule 8 says "No customer-controlled URL is ever fetched." Today that is
+ *   a sentence in a document, not a function. Customer-influenced URLs reach us through
+ *   at least: OAuth `redirect_uri` / `state` round-trips, HubSpot portal-supplied API
+ *   hosts, Resend webhook `Location` redirects, report/export links, campaign destination
+ *   URLs, and any assistant-proposed URL. From a Cloudflare Worker, `fetch()` to
+ *   `http://169.254.169.254/` or to an internal hostname is a real request; there is no
+ *   network boundary doing this job for us.
+ *
+ *   Design rules encoded here:
+ *    1. HTTPS only. No http, no file:, no gopher:, no data:, no blob:.
+ *    2. No userinfo. `https://api.hubapi.com@evil.example/` has host `evil.example`.
+ *    3. No bare IP literals at all — the allowlist is a list of hostnames, so an IP
+ *       literal can never be a legitimate provider host. Private/loopback/link-local
+ *       literals get their own reason code so tests can be precise.
+ *    4. Host must equal an allowlisted host, or be a subdomain of one on a dot boundary.
+ *       `api.hubapi.com.evil.example` and `evil-api.hubapi.com` both fail.
+ *    5. Redirects are re-checked from scratch, with a hop budget. A 302 to
+ *       `http://169.254.169.254/` must not be followed.
+ *    6. `checkResolvedAddress()` exists for the post-DNS check that defeats DNS rebinding.
+ *       The Workers runtime does not expose resolved addresses, so on Workers this is a
+ *       DOCUMENTED RESIDUAL RISK, not an implemented control. Do not claim otherwise.
  */
 
 export type UrlGuardReason =
@@ -299,3 +309,36 @@ export function checkResolvedAddress(address: string): UrlGuardResult {
   if (isPrivateAddress(ip)) return fail('private_address', address);
   return { ok: true, url: new URL(`https://${ip.version === 6 ? `[${address}]` : address}/`) };
 }
+
+// ---------------------------------------------------------------------------
+// A04 additions — the connector-layer allowlist
+// ---------------------------------------------------------------------------
+
+/**
+ * The fixed host allowlist for outbound *connector* traffic. Narrower than A10's
+ * `PROVIDER_ALLOWLIST` on purpose: connectors talk to three API hosts and nothing else.
+ * Checkout/billing hosts belong to the billing subsystem, not here, and `openrouter.ai`
+ * belongs to the assistant.
+ *
+ * Compiled in. Never read from the database, an environment variable, a customer record
+ * or a provider response.
+ */
+export const CONNECTOR_ALLOWED_HOSTS: readonly string[] = Object.freeze([
+  'api.hubapi.com',
+  'api.resend.com',
+  'api.stripe.com',
+]);
+
+/**
+ * The frozen guard options every connector request uses.
+ *
+ * `allowSubdomains: false` — we know the exact three hostnames, so there is no reason to
+ * accept `anything.api.hubapi.com`. Tightening this costs nothing and removes a class of
+ * takeover.
+ */
+export const CONNECTOR_URL_GUARD_OPTIONS: UrlGuardOptions = Object.freeze({
+  allowedHosts: CONNECTOR_ALLOWED_HOSTS,
+  allowSubdomains: false,
+  allowedPorts: Object.freeze([443]) as readonly number[],
+  maxRedirects: 3,
+});

@@ -56,7 +56,10 @@ function scanText(label, text) {
   const lines = text.split('\n');
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
+    // The marker exempts its own line, or the line immediately after it — so a long
+    // line can be annotated above rather than pushed past the length limit.
     if (line.includes(ALLOW_MARKER)) continue;
+    if (i > 0 && lines[i - 1].includes(ALLOW_MARKER)) continue;
     if (line.length > 4000) continue; // minified bundle line; checked by rule below instead
     for (const rule of RULES) {
       const m = rule.re.exec(line);

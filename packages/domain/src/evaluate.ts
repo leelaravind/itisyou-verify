@@ -291,13 +291,17 @@ function compareStrings(field: string, a: string, b: string): boolean {
  *
  * The CONTRADICTED / UNKNOWN boundary, stated once:
  *   - `undefined` — the provider did not return the field. We cannot say the value is wrong,
- *     only that we do not have it. → UNKNOWN / EVIDENCE_UNAVAILABLE.
+ *     only that we do not have it. → UNKNOWN / EVIDENCE_NOT_RETURNED.
  *   - `null` or `''` — the provider returned the field and it is empty. That is an
  *     authoritative empty and it genuinely contradicts "this field should equal X".
  *     → CONTRADICTED / VALUE_MISMATCH.
  *   - `not_equals` is the exception: "the value is not X" can never be established from a
  *     value that is not there, so an absent value is UNKNOWN, never SUPPORTED. Success is
  *     never inferred from absence.
+ *
+ * Note which code is used: `EVIDENCE_NOT_RETURNED` means the provider answered and left this
+ * field out. `EVIDENCE_UNAVAILABLE` means we could not reach the provider at all. Those are
+ * two very different conversations to have with a customer, so they are two different codes.
  */
 function applyOperator(spec: AssertionSpec, value: string | null | undefined, occurredAt: Date): Verdict {
   if (spec.operator === 'exists') {
@@ -305,7 +309,8 @@ function applyOperator(spec: AssertionSpec, value: string | null | undefined, oc
     return contradicted(spec.field === 'record.correlation_id' ? 'CORRELATION_MISSING' : 'VALUE_MISMATCH');
   }
 
-  if (value === undefined) return unknown('EVIDENCE_UNAVAILABLE');
+  // The provider answered but left this field out of its response.
+  if (value === undefined) return unknown('EVIDENCE_NOT_RETURNED');
 
   switch (spec.operator) {
     case 'equals': {
@@ -313,7 +318,8 @@ function applyOperator(spec: AssertionSpec, value: string | null | undefined, oc
       return compareStrings(spec.field, value, String(spec.expected)) ? SUPPORTED : contradicted('VALUE_MISMATCH');
     }
     case 'not_equals': {
-      if (!present(value)) return unknown('EVIDENCE_UNAVAILABLE');
+      // An empty value is not proof that the value is not the forbidden one.
+      if (!present(value)) return unknown('EVIDENCE_NOT_RETURNED');
       return compareStrings(spec.field, value, String(spec.expected)) ? contradicted('VALUE_MISMATCH') : SUPPORTED;
     }
     case 'normalised_email_equals': {
@@ -331,8 +337,9 @@ function applyOperator(spec: AssertionSpec, value: string | null | undefined, oc
     }
     case 'occurred_within': {
       const observedMs = parseInstant(value);
-      // A corrupt or missing timestamp is not a late timestamp. We simply cannot tell.
-      if (observedMs === null) return unknown('EVIDENCE_UNAVAILABLE');
+      // A corrupt or missing timestamp is not a late timestamp. We simply cannot tell — and
+      // the provider did answer us, so this is an omission, not an outage.
+      if (observedMs === null) return unknown('EVIDENCE_NOT_RETURNED');
       const windowSeconds = typeof spec.expected === 'number' ? spec.expected : 0;
       const deltaMs = observedMs - occurredAt.getTime();
       // Evidence that predates the business event cannot have been produced by it.
@@ -365,11 +372,14 @@ function mapGapToReason(gap: EvidenceGap): ReasonCode {
     case 'PERMISSION_MISSING':
     case 'UNSUPPORTED_CAPABILITY':
       return 'CONNECTION_UNAVAILABLE';
+    case 'INVALID_EVIDENCE':
+      // The provider answered; what it sent could not be read as the field we needed.
+      return 'EVIDENCE_NOT_RETURNED';
     case 'RATE_LIMITED':
     case 'PROVIDER_UNAVAILABLE':
-    case 'INVALID_EVIDENCE':
       return 'EVIDENCE_UNAVAILABLE';
     default:
+      // We do not know why the source failed, so we do not claim the provider answered.
       return 'EVIDENCE_UNAVAILABLE';
   }
 }
@@ -509,7 +519,7 @@ function evaluateOne(spec: AssertionSpec, bundle: EvidenceBundle, ctx: Evaluatio
       const claimed = candidates[0];
       return buildResult(
         spec,
-        unknown('EVIDENCE_UNAVAILABLE'),
+        unknown('CLAIM_NOT_INDEPENDENT'),
         claimed?.value ?? null,
         claimed?.at ?? null,
         claimed?.ref ?? null,

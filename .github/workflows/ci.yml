@@ -1,0 +1,123 @@
+# ITISYOU Verify — public continuous integration.
+#
+# THREAT MODEL FOR THIS FILE (this repository is public and accepts fork pull requests):
+#
+#  1. No deployment secret is ever available here. This workflow runs typecheck, lint,
+#     the unit/integration suites, the security suite and the secret scan, all against
+#     synthetic data. Deployment lives in a SEPARATE, manually-triggered workflow that
+#     runs only on refs inside this repository. If you find yourself adding
+#     `secrets.CLOUDFLARE_API_TOKEN` to this file, stop: you are about to hand every
+#     fork-PR author a production credential.
+#
+#  2. `pull_request_target` is DELIBERATELY NOT USED. That trigger runs the workflow
+#     definition from the BASE branch but with repository secrets available, while the
+#     PR head is attacker-controlled code. Checking out and building the head under
+#     `pull_request_target` is the single most reliable way to leak a public repo's
+#     secrets. GitHub documents that with the plain `pull_request` trigger,
+#     "with the exception of GITHUB_TOKEN, secrets are not passed to the runner when a
+#     workflow is triggered from a forked repository", and that write permissions are
+#     downgraded to read-only for fork PRs. That is exactly the property we want, so we
+#     use `pull_request` and accept that fork PRs cannot do anything privileged.
+#     https://docs.github.com/en/actions/security-for-github-actions/security-guides/using-secrets-in-github-actions
+#
+#  3. Every action is pinned to a full 40-character commit SHA, not a tag. A tag is
+#     mutable: whoever controls the action repository can repoint v4 at new code that
+#     reads the runner's environment. The version is kept in a trailing comment so a
+#     human can still tell what is pinned. SHAs resolved from the GitHub API on
+#     2026-09-19; re-resolve, do not hand-edit, when bumping.
+#
+#  4. `permissions: contents: read` at the top level. No job widens it. Nothing here
+#     writes a comment, a check, a package or a deployment.
+#
+#  5. The pnpm store is cached. Nothing that could contain a credential is cached:
+#     no `.wrangler/`, no `.dev.vars`, no `node_modules` from a privileged job.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Least privilege for GITHUB_TOKEN across every job in this workflow.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Belt and braces: even if a step tried to read a deployment secret, there is nothing
+  # to read, and the suites are configured to block outbound fetch (tests/setup.ts).
+  CI: "true"
+  NODE_OPTIONS: --max-old-space-size=4096
+
+jobs:
+  verify:
+    name: typecheck, lint, tests, secret scan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          # `--history` needs the full history, not a shallow clone. This is the only
+          # reason we fetch depth 0; it costs nothing on a repository this size.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@a8198c4bff370c8506180b035930dea56dbd5288 # v5
+        with:
+          # Matches `packageManager` in package.json. Keep the two in step.
+          version: 11.22.0
+          run_install: false
+
+      - name: Set up Node 22
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: "22"
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      # TODO(lead): there is no eslint.config.js in the repository yet, so `pnpm lint`
+      # exits non-zero for a reason that has nothing to do with code quality. The guard
+      # below must be DELETED the moment the config lands — a lint step that silently
+      # skips itself is worse than no lint step.
+      - name: Lint
+        run: |
+          if ls eslint.config.* >/dev/null 2>&1; then
+            pnpm lint
+          else
+            echo "::warning title=Lint skipped::No eslint.config.* found. Remove this guard once it exists."
+          fi
+
+      - name: Unit and integration tests
+        run: pnpm test
+
+      # The security suite lives outside the root vitest `include` globs until the lead
+      # adds 'tests/security/**/*.test.ts' there (security-acceptance item SEC-ACC-01),
+      # so it is run explicitly. Do not delete this step when the globs are merged —
+      # change it to `pnpm test` and delete the config instead.
+      - name: Security regression suite
+        run: npx vitest run --config tests/security/vitest.config.ts
+
+      - name: Secret scan (tracked tree)
+        run: node scripts/scan-secrets.mjs
+
+      - name: Secret scan (full git history)
+        if: github.event_name == 'pull_request'
+        run: node scripts/scan-secrets.mjs --history
+
+      # Build output is scanned too: a secret that is safe in source can still be
+      # inlined into a bundle by a build step. Nothing is uploaded anywhere.
+      - name: Build worker bundle (dry run) and scan it
+        run: |
+          pnpm --filter @verify/app build
+          node scripts/scan-secrets.mjs --paths apps/app/dist

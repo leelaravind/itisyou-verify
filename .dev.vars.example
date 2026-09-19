@@ -21,6 +21,9 @@ RESEND_API_KEY=
 RESEND_WEBHOOK_SECRET=
 RESEND_FROM_ADDRESS=
 
+# HubSpot private-app token, scope crm.objects.contacts.read only. Read-only, never writes.
+HUBSPOT_TEST_TOKEN=
+
 # Optional assistant. The product works fully with all of these unset.
 OPENROUTER_API_KEY=
 

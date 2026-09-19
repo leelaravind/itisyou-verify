@@ -6,7 +6,8 @@
     "declaration": false,
     "declarationMap": false,
     "types": [
-      "node"
+      "node",
+      "@cloudflare/workers-types"
     ],
     "baseUrl": ".",
     "paths": {

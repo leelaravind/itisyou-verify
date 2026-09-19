@@ -44,6 +44,10 @@ export const REASON_CODE = [
   'STATUS_NOT_REACHED',
   'OUTSIDE_TIME_WINDOW',
   'EVIDENCE_UNAVAILABLE',
+  /** The provider answered but omitted this field. Distinct from an outage. */
+  'EVIDENCE_NOT_RETURNED',
+  /** Rejected because its only source was the customer's own claim, which is not independent. */
+  'CLAIM_NOT_INDEPENDENT',
   'CONNECTION_UNAVAILABLE',
   'DEADLINE_PASSED',
   'AWAITING_EVIDENCE',

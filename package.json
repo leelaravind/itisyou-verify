@@ -12,8 +12,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
-    "test:unit": "vitest run --project unit",
-    "test:integration": "vitest run --project integration",
+    "test:unit": "vitest run tests/unit",
+    "test:integration": "vitest run tests/integration",
     "test:e2e": "playwright test",
     "test:report": "node scripts/build-test-report.mjs",
     "scan:secrets": "node scripts/scan-secrets.mjs",
@@ -25,7 +25,8 @@
     "migrate:staging": "node scripts/migrate.mjs --env staging",
     "migrate:production": "node scripts/migrate.mjs --env production",
     "release:staging": "node scripts/release.mjs --env staging",
-    "release:production": "node scripts/release.mjs --env production"
+    "release:production": "node scripts/release.mjs --env production",
+    "test:security": "vitest run tests/security"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.9.0",

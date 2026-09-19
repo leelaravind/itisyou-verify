@@ -59,3 +59,8 @@ desktop.ini
 *.db
 *.dump
 *.sql.gz
+
+# Stray tool output
+tsc.out
+*.tsbuildinfo
+reports/
