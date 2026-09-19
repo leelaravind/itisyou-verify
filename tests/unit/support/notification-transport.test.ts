@@ -41,8 +41,8 @@ function transportWith(
   });
 }
 
-describe('CUST-370 the email transport', () => {
-  it('CUST-370 posts to the one fixed host and reports acceptance, never delivery', async () => {
+describe('CUST-138 the email transport', () => {
+  it('CUST-138 posts to the one fixed host and reports acceptance, never delivery', async () => {
     const seen: { url: string; body: unknown; auth: string }[] = [];
     const transport = transportWith((url, init) => {
       seen.push({
@@ -72,7 +72,7 @@ describe('CUST-370 the email transport', () => {
     expect(recordedStatusFor(result)).toBe('accepted_by_sending_service');
   });
 
-  it('CUST-371 never lets the API key reach the recorded provider status', async () => {
+  it('CUST-139 never lets the API key reach the recorded provider status', async () => {
     // An upstream error body that echoes the credential back — the exact shape that puts a
     // live key into a database column the owner dashboard renders.
     const transport = transportWith(
@@ -92,7 +92,7 @@ describe('CUST-370 the email transport', () => {
     expect(result.retryable).toBe(false);
   });
 
-  it('CUST-372 marks 429 and 5xx retryable and a network fault retryable', async () => {
+  it('CUST-140 marks 429 and 5xx retryable and a network fault retryable', async () => {
     for (const status of [429, 500, 503]) {
       const transport = transportWith(() => new Response('', { status }));
       const result = await transport.send(MESSAGE);
@@ -109,7 +109,7 @@ describe('CUST-370 the email transport', () => {
     expect(failure.providerStatus).toBe('network_TypeError');
   });
 
-  it('CUST-373 a 4xx recipient rejection is recorded as an unusable address, not a retry', async () => {
+  it('CUST-141 a 4xx recipient rejection is recorded as an unusable address, not a retry', async () => {
     const transport = transportWith(
       () =>
         new Response(JSON.stringify({ name: 'invalid_recipient' }), {
@@ -121,7 +121,7 @@ describe('CUST-370 the email transport', () => {
     expect(recordedStatusFor(result)).toBe('recipient_address_unusable');
   });
 
-  it('CUST-374 no transport is built without both a key and a verified sender', () => {
+  it('CUST-142 no transport is built without both a key and a verified sender', () => {
     expect(createEmailTransport({})).toBeUndefined();
     expect(createEmailTransport({ RESEND_API_KEY: API_KEY })).toBeUndefined();
     expect(createEmailTransport({ RESEND_FROM_ADDRESS: FROM })).toBeUndefined();

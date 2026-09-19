@@ -1,8 +1,8 @@
 /**
  * AUTH-5xx — the two Gate A blockers A10 named in pass two, re-verified against code.
  *
- *   A-21  a new session id on every privilege transition, old row revoked
- *   A-20  an approval consumed exactly once, atomically, before money moves
+ *   gate A21  a new session id on every privilege transition, old row revoked
+ *   gate A20  an approval consumed exactly once, atomically, before money moves
  *
  * Both were claimed as done or in-brief. This checks them, behaviourally where a real
  * database is available (`tests/integration/db/harness.ts` runs actual SQLite), and at the
@@ -25,7 +25,7 @@ function seedUser(h: ReturnType<typeof createTestDb>, suffix = 'a'): string {
   return seedWorkspace(h, suffix).userId;
 }
 
-describe('A-21 session rotation on a privilege transition', () => {
+describe('gate A21 session rotation on a privilege transition', () => {
   it('AUTH-501 rotate mints a new session and revokes the old one, atomically', async () => {
     const h = createTestDb();
     const userId = seedUser(h);
@@ -138,7 +138,7 @@ describe('A-21 session rotation on a privilege transition', () => {
   });
 });
 
-describe('A-20 an approval is consumed exactly once before money moves', () => {
+describe('gate A20 an approval is consumed exactly once before money moves', () => {
   it('AUTH-510 the approval check refuses anything but a live, granted, matching approval', async () => {
     const { checkOwnerApproval } = await import('@app/owner/approvals');
     const base = {

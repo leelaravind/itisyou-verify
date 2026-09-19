@@ -61,7 +61,7 @@ async function openAllowance(
   });
 }
 
-describe('PR-2 the admission gate a route actually calls', () => {
+describe('PR2 the admission gate a route actually calls', () => {
   it('BILL-262 a served workspace with allowance is admitted, reserves, and gets the one true period key', async () => {
     const harness = createHarness();
     await subscribe(harness);
@@ -172,7 +172,7 @@ describe('PR-2 the admission gate a route actually calls', () => {
   });
 });
 
-describe('PR-4 reconciliation can actually resume', () => {
+describe('PR4 reconciliation can actually resume', () => {
   function providerSays(harness: BillingHarness, status: string): void {
     harness.gateway.subscriptions.set('sub_live_1', {
       id: 'sub_live_1',
@@ -263,7 +263,7 @@ describe('PR-4 reconciliation can actually resume', () => {
   });
 });
 
-describe('PR-6 the tick that makes day eight arrive', () => {
+describe('PR6 the tick that makes day eight arrive', () => {
   it('BILL-276 the sweep runs on its minute and not on others', async () => {
     const harness = createHarness({ startAt: `2026-09-19T09:0${RECOVERY_SWEEP_MINUTE}:00.000Z` });
     const onMinute = await runBillingMaintenance(harness);

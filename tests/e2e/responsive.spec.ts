@@ -7,7 +7,7 @@
  * just as broken as a page body that can.
  */
 import { mkdir } from 'node:fs/promises';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import {
   CUSTOMER_WORKSPACE_MISSING,
   SEED_MISSING,
@@ -17,10 +17,14 @@ import {
   signInAsAutomation,
 } from './helpers/session';
 
+// `caseId` is written out rather than computed from the index. A title built as
+// `CUST-09${i + 2}` produces a correct id at run time and an unreadable one to anything
+// scanning the source -- the ledger checker sees the literal `CUST-09`, which is not a
+// well-formed id and is not a case that exists. A case id is a name, so it is spelled.
 const WIDTHS = [
-  { name: 'mobile-390', width: 390, height: 844 },
-  { name: 'tablet-834', width: 834, height: 1112 },
-  { name: 'desktop-1440', width: 1440, height: 900 },
+  { caseId: 'CUST-092', name: 'mobile-390', width: 390, height: 844 },
+  { caseId: 'CUST-093', name: 'tablet-834', width: 834, height: 1112 },
+  { caseId: 'CUST-094', name: 'desktop-1440', width: 1440, height: 900 },
 ] as const;
 
 /** The pages a customer must be able to complete a primary task on. */
@@ -90,32 +94,53 @@ async function offendingElements(page: Page): Promise<string[]> {
  * largest unmeasured surface in the product stays unmeasured. So sign in first, and skip
  * with a stated reason when there is no identity to sign in as.
  */
-for (const viewport of WIDTHS) {
-  test(`CUST-09${WIDTHS.indexOf(viewport) + 2} no page body scrolls horizontally at ${viewport.width}px on any primary task`, async ({
-    page,
-    context,
-  }) => {
-    const seeded =
-      (await signInAsAutomation(context)) && (await automationCookieIsPresent(context));
-    test.skip(!seeded, SEED_MISSING);
-    test.skip(!(await customerSurfaceReady(page)), CUSTOMER_WORKSPACE_MISSING);
-    await page.setViewportSize({ width: viewport.width, height: viewport.height });
-    for (const task of PRIMARY_TASKS) {
-      const path = await resolveTask(page, task);
-      if (path === null) continue;
-      const response = await page.goto(path);
-      // The status check is not incidental. An error page has almost no content and so never
-      // overflows, which means a broken route would make this case pass without measuring
-      // anything. Assert the page actually rendered before believing its layout.
-      expect(response?.status(), `${path} did not render; its layout was not measured`).toBe(200);
-      const overflow = await horizontalOverflow(page);
-      expect(
-        overflow,
-        `${path} at ${viewport.width}px overflows by ${overflow}px: ${(await offendingElements(page)).join(', ')}`,
-      ).toBeLessThanOrEqual(1);
-    }
-  });
+/**
+ * Written out one per width rather than generated in a loop.
+ *
+ * A generated title -- `${viewport.caseId} …` or `CUST-09${i + 2} …` -- produces the right
+ * name at run time and no name at all in the source, and the case ledger reads the source.
+ * A case id that only exists at run time is a case nothing can reconcile against, so the
+ * three titles are spelled and share one body.
+ */
+async function assertNoHorizontalOverflow(
+  page: Page,
+  context: BrowserContext,
+  viewport: (typeof WIDTHS)[number],
+): Promise<void> {
+  const seeded = (await signInAsAutomation(context)) && (await automationCookieIsPresent(context));
+  test.skip(!seeded, SEED_MISSING);
+  test.skip(!(await customerSurfaceReady(page)), CUSTOMER_WORKSPACE_MISSING);
+  await page.setViewportSize({ width: viewport.width, height: viewport.height });
+  for (const task of PRIMARY_TASKS) {
+    const path = await resolveTask(page, task);
+    if (path === null) continue;
+    const response = await page.goto(path);
+    // The status check is not incidental. An error page has almost no content and so never
+    // overflows, which means a broken route would make this case pass without measuring
+    // anything. Assert the page actually rendered before believing its layout.
+    expect(response?.status(), `${path} did not render; its layout was not measured`).toBe(200);
+    const overflow = await horizontalOverflow(page);
+    expect(
+      overflow,
+      `${path} at ${viewport.width}px overflows by ${overflow}px: ${(await offendingElements(page)).join(', ')}`,
+    ).toBeLessThanOrEqual(1);
+  }
 }
+
+test('CUST-092 no page body scrolls horizontally at 390px on any primary task', async ({
+  page,
+  context,
+}) => assertNoHorizontalOverflow(page, context, WIDTHS[0]));
+
+test('CUST-093 no page body scrolls horizontally at 834px on any primary task', async ({
+  page,
+  context,
+}) => assertNoHorizontalOverflow(page, context, WIDTHS[1]));
+
+test('CUST-094 no page body scrolls horizontally at 1440px on any primary task', async ({
+  page,
+  context,
+}) => assertNoHorizontalOverflow(page, context, WIDTHS[2]));
 
 test('CUST-095 a wide table scrolls inside its own container rather than pushing the page sideways', async ({
   page,

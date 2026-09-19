@@ -63,22 +63,22 @@
  *
  *   | case       | condition                                  | status | code                   |
  *   | ---------- | ------------------------------------------ | ------ | ---------------------- |
- *   | SLICE-001  | correctly signed, allowance available      | 202    | — (`duplicate: false`) |
- *   | SLICE-010  | byte-identical replay                      | 200    | — (`duplicate: true`)  |
+ *   | BILL-282  | correctly signed, allowance available      | 202    | — (`duplicate: false`) |
+ *   | BILL-285  | byte-identical replay                      | 200    | — (`duplicate: true`)  |
  *   | SLICE-010b | same `event_id`, different body            | 409    | IDEMPOTENCY_CONFLICT   |
- *   | SLICE-011  | signature made with the wrong secret       | 401    | SIGNATURE_INVALID      |
- *   | SLICE-012  | `workflow_id` not the credential's         | 403    | WORKFLOW_MISMATCH      |
- *   | SLICE-013  | workspace at its allowance                 | 429    | ALLOWANCE_EXHAUSTED    |
- *   | SLICE-014  | workspace with no subscription             | 402    | NO_SUBSCRIPTION        |
- *   | SLICE-015  | subscription `past_due`                    | 402    | PAYMENT_RECOVERY_PAUSED|
- *   | SLICE-020  | real key id, no `EVENT_SIGNING_ROOT_KEY`   | 503    | SIGNING_KEY_UNREADABLE |
- *   | SLICE-021  | unknown key id                             | 401    | SIGNATURE_INVALID      |
+ *   | BILL-286  | signature made with the wrong secret       | 401    | SIGNATURE_INVALID      |
+ *   | BILL-287  | `workflow_id` not the credential's         | 403    | WORKFLOW_MISMATCH      |
+ *   | BILL-288  | workspace at its allowance                 | 429    | ALLOWANCE_EXHAUSTED    |
+ *   | BILL-289  | workspace with no subscription             | 402    | NO_SUBSCRIPTION        |
+ *   | BILL-293  | subscription `past_due`                    | 402    | PAYMENT_RECOVERY_PAUSED|
+ *   | BILL-294  | real key id, no `EVENT_SIGNING_ROOT_KEY`   | 503    | SIGNING_KEY_UNREADABLE |
+ *   | BILL-295  | unknown key id                             | 401    | SIGNATURE_INVALID      |
  *
  * 401 is deliberately the same body for every authentication failure; the distinguishing
  * reason is logged and never returned. 503 is the exception and must stay one: it says the
  * fault is ours.
  *
- * Case ids `SLICE-001..022`.
+ * Case ids `BILL-282..022`.
  */
 import { randomBytes } from 'node:crypto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -256,7 +256,7 @@ function allowance(): { billing_period: string; reserved: number; consumed: numb
 /* -------------------------------------------------------------------------- */
 
 describe('the slice: a signed event through the deployed entry point', () => {
-  it('SLICE-001 a correctly signed event is admitted through worker.fetch, and writes all four rows', async () => {
+  it('BILL-282 a correctly signed event is admitted through worker.fetch, and writes all four rows', async () => {
     const key = await issueKey();
     const response = await send(body(), { keyId: key.keyId, secret: key.secret });
 
@@ -295,7 +295,7 @@ describe('the slice: a signed event through the deployed entry point', () => {
     expect(rows('SELECT id FROM outbox')).toHaveLength(1);
   });
 
-  it('SLICE-002 driving the real scheduled() handler settles the reservation into consumption', async () => {
+  it('BILL-283 driving the real scheduled() handler settles the reservation into consumption', async () => {
     const key = await issueKey();
     await send(body(), { keyId: key.keyId, secret: key.secret });
     expect(allowance()).toMatchObject({ reserved: 1, consumed: 0 });
@@ -316,7 +316,7 @@ describe('the slice: a signed event through the deployed entry point', () => {
     expect((settled?.reserved ?? 0) + (settled?.consumed ?? 0)).toBe(1);
   });
 
-  it('SLICE-003 the tick reaches a terminal run without inventing a verdict', async () => {
+  it('BILL-284 the tick reaches a terminal run without inventing a verdict', async () => {
     const key = await issueKey();
     await send(body(), { keyId: key.keyId, secret: key.secret });
 
@@ -342,7 +342,7 @@ describe('the slice: a signed event through the deployed entry point', () => {
 /* -------------------------------------------------------------------------- */
 
 describe('the slice: each denial mode, and what it must not leave behind', () => {
-  it('SLICE-010 duplicate event — 200 with the same run, one unit, no second row', async () => {
+  it('BILL-285 duplicate event — 200 with the same run, one unit, no second row', async () => {
     const key = await issueKey();
     const worker = await freshWorker();
     // The **same bytes**, twice. `body()` stamps `occurred_at` from the clock, so calling it
@@ -392,7 +392,7 @@ describe('the slice: each denial mode, and what it must not leave behind', () =>
     expect(allowance()).toMatchObject({ reserved: 1, consumed: 0 });
   });
 
-  it('SLICE-011 wrong signature — 401, and nothing at all is written', async () => {
+  it('BILL-286 wrong signature — 401, and nothing at all is written', async () => {
     const key = await issueKey();
     const before = counts();
 
@@ -409,7 +409,7 @@ describe('the slice: each denial mode, and what it must not leave behind', () =>
     expect(allowance()).toMatchObject({ reserved: 0, consumed: 0 });
   });
 
-  it('SLICE-012 wrong workspace — the payload cannot claim one, and a foreign workflow is 403', async () => {
+  it('BILL-287 wrong workspace — the payload cannot claim one, and a foreign workflow is 403', async () => {
     const key = await issueKey();
     const other = seedWorkspace(h, 'slice_other', {
       createdAt: realNow().toISOString(),
@@ -437,7 +437,7 @@ describe('the slice: each denial mode, and what it must not leave behind', () =>
     expect(allowance()).toMatchObject({ reserved: 0, consumed: 0 });
   });
 
-  it('SLICE-013 insufficient allowance — 429 about the period, and no unit is taken', async () => {
+  it('BILL-288 insufficient allowance — 429 about the period, and no unit is taken', async () => {
     const key = await issueKey();
     // The workspace is at its limit. Not a fabricated state: the same columns admission reads.
     h.raw
@@ -458,7 +458,7 @@ describe('the slice: each denial mode, and what it must not leave behind', () =>
     expect(allowance()).toMatchObject({ reserved: 0, consumed: 1 });
   });
 
-  it('SLICE-014 provider/config failure — no subscription is 402 about the account, and writes nothing', async () => {
+  it('BILL-289 provider/config failure — no subscription is 402 about the account, and writes nothing', async () => {
     const key = await issueKey();
     h.raw.prepare('DELETE FROM subscriptions WHERE workspace_id = ?').run(ws.workspaceId);
     const before = counts();
@@ -474,7 +474,7 @@ describe('the slice: each denial mode, and what it must not leave behind', () =>
     expect(allowance()).toMatchObject({ reserved: 0, consumed: 0 });
   });
 
-  it('SLICE-015 a payment failure pauses new runs at the door without consuming anything', async () => {
+  it('BILL-293 a payment failure pauses new runs at the door without consuming anything', async () => {
     const key = await issueKey();
     h.raw
       .prepare("UPDATE subscriptions SET status = 'past_due' WHERE workspace_id = ?")
@@ -499,7 +499,7 @@ describe('the slice: each denial mode, and what it must not leave behind', () =>
 /* -------------------------------------------------------------------------- */
 
 describe('the slice: a fault of ours must not be reported as a fault of theirs', () => {
-  it('SLICE-020 a REAL key id with no root key is 503 SIGNING_KEY_UNREADABLE, not 401', async () => {
+  it('BILL-294 a REAL key id with no root key is 503 SIGNING_KEY_UNREADABLE, not 401', async () => {
     // The key is issued against a root key that this deployment then does not have. That is
     // the exact production shape: `wrangler secret put` was never run, or was run in one
     // environment and not another. Every previous probe used an unknown key id, which
@@ -520,7 +520,7 @@ describe('the slice: a fault of ours must not be reported as a fault of theirs',
     expect(counts()).toEqual(before);
   });
 
-  it('SLICE-021 an unknown key id is still 401, and is not distinguishable from a bad signature', async () => {
+  it('BILL-295 an unknown key id is still 401, and is not distinguishable from a bad signature', async () => {
     const before = counts();
     const response = await send(body(), { keyId: 'evk_nothing_here', secret: 'deadbeef' });
     expect(response.status).toBe(401);
@@ -530,7 +530,7 @@ describe('the slice: a fault of ours must not be reported as a fault of theirs',
     expect(counts()).toEqual(before);
   });
 
-  it('SLICE-022 with no Stripe key configured the intake still answers, and never 500s', async () => {
+  it('BILL-296 with no Stripe key configured the intake still answers, and never 500s', async () => {
     // The defect this holds the line on: `createStripeClient` throws on an empty key, and
     // mounting it unconditionally turned every request to the intake into a 500 on any
     // deployment without Stripe. `testEnv()` carries no STRIPE_SECRET_KEY at all.

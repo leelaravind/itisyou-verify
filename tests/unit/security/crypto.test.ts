@@ -167,7 +167,7 @@ describe('credential envelopes', () => {
     expect(() => buildAad({ ...CONTEXT, provider: '' })).toThrow();
   });
 
-  it('API-016 refuses to open without an expected AAD (A10 AUTH-114)', async () => {
+  it('API-016 refuses to open without an expected AAD (A10 AUTH-016)', async () => {
     // The stored AAD travels with the row, so decrypting against it alone proves only
     // that the row is self-consistent — which an attacker who can write the row controls.
     const envelope = await seal('secret');
@@ -201,7 +201,7 @@ describe('credential envelopes', () => {
     ).rejects.toBeInstanceOf(AppError);
   });
 
-  it('API-018 binds key_version into the AAD (A10 AUTH-115)', async () => {
+  it('API-018 binds key_version into the AAD (A10 AUTH-017)', async () => {
     const one = await sealCredential('secret', { keyBase64: KEY_A, keyVersion: 1, aad: AAD });
     const two = await sealCredential('secret', { keyBase64: KEY_A, keyVersion: 2, aad: AAD });
     expect(one.aad).not.toBe(two.aad);

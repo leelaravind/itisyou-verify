@@ -7,7 +7,7 @@
  * signature is a 400 that says only "Invalid signature".
  *
  * It also contains one critical mistake, and this file exists to hold it red until it is
- * fixed. See SEC-431.
+ * fixed. See SEC-038.
  *
  * Harness note: these cases drive the REAL Hono route with REAL signatures produced by
  * `@verify/security`. Nothing here reaches the network — `tests/setup.ts` blocks fetch and
@@ -47,7 +47,7 @@ function anEvent(harness: BillingHarness): Record<string, unknown> {
 }
 
 describe('Stripe webhook route: the unknown-endpoint path', () => {
-  it('SEC-431 an unknown endpoint id is rejected even when the fallback key is known', async () => {
+  it('SEC-038 an unknown endpoint id is rejected even when the fallback key is known', async () => {
     // HISTORY. As first shipped, the route fell back to a hardcoded `DECOY_SECRET` when
     // the opaque path id was unknown, and then acted on the result if the signature
     // verified. The intent was right — run verification anyway so a prober cannot
@@ -94,7 +94,7 @@ describe('Stripe webhook route: the unknown-endpoint path', () => {
   });
 
   it('SEC-433 an unknown endpoint and a wrong secret are indistinguishable to the caller', async () => {
-    // The property A06 was aiming for, asserted directly. Whatever SEC-431's fix is, it
+    // The property A06 was aiming for, asserted directly. Whatever SEC-038's fix is, it
     // must not break this: status and body must match exactly.
     const harness = createHarness();
     const event = anEvent(harness);

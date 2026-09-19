@@ -51,7 +51,7 @@ const CSV_CORPUS: readonly (string | number | null | undefined)[] = [
 ];
 
 describe('A09 export writer vs the reviewed reference', () => {
-  it('SEC-1201 the shipped csvCell agrees with the reference on every corpus value', () => {
+  it('SEC-023 the shipped csvCell agrees with the reference on every corpus value', () => {
     const disagreements: string[] = [];
     for (const value of CSV_CORPUS) {
       const shipped = shippedCsvCell(value as never);
@@ -65,7 +65,7 @@ describe('A09 export writer vs the reviewed reference', () => {
     expect(disagreements).toEqual([]);
   });
 
-  it('SEC-1202 the apostrophe lands INSIDE the quotes, which is the whole point', () => {
+  it('SEC-024 the apostrophe lands INSIDE the quotes, which is the whole point', () => {
     // Quote first and the apostrophe sits outside, where Excel ignores it and evaluates the
     // formula in a row that is also malformed. This is the case the split between A02's
     // prefixer and A09's quoter existed to break.
@@ -75,7 +75,7 @@ describe('A09 export writer vs the reviewed reference', () => {
     expect(out).not.toMatch(/^'"/);
   });
 
-  it('SEC-1203 every formula leader is neutralised by the shipped encoder', () => {
+  it('SEC-025 every formula leader is neutralised by the shipped encoder', () => {
     for (const leader of ['=', '+', '-', '@', '\t', '\r']) {
       const out = shippedCsvCell(`${leader}payload`);
       const unquoted = out.startsWith('"') ? out.slice(1) : out;
@@ -83,7 +83,7 @@ describe('A09 export writer vs the reviewed reference', () => {
     }
   });
 
-  it('SEC-1204 a hostile CRM value cannot break out of its field into a new record', () => {
+  it('SEC-026 a hostile CRM value cannot break out of its field into a new record', () => {
     const hostile = "=cmd|'/c calc'!A0\r\nattacker,row,injected";
     const row = shippedCsvRow(['run_1', 'FAILED', hostile, 'ok']);
     // The whole hostile value must remain one quoted field: exactly three commas at the
@@ -97,7 +97,7 @@ describe('A09 export writer vs the reviewed reference', () => {
     expect(doc.split(/\r\n(?=(?:[^"]*"[^"]*")*[^"]*$)/).filter((p) => p.length > 0).length).toBe(2);
   });
 
-  it('SEC-1205 null and undefined become an empty field, never the word "null"', () => {
+  it('SEC-027 null and undefined become an empty field, never the word "null"', () => {
     expect(shippedCsvCell(null)).toBe('');
     expect(shippedCsvCell(undefined)).toBe('');
     expect(shippedCsvCell('')).toBe('');
@@ -114,7 +114,7 @@ describe('A05 UI escaping vs the reviewed reference', () => {
     '</textarea><script>alert(1)</script>',
   ];
 
-  it('SEC-1210 hono/html escapes an interpolated workflow name so no tag survives', async () => {
+  it('SEC-028 hono/html escapes an interpolated workflow name so no tag survives', async () => {
     for (const payload of XSS) {
       const out = await render(html`<h1>${payload}</h1>`);
       expect(out, payload).not.toMatch(/<(script|img|svg|iframe|details)\b/i);
@@ -122,7 +122,7 @@ describe('A05 UI escaping vs the reviewed reference', () => {
     }
   });
 
-  it('SEC-1211 escapeAttribute prevents breakout from a double-quoted attribute', () => {
+  it('SEC-029 escapeAttribute prevents breakout from a double-quoted attribute', () => {
     for (const payload of XSS) {
       const out = escapeAttribute(payload);
       expect(out, payload).not.toContain('"');
@@ -131,14 +131,14 @@ describe('A05 UI escaping vs the reviewed reference', () => {
     }
   });
 
-  it('SEC-1212 attrs() refuses an attribute NAME assembled from input', () => {
+  it('SEC-030 attrs() refuses an attribute NAME assembled from input', () => {
     // An escaped value in a sane attribute is safe; an attribute whose *name* came from
     // customer input is `onerror` waiting to happen. It must throw, not sanitise.
     expect(() => attrs({ 'onerror=alert(1) x': 'y' })).toThrow(TypeError);
     expect(() => attrs({ 'data-ok': 'value' })).not.toThrow();
   });
 
-  it('SEC-1213 A05 and A10 agree on the five characters that must never survive', () => {
+  it('SEC-031 A05 and A10 agree on the five characters that must never survive', () => {
     // A10's reference also escapes backtick and `=`, which matters only for UNQUOTED
     // attributes. A05 always quotes, so the difference is safe — but the five that matter
     // in every context must match exactly, and this pins that.
@@ -147,7 +147,7 @@ describe('A05 UI escaping vs the reviewed reference', () => {
     }
   });
 
-  it('SEC-1214 a javascript: target cannot reach a rendered href, through any shipped path', async () => {
+  it('SEC-032 a javascript: target cannot reach a rendered href, through any shipped path', async () => {
     // REWRITTEN after A05 shipped the guard. The original body built markup with hono's
     // own `html` tag and then called `render()`, so the only `@verify/ui` symbol under
     // test was `render`, which receives already-finished markup. No change inside
@@ -168,7 +168,7 @@ describe('A05 UI escaping vs the reviewed reference', () => {
     );
   });
 
-  it('SEC-1216 every URL-bearing attribute is guarded, not just href', async () => {
+  it('SEC-034 every URL-bearing attribute is guarded, not just href', async () => {
     // `src`, `action`, `formaction`, `poster`, `cite`, `data`, `ping`, `xlink:href` all
     // navigate or fetch. Guarding only `href` would leave eight doors open.
     for (const name of URL_BEARING_ATTRIBUTES) {
@@ -181,7 +181,7 @@ describe('A05 UI escaping vs the reviewed reference', () => {
     );
   });
 
-  it('SEC-1217 a rejected target is dropped, never rendered inert-but-clickable', async () => {
+  it('SEC-035 a rejected target is dropped, never rendered inert-but-clickable', async () => {
     const rendered = await render(Button({ label: 'click', href: 'vbscript:msgbox(1)' }));
     expect(rendered).not.toContain('<a ');
     expect(rendered).not.toContain('href=');
@@ -189,7 +189,7 @@ describe('A05 UI escaping vs the reviewed reference', () => {
     expect(rendered).toContain('data-href-rejected="true"');
   });
 
-  it('SEC-1218 A05 and A10 agree on the accept/reject DECISION for every corpus value', () => {
+  it('SEC-036 A05 and A10 agree on the accept/reject DECISION for every corpus value', () => {
     // The property that matters: two implementations, one verdict. A10 wrote its corpus
     // without reading A05's tests. A disagreement here means one of us is wrong about a
     // scheme, and SEC-105/106/107 would stop describing shipped behaviour.
@@ -233,7 +233,7 @@ describe('A05 UI escaping vs the reviewed reference', () => {
     expect(disagreements).toEqual([]);
   });
 
-  it('SEC-1219 the two implementations differ only by escaping, which A05 applies once', () => {
+  it('SEC-037 the two implementations differ only by escaping, which A05 applies once', () => {
     // DIVERGENCE 1, adjudicated: A05 returns the target UNESCAPED because `attrs()`
     // escapes exactly once at the point that writes the attribute. Escaping in both would
     // double-encode every query string (`?a=1&b=2` -> `&amp;` -> `&amp;amp;`). A05 is
@@ -248,8 +248,8 @@ describe('A05 UI escaping vs the reviewed reference', () => {
     }
   });
 
-  it('SEC-1215 the reference guard rejects what the UI currently lets through', () => {
-    // Kept alongside SEC-1214 so the fix has something to be tested against.
+  it('SEC-033 the reference guard rejects what the UI currently lets through', () => {
+    // Kept alongside SEC-032 so the fix has something to be tested against.
     for (const bad of [
       'javascript:alert(1)',
       'JaVaScRiPt:alert(1)',
