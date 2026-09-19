@@ -36,6 +36,8 @@ import type {
   RunListItem,
   RunPage,
   SessionView,
+  SigningKeyIssuanceView,
+  SigningKeyIssueResult,
   SupportRequestInput,
   SupportResult,
   UsageView,
@@ -44,8 +46,11 @@ import type {
   WriteResult,
 } from '../routes/app/port';
 import type { Env } from '../lib/context';
+import { ID_PREFIX, newId } from '../lib/ids';
 import { resolveSession, type ResolvedSession } from '../lib/session';
 import { nowIso, toIso } from '../lib/time';
+import { issueWorkflowSigningKey, type IssuedSigningKey } from '../money/signingKeys';
+import { auditEvents } from './audit';
 import { connections } from './connections';
 import type { Db } from './d1';
 import { entitlements } from './entitlements';
@@ -55,11 +60,20 @@ import { resolveAllowancePeriodKey, type SubscriptionPeriodSource } from '../bil
 import { subscriptions } from './commerce';
 import { createCase } from '../support/cases';
 import { D1SupportDataPort } from './supportPort';
-import { workflows, workflowVersions } from './workflows';
+import { workflows, workflowVersions, type WorkflowRow } from './workflows';
 
 /* -------------------------------------------------------------------------- */
 /* helpers                                                                     */
 /* -------------------------------------------------------------------------- */
+
+/**
+ * Said the same way on the page before the button and on the response after it.
+ *
+ * It names the missing secret on purpose. The person who reads this on a bare deployment is
+ * the operator, and "not available" would send them reading code to find out which one.
+ */
+const SIGNING_KEY_UNCONFIGURED =
+  'A signing key cannot be issued on this deployment: the EVENT_SIGNING_ROOT_KEY secret is not configured, so there is nothing to derive one from. Nothing was changed. This is our configuration, not something on your side.';
 
 const ok = (redirectTo: string | null = null, message: string | null = null): WriteResult => ({
   ok: true,
@@ -556,7 +570,12 @@ export class D1CustomerDataPort implements CustomerDataPort {
         subscriptionStatus: null,
         eventEndpoint: endpoint,
         workflowId: '',
+        signingKeyId: null,
         signingKeyHint: null,
+        signingKeyIssuance: {
+          canIssue: false,
+          cannotIssueReason: 'Sign in to issue a signing key.',
+        },
         firstRunId: null,
       };
     }

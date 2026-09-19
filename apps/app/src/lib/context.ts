@@ -42,6 +42,12 @@ export interface Env {
   readonly OPENROUTER_API_KEY?: string;
   readonly OWNER_BOOTSTRAP_EMAIL?: string;
   readonly OWNER_BOOTSTRAP_TOKEN?: string;
+  /**
+   * Root key every workflow event-signing secret is derived from (`money/signingKeys.ts`).
+   * Absent on a deployment that cannot issue or verify a signing key. Issuance then refuses
+   * with an explicit configuration error; it never derives from the empty string.
+   */
+  readonly EVENT_SIGNING_ROOT_KEY?: string;
 }
 
 export interface RequestContext {

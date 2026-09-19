@@ -550,7 +550,7 @@ describe('maintenance runner', () => {
     expect(accepted.ok).toBe(true);
   });
 
-  it('OWNER-214 a release job cannot be queued without a bound approval, and the payload hash is the server’s', async () => {
+  it('OWNER-214 a release job cannot be queued without a bound approval, and naming an approval is not the same as holding one', async () => {
     const refused = await enqueueJob({
       db: h.db,
       kind: 'execute_approved_release',
@@ -562,7 +562,11 @@ describe('maintenance runner', () => {
     if (refused.ok) throw new Error('unreachable');
     expect(refused.refusal.code).toBe('APPROVAL_REQUIRED');
 
-    const accepted = await enqueueJob({
+    // This case used to assert the opposite: that `approvalId: 'apr_1'` — a string matching
+    // no row — was ACCEPTED and produced a job. That codified the hole. The approval is now
+    // loaded, and a string that is not an approval is refused with no job row. The accepted
+    // path, with the approval genuinely spent first, is `release-approval.test.ts`.
+    const fabricated = await enqueueJob({
       db: h.db,
       kind: 'execute_approved_release',
       payload: { environment: 'production', approval_id: 'apr_1' },
@@ -570,27 +574,19 @@ describe('maintenance runner', () => {
       now: NOW,
       approvalId: 'apr_1',
     });
-    expect(accepted.ok).toBe(true);
-    if (!accepted.ok) throw new Error('unreachable');
-    expect(accepted.payloadHash).toMatch(/^[0-9a-f]{64}$/);
+    expect(fabricated.ok).toBe(false);
+    if (fabricated.ok) throw new Error('a fabricated approval id queued a release');
+    expect(fabricated.refusal.code).toBe('APPROVAL_INVALID');
 
-    const row = await maintenanceJobs.get(h.db, accepted.jobId);
-    expect(row?.approval_id).toBe('apr_1');
-    // The stored payload is the validated object, not the caller's JSON text — an extra
-    // field a caller tried to smuggle in is simply not there.
-    expect(JSON.parse(row!.payload_json)).toEqual({
-      kind: 'execute_approved_release',
-      environment: 'production',
-      approval_id: 'apr_1',
-    });
-
+    const counts = await maintenanceJobs.countByState(h.db);
+    expect(Object.values(counts).reduce((a, b) => a + b, 0)).toBe(0);
     const audit = h.raw
       .prepare(
         "SELECT action, redacted_metadata FROM audit_events WHERE action = 'maintenance.job.enqueued'",
       )
       .all() as { action: string; redacted_metadata: string }[];
-    // Exactly one: the refused enqueue wrote no job, so it wrote no enqueue event either.
-    expect(audit).toHaveLength(1);
+    // Neither refusal wrote a job, so neither wrote an enqueue event.
+    expect(audit).toHaveLength(0);
   });
 
   it("OWNER-223 A07's owner port reports the real state and never invents a heartbeat", async () => {

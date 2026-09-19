@@ -14,7 +14,12 @@
  * left exactly as it was. A refusal that spends the approval would be a second defect.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { enqueueJob } from '@app/maintenance/index';
+import {
+  createD1ReleaseApprovalAuthority,
+  enqueueJob,
+  type ReleaseApprovalAuthority,
+} from '@app/maintenance/index';
+import type { ApprovalClaimStore } from '@app/owner/approvals';
 import { createTestDb, type TestDb } from '../db/harness';
 
 const NOW = '2026-09-19T12:00:00.000Z';
@@ -198,5 +203,130 @@ describe('execute_approved_release — the approval is loaded, checked and spent
     expect(mismatch.refusal.code).toBe('APPROVAL_MISMATCH');
     expectNothingQueued(h);
     expect(approvalRow(h, 'apr_other')?.status).toBe('granted');
+  });
+
+  it('OWNER-229 a covering approval is spent through the single compare-and-set BEFORE the job row is written, and a double-submit queues exactly one job', async () => {
+    seedApproval(h, { id: 'apr_release', action_type: 'cleanup_execute' });
+
+    // No owner action type covers a release yet (the lead has not ruled on one), so the
+    // production `covers` refuses everything — OWNER-228 proves that. To test the spend
+    // itself, this authority stands in for the missing type on one named approval only,
+    // keeps the REAL loader and the REAL `CLAIM_APPROVAL_SQL` store, and records how many
+    // job rows existed at the instant the approval was claimed.
+    const real = createD1ReleaseApprovalAuthority(h.db);
+    const jobsAtClaim: number[] = [];
+    const observedClaims: ApprovalClaimStore = {
+      claim: async (p) => {
+        jobsAtClaim.push(jobRows(h).length);
+        return real.claims.claim(p);
+      },
+    };
+    const authority: ReleaseApprovalAuthority = {
+      load: real.load,
+      covers: async (approval, payload) =>
+        approval.id === 'apr_release' ? { covers: true } : real.covers(approval, payload),
+      claims: observedClaims,
+    };
+
+    const first = await enqueueJob({
+      db: h.db,
+      kind: 'execute_approved_release',
+      payload: { environment: 'production', approval_id: 'apr_release' },
+      requestedBy: 'usr_owner',
+      now: NOW,
+      approvalId: 'apr_release',
+      approvals: authority,
+    });
+    expect(first.ok).toBe(true);
+    if (!first.ok) throw new Error(`refused: ${JSON.stringify(first.refusal)}`);
+    expect(first.approvalConsumedAt).toBe(NOW);
+    expect(first.payloadHash).toMatch(/^[0-9a-f]{64}$/);
+
+    // Ordering: the claim ran while the job table was empty.
+    expect(jobsAtClaim).toEqual([0]);
+
+    // The database, read directly: one job bound to the approval; the approval consumed
+    // once, at the enqueue time; one enqueue audit event naming both.
+    const jobs = jobRows(h);
+    const approval = approvalRow(h, 'apr_release');
+    const audit = enqueueAudit(h);
+    console.info('[OWNER-229 after first submit] maintenance_jobs =', JSON.stringify(jobs));
+    console.info('[OWNER-229 after first submit] approvals row   =', JSON.stringify(approval));
+    console.info('[OWNER-229 after first submit] audit           =', JSON.stringify(audit));
+    expect(jobs).toEqual([
+      { id: first.jobId, typed_kind: 'execute_approved_release', approval_id: 'apr_release', state: 'queued' },
+    ]);
+    expect(approval).toEqual({
+      id: 'apr_release',
+      action_type: 'cleanup_execute',
+      status: 'consumed',
+      consumed_at: NOW,
+    });
+    expect(audit).toHaveLength(1);
+    expect(JSON.parse(audit[0]!.redacted_metadata)).toMatchObject({
+      typed_kind: 'execute_approved_release',
+      approval_id: 'apr_release',
+      approval_consumed_at: NOW,
+    });
+    // The stored payload is the validated object, not the caller's JSON text.
+    expect(
+      JSON.parse(
+        (h.raw.prepare('SELECT payload_json FROM maintenance_jobs WHERE id = ?').get(first.jobId) as {
+          payload_json: string;
+        }).payload_json,
+      ),
+    ).toEqual({ kind: 'execute_approved_release', environment: 'production', approval_id: 'apr_release' });
+
+    // The double-submit: same approval, same payload, a moment later. The gate sees the
+    // row is consumed and refuses before the compare-and-set is even attempted.
+    const second = await enqueueJob({
+      db: h.db,
+      kind: 'execute_approved_release',
+      payload: { environment: 'production', approval_id: 'apr_release' },
+      requestedBy: 'usr_owner',
+      now: '2026-09-19T12:00:01.000Z',
+      approvalId: 'apr_release',
+      approvals: authority,
+    });
+    expect(second.ok).toBe(false);
+    if (second.ok) throw new Error('a consumed approval queued a second release');
+    expect(second.refusal.code).toBe('APPROVAL_INVALID');
+    if (second.refusal.code !== 'APPROVAL_INVALID') throw new Error('unreachable');
+    expect(second.refusal.reason).toBe('already_consumed');
+    expect(jobsAtClaim).toEqual([0]); // no second claim attempt
+    expect(jobRows(h)).toHaveLength(1);
+    expect(enqueueAudit(h)).toHaveLength(1);
+    expect(approvalRow(h, 'apr_release')?.consumed_at).toBe(NOW); // the original timestamp stands
+
+    // The race the compare-and-set exists for: a caller that passed the gate against a
+    // still-granted row, but whose claim runs after another caller's claim has committed.
+    seedApproval(h, { id: 'apr_race', action_type: 'cleanup_execute' });
+    const raced: ReleaseApprovalAuthority = {
+      load: real.load,
+      covers: async () => ({ covers: true }),
+      claims: {
+        claim: async (p) => {
+          // Another request wins the row between this request's check and its claim.
+          await real.claims.claim(p);
+          return real.claims.claim(p);
+        },
+      },
+    };
+    const loser = await enqueueJob({
+      db: h.db,
+      kind: 'execute_approved_release',
+      payload: { environment: 'staging', approval_id: 'apr_race' },
+      requestedBy: 'usr_owner',
+      now: NOW,
+      approvalId: 'apr_race',
+      approvals: raced,
+    });
+    expect(loser.ok).toBe(false);
+    if (loser.ok) throw new Error('the loser of the compare-and-set queued a job');
+    expect(loser.refusal.code).toBe('APPROVAL_INVALID');
+    if (loser.refusal.code !== 'APPROVAL_INVALID') throw new Error('unreachable');
+    expect(loser.refusal.reason).toBe('already_consumed');
+    expect(jobRows(h)).toHaveLength(1); // still only the first job
+    expect(approvalRow(h, 'apr_race')?.status).toBe('consumed');
   });
 });
