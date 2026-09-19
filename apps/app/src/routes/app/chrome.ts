@@ -2,7 +2,8 @@
  * Shared chrome for the customer pages: the synthetic-data notice, the onboarding
  * progress trail, and the page heading block.
  */
-import { Callout, attrs, html, safeHref, type Html } from '@verify/ui';
+import { Callout, attrs, html, safeHref, type Html, type StatusKey } from '@verify/ui';
+import type { ConnectionStatus } from '@verify/contracts';
 
 /**
  * The banner every page carries while it is running on the synthetic port.
@@ -87,4 +88,37 @@ export function pageHead(options: PageHeadOptions): Html {
 export function formMessage(message: string | null, tone: 'warn' | 'note' = 'warn'): Html | null {
   if (message === null || message.length === 0) return null;
   return Callout({ tone, body: html`<p role="alert">${message}</p>` });
+}
+
+
+export interface ConnectionPresentation {
+  readonly label: string;
+  readonly status: StatusKey;
+}
+
+/**
+ * How each connection lifecycle state is shown.
+ *
+ * The one that matters is `testing`. A04 tightened Resend so that a stored signing secret
+ * no longer counts as validation — a stored secret is a promise, not evidence — and a
+ * connection only reaches `ready` once a correctly signed callback has actually arrived.
+ * So `testing` wears the PENDING clock and reads "Not finished yet". It must never wear a
+ * tick: a customer who sees a tick stops setting up, and then wonders why their runs are
+ * unverified.
+ *
+ * `authorising` is the same case for the same reason.
+ */
+export const CONNECTION_PRESENTATION: Readonly<Record<ConnectionStatus, ConnectionPresentation>> = {
+  not_connected: { label: 'Not connected', status: 'UNVERIFIED' },
+  authorising: { label: 'Not finished yet', status: 'PENDING' },
+  testing: { label: 'Not finished yet', status: 'PENDING' },
+  ready: { label: 'Ready', status: 'VERIFIED' },
+  degraded: { label: 'Degraded', status: 'UNVERIFIED' },
+  expired: { label: 'Expired', status: 'UNVERIFIED' },
+  revoked: { label: 'Access revoked', status: 'FAILED' },
+  unsupported: { label: 'Not supported', status: 'FAILED' },
+};
+
+export function connectionPresentation(status: ConnectionStatus): ConnectionPresentation {
+  return CONNECTION_PRESENTATION[status];
 }

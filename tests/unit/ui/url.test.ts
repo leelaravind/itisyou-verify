@@ -72,7 +72,7 @@ const SAFE_HREFS: readonly string[] = [
 ];
 
 describe('the link-target guard', () => {
-  it('CUST-098 agrees with A10’s reviewed reference on every payload, with both divergences enumerated', () => {
+  it('CUST-098 agrees with A10’s reviewed reference on every payload, escaping aside', () => {
     const disagreements: string[] = [];
     for (const value of [...HOSTILE_HREFS, ...SAFE_HREFS]) {
       const mine = safeHref(value);
@@ -85,16 +85,15 @@ describe('the link-target guard', () => {
       }
       if (mine === null || reference === null) continue;
 
-      // 2. Divergence A: a same-document fragment. Both accept; this one keeps it relative,
-      //    the reference resolves it against the production origin.
-      if (mine.startsWith('#')) {
-        expect(reference, value).toBe(escapeHtml(`${'https://verify.itisyou.app/'}${mine}`));
-        continue;
-      }
-
-      // 3. Divergence B: escaping. This guard returns the target unescaped because `attrs()`
-      //    escapes exactly once; the reference escapes inside. Apply the reference's own
-      //    escaper and the two must match byte for byte.
+      // 2. The one remaining divergence: escaping. This guard returns the target unescaped
+      //    because `attrs()` escapes exactly once; the reference escapes inside. Apply the
+      //    reference's own escaper and the two must match byte for byte.
+      //
+      //    There used to be a second divergence — a same-document `#fragment`, which the
+      //    reference resolved against the production origin. A10 adopted this side's
+      //    behaviour on 2026-09-19, so fragments now compare like everything else and no
+      //    special case is needed. That is what this test is for: the divergence was loud,
+      //    it got settled, and the settlement is now enforced rather than described.
       if (escapeHtml(mine) !== reference) {
         disagreements.push(`target: ${JSON.stringify(value)} mine=${JSON.stringify(escapeHtml(mine))} reference=${JSON.stringify(reference)}`);
       }

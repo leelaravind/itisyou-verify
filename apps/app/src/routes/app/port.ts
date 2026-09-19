@@ -231,6 +231,15 @@ export interface SupportResult extends WriteResult {
   readonly reference: string | null;
 }
 
+/** A pasted credential, on its way to A04's `establishConnection`. */
+export interface ConnectionCredentialsInput {
+  readonly provider: ProviderKey;
+  /** Never echoed back to the page, never logged, never stored unsealed. */
+  readonly accessToken: string;
+  /** Resend only, and optional there: a webhook-only connection is a supported choice. */
+  readonly webhookSecret?: string;
+}
+
 export interface FieldMappingInput {
   readonly correlationProperty: string;
 }
@@ -264,6 +273,23 @@ export interface CustomerDataPort {
   connections(): Promise<readonly ConnectionView[]>;
   /** Begin an authorisation. Returns where to send the browser, or why it cannot start. */
   beginConnection(provider: ProviderKey): Promise<WriteResult>;
+
+  /**
+   * Validate and store a pasted provider credential.
+   *
+   * Optional on this interface **only so that adding it does not break a port that has not
+   * implemented it yet** — a page that finds it missing says so plainly rather than
+   * pretending the paste box works. A02: implement it by handing `input` straight to A04's
+   * `establishConnection` and persisting only on `ok`.
+   *
+   * The `fieldErrors` keys are `access_token` and `webhook_secret`, which is exactly what
+   * `establishConnection` returns and exactly what `setupGuide(provider).fields[].name`
+   * gives, so the three line up with no translation layer in between.
+   *
+   * On any failure nothing is stored, and the message says so — a credential that was
+   * rejected must never leave a half-connected row behind.
+   */
+  submitConnectionCredentials?(input: ConnectionCredentialsInput): Promise<WriteResult>;
 
   workflow(): Promise<WorkflowDetail | null>;
   workflows(): Promise<readonly WorkflowSummary[]>;

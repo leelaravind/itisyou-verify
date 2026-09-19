@@ -57,17 +57,39 @@ function schema(): string {
 }
 
 describe('credential_versions.owner_scope', () => {
-  it('SEC-641 FINDING: the column is structurally constrained, not merely conventional', () => {
-    // RED until an additive migration lands. See the header for why a string CHECK is not
-    // sufficient and a `scope_kind` discriminator is.
+  it('SEC-641 the cross-regime half is now closed at the database', () => {
+    // A02 shipped `migrations/0002_credential_scope_check.sql` during this pass. It
+    // constrains `owner_scope` to `connection:?*` or `user:?*`, and — separately, closing
+    // pass-one finding F5 for good — requires the AAD to carry `kv=`, so a key-version
+    // downgrade cannot be forged by editing a column. Both are real improvements enforced
+    // where the risk is, and both are asserted here so they cannot be dropped.
     const sql = schema();
-    const hasDiscriminator = /scope_kind\s+TEXT\s+NOT NULL\s+CHECK/i.test(sql);
-    const hasShapeCheck = /owner_scope[^,]*CHECK\s*\(/i.test(sql);
-    expect(
-      hasDiscriminator || hasShapeCheck,
-      'owner_scope accepts any TEXT; nothing in the schema distinguishes a connection ' +
-        'scope from a user scope, or one user scope from another',
-    ).toBe(true);
+    expect(sql).toMatch(/owner_scope\s+TEXT NOT NULL CHECK/i);
+    expect(sql).toMatch(/owner_scope GLOB 'connection:\?\*'/);
+    expect(sql).toMatch(/owner_scope GLOB 'user:\?\*'/);
+    expect(sql).toMatch(/aad\s+TEXT NOT NULL CHECK \(aad LIKE 'v1\|kv=%'\)/i);
+  });
+
+  it('SEC-646 the intra-regime half remains convention, and is an ACCEPTED risk', () => {
+    // HONEST ADJUDICATION, recorded so nobody has to re-derive it.
+    //
+    // The GLOB CHECK stops a `connection:` row masquerading as a `user:` row, which was
+    // the cross-regime confusion in T-TEN-03. It does NOT stop the intra-regime collision
+    // in SEC-642: `user:usr_abc:recovery` satisfies `user:?*` whichever builder produced
+    // it. A discriminator column (`scope_kind`) would; a string CHECK cannot.
+    //
+    // A10's verdict: DO NOT hold the release for this. The residual exposure is
+    // `countRecoveryCodes` returning a wrong count, and it requires a user id containing a
+    // colon, which SEC-643 forbids and SEC-644's AAD separation would contain anyway.
+    // That is a Low with two independent mitigations, both now asserted by tests. It is
+    // recorded as an accepted risk in docs/security-acceptance.md, not as a blocker.
+    //
+    // It becomes a real problem the moment an id comes from an external system rather than
+    // `newId`. If that is ever proposed, this case is where to start.
+    const sql = schema();
+    const colliding = 'user:usr_abc:recovery';
+    expect(colliding.startsWith('user:')).toBe(true); // satisfies the CHECK either way
+    expect(sql).not.toMatch(/scope_kind/); // the structural fix is not present, and that is a choice
   });
 
   it('SEC-642 the collision this is about is real at the string level', () => {

@@ -25,8 +25,9 @@ import {
   type StatusKey,
 } from '@verify/ui';
 import { explainAssertion, explainRunStatus } from '@verify/domain';
+import { setupGuide, type ProviderSetupGuide } from '@verify/connectors';
 import { LIMITS } from '@verify/contracts';
-import { formMessage, onboardingProgress, pageHead } from './chrome.js';
+import { connectionPresentation, formMessage, onboardingProgress, pageHead } from './chrome.js';
 import { formatDuration, formatInstant } from '../public/shared.js';
 import type {
   ActivationView,
@@ -122,6 +123,171 @@ export interface ConnectPageOptions {
   readonly connections: readonly ConnectionView[];
   readonly csrfToken: string | null;
   readonly submitted: WriteResult | null;
+  /** Which provider's form the last submission concerned, so its errors land on its card. */
+  readonly submittedProvider?: string;
+  /** False when the port cannot yet accept a credential; the page says so instead of lying. */
+  readonly canSubmitCredentials: boolean;
+}
+
+/**
+ * The permission notice.
+ *
+ * Rendered **above the paste box**, at full size, never inside a disclosure control. For
+ * Resend it is the most important paragraph on the site: it says that Resend publishes no
+ * read-only key, that reading a message back therefore needs a full-access key, and that the
+ * key the customer is about to hand over could also send mail from their domain and delete
+ * resources in their account. It then says the connector has no send path — without
+ * pretending the key is narrower than it is.
+ *
+ * A customer deserves to read that on the page where they paste it, not to discover it
+ * afterwards. `broaderThanNeeded` picks the warn tone so it cannot be skimmed past.
+ */
+function permissionNotice(guide: ProviderSetupGuide): Html {
+  return Callout({
+    tone: guide.permissionNotice.broaderThanNeeded ? 'warn' : 'note',
+    title: guide.permissionNotice.headline,
+    body: html`<p data-permission-notice="${guide.provider}">${guide.permissionNotice.body}</p>`,
+  });
+}
+
+/** Three lists that together say exactly where this connection's power begins and ends. */
+function scopeLists(guide: ProviderSetupGuide): Html {
+  const list = (heading: string, items: readonly string[]): Html => html`<div class="stack-sm">
+    <p class="eyebrow">${heading}</p>
+    <ul class="small muted">
+      ${items.map((item) => html`<li>${item}</li>`)}
+    </ul>
+  </div>`;
+  return html`<div class="grid grid-3">
+    ${list('What we read', guide.weRead)}${list('What we never do', guide.weNeverDo)}
+    ${list('What this cannot prove', guide.cannotProve)}
+  </div>`;
+}
+
+function setupInstructions(guide: ProviderSetupGuide): Html {
+  return html`<ol class="steps">
+    ${guide.instructions.map(
+      (instruction) => html`<li>
+        <p class="small">${instruction.text}</p>
+      </li>`,
+    )}
+  </ol>`;
+}
+
+/**
+ * The paste form.
+ *
+ * A secret field is never given a value: a credential is not echoed back to the page, not
+ * even the one just submitted and not even masked. `autocomplete="off"` keeps a browser from
+ * filing an API key in a password-manager entry the customer did not mean to create.
+ */
+function credentialForm(
+  guide: ProviderSetupGuide,
+  options: ConnectPageOptions,
+  errors: Readonly<Record<string, string>>,
+): Html {
+  return html`<form method="post" action="/app/onboarding/connect" class="stack">
+    ${CsrfField(options.csrfToken)}
+    <input type="hidden" name="provider" value="${guide.provider}" />
+    <input type="hidden" name="intent" value="credentials" />
+    ${Fieldset({
+      legend: `Paste your ${guide.displayName} credentials`,
+      hint: guide.whatHappensNext,
+      body: html`${guide.fields.map((field) =>
+        Field({
+          name: field.name,
+          label: field.label,
+          control: field.secret ? 'password' : 'text',
+          required: field.required,
+          mono: true,
+          placeholder: field.placeholder,
+          hint: field.hint,
+          autocomplete: 'off',
+          error: errors[field.name] ?? null,
+        }),
+      )}`,
+    })}
+    ${Button({
+      label: options.canSubmitCredentials
+        ? `Check this ${guide.displayName} credential`
+        : 'Checking is not available yet',
+      variant: 'primary',
+      type: 'submit',
+      disabled: !options.canSubmitCredentials,
+    })}
+  </form>`;
+}
+
+function connectCard(connection: ConnectionView, options: ConnectPageOptions): Html {
+  const guide = setupGuide(connection.provider);
+  const presentation = connectionPresentation(connection.status);
+  const mine = options.submittedProvider === connection.provider;
+  const errors = mine ? (options.submitted?.fieldErrors ?? {}) : {};
+
+  return html`<section class="card stack" data-connect-card="${connection.provider}">
+    <div class="card__head">
+      <h2 class="card__title">${guide.displayName}</h2>
+      ${StatusBadge({ status: presentation.status, label: presentation.label })}
+    </div>
+    <p class="small muted">${guide.purpose}</p>
+
+    ${connection.status === 'testing' || connection.status === 'authorising'
+      ? Callout({
+          tone: 'limit',
+          title: 'Not finished yet',
+          body: html`<p>
+            We have stored what you gave us, and that is not the same as it working. This connection
+            only becomes ready once a correctly signed message actually arrives and we can read it.
+            Until then we will not claim it is working.
+          </p>`,
+        })
+      : null}
+    ${connection.problem === null ? null : html`<p class="small">${connection.problem}</p>`}
+
+    ${permissionNotice(guide)}
+
+    ${mine ? formMessage(options.submitted?.message ?? null) : null}
+    ${options.canSubmitCredentials
+      ? null
+      : Callout({
+          tone: 'warn',
+          title: 'We cannot check a credential yet',
+          body: html`<p>
+            The paste box below renders, but this workspace has no way to validate a credential
+            against ${guide.displayName} yet, so submitting one would do nothing. Do not paste a real
+            key until this notice is gone.
+          </p>`,
+        })}
+
+    ${credentialForm(guide, options, errors)}
+
+    ${guide.provider === 'resend'
+      ? Callout({
+          tone: 'limit',
+          title: 'The webhook address is not published yet',
+          body: html`<p>
+            Step 3 asks you to point a Resend webhook at an address on this page. That endpoint does
+            not exist in this deployment yet, so that step cannot be completed today. The key on its
+            own still validates; the connection stays unfinished until a signed callback arrives.
+          </p>`,
+        })
+      : null}
+
+    <div class="stack">
+      <h3>How to get it</h3>
+      ${setupInstructions(guide)}
+      ${ButtonRow([
+        Button({
+          label: `${guide.displayName} documentation`,
+          href: guide.docUrl,
+          variant: 'quiet',
+          external: true,
+        }),
+      ])}
+    </div>
+
+    ${scopeLists(guide)}
+  </section>`;
 }
 
 export function ConnectPage(options: ConnectPageOptions): Html {
@@ -131,41 +297,9 @@ export function ConnectPage(options: ConnectPageOptions): Html {
     eyebrow: 'Step 2 of 7',
     title: 'Connect HubSpot and Resend',
     lede:
-      'We ask for read access only. We never request permission to create or edit a record, or to send an email on your behalf.',
+      'Read what each credential can do before you paste it. Where a provider offers nothing narrower than we need, we say so rather than glossing over it.',
     body: html`<div class="stack-lg">
-      ${formMessage(options.submitted?.message ?? null)}
-      <div class="stack">
-        ${options.connections.map(
-          (connection) => html`<div class="card stack-sm">
-            <div class="card__head">
-              <h2 class="card__title">${connection.displayName}</h2>
-              ${StatusBadge({
-                status: connection.status === 'ready' ? 'VERIFIED' : 'UNVERIFIED',
-                label: connection.status.replace(/_/g, ' '),
-              })}
-            </div>
-            ${connection.problem === null
-              ? html`<p class="small muted">
-                  Connected account ${connection.accountLabel ?? 'not identified'}, last checked
-                  ${formatInstant(connection.lastCheckedAt)}.
-                </p>`
-              : html`<p class="small">${connection.problem}</p>`}
-            <form method="post" action="/app/onboarding/connect">
-              ${CsrfField(options.csrfToken)}
-              <input type="hidden" name="provider" value="${connection.provider}" />
-              ${Button({
-                label:
-                  connection.status === 'ready'
-                    ? `Reconnect ${connection.displayName}`
-                    : `Connect ${connection.displayName}`,
-                variant: connection.status === 'ready' ? 'quiet' : 'primary',
-                type: 'submit',
-              })}
-            </form>
-          </div>`,
-        )}
-      </div>
-
+      ${options.connections.map((connection) => connectCard(connection, options))}
       ${ButtonRow([
         Button({
           label: 'Continue to field mapping',
@@ -178,8 +312,8 @@ export function ConnectPage(options: ConnectPageOptions): Html {
         : Callout({
             tone: 'limit',
             body: html`<p>
-              You can carry on setting up while a connection is unhealthy, but runs that need it will show as
-              unverified until it is fixed — not as failures, and never as passes.
+              You can carry on setting up while a connection is unfinished, but runs that need it will
+              show as unverified until it is working — not as failures, and never as passes.
             </p>`,
           })}
     </div>`,

@@ -15,20 +15,18 @@
  * semantics, and `tests/unit/ui/url.test.ts` (CUST-098) runs both implementations over one
  * corpus and fails on any disagreement, so they cannot drift.
  *
- * Two deliberate, enumerated differences from the reference, both asserted by CUST-098:
+ * One deliberate difference from the reference remains, asserted by CUST-098:
  *
  *  1. **This returns the target unescaped.** The reference returns it already run through
  *     `escapeHtml`. Here the value is handed to `attrs()`, which escapes exactly once; if
  *     the guard escaped too, every query string would come out double-encoded
  *     (`?a=1` → `?a&amp;#61;1`). Same decision, same target, escaping applied once at the
  *     one place that writes the attribute.
- *  2. **A same-document fragment (`#main`) is returned unchanged.** The reference resolves
- *     it against the base origin, which would rewrite the demo page's in-page anchors to
- *     `https://verify.itisyou.app/#run_demo_verified` and break them on every environment
- *     that is not production. A fragment carries no scheme and cannot be a script URL, so
- *     accepting it is not a widening of the allowlist — only of the *relative* forms
- *     preserved. Both implementations accept these values; only the rendered target
- *     differs. Flagged to A10 to fold back into the reference.
+ * A same-document fragment (`#main`) is returned unchanged by both. This side did that
+ * first — the reference used to resolve it against the base origin, which rewrites every
+ * in-page anchor and breaks it outside production — and A10 adopted the behaviour on
+ * 2026-09-19. It is recorded here because it is the one case where the divergence test
+ * changed the reference rather than this file.
  *
  * ## What this refuses
  *
@@ -89,7 +87,7 @@ export function safeHref(value: string | null | undefined, baseOrigin: string = 
   const cleaned = stripBlanks(value);
   if (cleaned === '') return null;
 
-  // Same-document reference. No scheme, nothing to execute. (Difference 2 above.)
+  // Same-document reference. No scheme, nothing to execute.
   if (cleaned.startsWith('#')) return cleaned;
 
   // Same-origin absolute path. `//` is excluded: it is protocol-relative, not a path.

@@ -61,22 +61,34 @@ function loadSecretRules(scannerPath = SCANNER_PATH) {
   let inLine = false;
   let inStr = null;
   let inRe = false;
+  let inClass = false;
   for (let i = open; i < src.length; i += 1) {
     const ch = src[i];
-    const prev = src[i - 1];
+    const escaped = src[i - 1] === '\\' && src[i - 2] !== '\\';
     if (inLine) { if (ch === '\n') inLine = false; continue; }
-    if (inStr) { if (ch === inStr && prev !== '\\') inStr = null; continue; }
-    if (inRe) { if (ch === '/' && prev !== '\\') inRe = false; continue; }
+    if (inStr) { if (ch === inStr && !escaped) inStr = null; continue; }
+    if (inRe) {
+      // An unescaped `/` inside a character class does NOT end a regex literal. An
+      // earlier version missed this and truncated the block mid-rule, recovering 16 of
+      // 18 rules — losing exactly the two that matched the fixtures in question.
+      if (!escaped) {
+        if (ch === '[') inClass = true;
+        else if (ch === ']') inClass = false;
+        else if (ch === '/' && !inClass) inRe = false;
+      }
+      continue;
+    }
     if (ch === '/' && src[i + 1] === '/') { inLine = true; continue; }
     if (ch === "'" || ch === '"' || ch === '`') { inStr = ch; continue; }
     // a regex literal always follows `re:` here, which is enough to disambiguate
-    if (ch === '/' && /re\s*:\s*$/.test(src.slice(Math.max(0, i - 8), i))) { inRe = true; continue; }
+    if (ch === '/' && /re\s*:\s*$/.test(src.slice(Math.max(0, i - 8), i))) { inRe = true; inClass = false; continue; }
     if (ch === '[') depth += 1;
     else if (ch === ']') { depth -= 1; if (depth === 0) { end = i; break; } }
   }
   if (end === -1) throw new Error(`the RULES block in ${scannerPath} is not terminated`);
 
   const block = src.slice(open, end + 1);
+  const declared = (block.match(/\{\s*id:\s*'/g) ?? []).length;
   const entry = /\{\s*id:\s*'([^']+)'\s*,\s*re:\s*\/((?:\\.|\[(?:\\.|[^\]])*\]|[^/\\])+)\/([gimsuy]*)\s*\}/g;
   const rules = [];
   let m;
@@ -85,6 +97,12 @@ function loadSecretRules(scannerPath = SCANNER_PATH) {
     rules.push({ id: m[1], re: new RegExp(m[2], flags) });
   }
   if (rules.length === 0) throw new Error(`parsed zero rules from ${scannerPath}; the rule shape must have changed`);
+  if (rules.length !== declared) {
+    throw new Error(
+      `parsed ${rules.length} secret rules from ${scannerPath} but it declares ${declared}. ` +
+      'Refusing to check the ledger with an incomplete rule list.',
+    );
+  }
   return rules;
 }
 

@@ -6,11 +6,11 @@
  * rendering lives in `routes/`, data access in `db/`, and no business logic is
  * written here.
  */
-import { Hono } from 'hono';
+import { Hono, type Context } from 'hono';
 import { CSS, THEME_SCRIPT, render } from '@verify/ui';
 import { publicRoutes, notFoundPage } from './routes/public/index.js';
 import { createAppRoutes } from './routes/app/index.js';
-import { createCustomerDataPort } from './db/index.js';
+import { createCustomerDataPort, createOwnerDataPort, createOwnerAuth } from './db/index.js';
 import { createOwnerRoutes } from './routes/owner/index.js';
 import { createRunnerRoutes } from './maintenance/routes.js';
 import { createVisitCounter } from './growth/visits.js';
@@ -19,8 +19,9 @@ import { createStripeWebhookDeps } from './billing/mount.js';
 import { createStripeClient } from '@verify/connectors/stripe';
 import { D1BillingDataPort, createBillingContactLookup } from './db/index.js';
 import { newId } from './lib/ids.js';
-import { MemoryOwnerDataPort } from './owner/memory.js';
-import { ANONYMOUS_PRINCIPAL } from './owner/access.js';
+import { handleScheduled } from './scheduler/index.js';
+import { createRetentionSweeper } from './scheduler/retention.js';
+import { D1SupportDataPort } from './db/supportPort.js';
 
 export interface Env {
   readonly ASSETS: Fetcher;
@@ -322,12 +323,34 @@ app.route('/app', createAppRoutes(async (c) => createCustomerDataPort(c)));
 // runner polls outbound from the owner's own machine and holds no browser session.
 app.route('/api/v1/runner', createRunnerRoutes({ db: (c) => (c.env as Env).DB }));
 
-app.route(
-  '/',
-  createOwnerRoutes({
-    resolvePort: async () => new MemoryOwnerDataPort({ principal: ANONYMOUS_PRINCIPAL }),
-  }),
-);
+let ownerApp: ReturnType<typeof createOwnerRoutes> | null = null;
+
+app.all('/owner/*', ownerRoute);
+app.all('/owner', ownerRoute);
+app.all('/admin/*', ownerRoute);
+app.all('/admin', ownerRoute);
+
+async function ownerRoute(c: Context<Bindings>): Promise<Response> {
+  // Built on first request, not at module scope, because both the data port and the auth
+  // port need `env` and there is no `env` until a request arrives. Cached per isolate, so
+  // this costs one construction rather than one per request.
+  ownerApp ??= createOwnerRoutes({
+    // Real D1 and real authentication: magic link, TOTP, recovery codes, and a bootstrap
+    // that closes itself by writing an owner rather than by remembering to delete a
+    // secret.
+    //
+    // Passing `environment` is what makes an unconfigured production deploy throw at
+    // construction instead of quietly serving something. The in-memory port's default
+    // principal used to be a fully authenticated owner, which served this whole dashboard
+    // to anonymous visitors on staging — the access control was correct and its tests
+    // passed, because they all constructed an anonymous principal explicitly. The default
+    // was what failed, and only a live request showed it.
+    environment: c.env.ENVIRONMENT,
+    resolvePort: async (ctx) => createOwnerDataPort(ctx),
+    auth: createOwnerAuth(c),
+  });
+  return ownerApp.fetch(c.req.raw, c.env, c.executionCtx);
+}
 
 app.route('/', publicRoutes);
 
@@ -374,7 +397,34 @@ export default {
    * bounded retention deletes. Still a deliberate no-op until the scheduler is mounted —
    * an empty tick is honest; a fabricated one would not be.
    */
-  async scheduled(_event: ScheduledController, _env: Env): Promise<void> {
-    return;
+  /**
+   * The minute tick: the due-job scheduler, the outbox dispatcher and bounded retention.
+   *
+   * `handleScheduled` resolves for every outcome including failure, deliberately — a
+   * rejected scheduled handler buys a retry we cannot bound, and an unbounded retry on a
+   * cron is how a quiet bug becomes a bill. The outcome is read from the report instead.
+   *
+   * Retention gets its sweeper explicitly. Omitted, retention is skipped rather than
+   * faked — the same rule as everywhere else here: not doing something is honest,
+   * pretending to do it is not.
+   */
+  async scheduled(event: ScheduledController, env: Env): Promise<void> {
+    const report = await handleScheduled(env, {
+      now: new Date(event.scheduledTime),
+      sweeper: createRetentionSweeper(new D1SupportDataPort(env.DB)),
+    });
+
+    // One structured line per tick. A tick that did nothing still says so, because a
+    // silent scheduler and a stopped scheduler look identical in a log.
+    console.log('scheduler_tick', {
+      runs_claimed: report.runs?.claimed ?? 0,
+      runs_observed: report.runs?.observed ?? 0,
+      runs_terminal: report.runs?.terminal ?? 0,
+      calls_made: report.runs?.callsMade ?? 0,
+      coverage_warnings: report.runs?.coverageWarnings ?? 0,
+      outbox_dispatched: report.outbox?.dispatched ?? 0,
+      retention_removed: report.retention?.removed ?? 0,
+      error: report.error ?? null,
+    });
   },
 } satisfies ExportedHandler<Env>;
