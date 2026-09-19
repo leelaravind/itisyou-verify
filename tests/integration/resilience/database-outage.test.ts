@@ -1,5 +1,5 @@
 /**
- * RESIL-100..119 — the database goes away.
+ * Database outage (RESIL 100 to 122) — the database goes away.
  *
  * Every case here runs the real scheduler and the real repositories against a real SQLite
  * database that has been made to fail at a chosen point. Nothing is mocked: after the

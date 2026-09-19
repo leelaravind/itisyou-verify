@@ -36,11 +36,25 @@ const ORIGIN = 'http://localhost';
 const CSRF = 'csrf-token-for-owner-live-path-tests';
 const ENV = { ENVIRONMENT: 'development', PUBLIC_BASE_URL: ORIGIN };
 
-/** `0003` is not in the shared harness, which applies `0001` only. Apply it here. */
 const MIGRATION_0003 = readFileSync(
   fileURLToPath(new URL('../../../migrations/0003_quality_artifacts.sql', import.meta.url)),
   'utf8',
 );
+
+/**
+ * Apply `0003` only if the harness has not already.
+ *
+ * It applied `0001` alone when this file was written and now applies every migration, so a
+ * second unconditional `exec` fails with "table already exists". Asking the schema rather
+ * than assuming a harness version means this keeps working whichever is true — and the
+ * failure it replaces was a real one that only appeared because the harness improved.
+ */
+function ensureQualityArtifactsTable(): void {
+  const existing = h.raw
+    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'quality_artifacts'")
+    .get();
+  if (existing === undefined) h.exec(MIGRATION_0003);
+}
 
 function ownerPrincipal(): OwnerPrincipal {
   return { ...syntheticOwnerPrincipal(NOW), csrfToken: CSRF };
@@ -237,7 +251,7 @@ describe('a real request reaches the approval compare-and-set', () => {
 
 describe('a real request reaches the evidence pack', () => {
   function seedPack(): void {
-    h.exec(MIGRATION_0003);
+    ensureQualityArtifactsTable();
     h.exec(
       `INSERT INTO quality_artifacts (id, part, body, commit_sha, generated_at, uploaded_at)
        VALUES ('test-report.md', 0, '# ITISYOU Verify — test report', 'abc123def456',
@@ -272,7 +286,7 @@ describe('a real request reaches the evidence pack', () => {
   });
 
   it('OWNER-308 with the table present but empty, the page says upload rather than migrate', async () => {
-    h.exec(MIGRATION_0003);
+    ensureQualityArtifactsTable();
     const app = mount({ artifacts: new D1QualityArtifactStore(h.db) });
     const body = await (await app.get('/owner/quality')).text();
     expect(body).toContain('data-dependency="true"');

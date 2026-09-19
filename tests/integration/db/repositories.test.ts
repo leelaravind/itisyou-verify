@@ -338,7 +338,7 @@ describe('connections and credential rotation', () => {
       // secret-scan:allow synthetic base64; not a real envelope
       ciphertext: 'Y2lwaGVyMQ==',
       nonce: 'bm9uY2Vub25jZQ==',
-      aad: 'v1|ws=ws_alpha|provider=hubspot|purpose=api_token',
+      aad: 'v1|kv=1|ws=ws_alpha|provider=hubspot|purpose=api_token',
       createdAt: T0,
     });
     await credentials.store(h.db, {
@@ -349,7 +349,7 @@ describe('connections and credential rotation', () => {
       // secret-scan:allow synthetic base64; not a real envelope
       ciphertext: 'Y2lwaGVyMg==',
       nonce: 'bm9uY2Vub25jZQ==',
-      aad: 'v1|ws=ws_alpha|provider=hubspot|purpose=api_token',
+      aad: 'v1|kv=1|ws=ws_alpha|provider=hubspot|purpose=api_token',
       createdAt: LATER,
     });
     const active = await credentials.activeForConnection(h.db, ws.workspaceId, 'conn_1');
@@ -374,7 +374,7 @@ describe('connections and credential rotation', () => {
       // secret-scan:allow base64 of the literal word 'cipher'; not a real envelope
       ciphertext: 'Y2lwaGVy',
       nonce: 'bm9uY2Vub25jZQ==',
-      aad: 'v1|ws=ws_alpha|provider=resend|purpose=api_token',
+      aad: 'v1|kv=1|ws=ws_alpha|provider=resend|purpose=api_token',
       createdAt: T0,
     });
     expect(await connections.revoke(h.db, ws.workspaceId, 'conn_1', LATER)).toBe(true);
@@ -400,7 +400,7 @@ describe('connections and credential rotation', () => {
       // secret-scan:allow base64 of the literal word 'cipher'; not a real envelope
       ciphertext: 'Y2lwaGVy',
       nonce: 'bm9uY2Vub25jZQ==',
-      aad: 'v1|ws=ws_alpha|provider=hubspot|purpose=api_token',
+      aad: 'v1|kv=1|ws=ws_alpha|provider=hubspot|purpose=api_token',
       createdAt: T0,
     });
     const row = await credentials.activeForConnection(h.db, ws.workspaceId, 'conn_1');

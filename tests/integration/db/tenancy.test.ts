@@ -174,7 +174,7 @@ describe('tenant isolation', () => {
       // secret-scan:allow base64 of the literal word 'cipher'; not a real envelope
       ciphertext: 'Y2lwaGVy',
       nonce: 'bm9uY2Vub25jZQ==',
-      aad: 'v1|ws=ws_alpha|provider=hubspot|purpose=api_token',
+      aad: 'v1|kv=1|ws=ws_alpha|provider=hubspot|purpose=api_token',
       createdAt: T0,
     });
     expect(await credentials.activeForConnection(h.db, a.workspaceId, 'conn_a')).not.toBeNull();

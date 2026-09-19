@@ -1,5 +1,5 @@
 /**
- * RESIL-123..139 — work that stops halfway.
+ * Interrupted jobs (RESIL 123 to 139) — work that stops halfway.
  *
  * A Worker invocation is killed wherever it happens to be. These cases construct the exact
  * database state each kill point leaves and prove the next tick repairs it — no job stuck
