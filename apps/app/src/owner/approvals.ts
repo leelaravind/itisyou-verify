@@ -96,7 +96,9 @@ export type OwnerApprovalPayload =
 
 function assertMinor(name: string, value: number): void {
   if (!Number.isSafeInteger(value)) {
-    throw new TypeError(`${name} must be an integer number of minor units, received: ${String(value)}`);
+    throw new TypeError(
+      `${name} must be an integer number of minor units, received: ${String(value)}`,
+    );
   }
 }
 
@@ -204,14 +206,20 @@ export async function grantOwnerApproval(
     }
   }
   if (input.action_type === 'refund_issue') {
-    if (grant.maximum_amount_minor === null || grant.maximum_amount_minor < input.payload.amount_minor) {
+    if (
+      grant.maximum_amount_minor === null ||
+      grant.maximum_amount_minor < input.payload.amount_minor
+    ) {
       throw new TypeError(
         `maximum_amount_minor ${String(grant.maximum_amount_minor)} is below the refund amount ${input.payload.amount_minor}`,
       );
     }
   }
   if (input.action_type === 'budget_limit_change') {
-    if (grant.maximum_amount_minor === null || grant.maximum_amount_minor < input.payload.proposed_limit_minor) {
+    if (
+      grant.maximum_amount_minor === null ||
+      grant.maximum_amount_minor < input.payload.proposed_limit_minor
+    ) {
       throw new TypeError(
         `maximum_amount_minor ${String(grant.maximum_amount_minor)} is below the proposed limit ${input.payload.proposed_limit_minor}`,
       );
@@ -267,11 +275,19 @@ export async function checkOwnerApproval(
     };
   }
   if (approval.status !== 'granted') {
-    return { valid: false, reason: 'status_not_granted', detail: `approval status is ${approval.status}` };
+    return {
+      valid: false,
+      reason: 'status_not_granted',
+      detail: `approval status is ${approval.status}`,
+    };
   }
   const expiry = Date.parse(approval.expires_at);
   if (Number.isNaN(expiry) || now.getTime() > expiry) {
-    return { valid: false, reason: 'expired', detail: `approval expired at ${approval.expires_at}` };
+    return {
+      valid: false,
+      reason: 'expired',
+      detail: `approval expired at ${approval.expires_at}`,
+    };
   }
 
   const monetary: { readonly amount: number; readonly currency: Currency } | null =
@@ -392,8 +408,7 @@ export function explainApprovalRejection(reason: ClaimRejection): string {
  * guarantee is an approval rule and not a storage detail. A second spelling of it anywhere
  * else is a defect.
  */
-export const CLAIM_APPROVAL_SQL =
-  `UPDATE approvals SET status = 'consumed', consumed_at = ?
+export const CLAIM_APPROVAL_SQL = `UPDATE approvals SET status = 'consumed', consumed_at = ?
     WHERE id = ? AND status = 'granted' AND expires_at > ?`;
 
 /**

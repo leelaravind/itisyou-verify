@@ -12,13 +12,7 @@ import { type Db, orNull } from './d1';
 export type Environment = 'test' | 'live';
 
 export type RefundState =
-  | 'requested'
-  | 'queued_for_owner'
-  | 'submitted'
-  | 'pending'
-  | 'succeeded'
-  | 'failed'
-  | 'rejected';
+  'requested' | 'queued_for_owner' | 'submitted' | 'pending' | 'succeeded' | 'failed' | 'rejected';
 
 // ---------------------------------------------------------------------------
 // billing customers

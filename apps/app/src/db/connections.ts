@@ -77,7 +77,9 @@ export const connections = {
     provider: Provider,
   ): Promise<ConnectionRow | null> {
     return db
-      .prepare(`SELECT ${CONNECTION_COLUMNS} FROM connections WHERE workspace_id = ? AND provider = ?`)
+      .prepare(
+        `SELECT ${CONNECTION_COLUMNS} FROM connections WHERE workspace_id = ? AND provider = ?`,
+      )
       .bind(workspaceId, provider)
       .first<ConnectionRow>();
   },
@@ -104,7 +106,11 @@ export const connections = {
     db: Db,
     workspaceId: string,
     connectionId: string,
-    params: { status: ConnectionStatus; lastCheckAt?: string | null; lastErrorCode?: string | null },
+    params: {
+      status: ConnectionStatus;
+      lastCheckAt?: string | null;
+      lastErrorCode?: string | null;
+    },
   ): Promise<boolean> {
     const result = await db
       .prepare(
@@ -199,7 +205,9 @@ export const credentials = {
       // workspace_id.
       // tenant-scope:exempt scoped by owner_scope; see above.
       db
-        .prepare('UPDATE credential_versions SET retired_at = ? WHERE owner_scope = ? AND retired_at IS NULL')
+        .prepare(
+          'UPDATE credential_versions SET retired_at = ? WHERE owner_scope = ? AND retired_at IS NULL',
+        )
         .bind(params.createdAt, params.ownerScope),
       // tenant-scope:exempt same scope rule as the retire above; this is the matching
       // insert and the two must stay in one batch.
@@ -373,7 +381,9 @@ export const credentials = {
     // has already proven it owns.
     // tenant-scope:exempt scoped by owner_scope, the only scope this table has.
     const result = await db
-      .prepare('UPDATE credential_versions SET retired_at = ? WHERE owner_scope = ? AND retired_at IS NULL')
+      .prepare(
+        'UPDATE credential_versions SET retired_at = ? WHERE owner_scope = ? AND retired_at IS NULL',
+      )
       .bind(at, ownerScope)
       .run();
     return result.meta.changes;

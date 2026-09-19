@@ -64,7 +64,10 @@ export const users = {
   },
 
   async findById(db: Db, userId: string): Promise<UserRow | null> {
-    return db.prepare(`SELECT ${USER_COLUMNS} FROM users WHERE id = ?`).bind(userId).first<UserRow>();
+    return db
+      .prepare(`SELECT ${USER_COLUMNS} FROM users WHERE id = ?`)
+      .bind(userId)
+      .first<UserRow>();
   },
 
   async findByAuthSubject(db: Db, authSubject: string): Promise<UserRow | null> {
@@ -81,7 +84,9 @@ export const users = {
     params: { secretRef: string; enrolledAt: string },
   ): Promise<boolean> {
     const result = await db
-      .prepare('UPDATE users SET totp_secret_ref = ?, totp_enrolled_at = ? WHERE id = ? AND disabled_at IS NULL')
+      .prepare(
+        'UPDATE users SET totp_secret_ref = ?, totp_enrolled_at = ? WHERE id = ? AND disabled_at IS NULL',
+      )
       .bind(params.secretRef, params.enrolledAt, userId)
       .run();
     return result.meta.changes === 1;
@@ -168,7 +173,12 @@ export const workspaces = {
           `INSERT INTO workspaces (id, name, status, is_synthetic, retention_policy_version, created_at)
            VALUES (?, ?, 'active', ?, 1, ?)`,
         )
-        .bind(params.workspaceId, params.name, toSqlBool(params.isSynthetic ?? false), params.createdAt),
+        .bind(
+          params.workspaceId,
+          params.name,
+          toSqlBool(params.isSynthetic ?? false),
+          params.createdAt,
+        ),
       db
         .prepare(
           `INSERT INTO memberships (workspace_id, user_id, role, created_at)
@@ -189,7 +199,9 @@ export const workspaces = {
   async listForUser(
     db: Db,
     userId: string,
-  ): Promise<{ id: string; name: string; status: WorkspaceStatus; role: Role; created_at: string }[]> {
+  ): Promise<
+    { id: string; name: string; status: WorkspaceStatus; role: Role; created_at: string }[]
+  > {
     const result = await db
       .prepare(
         `SELECT w.id, w.name, w.status, m.role, w.created_at
@@ -214,7 +226,9 @@ export const workspaces = {
 
   async softDelete(db: Db, workspaceId: string, at: string): Promise<boolean> {
     const result = await db
-      .prepare("UPDATE workspaces SET status = 'deleted', deleted_at = ? WHERE id = ? AND deleted_at IS NULL")
+      .prepare(
+        "UPDATE workspaces SET status = 'deleted', deleted_at = ? WHERE id = ? AND deleted_at IS NULL",
+      )
       .bind(at, workspaceId)
       .run();
     return result.meta.changes === 1;

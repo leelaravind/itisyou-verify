@@ -121,7 +121,8 @@ const DEFAULT_DIGEST: DigestFn = (input: string) => sha256Hex(input);
  */
 export async function runSchedulerTick(deps: TickDeps): Promise<TickReport> {
   const logger = deps.logger ?? SILENT_LOGGER;
-  const budget = deps.budget instanceof TickBudget ? deps.budget : new TickBudget(deps.budget ?? {});
+  const budget =
+    deps.budget instanceof TickBudget ? deps.budget : new TickBudget(deps.budget ?? {});
   const startedAt = toIso(deps.now);
 
   let runPass: RunPassReport = {
@@ -143,7 +144,12 @@ export async function runSchedulerTick(deps: TickDeps): Promise<TickReport> {
     lostRace: 0,
     stoppedEarly: false,
   };
-  let retentionReport: RetentionPassReport = { ran: false, removed: 0, complete: true, error: null };
+  let retentionReport: RetentionPassReport = {
+    ran: false,
+    removed: 0,
+    complete: true,
+    error: null,
+  };
   let error: string | null = null;
 
   try {
@@ -213,7 +219,11 @@ export async function runSchedulerTick(deps: TickDeps): Promise<TickReport> {
  * tick picks it up. Nothing here needs to detect the crash; the absence of a completion is
  * the detection.
  */
-async function runDuePass(deps: TickDeps, budget: TickBudget, logger: SchedulerLogger): Promise<RunPassReport> {
+async function runDuePass(
+  deps: TickDeps,
+  budget: TickBudget,
+  logger: SchedulerLogger,
+): Promise<RunPassReport> {
   const nowIso = toIso(deps.now);
   const leaseUntil = addSecondsIso(deps.now, TICK_DEFAULTS.LEASE_SECONDS);
 
@@ -274,7 +284,16 @@ async function runDuePass(deps: TickDeps, budget: TickBudget, logger: SchedulerL
     if (outcome.terminal && outcome.applied) terminal += 1;
   }
 
-  return { claimed: claimed.length, observed, terminal, deferred, stale, callsMade, coverageWarnings, outcomes };
+  return {
+    claimed: claimed.length,
+    observed,
+    terminal,
+    deferred,
+    stale,
+    callsMade,
+    coverageWarnings,
+    outcomes,
+  };
 }
 
 function messageOf(error: unknown): string {
@@ -319,7 +338,10 @@ export interface ScheduledOptions {
  * retry we did not ask for and cannot bound, and the tick is already designed to leave a
  * safe, resumable state whenever it stops.
  */
-export async function handleScheduled(env: SchedulerEnv, options: ScheduledOptions = {}): Promise<TickReport> {
+export async function handleScheduled(
+  env: SchedulerEnv,
+  options: ScheduledOptions = {},
+): Promise<TickReport> {
   const now = options.now ?? new Date();
   const db = env.DB as unknown as Db;
   const resolver =

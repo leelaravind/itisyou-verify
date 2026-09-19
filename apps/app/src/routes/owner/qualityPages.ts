@@ -17,7 +17,12 @@ import {
   stateIsVerdict,
   type QualityRun,
 } from '../../owner/quality.js';
-import { CLEANUP_CATEGORIES, OUT_OF_SCOPE, type CleanupInventory, type CleanupReport } from '../../owner/cleanup.js';
+import {
+  CLEANUP_CATEGORIES,
+  OUT_OF_SCOPE,
+  type CleanupInventory,
+  type CleanupReport,
+} from '../../owner/cleanup.js';
 import { ActionForm, Instant, PageHead, UnknownAware } from './chrome.js';
 
 // ---------------------------------------------------------------------------
@@ -38,16 +43,20 @@ export function QualityPage(options: {
       lede: 'Run a suite, see what it proved, and download the evidence. Nothing here reports a result it did not get.',
     })}
 
-    ${options.formDependency === null
-      ? null
-      : Callout({
-          tone: 'warn',
-          title: 'Saved, but not run',
-          body: html`<p data-dependency="true">${options.formDependency}</p>`,
-        })}
-    ${options.formMessage === null
-      ? null
-      : Callout({ tone: 'note', title: 'Done', body: html`<p>${options.formMessage}</p>` })}
+    ${
+      options.formDependency === null
+        ? null
+        : Callout({
+            tone: 'warn',
+            title: 'Saved, but not run',
+            body: html`<p data-dependency="true">${options.formDependency}</p>`,
+          })
+    }
+    ${
+      options.formMessage === null
+        ? null
+        : Callout({ tone: 'note', title: 'Done', body: html`<p>${options.formMessage}</p>` })
+    }
 
     ${Card({
       title: 'Run a suite',
@@ -92,11 +101,13 @@ export function QualityPage(options: {
             key: 'state',
             header: 'State',
             cell: (run) => html`<span
-                class="badge ${run.state === 'passed'
-                  ? 'badge--verified'
-                  : run.state === 'failed'
-                    ? 'badge--failed'
-                    : 'badge--unverified'}"
+                class="badge ${
+                  run.state === 'passed'
+                    ? 'badge--verified'
+                    : run.state === 'failed'
+                      ? 'badge--failed'
+                      : 'badge--unverified'
+                }"
                 data-job-state="${run.state}"
                 >${JOB_STATE_TEXT[run.state].label}</span
               ><br /><span class="micro muted">${JOB_STATE_TEXT[run.state].meaning}</span>`,
@@ -109,8 +120,16 @@ export function QualityPage(options: {
                 ? html`<span class="muted" data-unknown="true">unknown</span>`
                 : html`<span class="mono micro">${run.commitSha.slice(0, 12)}</span>`,
           },
-          { key: 'env', header: 'Environment', cell: (run) => html`<span class="mono micro">${run.environment}</span>` },
-          { key: 'executor', header: 'Executor', cell: (run) => html`<span class="mono micro">${run.executor}</span>` },
+          {
+            key: 'env',
+            header: 'Environment',
+            cell: (run) => html`<span class="mono micro">${run.environment}</span>`,
+          },
+          {
+            key: 'executor',
+            header: 'Executor',
+            cell: (run) => html`<span class="mono micro">${run.executor}</span>`,
+          },
           { key: 'started', header: 'Started', cell: (run) => Instant(run.startedAt) },
           { key: 'ended', header: 'Ended', cell: (run) => Instant(run.endedAt) },
           {
@@ -189,13 +208,15 @@ export function CleanupPage(options: {
       lede: 'List what would be removed, read it, then remove exactly that. Nothing is deleted that has not been listed first.',
     })}
 
-    ${options.errorMessage === null
-      ? null
-      : Callout({
-          tone: 'warn',
-          title: 'Nothing was deleted',
-          body: html`<p data-cleanup-error="true">${options.errorMessage}</p>`,
-        })}
+    ${
+      options.errorMessage === null
+        ? null
+        : Callout({
+            tone: 'warn',
+            title: 'Nothing was deleted',
+            body: html`<p data-cleanup-error="true">${options.errorMessage}</p>`,
+          })
+    }
 
     ${Callout({
       tone: 'limit',
@@ -263,17 +284,31 @@ export function InventoryCard(options: {
             key: 'id',
             header: 'Resource',
             rowHeader: true,
-            cell: (item) => html`<span class="mono" data-resource-id="${item.resourceId}">${item.resourceId}</span>`,
+            cell: (item) =>
+              html`<span class="mono" data-resource-id="${item.resourceId}">${item.resourceId}</span>`,
           },
           { key: 'kind', header: 'Kind', cell: (item) => item.kind },
-          { key: 'category', header: 'Category', cell: (item) => html`<span class="mono micro">${item.category}</span>` },
-          { key: 'env', header: 'Environment', cell: (item) => html`<span class="mono micro">${item.environment}</span>` },
-          { key: 'owner', header: 'Owned by', cell: (item) => html`<span class="mono micro">${item.ownershipTag}</span>` },
+          {
+            key: 'category',
+            header: 'Category',
+            cell: (item) => html`<span class="mono micro">${item.category}</span>`,
+          },
+          {
+            key: 'env',
+            header: 'Environment',
+            cell: (item) => html`<span class="mono micro">${item.environment}</span>`,
+          },
+          {
+            key: 'owner',
+            header: 'Owned by',
+            cell: (item) => html`<span class="mono micro">${item.ownershipTag}</span>`,
+          },
           {
             key: 'size',
             header: 'Size',
             numeric: true,
-            cell: (item) => UnknownAware(item.estimatedBytes === null ? null : `${item.estimatedBytes} B`),
+            cell: (item) =>
+              UnknownAware(item.estimatedBytes === null ? null : `${item.estimatedBytes} B`),
           },
           {
             key: 'retention',
@@ -293,25 +328,29 @@ export function InventoryCard(options: {
         empty: html`<p class="muted">Nothing in these categories.</p>`,
       })}
 
-      ${inv.excluded.length === 0
-        ? null
-        : Callout({
-            tone: 'note',
-            title: `${inv.excluded.length} thing${inv.excluded.length === 1 ? '' : 's'} found and deliberately left out`,
-            body: html`<ul class="stack-sm" data-excluded="true">
+      ${
+        inv.excluded.length === 0
+          ? null
+          : Callout({
+              tone: 'note',
+              title: `${inv.excluded.length} thing${inv.excluded.length === 1 ? '' : 's'} found and deliberately left out`,
+              body: html`<ul class="stack-sm" data-excluded="true">
               ${inv.excluded.map(
-                (entry) => html`<li><span class="mono micro">${entry.resourceId}</span> — ${entry.why}</li>`,
+                (entry) =>
+                  html`<li><span class="mono micro">${entry.resourceId}</span> — ${entry.why}</li>`,
               )}
             </ul>`,
-          })}
+            })
+      }
 
-      ${inv.items.length === 0
-        ? null
-        : ActionForm({
-            action: '/owner/cleanup/run',
-            csrfToken: options.csrfToken,
-            confirm: 'delete',
-            body: html`<input type="hidden" name="inventory_hash" value="${inv.hash}" />
+      ${
+        inv.items.length === 0
+          ? null
+          : ActionForm({
+              action: '/owner/cleanup/run',
+              csrfToken: options.csrfToken,
+              confirm: 'delete',
+              body: html`<input type="hidden" name="inventory_hash" value="${inv.hash}" />
               <p class="measure">
                 This removes the ${inv.items.length} resource${inv.items.length === 1 ? '' : 's'} listed above
                 and nothing else. If anything about that list has changed since it was taken, the run stops
@@ -323,7 +362,8 @@ export function InventoryCard(options: {
                 checked: true,
               })}
               ${Button({ label: 'Remove these', variant: 'danger', type: 'submit' })}`,
-          })}
+            })
+      }
     </div>`,
   });
 }
@@ -356,28 +396,36 @@ export function ReportCard(options: { readonly report: CleanupReport }): Html {
         ],
       ])}
 
-      ${report.checkpoint === null
-        ? null
-        : Callout({
-            tone: 'warn',
-            title: 'This run did not finish',
-            body: html`<p data-checkpoint="true">
+      ${
+        report.checkpoint === null
+          ? null
+          : Callout({
+              tone: 'warn',
+              title: 'This run did not finish',
+              body: html`<p data-checkpoint="true">
                 ${report.checkpoint.handled.length} handled, ${report.checkpoint.remaining.length} still to do.
                 The run is resumable: nothing already removed will be removed again, and nothing not yet looked
                 at has been touched.
               </p>
               <p class="small mono micro">Remaining: ${report.checkpoint.remaining.join(', ')}</p>`,
-          })}
+            })
+      }
 
       ${Table({
         caption: 'What happened to each resource',
         columns: [
-          { key: 'id', header: 'Resource', rowHeader: true, cell: (r) => html`<span class="mono">${r.resourceId}</span>` },
+          {
+            key: 'id',
+            header: 'Resource',
+            rowHeader: true,
+            cell: (r) => html`<span class="mono">${r.resourceId}</span>`,
+          },
           { key: 'outcome', header: 'Outcome', cell: (r) => r.outcome.replace(/_/g, ' ') },
           {
             key: 'detail',
             header: 'Detail',
-            cell: (r) => (r.detail === null ? html`<span class="muted">—</span>` : html`${r.detail}`),
+            cell: (r) =>
+              r.detail === null ? html`<span class="muted">—</span>` : html`${r.detail}`,
           },
         ],
         rows: report.resources,

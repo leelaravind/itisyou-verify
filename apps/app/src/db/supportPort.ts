@@ -59,7 +59,9 @@ function encodeCaseCursor(createdAt: string, id: string): string {
   return toBase64Url(new TextEncoder().encode(`sc1|${createdAt}|${id}`));
 }
 
-function decodeCaseCursor(value: string | null | undefined): { createdAt: string; id: string } | null {
+function decodeCaseCursor(
+  value: string | null | undefined,
+): { createdAt: string; id: string } | null {
   if (value === undefined || value === null || value === '') return null;
   let text: string;
   try {

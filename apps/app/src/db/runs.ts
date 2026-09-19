@@ -92,7 +92,10 @@ export const runs = {
     if (cursor !== null) bindings.push(cursor.createdAt, cursor.createdAt, cursor.id);
     bindings.push(limit + 1);
 
-    const result = await db.prepare(sql).bind(...bindings).all<RunRow>();
+    const result = await db
+      .prepare(sql)
+      .bind(...bindings)
+      .all<RunRow>();
     return buildPage(result.results, limit);
   },
 
@@ -114,7 +117,10 @@ export const runs = {
     const bindings = cursor
       ? [workspaceId, workflowId, cursor.createdAt, cursor.createdAt, cursor.id, limit + 1]
       : [workspaceId, workflowId, limit + 1];
-    const result = await db.prepare(sql).bind(...bindings).all<RunRow>();
+    const result = await db
+      .prepare(sql)
+      .bind(...bindings)
+      .all<RunRow>();
     return buildPage(result.results, limit);
   },
 
@@ -348,7 +354,12 @@ export const runAttempts = {
     return result.meta.changes === 1;
   },
 
-  async listForRun(db: Db, workspaceId: string, runId: string, limit = 20): Promise<RunAttemptRow[]> {
+  async listForRun(
+    db: Db,
+    workspaceId: string,
+    runId: string,
+    limit = 20,
+  ): Promise<RunAttemptRow[]> {
     const result = await db
       .prepare(
         `SELECT id, run_id, workspace_id, attempt_number, lease_id, lease_expires_at, started_at, ended_at, outcome, error_code
@@ -471,8 +482,13 @@ export const assertions = {
             WHERE a.workspace_id = ? AND a.run_id = ? AND a.revision = ?
             ORDER BY a.rule_id ASC LIMIT 50`;
     const bindings =
-      revision === undefined ? [workspaceId, runId, workspaceId, runId] : [workspaceId, runId, revision];
-    const result = await db.prepare(sql).bind(...bindings).all<AssertionRow>();
+      revision === undefined
+        ? [workspaceId, runId, workspaceId, runId]
+        : [workspaceId, runId, revision];
+    const result = await db
+      .prepare(sql)
+      .bind(...bindings)
+      .all<AssertionRow>();
     return result.results;
   },
 };
@@ -635,7 +651,9 @@ export const evidence = {
   async purgeExpired(db: Db, now: string, limit = 500): Promise<number> {
     // tenant-scope:exempt platform-wide retention sweep; deletes only past expires_at.
     const result = await db
-      .prepare('DELETE FROM evidence WHERE id IN (SELECT id FROM evidence WHERE expires_at <= ? LIMIT ?)')
+      .prepare(
+        'DELETE FROM evidence WHERE id IN (SELECT id FROM evidence WHERE expires_at <= ? LIMIT ?)',
+      )
       .bind(now, limit)
       .run();
     return result.meta.changes;

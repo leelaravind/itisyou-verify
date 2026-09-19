@@ -111,7 +111,9 @@ export function createMemoryGrowthPort(options: MemoryGrowthPortOptions = {}): M
       if (options.failReads === true) return null;
       const mine = [...metrics.values()]
         .filter((m) => m.campaignId === campaignId)
-        .sort((a, b) => (a.intervalEnd < b.intervalEnd ? -1 : a.intervalEnd > b.intervalEnd ? 1 : 0));
+        .sort((a, b) =>
+          a.intervalEnd < b.intervalEnd ? -1 : a.intervalEnd > b.intervalEnd ? 1 : 0,
+        );
       return mine[mine.length - 1] ?? null;
     },
 

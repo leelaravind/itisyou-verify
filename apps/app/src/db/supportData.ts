@@ -142,7 +142,10 @@ export const supportCases = {
       stateClause +
       cursorClause +
       ' ORDER BY created_at DESC, id DESC LIMIT ?';
-    const result = await db.prepare(sql).bind(...bindings).all<SupportCaseRow>();
+    const result = await db
+      .prepare(sql)
+      .bind(...bindings)
+      .all<SupportCaseRow>();
     return result.results;
   },
 
@@ -180,7 +183,10 @@ export const supportCases = {
     if (params.workspaceId !== null && params.workspaceId !== undefined) {
       bindings.push(params.workspaceId);
     }
-    const result = await db.prepare(sql).bind(...bindings).run();
+    const result = await db
+      .prepare(sql)
+      .bind(...bindings)
+      .run();
     return result.meta.changes === 1;
   },
 };
@@ -319,7 +325,10 @@ export const notifications = {
       keysetClause +
       channelClause +
       ' ORDER BY id LIMIT ?';
-    const result = await db.prepare(sql).bind(...bindings).all<NotificationRow>();
+    const result = await db
+      .prepare(sql)
+      .bind(...bindings)
+      .all<NotificationRow>();
     return result.results;
   },
 
@@ -335,8 +344,7 @@ export const notifications = {
     },
   ): Promise<NotificationRow[]> {
     const bindings: unknown[] = [];
-    const scopeClause =
-      query.workspaceId === null ? 'workspace_id IS NULL' : 'workspace_id = ?';
+    const scopeClause = query.workspaceId === null ? 'workspace_id IS NULL' : 'workspace_id = ?';
     if (query.workspaceId !== null) bindings.push(query.workspaceId);
     bindings.push(query.template, query.since);
 
@@ -355,7 +363,10 @@ export const notifications = {
       ' AND template = ? AND created_at >= ?' +
       prefixClause +
       ' ORDER BY created_at DESC, id DESC LIMIT ?';
-    const result = await db.prepare(sql).bind(...bindings).all<NotificationRow>();
+    const result = await db
+      .prepare(sql)
+      .bind(...bindings)
+      .all<NotificationRow>();
     return result.results;
   },
 };
@@ -419,7 +430,8 @@ const RETENTION: Readonly<Record<RetentionTarget, RetentionPlan>> = {
     // tenant-scope:exempt deletes one id the caller already read from a scoped listExpired
     // page; the page carried the tenant predicate, this removes exactly what it returned.
     deleteOneSql: 'DELETE FROM evidence WHERE id = ?',
-    purgeSql: 'DELETE FROM evidence WHERE id IN (SELECT id FROM evidence WHERE workspace_id = ? ORDER BY id LIMIT ?)',
+    purgeSql:
+      'DELETE FROM evidence WHERE id IN (SELECT id FROM evidence WHERE workspace_id = ? ORDER BY id LIMIT ?)',
   },
   source_events: {
     // Expiry-driven sweep across every tenant. The predicate is the row's own received_at
@@ -604,14 +616,22 @@ export const retention = {
         params.afterId === null
           ? [params.expiredAt, params.workspaceId, limit]
           : [params.expiredAt, params.afterId, params.workspaceId, limit];
-      const scoped = await db.prepare(sql).bind(...bindings).all<ExpiredRowRef>();
+      const scoped = await db
+        .prepare(sql)
+        .bind(...bindings)
+        .all<ExpiredRowRef>();
       return scoped.results;
     }
 
     const sql = params.afterId === null ? plan.listFirstPageSql : plan.listSql;
     const bindings =
-      params.afterId === null ? [params.expiredAt, limit] : [params.expiredAt, params.afterId, limit];
-    const result = await db.prepare(sql).bind(...bindings).all<ExpiredRowRef>();
+      params.afterId === null
+        ? [params.expiredAt, limit]
+        : [params.expiredAt, params.afterId, limit];
+    const result = await db
+      .prepare(sql)
+      .bind(...bindings)
+      .all<ExpiredRowRef>();
     return result.results;
   },
 
@@ -804,7 +824,10 @@ export const exportPages = {
       params.section === 'billing'
         ? [params.workspaceId, params.afterId, params.workspaceId, params.afterId, limit]
         : [params.workspaceId, params.afterId, limit];
-    const result = await db.prepare(sql).bind(...bindings).all<Record<string, unknown>>();
+    const result = await db
+      .prepare(sql)
+      .bind(...bindings)
+      .all<Record<string, unknown>>();
 
     const columns = EXPORT_PAGE_COLUMNS[params.section];
     const rows: ExportValue[][] = [];

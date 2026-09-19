@@ -6,8 +6,7 @@
  */
 
 /** Matches an ISO-8601 instant with an explicit UTC designator or numeric offset. */
-const ISO_RE =
-  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$/;
+const ISO_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$/;
 
 export type Instant = Date | string;
 
@@ -19,11 +18,7 @@ export function nowIso(now: Instant = new Date()): string {
 /** Normalise to an ISO-8601 UTC string. Always ends in `Z`. */
 export function toIso(value: Instant | number): string {
   const date =
-    value instanceof Date
-      ? value
-      : typeof value === 'number'
-        ? new Date(value)
-        : parseIso(value);
+    value instanceof Date ? value : typeof value === 'number' ? new Date(value) : parseIso(value);
   if (Number.isNaN(date.getTime())) {
     throw new TypeError('toIso received an invalid date');
   }

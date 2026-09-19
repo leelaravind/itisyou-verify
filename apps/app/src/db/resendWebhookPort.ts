@@ -24,10 +24,7 @@
 import type { EmailEventEvidence } from '@verify/contracts';
 import { openCredentialFor, randomBytes, sha256Hex, toBase64Url } from '@verify/security';
 import { CREDENTIAL_PURPOSE } from '@verify/connectors';
-import type {
-  ResendEndpoint,
-  ResendWebhookDataPort,
-} from '../routes/webhooks/resend';
+import type { ResendEndpoint, ResendWebhookDataPort } from '../routes/webhooks/resend';
 import type { WebhookAdmission, WebhookProcessingStatus } from './webhooks';
 import type { Env } from '../lib/context';
 import { addSecondsIso } from '../lib/time';
@@ -294,5 +291,3 @@ export class D1ResendWebhookDataPort implements ResendWebhookDataPort {
 export function createResendWebhookData(db: Db): D1ResendWebhookDataPort {
   return new D1ResendWebhookDataPort(db);
 }
-
-

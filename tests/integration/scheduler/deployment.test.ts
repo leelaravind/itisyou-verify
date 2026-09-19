@@ -13,14 +13,50 @@ import { fileURLToPath } from 'node:url';
 
 const WRANGLER_PATH = fileURLToPath(new URL('../../../apps/app/wrangler.jsonc', import.meta.url));
 
-/** Strip `//` comments so JSONC can be parsed. Crude, and sufficient for this file. */
+/**
+ * Parse `wrangler.jsonc`.
+ *
+ * JSONC permits both comments and trailing commas, and this file uses both, so a naive
+ * line-based strip is not enough — an added trailing comma broke this suite once already.
+ * The scanner tracks string state so a `//` inside a URL is never mistaken for a comment.
+ */
+function stripJsonc(raw: string): string {
+  let out = '';
+  let inString = false;
+  let escaped = false;
+  for (let i = 0; i < raw.length; i += 1) {
+    const char = raw[i] as string;
+    if (inString) {
+      out += char;
+      if (escaped) escaped = false;
+      else if (char === '\\') escaped = true;
+      else if (char === '"') inString = false;
+      continue;
+    }
+    if (char === '"') {
+      inString = true;
+      out += char;
+      continue;
+    }
+    if (char === '/' && raw[i + 1] === '/') {
+      while (i < raw.length && raw[i] !== '\n') i += 1;
+      out += '\n';
+      continue;
+    }
+    if (char === '/' && raw[i + 1] === '*') {
+      i += 2;
+      while (i < raw.length && !(raw[i] === '*' && raw[i + 1] === '/')) i += 1;
+      i += 1;
+      continue;
+    }
+    out += char;
+  }
+  // Trailing commas before a closing brace or bracket, outside any string.
+  return out.replace(/,(\s*[}\]])/g, '$1');
+}
+
 function readWranglerConfig(): Record<string, unknown> {
-  const raw = readFileSync(WRANGLER_PATH, 'utf8');
-  const withoutComments = raw
-    .split('\n')
-    .map((line) => (line.trimStart().startsWith('//') ? '' : line))
-    .join('\n');
-  return JSON.parse(withoutComments) as Record<string, unknown>;
+  return JSON.parse(stripJsonc(readFileSync(WRANGLER_PATH, 'utf8'))) as Record<string, unknown>;
 }
 
 interface EnvBlock {

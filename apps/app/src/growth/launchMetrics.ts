@@ -68,7 +68,12 @@ function ageSeconds(observedAt: string | null, now: Date): number | null {
   return Math.max(0, Math.floor((now.getTime() - parsed) / 1000));
 }
 
-export function knownFigure(value: number, observedAt: string | null, now: Date, note: string): LaunchFigure {
+export function knownFigure(
+  value: number,
+  observedAt: string | null,
+  now: Date,
+  note: string,
+): LaunchFigure {
   const age = ageSeconds(observedAt, now);
   return {
     value,
@@ -168,7 +173,9 @@ export async function readLaunchMetrics(input: LaunchMetricsInput): Promise<Laun
         );
 
   const excluded = (value: number | null, label: string): LaunchFigure =>
-    value === null ? unknownFigure(`${label} could not be read.`) : knownFigure(value, counts?.countedAt ?? null, input.now, label);
+    value === null
+      ? unknownFigure(`${label} could not be read.`)
+      : knownFigure(value, counts?.countedAt ?? null, input.now, label);
 
   const met = totalVisits.value === null ? null : totalVisits.value >= EXTERNAL_VISIT_TARGET;
 

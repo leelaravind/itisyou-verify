@@ -189,10 +189,7 @@ export function createMemoryBillingStore(): MemoryBillingStore {
     },
 
     async saveSubscriptionSnapshot(record) {
-      subscriptions.set(
-        subscriptionKey(record.providerSubscriptionId, record.environment),
-        record,
-      );
+      subscriptions.set(subscriptionKey(record.providerSubscriptionId, record.environment), record);
       return record;
     },
 
@@ -305,9 +302,7 @@ export function createMemoryBillingStore(): MemoryBillingStore {
         ...refund,
         state: params.state,
         providerRefundId:
-          params.providerRefundId === undefined
-            ? refund.providerRefundId
-            : params.providerRefundId,
+          params.providerRefundId === undefined ? refund.providerRefundId : params.providerRefundId,
         approvalId: params.approvalId === undefined ? refund.approvalId : params.approvalId,
         updatedAt: params.at,
       };

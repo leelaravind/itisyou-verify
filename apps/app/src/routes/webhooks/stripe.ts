@@ -135,10 +135,7 @@ export function createStripeWebhookRoute(deps: StripeWebhookDeps): Hono {
             ? `signature_unknown_endpoint_${verified.reason}`
             : `signature_${verified.reason}`,
       });
-      return c.json(
-        { error: { code: 'INVALID_SIGNATURE', message: 'Invalid signature.' } },
-        400,
-      );
+      return c.json({ error: { code: 'INVALID_SIGNATURE', message: 'Invalid signature.' } }, 400);
     }
 
     let parsed: unknown;

@@ -55,12 +55,7 @@ export function paymentProblemNotification(params: {
 }): PaymentProblemNotification {
   const anchor = params.window.startedAt ?? 'no_anchor';
   return {
-    notificationKey: notificationKey(
-      'payment_problem',
-      params.workspaceId,
-      anchor,
-      params.stage,
-    ),
+    notificationKey: notificationKey('payment_problem', params.workspaceId, anchor, params.stage),
     workspaceId: params.workspaceId,
     recipientEmail: params.recipientEmail,
     template: 'payment_problem',

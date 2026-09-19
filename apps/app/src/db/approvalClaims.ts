@@ -17,9 +17,12 @@
  * between the provider call and the write leaves a spendable approval next to a refund
  * that already happened.
  */
-import { CLAIM_APPROVAL_SQL, type ApprovalClaimStore, type OwnerApproval } from '../owner/approvals';
+import {
+  CLAIM_APPROVAL_SQL,
+  type ApprovalClaimStore,
+  type OwnerApproval,
+} from '../owner/approvals';
 import type { Db } from './d1';
-
 
 /**
  * Spend an approval, and say whether **this call** spent it.

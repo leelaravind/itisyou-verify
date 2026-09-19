@@ -182,7 +182,9 @@ export const settings = {
 
   async list(db: Db, limit = 100): Promise<SettingRow[]> {
     const result = await db
-      .prepare('SELECT key, value_json, updated_at, updated_by FROM settings ORDER BY key ASC LIMIT ?')
+      .prepare(
+        'SELECT key, value_json, updated_at, updated_by FROM settings ORDER BY key ASC LIMIT ?',
+      )
       .bind(clampLimit(limit))
       .all<SettingRow>();
     return result.results;

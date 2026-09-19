@@ -43,7 +43,13 @@
  * caller ignores the error.
  */
 import { AppError } from '@verify/contracts';
-import { csrfCookieName, generateCsrfToken, hashToken, randomBytes, toBase64Url } from '@verify/security';
+import {
+  csrfCookieName,
+  generateCsrfToken,
+  hashToken,
+  randomBytes,
+  toBase64Url,
+} from '@verify/security';
 import { AUTOMATION_MAX_LIFETIME_SECONDS } from '../lib/auth';
 import { ID_PREFIX, newId } from '../lib/ids';
 import { sessionCookieName } from '../lib/session';
@@ -96,11 +102,7 @@ function isSecureOrigin(baseUrl: string): boolean {
  */
 export function buildAutomationSeed(request: AutomationSeedRequest): AutomationSeed {
   if (request.environment === 'production') {
-    throw new AppError(
-      404,
-      'NOT_FOUND',
-      'Not found.',
-    );
+    throw new AppError(404, 'NOT_FOUND', 'Not found.');
   }
 
   const now = request.now ?? new Date();

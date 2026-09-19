@@ -155,7 +155,10 @@ function runDetail(run: DemoRun): Html {
         ['Run id', html`<span>${run.id}</span>`],
         ['Enquiry reference', html`<span>${run.correlationId}</span>`],
         ['Source type', html`<span>${run.sourceType}</span>`],
-        ['Rule version', html`<span>${run.rulesRef} · schema v${String(DEMO_RULES.schema_version)}</span>`],
+        [
+          'Rule version',
+          html`<span>${run.rulesRef} · schema v${String(DEMO_RULES.schema_version)}</span>`,
+        ],
         ['Enquiry received', html`<span>${formatInstant(run.occurredAt)}</span>`],
         ['Completion window', html`<span>${formatDuration(DEMO_RULES.deadline_seconds)}</span>`],
         ['Deadline', html`<span>${formatInstant(run.deadlineAt)}</span>`],
@@ -177,8 +180,16 @@ function ruleTable(): Html {
     columns: [
       { key: 'label', header: 'Check', rowHeader: true, cell: (rule) => rule.label },
       { key: 'source', header: 'Evidence source', cell: (rule) => rule.source },
-      { key: 'field', header: 'Field', cell: (rule) => html`<span class="mono">${rule.field}</span>` },
-      { key: 'operator', header: 'Operator', cell: (rule) => html`<span class="mono">${rule.operator}</span>` },
+      {
+        key: 'field',
+        header: 'Field',
+        cell: (rule) => html`<span class="mono">${rule.field}</span>`,
+      },
+      {
+        key: 'operator',
+        header: 'Operator',
+        cell: (rule) => html`<span class="mono">${rule.operator}</span>`,
+      },
       { key: 'required', header: 'Required', cell: (rule) => (rule.mandatory ? 'yes' : 'no') },
     ],
     rows: DEMO_RULES.assertions,

@@ -200,7 +200,10 @@ export function mfaRequiredPage(options: {
  * A dependency the owner needs to see: something is stopping this action and it is not
  * their mistake. Rendered instead of an error, and never instead of a success.
  */
-export function DependencyNotice(options: { readonly title: string; readonly detail: string }): Html {
+export function DependencyNotice(options: {
+  readonly title: string;
+  readonly detail: string;
+}): Html {
   return Callout({
     tone: 'warn',
     title: options.title,
@@ -253,9 +256,10 @@ export function ActionForm(options: {
   readonly confirm?: string;
 }): Html {
   return html`<form method="post" ${attrs({ action: options.action })} class="stack-sm">
-    ${CsrfField(options.csrfToken)}${options.confirm === undefined
-      ? null
-      : html`<div class="field">
+    ${CsrfField(options.csrfToken)}${
+      options.confirm === undefined
+        ? null
+        : html`<div class="field">
           <label class="field__label" for="f-confirm-${options.action.replace(/[^a-z0-9]/gi, '-')}"
             >Type <span class="mono">${options.confirm}</span> to confirm
             <span class="field__req">required</span></label
@@ -269,7 +273,8 @@ export function ActionForm(options: {
             name="confirm"
             required
           />
-        </div>`}${options.body}
+        </div>`
+    }${options.body}
   </form>`;
 }
 

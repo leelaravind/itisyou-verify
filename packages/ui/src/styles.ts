@@ -21,6 +21,7 @@
  * site ships is a nine-line theme toggle that is purely additive.
  */
 import { DARK, FONT, LAYOUT, LIGHT, RADIUS, SPACE, TYPE, type Palette } from './tokens.js';
+import { STORY_BASE } from './story/styles.js';
 
 function vars(p: Palette): string {
   return `
@@ -351,6 +352,20 @@ a:hover{text-decoration-thickness:2px}
 .meter__fill--95{width:95%}
 .meter__fill--100{width:100%}
 
+/* ---- a call to action that has been taken down --------------------------- */
+/* Looks like a control so the reader sees what is unavailable, but is not one: no anchor,
+   no button, nothing focusable, nothing a form could submit. */
+.unavailable{border:1px dashed var(--c-rule-strong);border-radius:var(--r-container);padding:var(--s4);background:var(--c-sunken)}
+.unavailable__control{
+  display:inline-flex;align-items:center;gap:var(--s2);
+  font-size:var(--t-small);font-weight:560;line-height:1.2;
+  padding:0.6rem var(--s4);min-height:2.75rem;border-radius:var(--r-control);
+  border:1px dashed var(--c-field-border);color:var(--c-faint);background:var(--c-surface);
+  margin:0 0 var(--s3);text-decoration:line-through;
+}
+.unavailable__reason{font-size:var(--t-small);color:var(--c-ink);margin:0}
+.unavailable__when{font-size:var(--t-small);color:var(--c-muted);margin:var(--s2) 0 0}
+
 /* ---- synthetic banner ---------------------------------------------------- */
 .synthetic{
   border:2px solid var(--c-unverified);background:var(--c-unverified-tint);color:var(--c-ink);
@@ -396,6 +411,20 @@ a:hover{text-decoration-thickness:2px}
 .faq h3{margin:0 0 var(--s2)}
 .faq p{margin:0;color:var(--c-muted);font-size:var(--t-small)}
 
+/* ---- the pre-checkout disclosure ----------------------------------------- */
+.disclosure{border:1px solid var(--c-rule);border-radius:var(--r-container);background:var(--c-surface);padding:var(--s4)}
+@media (min-width:46rem){.disclosure{padding:var(--s6)}}
+.disclosure__must{
+  font-size:1.0625rem;font-weight:560;line-height:1.5;margin:0 0 var(--s4);
+  padding:var(--s4);border-left:3px solid var(--c-ink);background:var(--c-sunken);
+  border-radius:var(--r-control);
+}
+.disclosure__section{border-top:1px solid var(--c-rule);padding-top:var(--s4);margin-top:var(--s4)}
+.disclosure__section h4{font-size:var(--t-h3);margin:0 0 var(--s2)}
+.disclosure__section p{font-size:var(--t-small);color:var(--c-muted);margin:0}
+.disclosure__section p+p{margin-top:var(--s2)}
+.disclosure__section ul{font-size:var(--t-small);color:var(--c-muted);margin:0}
+
 /* ---- progress through onboarding ----------------------------------------- */
 .progress{list-style:none;padding:0;margin:0;display:flex;flex-wrap:wrap;gap:var(--s1) var(--s3);font-family:var(--f-mono);font-size:var(--t-micro);letter-spacing:0.06em;text-transform:uppercase}
 .progress li{margin:0;color:var(--c-faint);display:flex;gap:var(--s2);align-items:center}
@@ -434,8 +463,16 @@ function collapse(source: string): string {
   return out;
 }
 
-/** The complete stylesheet, collapsed. Inline this once, inside `<head>`. */
-export const CSS: string = collapse(BASE);
+/**
+ * The complete stylesheet, collapsed.
+ *
+ * `STORY_BASE` is appended last so the development story's figures are styled by the same
+ * single inlined sheet — Fable's page renders unstyled without it. It costs about 1.4KB
+ * gzipped, and CUST-004 fails if the total ever passes the size that justified inlining at
+ * all, so this cannot quietly grow into a second stylesheet's worth of bytes.
+ */
+export const CSS: string = collapse(`${BASE}
+${STORY_BASE}`);
 
 /** Byte length of the sheet as served. Asserted by a unit test so the inline-vs-file call stays honest. */
 export const CSS_BYTES: number = new TextEncoder().encode(CSS).length;

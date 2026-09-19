@@ -15,11 +15,7 @@
  * State lives for the life of the isolate. That is honest for a demonstration and wrong for
  * a customer, which is exactly why `synthetic` is true and every page says so.
  */
-import {
-  decideRunStatus,
-  evaluateAssertions,
-  type AssertionResult,
-} from '@verify/domain';
+import { decideRunStatus, evaluateAssertions, type AssertionResult } from '@verify/domain';
 import {
   LIMITS,
   formatMoney,
@@ -137,20 +133,77 @@ interface SyntheticRunSeed {
 }
 
 const RUN_SEEDS: readonly SyntheticRunSeed[] = [
-  { id: 'run_syn_0001', bundle: makeEvidenceBundle(), now: T_INSIDE_WINDOW, hasWorkingEvidenceAccess: true, observationsRemaining: 3, occurredOffsetHours: 0 },
-  { id: 'run_syn_0002', bundle: makeEvidenceBundle({ email_events: [makeEmailEventWithStatus('bounced')] }), now: T_AFTER_DEADLINE, hasWorkingEvidenceAccess: true, observationsRemaining: 0, occurredOffsetHours: 2 },
-  { id: 'run_syn_0003', bundle: makeEmptyBundle(), now: T_INSIDE_WINDOW, hasWorkingEvidenceAccess: true, observationsRemaining: 3, occurredOffsetHours: 3 },
-  { id: 'run_syn_0004', bundle: makeUnreachableBundle('AUTH_EXPIRED'), now: T_AFTER_DEADLINE, hasWorkingEvidenceAccess: false, observationsRemaining: 0, occurredOffsetHours: 5 },
-  { id: 'run_syn_0005', bundle: makeEvidenceBundle(), now: T_INSIDE_WINDOW, hasWorkingEvidenceAccess: true, observationsRemaining: 3, occurredOffsetHours: 7 },
-  { id: 'run_syn_0006', bundle: makeEvidenceBundle({ email_events: [makeEmailEventWithStatus('accepted')] }), now: T_AFTER_DEADLINE, hasWorkingEvidenceAccess: true, observationsRemaining: 0, occurredOffsetHours: 9 },
-  { id: 'run_syn_0007', bundle: makeEvidenceBundle(), now: T_INSIDE_WINDOW, hasWorkingEvidenceAccess: true, observationsRemaining: 3, occurredOffsetHours: 11 },
+  {
+    id: 'run_syn_0001',
+    bundle: makeEvidenceBundle(),
+    now: T_INSIDE_WINDOW,
+    hasWorkingEvidenceAccess: true,
+    observationsRemaining: 3,
+    occurredOffsetHours: 0,
+  },
+  {
+    id: 'run_syn_0002',
+    bundle: makeEvidenceBundle({ email_events: [makeEmailEventWithStatus('bounced')] }),
+    now: T_AFTER_DEADLINE,
+    hasWorkingEvidenceAccess: true,
+    observationsRemaining: 0,
+    occurredOffsetHours: 2,
+  },
+  {
+    id: 'run_syn_0003',
+    bundle: makeEmptyBundle(),
+    now: T_INSIDE_WINDOW,
+    hasWorkingEvidenceAccess: true,
+    observationsRemaining: 3,
+    occurredOffsetHours: 3,
+  },
+  {
+    id: 'run_syn_0004',
+    bundle: makeUnreachableBundle('AUTH_EXPIRED'),
+    now: T_AFTER_DEADLINE,
+    hasWorkingEvidenceAccess: false,
+    observationsRemaining: 0,
+    occurredOffsetHours: 5,
+  },
+  {
+    id: 'run_syn_0005',
+    bundle: makeEvidenceBundle(),
+    now: T_INSIDE_WINDOW,
+    hasWorkingEvidenceAccess: true,
+    observationsRemaining: 3,
+    occurredOffsetHours: 7,
+  },
+  {
+    id: 'run_syn_0006',
+    bundle: makeEvidenceBundle({ email_events: [makeEmailEventWithStatus('accepted')] }),
+    now: T_AFTER_DEADLINE,
+    hasWorkingEvidenceAccess: true,
+    observationsRemaining: 0,
+    occurredOffsetHours: 9,
+  },
+  {
+    id: 'run_syn_0007',
+    bundle: makeEvidenceBundle(),
+    now: T_INSIDE_WINDOW,
+    hasWorkingEvidenceAccess: true,
+    observationsRemaining: 3,
+    occurredOffsetHours: 11,
+  },
 ];
 
 /** Build the workflow rules the current in-memory configuration describes. */
 export function currentRules(): WorkflowRules {
   const assertions = [];
   if (state.requireRecordExists) {
-    assertions.push(makeAssertion({ rule_id: 'crm_record_exists', field: 'record.id', operator: 'exists', expected: '', label: 'A CRM record was created' }));
+    assertions.push(
+      makeAssertion({
+        rule_id: 'crm_record_exists',
+        field: 'record.id',
+        operator: 'exists',
+        expected: '',
+        label: 'A CRM record was created',
+      }),
+    );
   }
   if (state.requireCorrelationMatch) {
     assertions.push(
@@ -218,7 +271,9 @@ function decide(seed: SyntheticRunSeed): DecidedRun {
     hasWorkingEvidenceAccess: seed.hasWorkingEvidenceAccess,
     observationsRemaining: seed.observationsRemaining,
   });
-  const occurredAt = new Date(T_EVENT.getTime() + seed.occurredOffsetHours * 3_600_000).toISOString();
+  const occurredAt = new Date(
+    T_EVENT.getTime() + seed.occurredOffsetHours * 3_600_000,
+  ).toISOString();
   return {
     id: seed.id,
     status: decision.status,
@@ -243,9 +298,15 @@ function counts(): WorkflowSummary['counts'] {
   };
 }
 
-function mandatoryCounts(results: readonly AssertionResult[]): { supported: number; total: number } {
+function mandatoryCounts(results: readonly AssertionResult[]): {
+  supported: number;
+  total: number;
+} {
   const mandatory = results.filter((result) => result.mandatory);
-  return { supported: mandatory.filter((result) => result.status === 'SUPPORTED').length, total: mandatory.length };
+  return {
+    supported: mandatory.filter((result) => result.status === 'SUPPORTED').length,
+    total: mandatory.length,
+  };
 }
 
 /* -------------------------------------------------------------------- the port */
@@ -279,10 +340,14 @@ export class SyntheticCustomerDataPort implements CustomerDataPort {
   async requestSignInLink(email: string): Promise<WriteResult> {
     const trimmed = email.trim();
     if (trimmed.length === 0) {
-      return fail('Enter the email address you want the sign-in link sent to.', { email: 'Enter your email address.' });
+      return fail('Enter the email address you want the sign-in link sent to.', {
+        email: 'Enter your email address.',
+      });
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
-      return fail('That does not look like an email address.', { email: 'Enter a complete email address, like name@company.com.' });
+      return fail('That does not look like an email address.', {
+        email: 'Enter a complete email address, like name@company.com.',
+      });
     }
     state.signedIn = true;
     state.email = trimmed;
@@ -329,17 +394,20 @@ export class SyntheticCustomerDataPort implements CustomerDataPort {
         status === 'testing'
           ? 'We have stored what you gave us. This connection is not finished: it becomes ready only once a correctly signed message actually arrives and we can read it.'
           : status === 'expired'
-          ? 'The authorisation for this connection has expired, so we cannot read evidence from it.'
-          : status === 'revoked'
-            ? 'Access to this connection was revoked at the provider.'
-            : status === 'not_connected'
-              ? 'This provider has not been connected yet.'
-              : null;
+            ? 'The authorisation for this connection has expired, so we cannot read evidence from it.'
+            : status === 'revoked'
+              ? 'Access to this connection was revoked at the provider.'
+              : status === 'not_connected'
+                ? 'This provider has not been connected yet.'
+                : null;
       return {
         provider: entry.provider,
         displayName: entry.displayName,
         status,
-        accountLabel: status === 'ready' || status === 'expired' ? maskToken(`${entry.provider}-account-000042`) : null,
+        accountLabel:
+          status === 'ready' || status === 'expired'
+            ? maskToken(`${entry.provider}-account-000042`)
+            : null,
         lastCheckedAt: status === 'not_connected' ? null : T_AFTER_DEADLINE.toISOString(),
         problem,
         nextStep:
@@ -382,7 +450,8 @@ export class SyntheticCustomerDataPort implements CustomerDataPort {
     const secret = (input.webhookSecret ?? '').trim();
     if (secret !== '' && !secret.startsWith('whsec_')) {
       return fail('Nothing was checked and nothing was stored.', {
-        webhook_secret: 'A signing secret starts whsec_. Leave it blank to connect the webhook later.',
+        webhook_secret:
+          'A signing secret starts whsec_. Leave it blank to connect the webhook later.',
       });
     }
 
@@ -409,7 +478,12 @@ export class SyntheticCustomerDataPort implements CustomerDataPort {
       counts: counts(),
       mapping: {
         correlationProperty: rules.crm_correlation_property,
-        availableProperties: ['verify_correlation_id', 'enquiry_reference', 'hs_object_id', 'lifecyclestage'],
+        availableProperties: [
+          'verify_correlation_id',
+          'enquiry_reference',
+          'hs_object_id',
+          'lifecyclestage',
+        ],
       },
       outcome: {
         deadlineSeconds: state.deadlineSeconds,
@@ -450,7 +524,10 @@ export class SyntheticCustomerDataPort implements CustomerDataPort {
       });
     }
     const anyRequired =
-      input.requireRecordExists || input.requireCorrelationMatch || input.requireEmailDelivered || input.requireRecipientMatch;
+      input.requireRecordExists ||
+      input.requireCorrelationMatch ||
+      input.requireEmailDelivered ||
+      input.requireRecipientMatch;
     if (!anyRequired) {
       return fail(
         'Choose at least one check. With nothing required, a verified result would not mean anything.',
@@ -480,14 +557,22 @@ export class SyntheticCustomerDataPort implements CustomerDataPort {
       hasWorkingEvidenceAccess: true,
       observationsRemaining: 3,
     });
-    return { ran: true, status: decision.status, statusReason: decision.reason, results, blockedReason: null };
+    return {
+      ran: true,
+      status: decision.status,
+      statusReason: decision.reason,
+      results,
+      blockedReason: null,
+    };
   }
 
   async orderSummary(): Promise<OrderSummaryView> {
     const blockers: string[] = [];
     for (const connection of await this.connections()) {
       if (connection.status !== 'ready') {
-        blockers.push(`${connection.displayName} is not connected and ready — its status is "${connection.status}".`);
+        blockers.push(
+          `${connection.displayName} is not connected and ready — its status is "${connection.status}".`,
+        );
       }
     }
     return {
@@ -521,7 +606,8 @@ export class SyntheticCustomerDataPort implements CustomerDataPort {
 
   async listRuns(options: { readonly cursor?: string; readonly limit: number }): Promise<RunPage> {
     const runs = [...allRuns()].sort((a, b) => Date.parse(b.occurredAt) - Date.parse(a.occurredAt));
-    const offset = options.cursor === undefined ? 0 : Math.max(0, Number.parseInt(options.cursor, 10) || 0);
+    const offset =
+      options.cursor === undefined ? 0 : Math.max(0, Number.parseInt(options.cursor, 10) || 0);
     const slice = runs.slice(offset, offset + options.limit);
     const items: RunListItem[] = slice.map((run) => {
       const mandatory = mandatoryCounts(run.results);
@@ -556,7 +642,9 @@ export class SyntheticCustomerDataPort implements CustomerDataPort {
       correlationId: CORRELATION_VALUE,
       recipient: RECIPIENT,
       occurredAt: found.occurredAt,
-      deadlineAt: new Date(Date.parse(found.occurredAt) + state.deadlineSeconds * 1000).toISOString(),
+      deadlineAt: new Date(
+        Date.parse(found.occurredAt) + state.deadlineSeconds * 1000,
+      ).toISOString(),
       observedAt: found.decidedAt,
       decidedAt: found.status === 'PENDING' ? null : found.decidedAt,
       sourceType: 'signed source event from your automation (customer_claim)',
@@ -590,8 +678,10 @@ export class SyntheticCustomerDataPort implements CustomerDataPort {
 
   async submitSupportRequest(input: SupportRequestInput): Promise<SupportResult> {
     const fieldErrors: Record<string, string> = {};
-    if (input.subject.trim().length === 0) fieldErrors['subject'] = 'Tell us in a few words what this is about.';
-    if (input.body.trim().length < 10) fieldErrors['body'] = 'Give us at least a sentence so we can help.';
+    if (input.subject.trim().length === 0)
+      fieldErrors['subject'] = 'Tell us in a few words what this is about.';
+    if (input.body.trim().length < 10)
+      fieldErrors['body'] = 'Give us at least a sentence so we can help.';
     if (Object.keys(fieldErrors).length > 0) {
       return { ok: false, fieldErrors, message: null, redirectTo: null, reference: null };
     }

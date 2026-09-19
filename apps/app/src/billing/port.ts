@@ -29,13 +29,7 @@ import type { OrderStatus, SubscriptionStatus } from '@verify/contracts';
 import type { BillingEnvironment } from './config';
 
 export type RefundState =
-  | 'requested'
-  | 'queued_for_owner'
-  | 'submitted'
-  | 'pending'
-  | 'succeeded'
-  | 'failed'
-  | 'rejected';
+  'requested' | 'queued_for_owner' | 'submitted' | 'pending' | 'succeeded' | 'failed' | 'rejected';
 
 export interface BillingCustomerRecord {
   readonly workspaceId: string;
@@ -117,11 +111,7 @@ export type WebhookAdmission =
   | { readonly outcome: 'already_processed'; readonly receiptId: string };
 
 export type WebhookProcessingStatus =
-  | 'received'
-  | 'processed'
-  | 'ignored'
-  | 'invalid'
-  | 'duplicate';
+  'received' | 'processed' | 'ignored' | 'invalid' | 'duplicate';
 
 export interface BillingDataPort {
   // -- billing customer -----------------------------------------------------

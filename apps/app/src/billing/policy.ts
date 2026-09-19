@@ -258,8 +258,7 @@ export function entitlementWithRecovery(
     // Access and cancellation are preserved in every phase of the window, without
     // exception. This is the founder's requirement 2 expressed as code.
     accountAccessible: true,
-    cancellationAvailable:
-      base.cancellationAvailable || recovery.phase !== 'not_applicable',
+    cancellationAvailable: base.cancellationAvailable || recovery.phase !== 'not_applicable',
     recovery,
   };
 }

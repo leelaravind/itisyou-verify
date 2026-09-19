@@ -28,12 +28,24 @@ import { FaqList } from './faq.js';
 import { OwnerIdentityList, TodoOwnerInput } from './todo.js';
 
 const OWNER_FIELDS: readonly (readonly [string, string, string])[] = [
-  ['Registered business name', 'registeredBusinessName', OWNER_LEGAL_IDENTITY.registeredBusinessName],
+  [
+    'Registered business name',
+    'registeredBusinessName',
+    OWNER_LEGAL_IDENTITY.registeredBusinessName,
+  ],
   ['Registered address', 'registeredAddress', OWNER_LEGAL_IDENTITY.registeredAddress],
-  ['Company registration number', 'companyRegistrationNumber', OWNER_LEGAL_IDENTITY.companyRegistrationNumber],
+  [
+    'Company registration number',
+    'companyRegistrationNumber',
+    OWNER_LEGAL_IDENTITY.companyRegistrationNumber,
+  ],
   ['VAT number', 'vatNumber', OWNER_LEGAL_IDENTITY.vatNumber],
   ['Legal structure', 'legalStructure', OWNER_LEGAL_IDENTITY.legalStructure],
-  ['Contact for legal notices', 'contactEmailForLegalNotices', OWNER_LEGAL_IDENTITY.contactEmailForLegalNotices],
+  [
+    'Contact for legal notices',
+    'contactEmailForLegalNotices',
+    OWNER_LEGAL_IDENTITY.contactEmailForLegalNotices,
+  ],
 ];
 
 function skeletonNotice(): Html {

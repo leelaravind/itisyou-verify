@@ -63,18 +63,19 @@ export function CompatibilityPage(entries: readonly ConnectorCompatibility[]): H
     href: '/app/onboarding/compatibility',
     eyebrow: 'Step 1 of 7',
     title: 'Can we verify your setup?',
-    lede:
-      'Version one checks exactly one workflow shape, using exactly two providers. Read this before you connect anything — if your automation does something else, we cannot verify it yet.',
+    lede: 'Version one checks exactly one workflow shape, using exactly two providers. Read this before you connect anything — if your automation does something else, we cannot verify it yet.',
     body: html`<div class="stack-lg">
-      ${blocked.length === 0
-        ? null
-        : Callout({
-            tone: 'warn',
-            title: 'Something here is not supported',
-            body: html`<ul>
+      ${
+        blocked.length === 0
+          ? null
+          : Callout({
+              tone: 'warn',
+              title: 'Something here is not supported',
+              body: html`<ul>
               ${blocked.map((entry) => html`<li>${entry.unsupportedReason}</li>`)}
             </ul>`,
-          })}
+            })
+      }
 
       <div class="grid grid-2">
         ${entries.map((entry) =>
@@ -231,47 +232,53 @@ function connectCard(connection: ConnectionView, options: ConnectPageOptions): H
     </div>
     <p class="small muted">${guide.purpose}</p>
 
-    ${connection.status === 'testing' || connection.status === 'authorising'
-      ? Callout({
-          tone: 'limit',
-          title: 'Not finished yet',
-          body: html`<p>
+    ${
+      connection.status === 'testing' || connection.status === 'authorising'
+        ? Callout({
+            tone: 'limit',
+            title: 'Not finished yet',
+            body: html`<p>
             We have stored what you gave us, and that is not the same as it working. This connection
             only becomes ready once a correctly signed message actually arrives and we can read it.
             Until then we will not claim it is working.
           </p>`,
-        })
-      : null}
+          })
+        : null
+    }
     ${connection.problem === null ? null : html`<p class="small">${connection.problem}</p>`}
 
     ${permissionNotice(guide)}
 
     ${mine ? formMessage(options.submitted?.message ?? null) : null}
-    ${options.canSubmitCredentials
-      ? null
-      : Callout({
-          tone: 'warn',
-          title: 'We cannot check a credential yet',
-          body: html`<p>
+    ${
+      options.canSubmitCredentials
+        ? null
+        : Callout({
+            tone: 'warn',
+            title: 'We cannot check a credential yet',
+            body: html`<p>
             The paste box below renders, but this workspace has no way to validate a credential
             against ${guide.displayName} yet, so submitting one would do nothing. Do not paste a real
             key until this notice is gone.
           </p>`,
-        })}
+          })
+    }
 
     ${credentialForm(guide, options, errors)}
 
-    ${guide.provider === 'resend'
-      ? Callout({
-          tone: 'limit',
-          title: 'The webhook address is not published yet',
-          body: html`<p>
+    ${
+      guide.provider === 'resend'
+        ? Callout({
+            tone: 'limit',
+            title: 'The webhook address is not published yet',
+            body: html`<p>
             Step 3 asks you to point a Resend webhook at an address on this page. That endpoint does
             not exist in this deployment yet, so that step cannot be completed today. The key on its
             own still validates; the connection stays unfinished until a signed callback arrives.
           </p>`,
-        })
-      : null}
+          })
+        : null
+    }
 
     <div class="stack">
       <h3>How to get it</h3>
@@ -296,8 +303,7 @@ export function ConnectPage(options: ConnectPageOptions): Html {
     href: '/app/onboarding/connect',
     eyebrow: 'Step 2 of 7',
     title: 'Connect HubSpot and Resend',
-    lede:
-      'Read what each credential can do before you paste it. Where a provider offers nothing narrower than we need, we say so rather than glossing over it.',
+    lede: 'Read what each credential can do before you paste it. Where a provider offers nothing narrower than we need, we say so rather than glossing over it.',
     body: html`<div class="stack-lg">
       ${options.connections.map((connection) => connectCard(connection, options))}
       ${ButtonRow([
@@ -307,15 +313,17 @@ export function ConnectPage(options: ConnectPageOptions): Html {
           variant: allReady ? 'primary' : 'default',
         }),
       ])}
-      ${allReady
-        ? null
-        : Callout({
-            tone: 'limit',
-            body: html`<p>
+      ${
+        allReady
+          ? null
+          : Callout({
+              tone: 'limit',
+              body: html`<p>
               You can carry on setting up while a connection is unfinished, but runs that need it will
               show as unverified until it is working — not as failures, and never as passes.
             </p>`,
-          })}
+            })
+      }
     </div>`,
   });
 }
@@ -335,15 +343,13 @@ export function MappingPage(options: MappingPageOptions): Html {
     href: '/app/onboarding/mapping',
     eyebrow: 'Step 3 of 7',
     title: 'Which property carries your enquiry reference?',
-    lede:
-      'We match a HubSpot record to an enquiry by a value your automation writes onto the record. Tell us which property holds it. If nothing does yet, this is the change you have to make first.',
+    lede: 'We match a HubSpot record to an enquiry by a value your automation writes onto the record. Tell us which property holds it. If nothing does yet, this is the change you have to make first.',
     body: html`<form method="post" action="/app/onboarding/mapping" class="stack-lg">
       ${CsrfField(options.csrfToken)}
       ${formMessage(options.submitted?.message ?? null)}
       ${Fieldset({
         legend: 'Correlation property',
-        hint:
-          'Every enquiry needs a stable, unique value in this property. If two records share one, we report the run as unverified rather than guessing which record is yours.',
+        hint: 'Every enquiry needs a stable, unique value in this property. If two records share one, we report the run as unverified rather than guessing which record is yours.',
         body: html`${Field({
           name: 'correlationProperty',
           label: 'HubSpot contact property',
@@ -355,15 +361,17 @@ export function MappingPage(options: MappingPageOptions): Html {
           hint: 'Letters, numbers and underscores. Example: verify_correlation_id',
           error: errors['correlationProperty'] ?? null,
         })}
-        ${options.workflow.mapping.availableProperties.length === 0
-          ? null
-          : html`<p class="small muted">
+        ${
+          options.workflow.mapping.availableProperties.length === 0
+            ? null
+            : html`<p class="small muted">
               Properties we can currently see on your contacts:
               ${options.workflow.mapping.availableProperties.map(
                 (property, index) =>
                   html`${index === 0 ? '' : ', '}<span class="mono">${property}</span>`,
               )}
-            </p>`}`,
+            </p>`
+        }`,
       })}
       ${ButtonRow([
         Button({ label: 'Save and continue', variant: 'primary', type: 'submit' }),
@@ -389,8 +397,7 @@ export function OutcomePage(options: OutcomePageOptions): Html {
     href: '/app/onboarding/outcome',
     eyebrow: 'Step 4 of 7',
     title: 'What has to be true for this to count as done?',
-    lede:
-      'These are the checks we will make against evidence we read back ourselves. At least one must be required — with nothing required, a verified result would not mean anything.',
+    lede: 'These are the checks we will make against evidence we read back ourselves. At least one must be required — with nothing required, a verified result would not mean anything.',
     body: html`<form method="post" action="/app/onboarding/outcome" class="stack-lg">
       ${CsrfField(options.csrfToken)}
       ${formMessage(options.submitted?.message ?? null)}
@@ -466,7 +473,11 @@ export function OutcomePage(options: OutcomePageOptions): Html {
 
       ${ButtonRow([
         Button({ label: 'Save and run a proof', variant: 'primary', type: 'submit' }),
-        Button({ label: 'Back to field mapping', href: '/app/onboarding/mapping', variant: 'quiet' }),
+        Button({
+          label: 'Back to field mapping',
+          href: '/app/onboarding/mapping',
+          variant: 'quiet',
+        }),
       ])}
     </form>`,
   });
@@ -485,27 +496,26 @@ export function ProofPage(options: ProofPageOptions): Html {
     href: '/app/onboarding/proof',
     eyebrow: 'Step 5 of 7',
     title: 'See a result before you pay for one',
-    lede:
-      'We run your rules against evidence we invent, using the same engine that decides real runs. Nothing is sent to HubSpot or Resend, and no run is counted against your allowance.',
+    lede: 'We run your rules against evidence we invent, using the same engine that decides real runs. Nothing is sent to HubSpot or Resend, and no run is counted against your allowance.',
     body: html`<div class="stack-lg">
       <form method="post" action="/app/onboarding/proof">
         ${CsrfField(options.csrfToken)}
         ${Button({ label: proof === null ? 'Run the proof' : 'Run it again', variant: 'primary', type: 'submit' })}
       </form>
 
-      ${proof === null
-        ? EmptyState({
-            title: 'No proof run yet',
-            body:
-              'Run one and you will see exactly what a real result looks like: the verdict, every check, and the reason for each one in plain language.',
-          })
-        : proof.ran === false || proof.status === null
-          ? Callout({
-              tone: 'warn',
-              title: 'We could not run the proof',
-              body: html`<p>${proof.blockedReason ?? 'No reason was recorded, which is itself a defect.'}</p>`,
+      ${
+        proof === null
+          ? EmptyState({
+              title: 'No proof run yet',
+              body: 'Run one and you will see exactly what a real result looks like: the verdict, every check, and the reason for each one in plain language.',
             })
-          : html`<div class="stack">
+          : proof.ran === false || proof.status === null
+            ? Callout({
+                tone: 'warn',
+                title: 'We could not run the proof',
+                body: html`<p>${proof.blockedReason ?? 'No reason was recorded, which is itself a defect.'}</p>`,
+              })
+            : html`<div class="stack">
               ${Card({
                 title: 'Proof result',
                 headingLevel: 2,
@@ -541,10 +551,15 @@ export function ProofPage(options: ProofPageOptions): Html {
                   about whether your automation works, because no real record was read.
                 </p>`,
               })}
-            </div>`}
+            </div>`
+      }
 
       ${ButtonRow([
-        Button({ label: 'Review scope and price', href: '/app/onboarding/review', variant: 'primary' }),
+        Button({
+          label: 'Review scope and price',
+          href: '/app/onboarding/review',
+          variant: 'primary',
+        }),
         Button({ label: 'Change the checks', href: '/app/onboarding/outcome', variant: 'quiet' }),
       ])}
     </div>`,
@@ -578,8 +593,18 @@ export function ReviewPage(options: ReviewPageOptions): Html {
             caption: 'What this subscription covers',
             captionHidden: true,
             columns: [
-              { key: 'k', header: 'Item', rowHeader: true, cell: (row: readonly [string, string]) => row[0] },
-              { key: 'v', header: 'Value', numeric: true, cell: (row: readonly [string, string]) => row[1] },
+              {
+                key: 'k',
+                header: 'Item',
+                rowHeader: true,
+                cell: (row: readonly [string, string]) => row[0],
+              },
+              {
+                key: 'v',
+                header: 'Value',
+                numeric: true,
+                cell: (row: readonly [string, string]) => row[1],
+              },
             ],
             rows: [
               ['Workflow', options.workflow.name],
@@ -593,15 +618,17 @@ export function ReviewPage(options: ReviewPageOptions): Html {
         </div>`,
       })}
 
-      ${order.blockers.length === 0
-        ? null
-        : Callout({
-            tone: 'warn',
-            title: 'Fix these before you subscribe',
-            body: html`<ul>
+      ${
+        order.blockers.length === 0
+          ? null
+          : Callout({
+              tone: 'warn',
+              title: 'Fix these before you subscribe',
+              body: html`<ul>
               ${order.blockers.map((blocker) => html`<li>${blocker}</li>`)}
             </ul>`,
-          })}
+            })
+      }
 
       <form method="post" action="/app/onboarding/checkout" class="stack">
         ${CsrfField(options.csrfToken)}
@@ -612,7 +639,11 @@ export function ReviewPage(options: ReviewPageOptions): Html {
             type: 'submit',
             disabled: !order.ready,
           }),
-          Button({ label: 'Back to the proof run', href: '/app/onboarding/proof', variant: 'quiet' }),
+          Button({
+            label: 'Back to the proof run',
+            href: '/app/onboarding/proof',
+            variant: 'quiet',
+          }),
         ])}
       </form>
 
@@ -640,16 +671,18 @@ export function ActivationPage(activation: ActivationView): Html {
       ? 'Send your first signed event and the first run will appear here.'
       : 'The subscription is not active, so we are not accepting events for this workflow yet.',
     body: html`<div class="stack-lg">
-      ${activation.active
-        ? null
-        : Callout({
-            tone: 'warn',
-            title: 'No active subscription',
-            body: html`<p>
+      ${
+        activation.active
+          ? null
+          : Callout({
+              tone: 'warn',
+              title: 'No active subscription',
+              body: html`<p>
               We are not accepting events for this workflow. Nothing is being checked, and nothing here should
               be read as a pass.
             </p>`,
-          })}
+            })
+      }
 
       ${Card({
         title: 'What your automation has to send',
@@ -670,16 +703,21 @@ export function ActivationPage(activation: ActivationView): Html {
         </div>`,
       })}
 
-      ${activation.firstRunId === null
-        ? EmptyState({
-            title: 'No runs received yet',
-            body:
-              'Nothing has reached us for this workflow. Until an enquiry arrives there is nothing to verify, and an empty list is not a passing score.',
-          })
-        : ButtonRow([
-            Button({ label: 'See your first run', href: `/app/runs/${activation.firstRunId}`, variant: 'primary' }),
-            Button({ label: 'Go to the workspace', href: '/app', variant: 'quiet' }),
-          ])}
+      ${
+        activation.firstRunId === null
+          ? EmptyState({
+              title: 'No runs received yet',
+              body: 'Nothing has reached us for this workflow. Until an enquiry arrives there is nothing to verify, and an empty list is not a passing score.',
+            })
+          : ButtonRow([
+              Button({
+                label: 'See your first run',
+                href: `/app/runs/${activation.firstRunId}`,
+                variant: 'primary',
+              }),
+              Button({ label: 'Go to the workspace', href: '/app', variant: 'quiet' }),
+            ])
+      }
     </div>`,
   });
 }

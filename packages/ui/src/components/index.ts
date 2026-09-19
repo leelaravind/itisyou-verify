@@ -1,4 +1,11 @@
 export { Button, ButtonRow, type ButtonOptions, type ButtonVariant } from './button.js';
+export {
+  ACTIVATION_UNAVAILABLE_REASON,
+  ACTIVATION_UNAVAILABLE_WHEN,
+  ActivationNotice,
+  UnavailableAction,
+  type UnavailableActionOptions,
+} from './activation.js';
 export { Card, Callout, type CardOptions, type CalloutOptions, type CalloutTone } from './card.js';
 export {
   Field,

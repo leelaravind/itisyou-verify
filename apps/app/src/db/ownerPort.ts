@@ -17,10 +17,7 @@
  */
 import type { AccessMode, Currency, JobState, SubscriptionStatus } from '@verify/contracts';
 import { maskEmail, maskToken } from '@verify/security';
-import {
-  ANONYMOUS_PRINCIPAL,
-  type OwnerPrincipal,
-} from '../owner/access';
+import { ANONYMOUS_PRINCIPAL, type OwnerPrincipal } from '../owner/access';
 import {
   APPROVAL_LIFETIME_SECONDS,
   isOwnerActionType,
@@ -92,10 +89,14 @@ import { sessions } from './index';
 import { runs } from './runs';
 
 /** A dependency sentence, used wherever a real source does not exist yet. */
-const NO_ADS = 'No advertising provider is connected to this deployment, so there is no campaign to act on.';
-const NO_RUNNER = 'No maintenance runner is paired with this deployment, so nothing can be dispatched.';
-const NO_CLEANUP = 'Cloud resource inventory is not wired to this deployment, so there is nothing to preview.';
-const NO_REFUND_PATH = 'Refunds are issued through Stripe, which is not configured on this deployment.';
+const NO_ADS =
+  'No advertising provider is connected to this deployment, so there is no campaign to act on.';
+const NO_RUNNER =
+  'No maintenance runner is paired with this deployment, so nothing can be dispatched.';
+const NO_CLEANUP =
+  'Cloud resource inventory is not wired to this deployment, so there is nothing to preview.';
+const NO_REFUND_PATH =
+  'Refunds are issued through Stripe, which is not configured on this deployment.';
 
 function unknownHealth(component: string, detail: string): ServiceHealthView {
   return { component, state: 'unknown', detail, observedAt: null };
@@ -205,7 +206,10 @@ export class D1OwnerDataPort implements OwnerDataPort {
       // Four separate numbers, never collapsed into one. A visit is not a signup and a
       // signup is not income; the only one of the four that is money is the last.
       launch: {
-        totalVisits: { value: visits.total, observedAt: visits.total === null ? null : nowIso(now) },
+        totalVisits: {
+          value: visits.total,
+          observedAt: visits.total === null ? null : nowIso(now),
+        },
         adAttributedVisits: {
           value: visits.attributed,
           observedAt: visits.attributed === null ? null : nowIso(now),
@@ -269,7 +273,9 @@ export class D1OwnerDataPort implements OwnerDataPort {
 
   async #openSupportCases(): Promise<number | null> {
     const row = await this.#db
-      .prepare("SELECT COUNT(*) AS n FROM support_cases WHERE state IN ('open','awaiting_owner','escalated')")
+      .prepare(
+        "SELECT COUNT(*) AS n FROM support_cases WHERE state IN ('open','awaiting_owner','escalated')",
+      )
       .first<{ n: number }>();
     return row === null ? null : Number(row.n);
   }
@@ -384,9 +390,9 @@ export class D1OwnerDataPort implements OwnerDataPort {
   async orders(workspaceId: string | null): Promise<readonly OrderRow[]> {
     const rows =
       workspaceId === null
-        ? (
-            // tenant-scope:exempt owner order list across every workspace; the
-            // workspace variant below is scoped through ordersRepo.listForWorkspace.
+        ? // tenant-scope:exempt owner order list across every workspace; the
+          // workspace variant below is scoped through ordersRepo.listForWorkspace.
+          (
             await this.#db
               .prepare(
                 `SELECT id, workspace_id, status, amount_minor, currency, rejection_reason, created_at
@@ -560,9 +566,7 @@ export class D1OwnerDataPort implements OwnerDataPort {
     // tenant-scope:exempt owner verification queue; each id is re-read scoped by the
     // workspace_id this query returns, so nothing downstream is unscoped.
     const result = await this.#db
-      .prepare(
-        `SELECT id, workspace_id FROM runs ORDER BY created_at DESC, id DESC LIMIT ?`,
-      )
+      .prepare(`SELECT id, workspace_id FROM runs ORDER BY created_at DESC, id DESC LIMIT ?`)
       .bind(Math.min(Math.max(1, limit), 100))
       .all<{ id: string; workspace_id: string }>();
     const out: OwnerRunView[] = [];
@@ -667,7 +671,8 @@ export class D1OwnerDataPort implements OwnerDataPort {
       let scopes: string[] = [];
       try {
         const parsed: unknown = JSON.parse(row.scopes);
-        if (Array.isArray(parsed)) scopes = parsed.filter((s): s is string => typeof s === 'string');
+        if (Array.isArray(parsed))
+          scopes = parsed.filter((s): s is string => typeof s === 'string');
       } catch {
         scopes = [];
       }
@@ -705,10 +710,18 @@ export class D1OwnerDataPort implements OwnerDataPort {
     if (row === null) return writeFailed('That connection does not exist.');
     // Revoking is genuinely local: it stops us using the credential and retires every
     // stored envelope, which we can do without the provider.
-    const revoked = await connections.revoke(this.#db, row.workspace_id, connectionId, nowIso(ctx.now));
+    const revoked = await connections.revoke(
+      this.#db,
+      row.workspace_id,
+      connectionId,
+      nowIso(ctx.now),
+    );
     if (!revoked) return writeFailed('That connection was already revoked.');
     await this.#audit(ctx, 'owner.connection.revoked', connectionId);
-    return writeOk('/owner/connections', 'The connection is revoked and its stored credentials are retired.');
+    return writeOk(
+      '/owner/connections',
+      'The connection is revoked and its stored credentials are retired.',
+    );
   }
 
   /* ----------------------------------------------------------------------- ads */
@@ -826,7 +839,9 @@ export class D1OwnerDataPort implements OwnerDataPort {
 
   async acknowledgeAlert(ctx: ActionContext, alertId: string): Promise<OwnerWriteResult> {
     await this.#audit(ctx, 'owner.alert.ack_blocked', alertId);
-    return writeBlocked('No alerting source is wired to this deployment, so there is nothing to acknowledge.');
+    return writeBlocked(
+      'No alerting source is wired to this deployment, so there is nothing to acknowledge.',
+    );
   }
 
   /* ------------------------------------------------------------------ controls */
@@ -955,7 +970,11 @@ export class D1OwnerDataPort implements OwnerDataPort {
     };
   }
 
-  async writeSetting(ctx: ActionContext, key: string, valueJson: string): Promise<OwnerWriteResult> {
+  async writeSetting(
+    ctx: ActionContext,
+    key: string,
+    valueJson: string,
+  ): Promise<OwnerWriteResult> {
     const allowed = new Set<string>(Object.values(SETTINGS_KEY));
     if (!allowed.has(key)) return writeFailed('That is not a setting this panel owns.');
     try {
@@ -1090,7 +1109,8 @@ function toApproval(row: ApprovalRow): OwnerApproval | null {
     action_type: row.action_type,
     owner_id: row.owner_id,
     canonical_payload_hash: row.canonical_payload_hash,
-    maximum_amount_minor: row.maximum_amount_minor === null ? null : Number(row.maximum_amount_minor),
+    maximum_amount_minor:
+      row.maximum_amount_minor === null ? null : Number(row.maximum_amount_minor),
     currency: (row.currency as Currency | null) ?? null,
     status: row.status as OwnerApproval['status'],
     summary: row.note ?? '',
@@ -1237,5 +1257,3 @@ export function createOwnerAuth(c: { readonly env: unknown }): D1OwnerAuth {
   }
   return new D1OwnerAuth({ db: env.DB, env });
 }
-
-

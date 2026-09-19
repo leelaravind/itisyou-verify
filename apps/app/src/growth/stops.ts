@@ -196,7 +196,8 @@ export function evaluateStops(input: StopInput): readonly StopDecision[] {
       stop: true,
       reason: 'landing_page_broken',
       severity: 'halt',
-      detail: 'the landing page is not serving; paying for clicks into a broken page is indefensible',
+      detail:
+        'the landing page is not serving; paying for clicks into a broken page is indefensible',
       on_stale_evidence: false,
     });
   }
@@ -205,7 +206,8 @@ export function evaluateStops(input: StopInput): readonly StopDecision[] {
       stop: true,
       reason: 'checkout_broken',
       severity: 'halt',
-      detail: 'checkout is not working; we would be paying to send people to a purchase they cannot complete',
+      detail:
+        'checkout is not working; we would be paying to send people to a purchase they cannot complete',
       on_stale_evidence: false,
     });
   }
@@ -261,16 +263,28 @@ export interface PauseAssessment {
  * flat. Those are `pause_pending`. With nothing at all — no request, no read — the answer
  * is `unknown`, because we have not even asked.
  */
-export function verifyPause(evidence: PauseEvidence, maxAgeSeconds: number, now: Date): PauseAssessment {
+export function verifyPause(
+  evidence: PauseEvidence,
+  maxAgeSeconds: number,
+  now: Date,
+): PauseAssessment {
   const providerFresh =
     evidence.provider_observed_at !== null &&
     (ageSeconds(evidence.provider_observed_at, now) ?? Number.POSITIVE_INFINITY) <= maxAgeSeconds;
 
   if (evidence.provider_state === 'paused' && providerFresh) {
-    return { verdict: 'paused', detail: 'a fresh reconciled provider read reports paused', outstanding: [] };
+    return {
+      verdict: 'paused',
+      detail: 'a fresh reconciled provider read reports paused',
+      outstanding: [],
+    };
   }
   if (evidence.provider_state === 'ended' && providerFresh) {
-    return { verdict: 'paused', detail: 'a fresh reconciled provider read reports the campaign ended', outstanding: [] };
+    return {
+      verdict: 'paused',
+      detail: 'a fresh reconciled provider read reports the campaign ended',
+      outstanding: [],
+    };
   }
   if (evidence.owner_confirmed_at !== null) {
     return {
@@ -282,7 +296,8 @@ export function verifyPause(evidence: PauseEvidence, maxAgeSeconds: number, now:
   if (evidence.pause_requested_at === null) {
     return {
       verdict: 'unknown',
-      detail: 'no pause has been requested and no provider read exists; we do not know what this campaign is doing',
+      detail:
+        'no pause has been requested and no provider read exists; we do not know what this campaign is doing',
       outstanding: ['request a pause', 'reconcile against the platform'],
     };
   }
@@ -319,7 +334,12 @@ export interface StaleMarked<T> {
 }
 
 /** Wrap any metric with its retrieval time and a staleness flag. Never hand out a bare number. */
-export function markStale<T>(value: T, retrievedAt: string | null, maxAgeSeconds: number, now: Date): StaleMarked<T> {
+export function markStale<T>(
+  value: T,
+  retrievedAt: string | null,
+  maxAgeSeconds: number,
+  now: Date,
+): StaleMarked<T> {
   const age = ageSeconds(retrievedAt, now);
   return {
     value,

@@ -86,7 +86,11 @@ export function subtractUnknownAware(...values: readonly (number | null)[]): num
  * direction an owner most needs protecting from.
  */
 export function estimatedNetReceiptsMinor(inputs: FinanceInputs): number | null {
-  return subtractUnknownAware(inputs.cashRevenueMinor, inputs.refundsMinor, inputs.variableCostsMinor);
+  return subtractUnknownAware(
+    inputs.cashRevenueMinor,
+    inputs.refundsMinor,
+    inputs.variableCostsMinor,
+  );
 }
 
 export function summariseFinance(inputs: FinanceInputs): FinanceSummary {
@@ -145,7 +149,8 @@ export function summariseFinance(inputs: FinanceInputs): FinanceSummary {
       minor: inputs.startupCashRemainingMinor,
       display: displayMinor(inputs.startupCashRemainingMinor, inputs.currency),
       estimated: estimated.has('startup_cash'),
-      caveat: 'The approved starting budget, less everything spent, reserved and committed against it.',
+      caveat:
+        'The approved starting budget, less everything spent, reserved and committed against it.',
     },
   ];
 

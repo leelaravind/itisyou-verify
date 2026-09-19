@@ -51,7 +51,12 @@ import {
   NotificationHealthUnavailable,
   type NotificationHealthPort,
 } from './notifications.js';
-import { AssistantOff, OfflineRunner, type AssistantStatusPort, type MaintenanceRunnerPort } from './runner.js';
+import {
+  AssistantOff,
+  OfflineRunner,
+  type AssistantStatusPort,
+  type MaintenanceRunnerPort,
+} from './runner.js';
 import {
   DEFAULT_ACCESS_MODE,
   DEFAULT_BUDGET_LIMITS,
@@ -209,7 +214,8 @@ export class MemoryOwnerDataPort implements OwnerDataPort {
         externalId: null,
         state: 'awaiting_owner',
         headline: 'Did your automation finish the job?',
-        destinationUrl: 'https://verify.itisyou.app/?utm_source=reddit&utm_medium=cpc&utm_campaign=first_test',
+        destinationUrl:
+          'https://verify.itisyou.app/?utm_source=reddit&utm_medium=cpc&utm_campaign=first_test',
         audienceSummary: 'People who build and maintain automations, GB, English',
         budgetMinor: 1500,
         currency: 'GBP',
@@ -232,10 +238,7 @@ export class MemoryOwnerDataPort implements OwnerDataPort {
       [SETTINGS_KEY.budgetLimits]: JSON.stringify(DEFAULT_BUDGET_LIMITS),
       [SETTINGS_KEY.accessMode]: JSON.stringify(DEFAULT_ACCESS_MODE),
     };
-    this.#cleanupResources = [
-      ...SYNTHETIC_CLEANUP_ITEMS,
-      ...(options.extraCleanupItems ?? []),
-    ];
+    this.#cleanupResources = [...SYNTHETIC_CLEANUP_ITEMS, ...(options.extraCleanupItems ?? [])];
   }
 
   /**
@@ -269,12 +272,15 @@ export class MemoryOwnerDataPort implements OwnerDataPort {
    */
   #denied(ctx: ActionContext): OwnerWriteResult | null {
     if (capabilitiesFor(ctx.principal).has(ctx.capability)) return null;
-    return writeFailed(
-      `This identity cannot ${ctx.capability}. Nothing was changed.`,
-    );
+    return writeFailed(`This identity cannot ${ctx.capability}. Nothing was changed.`);
   }
 
-  #record(ctx: ActionContext, action: string, target: string | null, metadata: Record<string, unknown>): void {
+  #record(
+    ctx: ActionContext,
+    action: string,
+    target: string | null,
+    metadata: Record<string, unknown>,
+  ): void {
     this.#audit.unshift({
       id: this.#id('aud'),
       actor: ctx.principal.userId ?? 'unknown',
@@ -389,17 +395,25 @@ export class MemoryOwnerDataPort implements OwnerDataPort {
     );
   }
 
-  async rejectBeforeCheckout(ctx: ActionContext, orderId: string, reason: string): Promise<OwnerWriteResult> {
+  async rejectBeforeCheckout(
+    ctx: ActionContext,
+    orderId: string,
+    reason: string,
+  ): Promise<OwnerWriteResult> {
     const denied = this.#denied(ctx);
     if (denied !== null) return denied;
     const trimmed = reason.trim();
     if (trimmed.length < 10) {
       return writeFailed('Say why, in a sentence the customer can act on.', {
-        reason: 'Give a reason of at least ten characters. "No" is not a reason a customer can do anything with.',
+        reason:
+          'Give a reason of at least ten characters. "No" is not a reason a customer can do anything with.',
       });
     }
     this.#record(ctx, 'owner.order.reject', orderId, { order_id: orderId });
-    return writeOk('/owner/customers', 'Recorded. The order is rejected and the reason is on the record.');
+    return writeOk(
+      '/owner/customers',
+      'Recorded. The order is rejected and the reason is on the record.',
+    );
   }
 
   async issueRefund(ctx: ActionContext, input: RefundRequestInput): Promise<OwnerWriteResult> {
@@ -407,7 +421,9 @@ export class MemoryOwnerDataPort implements OwnerDataPort {
     if (denied !== null) return denied;
     const approval = this.#approvals.find((a) => a.id === input.approvalId) ?? null;
     if (approval === null) {
-      return writeFailed('That approval does not exist, so there is nothing authorising this refund.');
+      return writeFailed(
+        'That approval does not exist, so there is nothing authorising this refund.',
+      );
     }
     // Spending the approval IS the authorisation. Nothing below this line can run twice on
     // one approval, because the second caller loses the compare-and-set and stops here.
@@ -458,7 +474,10 @@ export class MemoryOwnerDataPort implements OwnerDataPort {
       );
     }
     this.#record(ctx, 'owner.run.retry', runId, { run_id: runId });
-    return writeOk(`/owner/verification/${runId}`, 'Queued for another look on the next scheduler tick.');
+    return writeOk(
+      `/owner/verification/${runId}`,
+      'Queued for another look on the next scheduler tick.',
+    );
   }
 
   /* ------------------------------------------------------------- connections */
@@ -522,12 +541,18 @@ export class MemoryOwnerDataPort implements OwnerDataPort {
     return this.#campaigns.find((c) => c.id === campaignId) ?? null;
   }
 
-  async activateCampaign(ctx: ActionContext, campaignId: string, approvalId: string): Promise<OwnerWriteResult> {
+  async activateCampaign(
+    ctx: ActionContext,
+    campaignId: string,
+    approvalId: string,
+  ): Promise<OwnerWriteResult> {
     const denied = this.#denied(ctx);
     if (denied !== null) return denied;
     const approval = this.#approvals.find((a) => a.id === approvalId) ?? null;
     if (approval === null) {
-      return writeFailed('There is no approval with that id, so nothing authorises this activation.');
+      return writeFailed(
+        'There is no approval with that id, so nothing authorises this activation.',
+      );
     }
     // Spend it before anything reaches a platform. The campaign packet's own binding is
     // A12's hash rather than mine, so this uses the raw compare-and-set: the guarantee we
@@ -545,7 +570,10 @@ export class MemoryOwnerDataPort implements OwnerDataPort {
       action_type: approval.action_type,
       consumed_at: ctx.now.toISOString(),
     });
-    this.#record(ctx, 'owner.campaign.activate', campaignId, { campaign_id: campaignId, approval_id: approvalId });
+    this.#record(ctx, 'owner.campaign.activate', campaignId, {
+      campaign_id: campaignId,
+      approval_id: approvalId,
+    });
     return writeBlocked(AD_PLATFORM_DEPENDENCY);
   }
 
@@ -633,7 +661,10 @@ export class MemoryOwnerDataPort implements OwnerDataPort {
     if (existing === undefined) return writeFailed('There is no alert with that id.');
     this.#alerts[index] = { ...existing, acknowledgedAt: ctx.now.toISOString() };
     this.#record(ctx, 'owner.alert.acknowledge', alertId, { alert_id: alertId });
-    return writeOk('/owner/operations', 'Acknowledged. It stays on the list until it stops happening.');
+    return writeOk(
+      '/owner/operations',
+      'Acknowledged. It stays on the list until it stops happening.',
+    );
   }
 
   /* ----------------------------------------------------------------- controls */
@@ -660,7 +691,9 @@ export class MemoryOwnerDataPort implements OwnerDataPort {
     });
     if (!result.ok) return writeFailed(result.detail);
     this.#controls = { ...this.#controls, [key]: result.state };
-    this.#record(ctx, paused ? 'owner.control.pause' : 'owner.control.resume', key, { control: key });
+    this.#record(ctx, paused ? 'owner.control.pause' : 'owner.control.resume', key, {
+      control: key,
+    });
     return writeOk(
       '/owner/controls',
       paused
@@ -696,7 +729,9 @@ export class MemoryOwnerDataPort implements OwnerDataPort {
       const parsed: unknown = JSON.parse(input.payloadJson);
       payload = { action_type: input.actionType, payload: parsed } as OwnerApprovalPayload;
     } catch {
-      return writeFailed('That approval payload is not readable, so there is nothing to bind an approval to.');
+      return writeFailed(
+        'That approval payload is not readable, so there is nothing to bind an approval to.',
+      );
     }
 
     const createdAt = ctx.now.toISOString();
@@ -718,7 +753,9 @@ export class MemoryOwnerDataPort implements OwnerDataPort {
       });
       return writeOk('/owner/approvals', `Approved. This lapses at ${expiresAt}.`);
     } catch (error) {
-      return writeFailed(error instanceof Error ? error.message : 'That approval could not be granted.');
+      return writeFailed(
+        error instanceof Error ? error.message : 'That approval could not be granted.',
+      );
     }
   }
 
@@ -740,14 +777,21 @@ export class MemoryOwnerDataPort implements OwnerDataPort {
     return {
       businessJson: this.#settings[SETTINGS_KEY.business] ?? JSON.stringify(DEFAULT_BUSINESS),
       pricingJson: this.#settings[SETTINGS_KEY.pricing] ?? JSON.stringify(DEFAULT_PRICING),
-      notificationsJson: this.#settings[SETTINGS_KEY.notifications] ?? JSON.stringify(DEFAULT_NOTIFICATIONS),
+      notificationsJson:
+        this.#settings[SETTINGS_KEY.notifications] ?? JSON.stringify(DEFAULT_NOTIFICATIONS),
       retentionJson: this.#settings[SETTINGS_KEY.retention] ?? JSON.stringify(DEFAULT_RETENTION),
-      budgetLimitsJson: this.#settings[SETTINGS_KEY.budgetLimits] ?? JSON.stringify(DEFAULT_BUDGET_LIMITS),
-      accessModeJson: this.#settings[SETTINGS_KEY.accessMode] ?? JSON.stringify(DEFAULT_ACCESS_MODE),
+      budgetLimitsJson:
+        this.#settings[SETTINGS_KEY.budgetLimits] ?? JSON.stringify(DEFAULT_BUDGET_LIMITS),
+      accessModeJson:
+        this.#settings[SETTINGS_KEY.accessMode] ?? JSON.stringify(DEFAULT_ACCESS_MODE),
     };
   }
 
-  async writeSetting(ctx: ActionContext, key: string, valueJson: string): Promise<OwnerWriteResult> {
+  async writeSetting(
+    ctx: ActionContext,
+    key: string,
+    valueJson: string,
+  ): Promise<OwnerWriteResult> {
     const denied = this.#denied(ctx);
     if (denied !== null) return denied;
     const allowed = Object.values(SETTINGS_KEY) as readonly string[];
@@ -820,7 +864,10 @@ export class MemoryOwnerDataPort implements OwnerDataPort {
 
     if (result.deduplicated) {
       return {
-        ...writeOk('/owner/quality', 'That suite is already queued for this commit, so this is the same request, not a second one.'),
+        ...writeOk(
+          '/owner/quality',
+          'That suite is already queued for this commit, so this is the same request, not a second one.',
+        ),
         runState: result.run.state,
       };
     }
@@ -865,7 +912,10 @@ export class MemoryOwnerDataPort implements OwnerDataPort {
   async cleanupPreview(
     ctx: ActionContext,
     categories: readonly string[],
-  ): Promise<{ readonly ok: true; readonly inventory: CleanupInventory } | { readonly ok: false; readonly detail: string }> {
+  ): Promise<
+    | { readonly ok: true; readonly inventory: CleanupInventory }
+    | { readonly ok: false; readonly detail: string }
+  > {
     const denied = this.#denied(ctx);
     if (denied !== null) return { ok: false, detail: denied.message ?? 'Not permitted.' };
 
@@ -888,13 +938,19 @@ export class MemoryOwnerDataPort implements OwnerDataPort {
   async cleanupExecute(
     ctx: ActionContext,
     input: { readonly inventoryHash: string; readonly quarantine: boolean },
-  ): Promise<{ readonly ok: true; readonly report: CleanupReport } | { readonly ok: false; readonly detail: string }> {
+  ): Promise<
+    | { readonly ok: true; readonly report: CleanupReport }
+    | { readonly ok: false; readonly detail: string }
+  > {
     const denied = this.#denied(ctx);
     if (denied !== null) return { ok: false, detail: denied.message ?? 'Not permitted.' };
 
     const previous = this.#lastInventory;
     if (previous === null) {
-      return { ok: false, detail: 'Take a preview first. Nothing is deleted that has not been listed and read.' };
+      return {
+        ok: false,
+        detail: 'Take a preview first. Nothing is deleted that has not been listed and read.',
+      };
     }
 
     const removed = new Set<string>();
@@ -909,7 +965,8 @@ export class MemoryOwnerDataPort implements OwnerDataPort {
           const fresh = await previewCleanup(
             { categories: previous.categories, environment: previous.environment },
             {
-              scan: async (category) => this.#cleanupResources.filter((i) => i.category === category),
+              scan: async (category) =>
+                this.#cleanupResources.filter((i) => i.category === category),
               now: ctx.now,
             },
           );

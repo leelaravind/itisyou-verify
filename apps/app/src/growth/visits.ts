@@ -93,7 +93,8 @@ const NEVER_COUNTED_EXACT: readonly string[] = [
  */
 export function isCountablePath(path: string): boolean {
   if (NEVER_COUNTED_EXACT.includes(path)) return false;
-  if (NEVER_COUNTED_PREFIXES.some((prefix) => path === prefix || path.startsWith(prefix))) return false;
+  if (NEVER_COUNTED_PREFIXES.some((prefix) => path === prefix || path.startsWith(prefix)))
+    return false;
   const lastSegment = path.slice(path.lastIndexOf('/') + 1);
   if (lastSegment.includes('.')) return false;
   return true;
@@ -118,7 +119,11 @@ export interface InternalMarkers {
   readonly userAgentSubstrings?: readonly string[];
 }
 
-const DEFAULT_INTERNAL_UA: readonly string[] = ['itisyou-verify-smoke', 'itisyou-verify-deploy', 'wrangler'];
+const DEFAULT_INTERNAL_UA: readonly string[] = [
+  'itisyou-verify-smoke',
+  'itisyou-verify-deploy',
+  'wrangler',
+];
 
 function cookieValue(header: string | null, name: string): string | null {
   if (header === null) return null;
@@ -162,7 +167,11 @@ export function isInternalTraffic(
 
 /** The minimum of a Hono context this middleware touches. Kept structural so it is testable. */
 export interface VisitContext {
-  readonly req: { readonly method: string; readonly url: string; readonly raw: { readonly headers: Headers } };
+  readonly req: {
+    readonly method: string;
+    readonly url: string;
+    readonly raw: { readonly headers: Headers };
+  };
   readonly executionCtx?: { waitUntil(promise: Promise<unknown>): void } | undefined;
 }
 
@@ -216,7 +225,9 @@ export async function visitFromRequest(
     ...(input.headers.get('accept-language') !== null
       ? { accept_language: input.headers.get('accept-language') as string }
       : {}),
-    ...(input.headers.get('referer') !== null ? { referrer: input.headers.get('referer') as string } : {}),
+    ...(input.headers.get('referer') !== null
+      ? { referrer: input.headers.get('referer') as string }
+      : {}),
   };
   return buildVisitSession(request, salt, now);
 }
@@ -253,7 +264,12 @@ export function createVisitCounter(
             const url = c.req.url;
             const at = clock();
             scheduled = async () => {
-              const session = await visitFromRequest({ method, url, headers: snapshot }, salt, options.internal, at);
+              const session = await visitFromRequest(
+                { method, url, headers: snapshot },
+                salt,
+                options.internal,
+                at,
+              );
               await port.recordVisit(session, at.toISOString());
             };
           }

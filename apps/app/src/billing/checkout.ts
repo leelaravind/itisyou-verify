@@ -124,10 +124,9 @@ export async function startCheckout(
   // and it keeps the same idempotency key, so move it forward explicitly.
   let current = order;
   if (current.status === 'rejected' || current.status === 'draft') {
-    const pass = orderTransition(
-      current.status === 'rejected' ? 'draft' : current.status,
-      { kind: 'eligibility_passed' },
-    );
+    const pass = orderTransition(current.status === 'rejected' ? 'draft' : current.status, {
+      kind: 'eligibility_passed',
+    });
     if (pass.allowed) {
       current =
         (await data.recordOrderStatus({

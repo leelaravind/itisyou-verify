@@ -459,7 +459,11 @@ export async function decideRefund(
 
   const approved = refundTransition(refund.state, { kind: 'owner_approved' });
   if (!approved.allowed) {
-    throw new AppError(409, 'REFUND_STATE', `A refund in state ${refund.state} cannot be approved.`);
+    throw new AppError(
+      409,
+      'REFUND_STATE',
+      `A refund in state ${refund.state} cannot be approved.`,
+    );
   }
 
   // A-20: spend the approval BEFORE the provider call, never after. Ordering is the whole

@@ -55,7 +55,8 @@ export const QUALITY_SUITES: readonly QualitySuite[] = [
   {
     id: 'integration',
     label: 'Integration tests',
-    proves: 'The database work — tenant scoping, idempotency, budget guards — against a real SQLite.',
+    proves:
+      'The database work — tenant scoping, idempotency, budget guards — against a real SQLite.',
     doesNotProve:
       'Cloudflare D1 over the network. The SQL is real; the network, the replicas and true parallelism are not exercised.',
     typicalMinutes: 3,
@@ -73,7 +74,8 @@ export const QUALITY_SUITES: readonly QualitySuite[] = [
     id: 'browser',
     label: 'Browser tests',
     proves: 'The pages work with a keyboard, at phone width, in a real rendering engine.',
-    doesNotProve: 'Behaviour on a physical device, on a real network, or with assistive technology in use.',
+    doesNotProve:
+      'Behaviour on a physical device, on a real network, or with assistive technology in use.',
     typicalMinutes: 6,
     mayCostMoney: false,
   },
@@ -88,7 +90,8 @@ export const QUALITY_SUITES: readonly QualitySuite[] = [
   {
     id: 'release_report',
     label: 'Rebuild the release evidence pack',
-    proves: 'Regenerates the test report, the results file and the release-readiness decision from a real run.',
+    proves:
+      'Regenerates the test report, the results file and the release-readiness decision from a real run.',
     doesNotProve: 'Nothing extra — it is the "everything" run plus the paperwork.',
     typicalMinutes: 11,
     mayCostMoney: false,
@@ -153,7 +156,11 @@ export interface QualityRun {
 }
 
 /** States from which a request for the same suite deduplicates rather than starting again. */
-const LIVE_STATES: ReadonlySet<JobState> = new Set<JobState>(['queued', 'awaiting_runner', 'running']);
+const LIVE_STATES: ReadonlySet<JobState> = new Set<JobState>([
+  'queued',
+  'awaiting_runner',
+  'running',
+]);
 
 export function isLiveState(state: JobState): boolean {
   return LIVE_STATES.has(state);
@@ -283,8 +290,7 @@ export async function dispatchQualityRun(
     limitations: availability.available ? suite.doesNotProve : NO_EXECUTOR_LIMITATION,
     blockedReason: availability.available
       ? null
-      : (availability.reason ??
-        'No test executor is connected to this deployment.'),
+      : (availability.reason ?? 'No test executor is connected to this deployment.'),
   };
 
   await deps.persist(run);
@@ -296,7 +302,9 @@ export async function dispatchQualityRun(
 // ---------------------------------------------------------------------------
 
 /** Plain language for every job state. Never a bare state word on a page. */
-export const JOB_STATE_TEXT: Readonly<Record<JobState, { readonly label: string; readonly meaning: string }>> = {
+export const JOB_STATE_TEXT: Readonly<
+  Record<JobState, { readonly label: string; readonly meaning: string }>
+> = {
   queued: {
     label: 'Queued',
     meaning: 'An executor has accepted the job and has not started it yet.',
@@ -307,12 +315,19 @@ export const JOB_STATE_TEXT: Readonly<Record<JobState, { readonly label: string;
       'Nothing is connected that can run tests. The job is saved and will run when something is. No result exists yet.',
   },
   running: { label: 'Running', meaning: 'The suite is executing now.' },
-  passed: { label: 'Passed', meaning: 'Every case in this suite executed and passed on the commit named below.' },
+  passed: {
+    label: 'Passed',
+    meaning: 'Every case in this suite executed and passed on the commit named below.',
+  },
   failed: { label: 'Failed', meaning: 'At least one case failed. The report names which.' },
-  cancelled: { label: 'Cancelled', meaning: 'Someone stopped this run before it finished. Nothing is proved.' },
+  cancelled: {
+    label: 'Cancelled',
+    meaning: 'Someone stopped this run before it finished. Nothing is proved.',
+  },
   timed_out: {
     label: 'Timed out',
-    meaning: 'The run exceeded its time limit and was stopped. This is not a pass and not a failure.',
+    meaning:
+      'The run exceeded its time limit and was stopped. This is not a pass and not a failure.',
   },
   infrastructure_error: {
     label: 'Could not run',
@@ -331,10 +346,7 @@ export function stateIsVerdict(state: JobState): boolean {
 // ---------------------------------------------------------------------------
 
 export type QualityArtifactId =
-  | 'test-report.md'
-  | 'test-results.json'
-  | 'junit.xml'
-  | 'release-readiness.md';
+  'test-report.md' | 'test-results.json' | 'junit.xml' | 'release-readiness.md';
 
 export interface QualityArtifactMeta {
   readonly id: QualityArtifactId;
@@ -349,13 +361,15 @@ export const QUALITY_ARTIFACTS: readonly QualityArtifactMeta[] = [
     id: 'test-report.md',
     label: 'Test report',
     contentType: 'text/markdown; charset=utf-8',
-    description: 'The human-readable report: what ran, what passed, and what the run does not prove.',
+    description:
+      'The human-readable report: what ran, what passed, and what the run does not prove.',
   },
   {
     id: 'test-results.json',
     label: 'Test results',
     contentType: 'application/json; charset=utf-8',
-    description: 'Every case with its id, outcome and timing, for anyone who wants to check the totals.',
+    description:
+      'Every case with its id, outcome and timing, for anyone who wants to check the totals.',
   },
   {
     id: 'junit.xml',
@@ -439,7 +453,9 @@ export class StaticQualityArtifactStore implements QualityArtifactStore {
   }
 
   async unavailableReason(): Promise<string | null> {
-    return this.#items.size === 0 ? 'The evidence pack attached to this deployment is empty.' : null;
+    return this.#items.size === 0
+      ? 'The evidence pack attached to this deployment is empty.'
+      : null;
   }
 }
 

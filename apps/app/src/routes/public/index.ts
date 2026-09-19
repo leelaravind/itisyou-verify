@@ -97,7 +97,8 @@ publicRoutes.get('/support', (c) =>
     c,
     PublicLayout({
       title: 'Support',
-      description: 'Frequently asked questions about what this product covers, and how to reach us.',
+      description:
+        'Frequently asked questions about what this product covers, and how to reach us.',
       path: '/support',
       body: SupportPage(),
     }),
@@ -106,17 +107,25 @@ publicRoutes.get('/support', (c) =>
 );
 
 publicRoutes.get('/terms', (c) =>
-  page(c, PublicLayout({ title: 'Terms of service', path: '/terms', body: TermsPage() }), { cache: 'public' }),
+  page(c, PublicLayout({ title: 'Terms of service', path: '/terms', body: TermsPage() }), {
+    cache: 'public',
+  }),
 );
 
 publicRoutes.get('/privacy', (c) =>
-  page(c, PublicLayout({ title: 'Privacy', path: '/privacy', body: PrivacyPage() }), { cache: 'public' }),
+  page(c, PublicLayout({ title: 'Privacy', path: '/privacy', body: PrivacyPage() }), {
+    cache: 'public',
+  }),
 );
 
 publicRoutes.get('/refunds', (c) =>
-  page(c, PublicLayout({ title: 'Cancellation and refunds', path: '/refunds', body: RefundsPage() }), {
-    cache: 'public',
-  }),
+  page(
+    c,
+    PublicLayout({ title: 'Cancellation and refunds', path: '/refunds', body: RefundsPage() }),
+    {
+      cache: 'public',
+    },
+  ),
 );
 
 publicRoutes.get('/status', (c) =>
@@ -128,7 +137,10 @@ publicRoutes.get('/status', (c) =>
       path: '/status',
       body: StatusPage({
         environment: c.env.ENVIRONMENT,
-        checkedAt: new Date().toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, ' UTC'),
+        checkedAt: new Date()
+          .toISOString()
+          .replace('T', ' ')
+          .replace(/\.\d{3}Z$/, ' UTC'),
       }),
     }),
   ),

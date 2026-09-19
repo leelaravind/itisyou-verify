@@ -90,7 +90,6 @@ export function formMessage(message: string | null, tone: 'warn' | 'note' = 'war
   return Callout({ tone, body: html`<p role="alert">${message}</p>` });
 }
 
-
 export interface ConnectionPresentation {
   readonly label: string;
   readonly status: StatusKey;

@@ -81,10 +81,7 @@ export type ProvisionOutcome =
     };
 
 export type ProvisionFailureCode =
-  | 'STRIPE_KEY_MISSING'
-  | 'LIVE_MODE_REFUSED'
-  | 'MODE_MISMATCH'
-  | 'PROVIDER_ERROR';
+  'STRIPE_KEY_MISSING' | 'LIVE_MODE_REFUSED' | 'MODE_MISMATCH' | 'PROVIDER_ERROR';
 
 /**
  * The deterministic idempotency key for the bootstrap calls.

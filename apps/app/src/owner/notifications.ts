@@ -54,7 +54,10 @@ export interface NotificationHealth {
 }
 
 export interface NotificationHealthPort {
-  health(input: { readonly now: Date; readonly stuckAfterSeconds: number }): Promise<NotificationHealth>;
+  health(input: {
+    readonly now: Date;
+    readonly stuckAfterSeconds: number;
+  }): Promise<NotificationHealth>;
 }
 
 /**
@@ -119,7 +122,9 @@ export class SupportNotificationHealth implements NotificationHealthPort {
     readonly now: Date;
     readonly stuckAfterSeconds: number;
   }): Promise<NotificationHealth> {
-    const createdBefore = new Date(input.now.getTime() - input.stuckAfterSeconds * 1000).toISOString();
+    const createdBefore = new Date(
+      input.now.getTime() - input.stuckAfterSeconds * 1000,
+    ).toISOString();
     let rows;
     try {
       rows = await this.#source.listStalePendingNotifications({
@@ -143,7 +148,10 @@ export class SupportNotificationHealth implements NotificationHealthPort {
         channel: row.channel,
         workspaceId: row.workspaceId,
         createdAt: row.createdAt,
-        ageSeconds: Math.max(0, Math.floor((input.now.getTime() - Date.parse(row.createdAt)) / 1000)),
+        ageSeconds: Math.max(
+          0,
+          Math.floor((input.now.getTime() - Date.parse(row.createdAt)) / 1000),
+        ),
         attemptCount: row.attemptCount,
         providerStatus: row.providerStatus,
       }))
@@ -159,7 +167,15 @@ export class SupportNotificationHealth implements NotificationHealthPort {
 
 /** An in-memory implementation for tests and for the synthetic port. */
 export class StaticNotificationHealth implements NotificationHealthPort {
-  readonly #rows: readonly { id: string; template: string; channel: string; workspaceId: string | null; createdAt: string; attemptCount: number; providerStatus: string | null }[];
+  readonly #rows: readonly {
+    id: string;
+    template: string;
+    channel: string;
+    workspaceId: string | null;
+    createdAt: string;
+    attemptCount: number;
+    providerStatus: string | null;
+  }[];
 
   constructor(
     rows: readonly {
@@ -175,7 +191,10 @@ export class StaticNotificationHealth implements NotificationHealthPort {
     this.#rows = rows;
   }
 
-  async health(input: { readonly now: Date; readonly stuckAfterSeconds: number }): Promise<NotificationHealth> {
+  async health(input: {
+    readonly now: Date;
+    readonly stuckAfterSeconds: number;
+  }): Promise<NotificationHealth> {
     const stuck: StuckNotification[] = [];
     let inFlight = 0;
     for (const row of this.#rows) {

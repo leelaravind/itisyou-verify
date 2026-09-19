@@ -52,11 +52,7 @@ export {
   type RunDecidedPayload,
 } from './dispatch';
 
-export {
-  runRetentionPass,
-  type RetentionPassDeps,
-  type RetentionPassReport,
-} from './retention';
+export { runRetentionPass, type RetentionPassDeps, type RetentionPassReport } from './retention';
 
 export {
   createD1CredentialResolver,

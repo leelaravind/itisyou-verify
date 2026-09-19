@@ -278,7 +278,9 @@ export const sourceEvents = {
 
   async getById(db: Db, workspaceId: string, id: string): Promise<SourceEventRow | null> {
     return db
-      .prepare(`SELECT ${SOURCE_EVENT_COLUMNS} FROM source_events WHERE workspace_id = ? AND id = ?`)
+      .prepare(
+        `SELECT ${SOURCE_EVENT_COLUMNS} FROM source_events WHERE workspace_id = ? AND id = ?`,
+      )
       .bind(workspaceId, id)
       .first<SourceEventRow>();
   },

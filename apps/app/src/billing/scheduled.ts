@@ -76,9 +76,7 @@ export async function runBillingMaintenance(
     try {
       recoverySweep = await expirePaymentRecoveryWindows(deps, {
         limit: options.sweepLimit ?? 100,
-        ...(deps.billingContact === undefined
-          ? {}
-          : { billingContact: deps.billingContact }),
+        ...(deps.billingContact === undefined ? {} : { billingContact: deps.billingContact }),
       });
     } catch (error) {
       failures.push({ job: 'payment_recovery_sweep', error: describe(error) });

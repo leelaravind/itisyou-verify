@@ -99,7 +99,9 @@ export function calendarMonthNotAnAllowanceKey(at: Date): string {
  * and when there is no subscription there is no paid period and therefore no key to guess.
  */
 
-const PROVIDER_DETAIL: Readonly<Record<ProviderKey, { displayName: string; purpose: string; requirements: readonly string[] }>> = {
+const PROVIDER_DETAIL: Readonly<
+  Record<ProviderKey, { displayName: string; purpose: string; requirements: readonly string[] }>
+> = {
   hubspot: {
     displayName: 'HubSpot',
     purpose: 'Reads the contact record your automation was supposed to create.',
@@ -116,7 +118,10 @@ const PROVIDER_DETAIL: Readonly<Record<ProviderKey, { displayName: string; purpo
 };
 
 /** What the customer sees when a connection is in each state. Never a raw error code. */
-function connectionProblem(status: string, lastErrorCode: string | null): {
+function connectionProblem(
+  status: string,
+  lastErrorCode: string | null,
+): {
   problem: string | null;
   nextStep: string | null;
 } {
@@ -124,7 +129,10 @@ function connectionProblem(status: string, lastErrorCode: string | null): {
     case 'ready':
       return { problem: null, nextStep: null };
     case 'not_connected':
-      return { problem: 'Not connected yet.', nextStep: 'Connect this provider to start checking.' };
+      return {
+        problem: 'Not connected yet.',
+        nextStep: 'Connect this provider to start checking.',
+      };
     case 'authorising':
     case 'testing':
       return { problem: 'Still being checked.', nextStep: 'Nothing to do — refresh in a moment.' };
@@ -489,9 +497,12 @@ export class D1CustomerDataPort implements CustomerDataPort {
 
     if (scope !== null) {
       const live = await connections.list(this.#db, scope.workspaceId);
-      const ready = new Set(live.filter((row) => row.status === 'ready').map((row) => row.provider));
+      const ready = new Set(
+        live.filter((row) => row.status === 'ready').map((row) => row.provider),
+      );
       if (!ready.has('hubspot')) blockers.push('Connect HubSpot so we can read the CRM record.');
-      if (!ready.has('resend')) blockers.push('Connect Resend so we can read email delivery events.');
+      if (!ready.has('resend'))
+        blockers.push('Connect Resend so we can read email delivery events.');
       const page = await workflows.list(this.#db, scope.workspaceId, { limit: 1 });
       if (page.items[0] === undefined) blockers.push('Create a workflow to check.');
       else if (page.items[0].current_version_id === null) {
@@ -558,8 +569,8 @@ export class D1CustomerDataPort implements CustomerDataPort {
     const firstRun =
       workflow === undefined
         ? null
-        : (await runs.listByWorkflow(this.#db, scope.workspaceId, workflow.id, { limit: 1 }))
-            .items[0] ?? null;
+        : ((await runs.listByWorkflow(this.#db, scope.workspaceId, workflow.id, { limit: 1 }))
+            .items[0] ?? null);
 
     return {
       active: subscription?.status === 'active' || subscription?.status === 'trialing',
@@ -668,7 +679,9 @@ export class D1CustomerDataPort implements CustomerDataPort {
       coverageMode: workflow?.coverage_mode ?? 'customer_triggered',
       revision: row.revision,
       lateCompletion:
-        row.completed_at !== null && row.completed_at > row.deadline_at && row.status === 'VERIFIED',
+        row.completed_at !== null &&
+        row.completed_at > row.deadline_at &&
+        row.status === 'VERIFIED',
       results,
     };
   }
@@ -711,10 +724,11 @@ export class D1CustomerDataPort implements CustomerDataPort {
     // Deriving one here is the A13-010 defect: this page read `YYYY-MM` while billing wrote
     // `YYYY-MM-DD`, so it looked up a row that never existed and reported 0 used / 500 left
     // forever — to a customer who might be at their limit and being refused.
-    const resolved = await resolveAllowancePeriodKey(
-      new BillingPortSubscriptionSource(this.#db),
-      { workspaceId: scope.workspaceId, atIso: toIso(this.#now), environment },
-    );
+    const resolved = await resolveAllowancePeriodKey(new BillingPortSubscriptionSource(this.#db), {
+      workspaceId: scope.workspaceId,
+      atIso: toIso(this.#now),
+      environment,
+    });
     if (resolved.key === null) {
       return {
         ...nothingYet(toIso(this.#now), toIso(this.#now)),
@@ -781,7 +795,8 @@ export class D1CustomerDataPort implements CustomerDataPort {
     const body = input.body.trim();
     if (subject.length < 3) fieldErrors['subject'] = 'Tell us in a few words what this is about.';
     if (body.length < 10) fieldErrors['body'] = 'A little more detail will let us help faster.';
-    if (subject.length > 200) fieldErrors['subject'] = 'Please keep the subject under 200 characters.';
+    if (subject.length > 200)
+      fieldErrors['subject'] = 'Please keep the subject under 200 characters.';
     if (body.length > 5000) fieldErrors['body'] = 'Please keep the message under 5000 characters.';
     if (Object.keys(fieldErrors).length > 0) {
       return { ok: false, fieldErrors, message: null, redirectTo: null, reference: null };

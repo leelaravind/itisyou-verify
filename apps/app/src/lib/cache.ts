@@ -83,10 +83,7 @@ export type Next = () => Promise<void>;
  *
  *   app.use('*', privateCacheHeaders());
  */
-export function privateCacheHeaders(): (
-  c: CacheMiddlewareContext,
-  next: Next,
-) => Promise<void> {
+export function privateCacheHeaders(): (c: CacheMiddlewareContext, next: Next) => Promise<void> {
   return async (c, next) => {
     await next();
     try {

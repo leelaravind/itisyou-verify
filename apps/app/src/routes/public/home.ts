@@ -44,7 +44,12 @@ function hero(): Html {
           <h1 class="display">${HOME_HEADLINE}</h1>
           <p class="lede measure">${HOME_SUBHEAD}</p>
           ${ButtonRow([
-            Button({ label: 'See a worked example', href: '/demo', variant: 'primary', icon: iconArrow() }),
+            Button({
+              label: 'See a worked example',
+              href: '/demo',
+              variant: 'primary',
+              icon: iconArrow(),
+            }),
             Button({ label: 'How it works', href: '/how-it-works', variant: 'quiet' }),
           ])}
           <p class="micro mono">
@@ -54,7 +59,8 @@ function hero(): Html {
         <div class="stack-sm">
           ${ClaimRule({
             status: 'FAILED',
-            claim: 'enquiry enq_0000000000000001 → contact created, acknowledgement sent to a**@example.test',
+            claim:
+              'enquiry enq_0000000000000001 → contact created, acknowledgement sent to a**@example.test',
             observed:
               'contact crm-rec-1 created 30s after the enquiry; acknowledgement to a**@example.test status "bounced"',
           })}
@@ -126,7 +132,11 @@ function exclusions(): Html {
       </div>
       <div class="grid grid-2">
         ${HOME_WHAT_THIS_DOES_NOT_DO.map((item) =>
-          Card({ title: item.heading, headingLevel: 3, body: html`<p class="small muted">${item.body}</p>` }),
+          Card({
+            title: item.heading,
+            headingLevel: 3,
+            body: html`<p class="small muted">${item.body}</p>`,
+          }),
         )}
       </div>
     </div>
@@ -142,7 +152,12 @@ function closing(): Html {
         body: html`<p>${findFaq('what-do-i-need-before-starting').answer}</p>`,
       })}
       ${ButtonRow([
-        Button({ label: 'See a worked example', href: '/demo', variant: 'primary', icon: iconArrow() }),
+        Button({
+          label: 'See a worked example',
+          href: '/demo',
+          variant: 'primary',
+          icon: iconArrow(),
+        }),
         Button({ label: 'See the price', href: '/pricing', variant: 'quiet' }),
       ])}
     </div>

@@ -57,11 +57,7 @@
  */
 import { Hono } from 'hono';
 import { sha256Hex } from '@verify/security';
-import {
-  markWebhookVerified,
-  resendConnector,
-  type WebhookVerification,
-} from '@verify/connectors';
+import { markWebhookVerified, resendConnector, type WebhookVerification } from '@verify/connectors';
 import type { ConnectionStatus, EmailEventEvidence } from '@verify/contracts';
 import type { WebhookAdmission, WebhookProcessingStatus } from '../../db/webhooks';
 
@@ -313,7 +309,11 @@ export function createResendWebhookRoute(deps: ResendWebhookDeps): Hono {
         // `contact.*` the customer subscribed by mistake. It is recorded as seen and
         // dropped. It proves the endpoint and the secret are right, but not that we can
         // use what arrives, so it does not promote anything.
-        await deps.data.completeWebhookProcessing(admission.receiptId, 'ignored', endpoint.workspaceId);
+        await deps.data.completeWebhookProcessing(
+          admission.receiptId,
+          'ignored',
+          endpoint.workspaceId,
+        );
         log({
           event: 'resend_webhook_ignored',
           event_id: eventId,

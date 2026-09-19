@@ -27,7 +27,13 @@ import type {
 
 function healthRow(item: ServiceHealthView): Html {
   const tone =
-    item.state === 'ok' ? 'note' : item.state === 'unknown' ? 'limit' : item.state === 'degraded' ? 'warn' : 'warn';
+    item.state === 'ok'
+      ? 'note'
+      : item.state === 'unknown'
+        ? 'limit'
+        : item.state === 'degraded'
+          ? 'warn'
+          : 'warn';
   return Callout({
     tone,
     title: `${item.component}: ${item.state === 'unknown' ? 'not known' : item.state}`,
@@ -50,9 +56,11 @@ function LaunchStat(options: {
   return html`<div class="stack-sm" data-launch-metric="${options.label}">
     <p class="eyebrow">${options.label}</p>
     <p class="score ${options.metric.value === null ? 'score--none' : ''}">
-      ${options.metric.value === null
-        ? html`<span data-unknown="true">unknown</span>`
-        : String(options.metric.value)}
+      ${
+        options.metric.value === null
+          ? html`<span data-unknown="true">unknown</span>`
+          : String(options.metric.value)
+      }
     </p>
     <p class="micro muted">${observed.label}</p>
     <p class="small">${options.note}</p>
@@ -68,13 +76,14 @@ export function OverviewPage(options: { readonly view: OverviewView; readonly no
     ${PageHead({
       eyebrow: 'Overview',
       title: 'How the business is doing',
-      lede:
-        'Everything on this page is either measured or marked unknown. Where it is an estimate, it says so beside the figure.',
+      lede: 'Everything on this page is either measured or marked unknown. Where it is an estimate, it says so beside the figure.',
     })}
 
     ${Callout({
       tone: finance.anyUnknown ? 'warn' : 'note',
-      title: finance.anyUnknown ? 'Some figures are not known yet' : 'Figures as at the last refresh',
+      title: finance.anyUnknown
+        ? 'Some figures are not known yet'
+        : 'Figures as at the last refresh',
       body: html`<p>
           ${refreshed.label}. Anything showing <span class="mono">unknown</span> has not been measured on this
           deployment — it is not zero, and you should not read it as zero.
@@ -103,11 +112,13 @@ export function OverviewPage(options: { readonly view: OverviewView; readonly no
             key: 'basis',
             header: 'Basis',
             cell: (line) =>
-              html`${line.estimated
-                ? html`<span class="badge badge--unverified" data-estimate="true">estimate</span> `
-                : html`<span class="micro">measured</span> `}${line.caveat === null
-                ? null
-                : html`<span class="micro muted">${line.caveat}</span>`}`,
+              html`${
+                line.estimated
+                  ? html`<span class="badge badge--unverified" data-estimate="true">estimate</span> `
+                  : html`<span class="micro">measured</span> `
+              }${
+                line.caveat === null ? null : html`<span class="micro muted">${line.caveat}</span>`
+              }`,
           },
         ],
         rows: finance.lines,
@@ -212,7 +223,12 @@ export function CustomersPage(options: {
           : Table({
               caption: 'Things that need a decision',
               columns: [
-                { key: 'kind', header: 'Kind', rowHeader: true, cell: (row) => row.kind.replace(/_/g, ' ') },
+                {
+                  key: 'kind',
+                  header: 'Kind',
+                  rowHeader: true,
+                  cell: (row) => row.kind.replace(/_/g, ' '),
+                },
                 { key: 'summary', header: 'What happened', cell: (row) => row.summary },
                 { key: 'raised', header: 'Raised', cell: (row) => Instant(row.raisedAt) },
                 {
@@ -239,9 +255,11 @@ export function CustomersPage(options: {
             header: 'Workspace',
             rowHeader: true,
             cell: (row) =>
-              html`${row.name}${row.isSynthetic
-                ? html` <span class="badge badge--unverified">synthetic</span>`
-                : null}<br /><span class="micro mono">${row.contactMask}</span>`,
+              html`${row.name}${
+                row.isSynthetic
+                  ? html` <span class="badge badge--unverified">synthetic</span>`
+                  : null
+              }<br /><span class="micro mono">${row.contactMask}</span>`,
           },
           {
             key: 'eligible',
@@ -260,9 +278,15 @@ export function CustomersPage(options: {
             key: 'connections',
             header: 'Connections',
             numeric: true,
-            cell: (row) => html`<span class="mono">${row.connectionsReady}/${row.connectionsTotal}</span>`,
+            cell: (row) =>
+              html`<span class="mono">${row.connectionsReady}/${row.connectionsTotal}</span>`,
           },
-          { key: 'runs', header: 'Runs', numeric: true, cell: (row) => UnknownAware(row.runsThisPeriod) },
+          {
+            key: 'runs',
+            header: 'Runs',
+            numeric: true,
+            cell: (row) => UnknownAware(row.runsThisPeriod),
+          },
           {
             key: 'actions',
             header: 'Actions',
@@ -314,7 +338,11 @@ export function VerificationListPage(options: { readonly runs: readonly OwnerRun
         },
         { key: 'status', header: 'Result', cell: (run) => StatusBadge({ status: run.status }) },
         { key: 'workflow', header: 'Workflow', cell: (run) => run.workflowName },
-        { key: 'rules', header: 'Rules', cell: (run) => html`<span class="mono micro">${run.rulesRef}</span>` },
+        {
+          key: 'rules',
+          header: 'Rules',
+          cell: (run) => html`<span class="mono micro">${run.rulesRef}</span>`,
+        },
         { key: 'decided', header: 'Decided', cell: (run) => Instant(run.decidedAt) },
       ],
       rows: options.runs,
@@ -360,9 +388,11 @@ export function VerificationDetailPage(options: {
             <p><strong>${assertion.headline}</strong></p>
             <p class="measure">${assertion.sentence}</p>
             ${assertion.detail === null ? null : html`<p class="small mono">${assertion.detail}</p>`}
-            ${assertion.nextStep === null
-              ? null
-              : html`<p class="small">What to do: ${assertion.nextStep}</p>`}
+            ${
+              assertion.nextStep === null
+                ? null
+                : html`<p class="small">What to do: ${assertion.nextStep}</p>`
+            }
           </div>`,
         )}
       </div>`,
@@ -390,12 +420,13 @@ export function VerificationDetailPage(options: {
       }),
     })}
 
-    ${run.outages.length === 0
-      ? null
-      : Callout({
-          tone: 'warn',
-          title: 'Provider problems overlapping this run',
-          body: html`<ul class="stack-sm">
+    ${
+      run.outages.length === 0
+        ? null
+        : Callout({
+            tone: 'warn',
+            title: 'Provider problems overlapping this run',
+            body: html`<ul class="stack-sm">
             ${run.outages.map(
               (outage) =>
                 html`<li>
@@ -405,7 +436,8 @@ export function VerificationDetailPage(options: {
                 </li>`,
             )}
           </ul>`,
-        })}
+          })
+    }
 
     ${Card({
       title: 'Look again',
@@ -464,7 +496,11 @@ export function ConnectionsPage(options: {
           cell: (conn) =>
             html`${conn.provider}<br /><span class="micro mono">${conn.workspaceId}</span>`,
         },
-        { key: 'status', header: 'Status', cell: (conn) => html`<span class="mono">${conn.status}</span>` },
+        {
+          key: 'status',
+          header: 'Status',
+          cell: (conn) => html`<span class="mono">${conn.status}</span>`,
+        },
         {
           key: 'account',
           header: 'Account',

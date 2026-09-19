@@ -180,7 +180,9 @@ export const sessions = {
 
   async purgeExpired(db: Db, before: string, limit = 500): Promise<number> {
     const result = await db
-      .prepare('DELETE FROM sessions WHERE id IN (SELECT id FROM sessions WHERE expires_at <= ? LIMIT ?)')
+      .prepare(
+        'DELETE FROM sessions WHERE id IN (SELECT id FROM sessions WHERE expires_at <= ? LIMIT ?)',
+      )
       .bind(before, limit)
       .run();
     return result.meta.changes;

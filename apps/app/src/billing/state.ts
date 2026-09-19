@@ -144,7 +144,10 @@ export type SubscriptionDecision =
   | { readonly action: 'ignore_stale'; readonly storedEventCreated: number }
   | { readonly action: 'ignore_duplicate' }
   | { readonly action: 'ignore_terminal'; readonly storedStatus: SubscriptionStatus }
-  | { readonly action: 'reject_environment_mismatch'; readonly storedEnvironment: BillingEnvironment };
+  | {
+      readonly action: 'reject_environment_mismatch';
+      readonly storedEnvironment: BillingEnvironment;
+    };
 
 /**
  * Decide what an incoming provider snapshot does to what we have stored.
@@ -263,8 +266,7 @@ export function entitlementFor(subscription: SubscriptionRecord | null): Entitle
 
 /** Narrow an unknown provider string to the frozen vocabulary, or `null`. */
 export function asSubscriptionStatus(value: unknown): SubscriptionStatus | null {
-  return typeof value === 'string' &&
-    (SUBSCRIPTION_STATUS as readonly string[]).includes(value)
+  return typeof value === 'string' && (SUBSCRIPTION_STATUS as readonly string[]).includes(value)
     ? (value as SubscriptionStatus)
     : null;
 }

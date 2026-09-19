@@ -123,7 +123,10 @@ export interface OwnerAuthPort {
   /** Always returns. Never reveals whether the address has an account. */
   requestSignInLink(email: string): Promise<void>;
   verifyTotp(principal: OwnerPrincipal, code: string, now: Date): Promise<TotpResult>;
-  bootstrap(input: { readonly presentedToken: string; readonly verifiedAuthSubject: string | null }, now: Date): Promise<BootstrapResult>;
+  bootstrap(
+    input: { readonly presentedToken: string; readonly verifiedAuthSubject: string | null },
+    now: Date,
+  ): Promise<BootstrapResult>;
   signOut(principal: OwnerPrincipal): Promise<void>;
   accessMode(): Promise<AccessMode>;
 }
@@ -151,7 +154,8 @@ export class UnwiredOwnerAuth implements OwnerAuthPort {
     return {
       ok: false,
       refusal: 'not_configured',
-      message: 'This deployment carries no owner bootstrap secret, so there is nothing to bootstrap from.',
+      message:
+        'This deployment carries no owner bootstrap secret, so there is nothing to bootstrap from.',
     };
   }
 
@@ -246,8 +250,10 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
     throw new UnconfiguredOwnerRouterError();
   }
 
-  const resolvePort: OwnerPortResolver = options.resolvePort ?? (async () => new MemoryOwnerDataPort());
-  const staticArtifacts: QualityArtifactStore = options.artifacts ?? new UnboundQualityArtifactStore();
+  const resolvePort: OwnerPortResolver =
+    options.resolvePort ?? (async () => new MemoryOwnerDataPort());
+  const staticArtifacts: QualityArtifactStore =
+    options.artifacts ?? new UnboundQualityArtifactStore();
   const resolveArtifacts = options.resolveArtifacts ?? (async () => staticArtifacts);
   const auth: OwnerAuthPort = options.auth ?? new UnwiredOwnerAuth();
   const resolvePairing = options.resolvePairing ?? (async () => new PairingUnavailable());
@@ -257,7 +263,11 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
   function shell(
     port: OwnerDataPort,
     principal: OwnerPrincipal,
-    pageOptions: { readonly title: string; readonly path: string; readonly body: ReturnType<typeof html> },
+    pageOptions: {
+      readonly title: string;
+      readonly path: string;
+      readonly body: ReturnType<typeof html>;
+    },
   ) {
     return OwnerLayout({
       title: pageOptions.title,
@@ -270,7 +280,9 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
     });
   }
 
-  async function principalOf(c: Context<RouteBindings>): Promise<{ port: OwnerDataPort; principal: OwnerPrincipal }> {
+  async function principalOf(
+    c: Context<RouteBindings>,
+  ): Promise<{ port: OwnerDataPort; principal: OwnerPrincipal }> {
     // The backstop for a mount that did not pass `environment`. Throwing here surfaces as a
     // 500 from the Worker's error handler, which is the right answer: a production owner
     // panel backed by invented data must not render at all. `/admin/login` does not resolve
@@ -311,7 +323,11 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
     return null;
   }
 
-  function actionContext(principal: OwnerPrincipal, capability: OwnerCapability, c: Context<RouteBindings>): ActionContext {
+  function actionContext(
+    principal: OwnerPrincipal,
+    capability: OwnerCapability,
+    c: Context<RouteBindings>,
+  ): ActionContext {
     return {
       principal,
       capability,
@@ -433,7 +449,12 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
     c: Context<RouteBindings>,
     port: OwnerDataPort,
     principal: OwnerPrincipal,
-    result: { readonly ok: boolean; readonly message: string | null; readonly redirectTo: string | null; readonly dependency: string | null },
+    result: {
+      readonly ok: boolean;
+      readonly message: string | null;
+      readonly redirectTo: string | null;
+      readonly dependency: string | null;
+    },
     fallbackTitle: string,
   ): Promise<Response> {
     if (result.ok && result.redirectTo !== null) return c.redirect(result.redirectTo, 303);
@@ -445,16 +466,24 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
         path,
         body: html`<div class="wrap section stack">
           ${PageHead({ title: fallbackTitle })}
-          ${result.dependency === null
-            ? null
-            : Callout({
-                tone: 'warn',
-                title: 'Something this needs is not there',
-                body: html`<p data-dependency="true">${result.dependency}</p>`,
-              })}
-          ${result.message === null
-            ? null
-            : Callout({ tone: 'note', title: 'What happened', body: html`<p>${result.message}</p>` })}
+          ${
+            result.dependency === null
+              ? null
+              : Callout({
+                  tone: 'warn',
+                  title: 'Something this needs is not there',
+                  body: html`<p data-dependency="true">${result.dependency}</p>`,
+                })
+          }
+          ${
+            result.message === null
+              ? null
+              : Callout({
+                  tone: 'note',
+                  title: 'What happened',
+                  body: html`<p>${result.message}</p>`,
+                })
+          }
           <p><a href="/owner">Back to the overview</a></p>
         </div>`,
       }),
@@ -474,7 +503,12 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
   routes.get('/admin/login', async (c) =>
     ownerPage(
       c,
-      adminLoginDocument({ csrfToken: newPageToken(c), submitted: false, fieldError: null, email: '' }),
+      adminLoginDocument({
+        csrfToken: newPageToken(c),
+        submitted: false,
+        fieldError: null,
+        email: '',
+      }),
     ),
   );
 
@@ -543,7 +577,8 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
       principal,
       {
         ok: false,
-        message: result.dependency === null ? 'That code was not accepted. Nothing has changed.' : null,
+        message:
+          result.dependency === null ? 'That code was not accepted. Nothing has changed.' : null,
         redirectTo: null,
         dependency: result.dependency,
       },
@@ -598,7 +633,10 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
         c,
         port,
         principal,
-        await port.cancelSubscription(actionContext(principal, 'customer.reject', c), c.req.param('workspaceId')),
+        await port.cancelSubscription(
+          actionContext(principal, 'customer.reject', c),
+          c.req.param('workspaceId'),
+        ),
         'Cancel subscription',
       ),
     ),
@@ -685,7 +723,10 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
         c,
         port,
         principal,
-        await port.retryRun(actionContext(principal, 'verification.retry', c), c.req.param('runId')),
+        await port.retryRun(
+          actionContext(principal, 'verification.retry', c),
+          c.req.param('runId'),
+        ),
         'Check again',
       ),
     ),
@@ -700,7 +741,10 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
         shell(port, principal, {
           title: 'Connections',
           path: '/owner/connections',
-          body: ConnectionsPage({ connections: await port.connections(), csrfToken: principal.csrfToken }),
+          body: ConnectionsPage({
+            connections: await port.connections(),
+            csrfToken: principal.csrfToken,
+          }),
         }),
       ),
     ),
@@ -712,7 +756,10 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
         c,
         port,
         principal,
-        await port.rotateConnection(actionContext(principal, 'connection.rotate', c), c.req.param('id')),
+        await port.rotateConnection(
+          actionContext(principal, 'connection.rotate', c),
+          c.req.param('id'),
+        ),
         'Rotate connection',
       ),
     ),
@@ -725,7 +772,12 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
           c,
           port,
           principal,
-          { ok: false, message: 'Type "revoke" to confirm. Nothing was changed.', redirectTo: null, dependency: null },
+          {
+            ok: false,
+            message: 'Type "revoke" to confirm. Nothing was changed.',
+            redirectTo: null,
+            dependency: null,
+          },
           'Revoke connection',
         );
       }
@@ -733,7 +785,10 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
         c,
         port,
         principal,
-        await port.revokeConnection(actionContext(principal, 'connection.revoke', c), c.req.param('id')),
+        await port.revokeConnection(
+          actionContext(principal, 'connection.revoke', c),
+          c.req.param('id'),
+        ),
         'Revoke connection',
       );
     }),
@@ -748,7 +803,11 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
         shell(port, principal, {
           title: 'Ads',
           path: '/owner/ads',
-          body: AdsPage({ campaigns: await port.campaigns(), csrfToken: principal.csrfToken, now: clock() }),
+          body: AdsPage({
+            campaigns: await port.campaigns(),
+            csrfToken: principal.csrfToken,
+            now: clock(),
+          }),
         }),
       ),
     ),
@@ -804,7 +863,11 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
         shell(port, principal, {
           title: 'Operations',
           path: '/owner/operations',
-          body: OperationsPage({ view: await port.operations(now), csrfToken: principal.csrfToken, now }),
+          body: OperationsPage({
+            view: await port.operations(now),
+            csrfToken: principal.csrfToken,
+            now,
+          }),
         }),
       );
     }),
@@ -816,7 +879,10 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
         c,
         port,
         principal,
-        await port.acknowledgeAlert(actionContext(principal, 'controls.toggle', c), c.req.param('id')),
+        await port.acknowledgeAlert(
+          actionContext(principal, 'controls.toggle', c),
+          c.req.param('id'),
+        ),
         'Acknowledge alert',
       ),
     ),
@@ -839,7 +905,12 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
           c,
           port,
           principal,
-          { ok: false, message: 'Give the device a name you will recognise later.', redirectTo: null, dependency: null },
+          {
+            ok: false,
+            message: 'Give the device a name you will recognise later.',
+            redirectTo: null,
+            dependency: null,
+          },
           'Pair a runner',
         );
       }
@@ -915,7 +986,8 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
           principal,
           {
             ok: false,
-            message: 'Type "restore" to confirm. Restoring replaces the running code; nothing was changed.',
+            message:
+              'Type "restore" to confirm. Restoring replaces the running code; nothing was changed.',
             redirectTo: null,
             dependency: null,
           },
@@ -1045,7 +1117,12 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
           c,
           port,
           principal,
-          { ok: false, message: 'Enter a maximum like 15.00, or leave it empty.', redirectTo: null, dependency: null },
+          {
+            ok: false,
+            message: 'Enter a maximum like 15.00, or leave it empty.',
+            redirectTo: null,
+            dependency: null,
+          },
           'Approve',
         );
       }
@@ -1078,10 +1155,14 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
 
   /* settings */
 
-  async function settingsBody(port: OwnerDataPort, principal: OwnerPrincipal, extras: {
-    readonly fieldErrors?: Readonly<Record<string, string>>;
-    readonly savedMessage?: string | null;
-  } = {}) {
+  async function settingsBody(
+    port: OwnerDataPort,
+    principal: OwnerPrincipal,
+    extras: {
+      readonly fieldErrors?: Readonly<Record<string, string>>;
+      readonly savedMessage?: string | null;
+    } = {},
+  ) {
     const raw = await port.readSettings();
     return SettingsPage({
       business: parseJson<BusinessDetails>(raw.businessJson, DEFAULT_BUSINESS),
@@ -1127,7 +1208,11 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
         c,
         port,
         principal,
-        await port.writeSetting(actionContext(principal, 'settings.write', c), SETTINGS_KEY.business, JSON.stringify(values)),
+        await port.writeSetting(
+          actionContext(principal, 'settings.write', c),
+          SETTINGS_KEY.business,
+          JSON.stringify(values),
+        ),
         'Settings',
       );
     }),
@@ -1156,7 +1241,11 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
         c,
         port,
         principal,
-        await port.writeSetting(actionContext(principal, 'settings.write', c), SETTINGS_KEY.pricing, JSON.stringify(values)),
+        await port.writeSetting(
+          actionContext(principal, 'settings.write', c),
+          SETTINGS_KEY.pricing,
+          JSON.stringify(values),
+        ),
         'Settings',
       );
     }),
@@ -1206,7 +1295,11 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
         c,
         port,
         principal,
-        await port.writeSetting(actionContext(principal, 'settings.write', c), SETTINGS_KEY.retention, JSON.stringify(values)),
+        await port.writeSetting(
+          actionContext(principal, 'settings.write', c),
+          SETTINGS_KEY.retention,
+          JSON.stringify(values),
+        ),
         'Settings',
       );
     }),
@@ -1269,7 +1362,11 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
             runs: await port.qualityRuns(50),
             csrfToken: principal.csrfToken,
             artifactsUnavailableReason: await (await resolveArtifacts(c)).unavailableReason(),
-            formMessage: result.ok ? result.message : result.dependency === null ? result.message : null,
+            formMessage: result.ok
+              ? result.message
+              : result.dependency === null
+                ? result.message
+                : null,
             formDependency: result.dependency,
           }),
         }),
@@ -1302,8 +1399,10 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
                 tone: 'warn',
                 title: 'No evidence pack is attached to this deployment',
                 body: html`<p data-dependency="true">
-                  ${unavailable ??
-                  'This file is not part of the evidence pack attached to this deployment.'}
+                  ${
+                    unavailable ??
+                    'This file is not part of the evidence pack attached to this deployment.'
+                  }
                 </p>`,
               })}
               <p><a href="/owner/quality">Back to the test centre</a></p>
@@ -1347,7 +1446,10 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
 
   routes.post('/owner/cleanup/preview', async (c) =>
     withAction(c, 'cleanup.preview', async (port, principal, form) => {
-      const result = await port.cleanupPreview(actionContext(principal, 'cleanup.preview', c), form.all['categories'] ?? []);
+      const result = await port.cleanupPreview(
+        actionContext(principal, 'cleanup.preview', c),
+        form.all['categories'] ?? [],
+      );
       const inventory: CleanupInventory | null = result.ok ? result.inventory : null;
       return ownerPage(
         c,
@@ -1434,7 +1536,12 @@ function newPageToken(c: Context<RouteBindings>): string {
   let token = '';
   for (const byte of bytes) token += byte.toString(16).padStart(2, '0');
   const secure = new URL(c.req.url).protocol === 'https:';
-  setCookie(c, csrfCookieName(secure), token, { path: '/', sameSite: 'Lax', maxAge: 43200, secure });
+  setCookie(c, csrfCookieName(secure), token, {
+    path: '/',
+    sameSite: 'Lax',
+    maxAge: 43200,
+    secure,
+  });
   return token;
 }
 

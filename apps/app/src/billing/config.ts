@@ -80,7 +80,9 @@ export interface BillingConfigInput {
  */
 export function buildBillingConfig(input: BillingConfigInput): BillingConfig {
   if (input.environment !== 'test' && input.environment !== 'live') {
-    throw new TypeError(`billing environment must be test or live, received ${String(input.environment)}`);
+    throw new TypeError(
+      `billing environment must be test or live, received ${String(input.environment)}`,
+    );
   }
   if (typeof input.priceId !== 'string' || !/^price_[A-Za-z0-9]+$/.test(input.priceId)) {
     throw new TypeError('billing price id is missing or does not look like a Stripe price id');

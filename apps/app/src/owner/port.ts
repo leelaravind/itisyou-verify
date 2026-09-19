@@ -155,7 +155,12 @@ export interface OrderRow {
 
 export interface ExceptionRow {
   readonly id: string;
-  readonly kind: 'payment_failed' | 'refund_pending' | 'connection_broken' | 'allowance_exhausted' | 'support_escalated';
+  readonly kind:
+    | 'payment_failed'
+    | 'refund_pending'
+    | 'connection_broken'
+    | 'allowance_exhausted'
+    | 'support_escalated';
   readonly workspaceId: string | null;
   readonly summary: string;
   readonly raisedAt: string;
@@ -207,7 +212,12 @@ export interface OwnerRunView {
     readonly detail: string | null;
   }[];
   /** Provider outages that overlapped this run. Empty when none did. */
-  readonly outages: readonly { readonly provider: string; readonly from: string; readonly to: string | null; readonly detail: string }[];
+  readonly outages: readonly {
+    readonly provider: string;
+    readonly from: string;
+    readonly to: string | null;
+    readonly detail: string;
+  }[];
   readonly retryAvailable: boolean;
   readonly retryBlockedReason: string | null;
 }
@@ -315,7 +325,11 @@ export interface OwnerDataPort {
   orders(workspaceId: string | null): Promise<readonly OrderRow[]>;
   exceptions(): Promise<readonly ExceptionRow[]>;
   cancelSubscription(ctx: ActionContext, workspaceId: string): Promise<OwnerWriteResult>;
-  rejectBeforeCheckout(ctx: ActionContext, orderId: string, reason: string): Promise<OwnerWriteResult>;
+  rejectBeforeCheckout(
+    ctx: ActionContext,
+    orderId: string,
+    reason: string,
+  ): Promise<OwnerWriteResult>;
   issueRefund(ctx: ActionContext, input: RefundRequestInput): Promise<OwnerWriteResult>;
 
   /* verification */
@@ -331,7 +345,11 @@ export interface OwnerDataPort {
   /* ads */
   campaigns(): Promise<readonly CampaignView[]>;
   campaign(campaignId: string): Promise<CampaignView | null>;
-  activateCampaign(ctx: ActionContext, campaignId: string, approvalId: string): Promise<OwnerWriteResult>;
+  activateCampaign(
+    ctx: ActionContext,
+    campaignId: string,
+    approvalId: string,
+  ): Promise<OwnerWriteResult>;
   pauseCampaign(ctx: ActionContext, campaignId: string): Promise<OwnerWriteResult>;
   resumeCampaign(ctx: ActionContext, campaignId: string): Promise<OwnerWriteResult>;
 
@@ -347,14 +365,24 @@ export interface OwnerDataPort {
 
   /* controls */
   controls(): Promise<Controls>;
-  setControl(ctx: ActionContext, key: string, paused: boolean, note: string | null): Promise<OwnerWriteResult>;
+  setControl(
+    ctx: ActionContext,
+    key: string,
+    paused: boolean,
+    note: string | null,
+  ): Promise<OwnerWriteResult>;
 
   /* approvals */
   approvals(): Promise<readonly OwnerApproval[]>;
   approval(approvalId: string): Promise<OwnerApproval | null>;
   grantApproval(
     ctx: ActionContext,
-    input: { readonly actionType: string; readonly payloadJson: string; readonly maximumAmountMinor: number | null; readonly summary: string },
+    input: {
+      readonly actionType: string;
+      readonly payloadJson: string;
+      readonly maximumAmountMinor: number | null;
+      readonly summary: string;
+    },
   ): Promise<OwnerWriteResult>;
   revokeApproval(ctx: ActionContext, approvalId: string): Promise<OwnerWriteResult>;
 
@@ -364,16 +392,26 @@ export interface OwnerDataPort {
 
   /* quality */
   qualityRuns(limit: number): Promise<readonly QualityRun[]>;
-  dispatchQuality(ctx: ActionContext, suiteId: string): Promise<OwnerWriteResult & { readonly runState: JobState | null }>;
+  dispatchQuality(
+    ctx: ActionContext,
+    suiteId: string,
+  ): Promise<OwnerWriteResult & { readonly runState: JobState | null }>;
 
   /* cleanup */
-  cleanupPreview(ctx: ActionContext, categories: readonly string[]): Promise<
-    { readonly ok: true; readonly inventory: CleanupInventory } | { readonly ok: false; readonly detail: string }
+  cleanupPreview(
+    ctx: ActionContext,
+    categories: readonly string[],
+  ): Promise<
+    | { readonly ok: true; readonly inventory: CleanupInventory }
+    | { readonly ok: false; readonly detail: string }
   >;
   cleanupExecute(
     ctx: ActionContext,
     input: { readonly inventoryHash: string; readonly quarantine: boolean },
-  ): Promise<{ readonly ok: true; readonly report: CleanupReport } | { readonly ok: false; readonly detail: string }>;
+  ): Promise<
+    | { readonly ok: true; readonly report: CleanupReport }
+    | { readonly ok: false; readonly detail: string }
+  >;
   lastCleanupReport(): Promise<CleanupReport | null>;
 
   /* audit */

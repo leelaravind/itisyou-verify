@@ -231,12 +231,15 @@ app.all('/api/v1/webhooks/stripe/*', async (c) => {
   if (stripeWebhookApp === null && stripeWebhookUnavailable === null) {
     try {
       stripeWebhookApp = createStripeWebhookRoute(
-        createStripeWebhookDeps(c.env as never, {
-          data: new D1BillingDataPort(c.env.DB),
-          gateway: createStripeClient({ secretKey: c.env.STRIPE_SECRET_KEY ?? '' }),
-          billingContact: createBillingContactLookup(c.env.DB),
-          newId: (prefix: string) => newId(prefix),
-        } as never),
+        createStripeWebhookDeps(
+          c.env as never,
+          {
+            data: new D1BillingDataPort(c.env.DB),
+            gateway: createStripeClient({ secretKey: c.env.STRIPE_SECRET_KEY ?? '' }),
+            billingContact: createBillingContactLookup(c.env.DB),
+            newId: (prefix: string) => newId(prefix),
+          } as never,
+        ),
       );
     } catch (error) {
       stripeWebhookUnavailable = String(error);
@@ -303,7 +306,10 @@ app.get('/health', async (c) => {
 //
 // With no email transport configured, sign-in honestly refuses and every page says
 // why. An empty, truthful application beats a populated, misleading one.
-app.route('/app', createAppRoutes(async (c) => createCustomerDataPort(c)));
+app.route(
+  '/app',
+  createAppRoutes(async (c) => createCustomerDataPort(c)),
+);
 
 // Owns two prefixes, `/admin` and `/owner`, so it mounts at the root. `/admin/login`
 // is deliberately reachable by anyone on the internet; what is protected is every

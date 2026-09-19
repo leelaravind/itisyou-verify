@@ -95,13 +95,11 @@ interface MovementPlan {
   readonly updateAmountBindings: number;
 }
 
-const ENTRY_INSERT_IF_AVAILABLE =
-  `INSERT INTO budget_entries (id, account_id, kind, amount_minor, source, idempotency_key, created_at)
+const ENTRY_INSERT_IF_AVAILABLE = `INSERT INTO budget_entries (id, account_id, kind, amount_minor, source, idempotency_key, created_at)
    SELECT ?, ?, ?, ?, ?, ?, ?
     WHERE EXISTS (SELECT 1 FROM budget_accounts WHERE id = ? AND ${AVAILABLE_EXPR} >= ?)`;
 
-const ENTRY_INSERT_IF_RESERVED =
-  `INSERT INTO budget_entries (id, account_id, kind, amount_minor, source, idempotency_key, created_at)
+const ENTRY_INSERT_IF_RESERVED = `INSERT INTO budget_entries (id, account_id, kind, amount_minor, source, idempotency_key, created_at)
    SELECT ?, ?, ?, ?, ?, ?, ?
     WHERE EXISTS (SELECT 1 FROM budget_accounts WHERE id = ? AND reserved_minor >= ?)`;
 
@@ -261,26 +259,17 @@ export const budget = {
    * Hold funds. Succeeds only when the money is genuinely available *after* the safety
    * buffer, and exactly once per idempotency key.
    */
-  async reserve(
-    db: Db,
-    params: MovementParams,
-  ): Promise<BudgetOutcome> {
+  async reserve(db: Db, params: MovementParams): Promise<BudgetOutcome> {
     return movement(db, 'reserve', params);
   },
 
   /** Hand an unused reservation back. */
-  async release(
-    db: Db,
-    params: MovementParams,
-  ): Promise<BudgetOutcome> {
+  async release(db: Db, params: MovementParams): Promise<BudgetOutcome> {
     return movement(db, 'release', params);
   },
 
   /** Reservation becomes real spend. Money left the account. */
-  async settle(
-    db: Db,
-    params: MovementParams,
-  ): Promise<BudgetOutcome> {
+  async settle(db: Db, params: MovementParams): Promise<BudgetOutcome> {
     return movement(db, 'settle', params);
   },
 
@@ -288,10 +277,7 @@ export const budget = {
    * Reservation becomes a committed obligation: we are contractually on the hook but the
    * money has not left yet (an ad campaign accepted by the provider, for example).
    */
-  async commit(
-    db: Db,
-    params: MovementParams,
-  ): Promise<BudgetOutcome> {
+  async commit(db: Db, params: MovementParams): Promise<BudgetOutcome> {
     return movement(db, 'commit', params);
   },
 

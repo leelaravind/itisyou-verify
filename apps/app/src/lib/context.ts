@@ -70,7 +70,9 @@ export function createRequestContext(
 ): RequestContext {
   const inbound = request.headers.get('x-request-id');
   const requestId =
-    inbound !== null && SAFE_REQUEST_ID.test(inbound) ? inbound : newId(ID_PREFIX.lease, now.getTime());
+    inbound !== null && SAFE_REQUEST_ID.test(inbound)
+      ? inbound
+      : newId(ID_PREFIX.lease, now.getTime());
 
   let path = '/';
   try {

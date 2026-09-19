@@ -15,6 +15,43 @@ cannot quietly drift from the behaviour it describes.
 
 ---
 
+## 0. What is running today, and what is not
+
+**This section must be read before the rest, and deleted only when it is no longer true.**
+
+A privacy notice is a promise about behaviour. The usual way one becomes a lie is not a
+false sentence — it is a true sentence about a function nobody calls. So this document was
+re-audited on 2026-09-19 with a harder question than "is this implemented": **does a real
+request or a real scheduled tick reach it?** The service is not accepting live traffic and
+is not taking payment, and this is the honest account of what that means for the promises
+below.
+
+**Enforced by running code today.** Only one thing on this page is:
+
+| Promise                                                                    | What actually runs it                                                                                                                                                                                               |
+| -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The retention periods in §2, and the batched deletion described under them | The production cron (`* * * * *` in `wrangler.jsonc`) → `scheduled()` in `apps/app/src/index.ts` → `handleScheduled` → `runRetentionPass` → `runRetentionSweep`, against real D1. Staging deliberately has no cron. |
+
+**Implemented, tested, and reached by nothing yet.** Each of these is written, has passing
+tests, and has no route or tick that invokes it. None of it is a false description of the
+code; all of it is a promise a customer cannot currently exercise:
+
+| Promise                                                                                                               | What is missing                                                                                                                                                                                                                                      |
+| --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The data export in §5                                                                                                 | No route calls it. There is no `/app/export` page and no API endpoint.                                                                                                                                                                               |
+| Workspace deletion in §5 and §6                                                                                       | No route calls it. There is no `/app/delete` page. Deletion cannot be requested, scheduled or carried out today.                                                                                                                                     |
+| "Support and cancellation remain reachable even when the service is paused" (§5)                                      | The list of always-reachable paths exists in code and nothing consults it. There is no pause middleware.                                                                                                                                             |
+| A signed-out visitor being able to reach support (§5)                                                                 | The only support form is behind sign-in, at `/app/support`. The public support page publishes no address, because the owner has not supplied one — see `TODO_OWNER_INPUT` in §1. A signed-out person currently has no route to us at all.            |
+| Support bodies being stripped of credentials, tokens, card-shaped numbers and other addresses **before** storage (§2) | The redaction is written and tested, and the mounted support route does not call it. The `body_redacted` column currently receives what the customer typed. **This is the most serious item on this list and is being treated as release-blocking.** |
+| Support messages about deletion, billing disputes or security going straight to a person (§5)                         | The deterministic triage is written and tested; the mounted route hard-codes every case to category `other`, priority `normal`, state `open`. Nothing escalates.                                                                                     |
+
+Nothing in the table above is a reason to soften the promises themselves. They are the
+right promises; they are simply not yet ones this service can keep, which is precisely why
+it is not open. **This section comes out when each row has an entry point named in it, not
+when the code exists.**
+
+---
+
 ## 1. Who we are
 
 | Field                                 | Value                                                                     |

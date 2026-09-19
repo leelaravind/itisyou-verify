@@ -34,8 +34,7 @@ export async function page(
 ): Promise<Response> {
   const body = await render(node);
   const status = options.status ?? 200;
-  const cache =
-    options.cache === 'public' ? 'public, max-age=0, must-revalidate' : 'no-store';
+  const cache = options.cache === 'public' ? 'public, max-age=0, must-revalidate' : 'no-store';
   return c.html(body, status as 200, {
     'cache-control': cache,
     'referrer-policy': 'strict-origin-when-cross-origin',

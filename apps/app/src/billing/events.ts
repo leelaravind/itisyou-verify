@@ -55,7 +55,11 @@ export interface EventOutcome {
   readonly notifications?: readonly PaymentProblemNotification[];
 }
 
-const ignored = (effect: string, workspaceId: string | null = null, detail?: string): EventOutcome =>
+const ignored = (
+  effect: string,
+  workspaceId: string | null = null,
+  detail?: string,
+): EventOutcome =>
   detail === undefined
     ? { status: 'ignored', effect, workspaceId }
     : { status: 'ignored', effect, workspaceId, detail };
@@ -263,7 +267,11 @@ async function handleSubscriptionChanged(
   const decision = reconcileSubscription(stored, snapshot);
   switch (decision.action) {
     case 'ignore_stale':
-      return processed('subscription_event_stale', workspaceId, String(decision.storedEventCreated));
+      return processed(
+        'subscription_event_stale',
+        workspaceId,
+        String(decision.storedEventCreated),
+      );
     case 'ignore_duplicate':
       return processed('subscription_event_duplicate', workspaceId);
     case 'ignore_terminal':
@@ -393,7 +401,8 @@ async function handleInvoicePaymentFailed(
   // Only a renewal. A first invoice failing means `incomplete`, not `past_due`, and
   // inventing the wrong status would be worse than waiting for the subscription event.
   const billingReason = readString(invoice, 'billing_reason') ?? '';
-  const isRenewal = billingReason === 'subscription_cycle' || billingReason === 'subscription_update';
+  const isRenewal =
+    billingReason === 'subscription_cycle' || billingReason === 'subscription_update';
   let current = stored;
   if (stored !== null && isRenewal && SERVING_SUBSCRIPTION_STATUSES.has(stored.status)) {
     const decision = reconcileSubscription(stored, {
@@ -635,10 +644,7 @@ export function invoicePeriodEnd(invoice: Record<string, unknown>): string | nul
   return invoiceLinePeriod(invoice, 'end') ?? unixToIso(readNumber(invoice, 'period_end'));
 }
 
-function invoiceLinePeriod(
-  invoice: Record<string, unknown>,
-  edge: 'start' | 'end',
-): string | null {
+function invoiceLinePeriod(invoice: Record<string, unknown>, edge: 'start' | 'end'): string | null {
   const lines = invoice['lines'];
   if (lines !== null && typeof lines === 'object') {
     const data = (lines as Record<string, unknown>)['data'];

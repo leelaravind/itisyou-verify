@@ -81,7 +81,10 @@ export const workflows = {
     const bindings = cursor
       ? [workspaceId, cursor.createdAt, cursor.createdAt, cursor.id, limit + 1]
       : [workspaceId, limit + 1];
-    const result = await db.prepare(sql).bind(...bindings).all<WorkflowRow>();
+    const result = await db
+      .prepare(sql)
+      .bind(...bindings)
+      .all<WorkflowRow>();
     return buildPage(result.results, limit);
   },
 
@@ -126,7 +129,9 @@ export const workflows = {
     status: WorkflowStatus,
   ): Promise<boolean> {
     const result = await db
-      .prepare('UPDATE workflows SET status = ? WHERE workspace_id = ? AND id = ? AND archived_at IS NULL')
+      .prepare(
+        'UPDATE workflows SET status = ? WHERE workspace_id = ? AND id = ? AND archived_at IS NULL',
+      )
       .bind(status, workspaceId, workflowId)
       .run();
     return result.meta.changes === 1;
@@ -143,12 +148,7 @@ export const workflows = {
   },
 
   /** Drives the inactivity warning, which is distinct from a failure. */
-  async touchLastEvent(
-    db: Db,
-    workspaceId: string,
-    workflowId: string,
-    at: string,
-  ): Promise<void> {
+  async touchLastEvent(db: Db, workspaceId: string, workflowId: string, at: string): Promise<void> {
     await db
       .prepare(
         `UPDATE workflows SET last_event_at = ?

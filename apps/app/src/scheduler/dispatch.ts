@@ -78,7 +78,15 @@ export async function dispatchOutbox(deps: DispatchDeps): Promise<DispatchReport
     due = await outbox.listDue(deps.db, nowIso, deps.budget.maxOutbox);
   } catch (error) {
     logger.warn('scheduler.outbox.list_failed', { message: shortMessage(error) });
-    return { examined: 0, claimed: 0, dispatched: 0, retrying: 0, dead: 0, lostRace: 0, stoppedEarly: true };
+    return {
+      examined: 0,
+      claimed: 0,
+      dispatched: 0,
+      retrying: 0,
+      dead: 0,
+      lostRace: 0,
+      stoppedEarly: true,
+    };
   }
 
   for (const row of due) {
@@ -93,7 +101,11 @@ export async function dispatchOutbox(deps: DispatchDeps): Promise<DispatchReport
     const leaseUntil = addSecondsIso(deps.now, TICK_DEFAULTS.LEASE_SECONDS);
     let won = false;
     try {
-      won = await outbox.tryClaim(deps.db, { id: row.id, expectedAttempts: row.attempts, leaseUntil });
+      won = await outbox.tryClaim(deps.db, {
+        id: row.id,
+        expectedAttempts: row.attempts,
+        leaseUntil,
+      });
     } catch (error) {
       logger.warn('scheduler.outbox.claim_failed', { id: row.id, message: shortMessage(error) });
       continue;
@@ -119,7 +131,13 @@ export async function dispatchOutbox(deps: DispatchDeps): Promise<DispatchReport
     };
 
     if (handler === undefined) {
-      const state = await failRow(deps, row, `no handler for event type ${row.event_type}`, maxAttempts, logger);
+      const state = await failRow(
+        deps,
+        row,
+        `no handler for event type ${row.event_type}`,
+        maxAttempts,
+        logger,
+      );
       if (state === 'dead') dead += 1;
       else retrying += 1;
       continue;
@@ -147,7 +165,13 @@ export async function dispatchOutbox(deps: DispatchDeps): Promise<DispatchReport
       continue;
     }
 
-    const state = await failRow(deps, row, failure ?? 'handler declined the event', maxAttempts, logger);
+    const state = await failRow(
+      deps,
+      row,
+      failure ?? 'handler declined the event',
+      maxAttempts,
+      logger,
+    );
     if (state === 'dead') dead += 1;
     else retrying += 1;
   }
@@ -178,7 +202,10 @@ async function failRow(
     }
     return 'pending';
   } catch (failureError) {
-    logger.warn('scheduler.outbox.fail_write_failed', { id: row.id, message: shortMessage(failureError) });
+    logger.warn('scheduler.outbox.fail_write_failed', {
+      id: row.id,
+      message: shortMessage(failureError),
+    });
     return 'pending';
   }
 }

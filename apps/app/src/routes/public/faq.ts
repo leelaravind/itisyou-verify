@@ -10,7 +10,9 @@ import { FAQ_ENTRIES, html, type Html, type FaqEntry } from '@verify/ui';
 export function findFaq(id: string): FaqEntry {
   const entry = FAQ_ENTRIES.find((candidate) => candidate.id === id);
   if (entry === undefined) {
-    throw new Error(`FAQ entry not found: ${id}. It is A01's content; do not invent a replacement.`);
+    throw new Error(
+      `FAQ entry not found: ${id}. It is A01's content; do not invent a replacement.`,
+    );
   }
   return entry;
 }

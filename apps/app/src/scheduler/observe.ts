@@ -141,13 +141,18 @@ export interface ObserveDeps {
   readonly logger?: SchedulerLogger;
 }
 
-const TERMINAL_STATUSES: ReadonlySet<RunStatus> = new Set<RunStatus>(['VERIFIED', 'FAILED', 'UNVERIFIED']);
+const TERMINAL_STATUSES: ReadonlySet<RunStatus> = new Set<RunStatus>([
+  'VERIFIED',
+  'FAILED',
+  'UNVERIFIED',
+]);
 
 /** The reason a run resolved without ever being evaluable. Plain, and never accusatory. */
 const RULES_UNUSABLE_REASON =
   'We could not run this workflow’s checks, so this run is unverified rather than failed. The checks need editing before we can judge a run against them.';
 
-const DEFERRED_REASON = 'This run was not checked in this cycle and will be picked up in the next one.';
+const DEFERRED_REASON =
+  'This run was not checked in this cycle and will be picked up in the next one.';
 
 /**
  * Observe one claimed run.
@@ -164,7 +169,17 @@ export async function observeRun(run: DueRun, deps: ObserveDeps): Promise<Observ
   if (row === null) {
     // Deleted between the claim and now — a data-deletion request, most likely. Nothing to
     // do and nothing to repair.
-    return outcome(run, 'UNVERIFIED', 'This run no longer exists.', false, 'stale', 0, null, 0, false);
+    return outcome(
+      run,
+      'UNVERIFIED',
+      'This run no longer exists.',
+      false,
+      'stale',
+      0,
+      null,
+      0,
+      false,
+    );
   }
 
   // A run that is already terminal but still due is one whose finalisation did not finish:
@@ -215,7 +230,12 @@ export async function observeRun(run: DueRun, deps: ObserveDeps): Promise<Observ
   // -------------------------------------------------------------------------
   const rules = await loadRules(deps.db, run);
   if (rules === null) {
-    const result = await resolveWithoutEvaluation(run, row.observation_count, deps, RULES_UNUSABLE_REASON);
+    const result = await resolveWithoutEvaluation(
+      run,
+      row.observation_count,
+      deps,
+      RULES_UNUSABLE_REASON,
+    );
     await runAttempts.finish(deps.db, {
       workspaceId: run.workspace_id,
       attemptId,
@@ -268,7 +288,12 @@ export async function observeRun(run: DueRun, deps: ObserveDeps): Promise<Observ
       connectedEmailAccountId: gathered.accounts.resend,
     });
   } catch {
-    const resolved = await resolveWithoutEvaluation(run, row.observation_count, deps, RULES_UNUSABLE_REASON);
+    const resolved = await resolveWithoutEvaluation(
+      run,
+      row.observation_count,
+      deps,
+      RULES_UNUSABLE_REASON,
+    );
     await runAttempts.finish(deps.db, {
       workspaceId: run.workspace_id,
       attemptId,
@@ -304,7 +329,12 @@ export async function observeRun(run: DueRun, deps: ObserveDeps): Promise<Observ
       observationsRemaining,
     });
   } catch {
-    const resolved = await resolveWithoutEvaluation(run, row.observation_count, deps, RULES_UNUSABLE_REASON);
+    const resolved = await resolveWithoutEvaluation(
+      run,
+      row.observation_count,
+      deps,
+      RULES_UNUSABLE_REASON,
+    );
     await runAttempts.finish(deps.db, {
       workspaceId: run.workspace_id,
       attemptId,
@@ -335,7 +365,8 @@ export async function observeRun(run: DueRun, deps: ObserveDeps): Promise<Observ
       expectedDisplay: result.expected_display,
       observedDisplay: result.observed_display,
       observedAt: result.observed_at,
-      evidenceId: result.evidence_ref === null ? null : (evidenceIds.get(result.evidence_ref) ?? null),
+      evidenceId:
+        result.evidence_ref === null ? null : (evidenceIds.get(result.evidence_ref) ?? null),
     })),
   });
 
@@ -441,7 +472,17 @@ export async function observeRun(run: DueRun, deps: ObserveDeps): Promise<Observ
 
 /** A run the tick had no budget left to observe. Its lease expires and the next tick takes it. */
 export function deferredOutcome(run: DueRun): ObservationOutcome {
-  return outcome(run, 'PENDING', DEFERRED_REASON, false, 'deferred', 0, run.next_check_at, 0, false);
+  return outcome(
+    run,
+    'PENDING',
+    DEFERRED_REASON,
+    false,
+    'deferred',
+    0,
+    run.next_check_at,
+    0,
+    false,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -480,7 +521,10 @@ interface FinaliseInput {
  * inaccuracy rather than a billing one. The clean fix is a settled marker on the run; that
  * needs a migration, which is the lead's to write.
  */
-async function finaliseTerminalRun(input: FinaliseInput, logger: SchedulerLogger): Promise<boolean> {
+async function finaliseTerminalRun(
+  input: FinaliseInput,
+  logger: SchedulerLogger,
+): Promise<boolean> {
   const nowIso = toIso(input.now);
 
   await outbox.enqueue(input.db, {
@@ -646,7 +690,10 @@ async function gatherEvidence(input: GatherInput): Promise<GatherOutput> {
   const { run, rules, deps } = input;
   const sources = new Set(rules.assertions.map((a) => a.source));
   const results: ConnectorFetchResult[] = [];
-  const accounts: { hubspot: string | null; resend: string | null } = { hubspot: null, resend: null };
+  const accounts: { hubspot: string | null; resend: string | null } = {
+    hubspot: null,
+    resend: null,
+  };
 
   for (const source of sources) {
     const provider = PROVIDER_FOR_SOURCE[source];
@@ -672,7 +719,9 @@ async function gatherEvidence(input: GatherInput): Promise<GatherOutput> {
         provider,
         provider_account_id: resolution.connection.connection.account_id,
         evidence: [],
-        gaps: [makeGap(source, 'PROVIDER_UNAVAILABLE', 'this cycle ran out of budget before checking')],
+        gaps: [
+          makeGap(source, 'PROVIDER_UNAVAILABLE', 'this cycle ran out of budget before checking'),
+        ],
         calls_made: 0,
       });
       continue;
@@ -777,7 +826,9 @@ function readLocator(payloadJson: string | null): EvidenceLocator {
     return {
       correlation_value: parsed.correlation_id,
       recipient: parsed.expected.email_recipient,
-      ...(parsed.expected.crm_record_id === undefined ? {} : { record_id: parsed.expected.crm_record_id }),
+      ...(parsed.expected.crm_record_id === undefined
+        ? {}
+        : { record_id: parsed.expected.crm_record_id }),
       ...(parsed.expected.email_message_id === undefined
         ? {}
         : { message_id: parsed.expected.email_message_id }),
@@ -834,7 +885,9 @@ async function recordEvidence(
  * Never the provider payload. The stored summary has to be enough for a customer to
  * recognise the record and not enough for a leak of this table to be interesting.
  */
-export function summariseEvidence(item: EvidenceBundle['email_events'][number] | NonNullable<EvidenceBundle['crm']>): string {
+export function summariseEvidence(
+  item: EvidenceBundle['email_events'][number] | NonNullable<EvidenceBundle['crm']>,
+): string {
   if (item.kind === 'crm_record') {
     const email = item.email === null ? 'none' : maskEmail(item.email);
     const correlation = item.correlation_value === null ? 'absent' : 'present';

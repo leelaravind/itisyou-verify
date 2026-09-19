@@ -53,9 +53,11 @@ export function AdsPage(options: {
 
     <div class="stack">
       ${options.campaigns.map((campaign) => CampaignCard({ campaign, csrfToken: options.csrfToken, now: options.now }))}
-      ${options.campaigns.length === 0
-        ? html`<p class="muted">No campaigns have been drafted.</p>`
-        : null}
+      ${
+        options.campaigns.length === 0
+          ? html`<p class="muted">No campaigns have been drafted.</p>`
+          : null
+      }
     </div>
   </div>`;
 }
@@ -108,23 +110,27 @@ export function CampaignCard(options: {
         [
           'Last synchronised',
           html`${Instant(c.lastSyncAt)}
-          ${sync.stale
-            ? html` <span class="badge badge--unverified" data-stale="true">out of date</span>`
-            : null}`,
+          ${
+            sync.stale
+              ? html` <span class="badge badge--unverified" data-stale="true">out of date</span>`
+              : null
+          }`,
         ],
       ])}
 
-      ${c.lastSyncError === null
-        ? null
-        : Callout({
-            tone: 'warn',
-            title: 'The last synchronisation failed',
-            body: html`<p class="mono micro">${c.lastSyncError}</p>
+      ${
+        c.lastSyncError === null
+          ? null
+          : Callout({
+              tone: 'warn',
+              title: 'The last synchronisation failed',
+              body: html`<p class="mono micro">${c.lastSyncError}</p>
               <p class="small">
                 Until this succeeds, the spend and status above are the last ones we managed to read, not the
                 current ones.
               </p>`,
-          })}
+            })
+      }
 
       <div class="btn-row">
         ${ActionForm({
@@ -179,8 +185,7 @@ export function ApprovalsPage(options: {
     ${PageHead({
       eyebrow: 'Approvals',
       title: 'What you have approved',
-      lede:
-        'Each approval records exactly what action, at exactly what amount, by whom and when — and stops applying if any of it changes.',
+      lede: 'Each approval records exactly what action, at exactly what amount, by whom and when — and stops applying if any of it changes.',
     })}
 
     ${Callout({
@@ -193,9 +198,15 @@ export function ApprovalsPage(options: {
       </p>`,
     })}
 
-    ${options.formError === null
-      ? null
-      : Callout({ tone: 'warn', title: 'That approval was not granted', body: html`<p>${options.formError}</p>` })}
+    ${
+      options.formError === null
+        ? null
+        : Callout({
+            tone: 'warn',
+            title: 'That approval was not granted',
+            body: html`<p>${options.formError}</p>`,
+          })
+    }
 
     ${Card({
       title: 'Standing approvals',
@@ -209,7 +220,11 @@ export function ApprovalsPage(options: {
             rowHeader: true,
             cell: (a) => html`${a.summary}<br /><span class="micro mono">${a.id}</span>`,
           },
-          { key: 'action', header: 'Action', cell: (a) => html`<span class="mono micro">${a.action_type}</span>` },
+          {
+            key: 'action',
+            header: 'Action',
+            cell: (a) => html`<span class="mono micro">${a.action_type}</span>`,
+          },
           {
             key: 'max',
             header: 'Up to',
@@ -221,7 +236,11 @@ export function ApprovalsPage(options: {
                     >${formatMoney(money(a.maximum_amount_minor, a.currency ?? 'GBP'))}</span
                   >`,
           },
-          { key: 'by', header: 'Approved by', cell: (a) => html`<span class="mono micro">${a.owner_id}</span>` },
+          {
+            key: 'by',
+            header: 'Approved by',
+            cell: (a) => html`<span class="mono micro">${a.owner_id}</span>`,
+          },
           { key: 'when', header: 'Approved', cell: (a) => Instant(a.created_at) },
           { key: 'until', header: 'Lapses', cell: (a) => Instant(a.expires_at) },
           {

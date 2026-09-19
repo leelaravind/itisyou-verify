@@ -95,12 +95,7 @@ export const entitlements = {
    * owner-initiated run). Merging them would make one of the two lose its atomicity with
    * the thing it is paired to.
    */
-  async reserve(
-    db: Db,
-    workspaceId: string,
-    billingPeriod: string,
-    at: string,
-  ): Promise<boolean> {
+  async reserve(db: Db, workspaceId: string, billingPeriod: string, at: string): Promise<boolean> {
     const result = await db
       .prepare(
         `UPDATE entitlements SET reserved = reserved + 1, updated_at = ?

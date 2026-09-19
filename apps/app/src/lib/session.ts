@@ -46,7 +46,10 @@ export function sessionIdFor(cookieValue: string): Promise<string> {
 
 export function sessionCookie(
   value: string,
-  { secure = true, maxAgeSeconds = SESSION_TTL_SECONDS }: { secure?: boolean; maxAgeSeconds?: number } = {},
+  {
+    secure = true,
+    maxAgeSeconds = SESSION_TTL_SECONDS,
+  }: { secure?: boolean; maxAgeSeconds?: number } = {},
 ): string {
   const parts = [
     `${sessionCookieName(secure)}=${value}`,

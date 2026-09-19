@@ -41,7 +41,9 @@ export interface D1CredentialResolverOptions {
  * produce an `UNVERIFIED` run, not a tick that dies and takes nine other workspaces' runs
  * down with it.
  */
-export function createD1CredentialResolver(options: D1CredentialResolverOptions): CredentialResolver {
+export function createD1CredentialResolver(
+  options: D1CredentialResolverOptions,
+): CredentialResolver {
   const { db, credentialKeyBase64 } = options;
 
   return {

@@ -115,7 +115,9 @@ export async function packetHash(packet: CampaignPacket): Promise<string> {
   if (!Number.isSafeInteger(packet.budget_minor)) {
     throw new TypeError('budget_minor must be an integer number of minor units');
   }
-  return sha256Hex(`verify.approval.v1.campaign_launch:${stableStringify(canonicalApprovalPayload(packet))}`);
+  return sha256Hex(
+    `verify.approval.v1.campaign_launch:${stableStringify(canonicalApprovalPayload(packet))}`,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -147,9 +149,14 @@ export interface BindApprovalInput {
   readonly expires_at: string;
 }
 
-export async function bindApproval(packet: CampaignPacket, input: BindApprovalInput): Promise<CampaignApproval> {
+export async function bindApproval(
+  packet: CampaignPacket,
+  input: BindApprovalInput,
+): Promise<CampaignApproval> {
   if (!Number.isSafeInteger(input.maximum_amount_minor) || input.maximum_amount_minor < 0) {
-    throw new TypeError('maximum_amount_minor must be a non-negative integer number of minor units');
+    throw new TypeError(
+      'maximum_amount_minor must be a non-negative integer number of minor units',
+    );
   }
   if (input.maximum_amount_minor < packet.budget_minor) {
     throw new TypeError(
@@ -193,14 +200,26 @@ export async function isApprovalValidFor(
   now: Date = new Date(),
 ): Promise<ApprovalCheck> {
   if (approval.action_type !== 'campaign_launch') {
-    return { valid: false, reason: 'action_type_mismatch', detail: `action_type is ${approval.action_type}` };
+    return {
+      valid: false,
+      reason: 'action_type_mismatch',
+      detail: `action_type is ${approval.action_type}`,
+    };
   }
   if (approval.status !== 'granted') {
-    return { valid: false, reason: 'status_not_granted', detail: `approval status is ${approval.status}` };
+    return {
+      valid: false,
+      reason: 'status_not_granted',
+      detail: `approval status is ${approval.status}`,
+    };
   }
   const expiry = Date.parse(approval.expires_at);
   if (Number.isNaN(expiry) || now.getTime() > expiry) {
-    return { valid: false, reason: 'expired', detail: `approval expired at ${approval.expires_at}` };
+    return {
+      valid: false,
+      reason: 'expired',
+      detail: `approval expired at ${approval.expires_at}`,
+    };
   }
   if (approval.platform !== packet.platform) {
     return {
@@ -264,11 +283,16 @@ export function classifyChange(approved: CampaignPacket, proposed: CampaignPacke
   if (approved.platform !== proposed.platform) changed.push('platform');
   if (approved.currency !== proposed.currency) changed.push('currency');
   if (approved.budget_minor !== proposed.budget_minor) changed.push('budget_minor');
-  if (stableStringify(approved.audience) !== stableStringify(proposed.audience)) changed.push('audience');
-  if (stableStringify(approved.creative) !== stableStringify(proposed.creative)) changed.push('creative');
-  if (stableStringify(approved.destination) !== stableStringify(proposed.destination)) changed.push('destination');
-  if (stableStringify(approved.duration) !== stableStringify(proposed.duration)) changed.push('duration');
-  if (stableStringify(approved.bidding) !== stableStringify(proposed.bidding)) changed.push('bidding');
+  if (stableStringify(approved.audience) !== stableStringify(proposed.audience))
+    changed.push('audience');
+  if (stableStringify(approved.creative) !== stableStringify(proposed.creative))
+    changed.push('creative');
+  if (stableStringify(approved.destination) !== stableStringify(proposed.destination))
+    changed.push('destination');
+  if (stableStringify(approved.duration) !== stableStringify(proposed.duration))
+    changed.push('duration');
+  if (stableStringify(approved.bidding) !== stableStringify(proposed.bidding))
+    changed.push('bidding');
 
   if (changed.length === 0) {
     return {
@@ -285,7 +309,8 @@ export function classifyChange(approved: CampaignPacket, proposed: CampaignPacke
       classification: 'alters_claim',
       allowed_under_existing_approval: false,
       changed_fields: changed,
-      detail: 'the ad text or the destination changed; the owner approved specific words and a specific URL',
+      detail:
+        'the ad text or the destination changed; the owner approved specific words and a specific URL',
     };
   }
 
@@ -317,7 +342,8 @@ export function classifyChange(approved: CampaignPacket, proposed: CampaignPacke
     classification: 'reduces_exposure',
     allowed_under_existing_approval: true,
     changed_fields: changed,
-    detail: 'every change shrinks exposure (lower bid, lower budget, narrower audience or shorter run)',
+    detail:
+      'every change shrinks exposure (lower bid, lower budget, narrower audience or shorter run)',
   };
 }
 
@@ -494,7 +520,10 @@ export function validateCampaignPacket(
     const start = Date.parse(packet.duration.starts_at);
     const end = Date.parse(packet.duration.ends_at);
     if (Number.isNaN(start) || Number.isNaN(end)) {
-      defects.push({ code: 'unparseable_schedule', detail: 'starts_at and ends_at must both be ISO-8601 instants' });
+      defects.push({
+        code: 'unparseable_schedule',
+        detail: 'starts_at and ends_at must both be ISO-8601 instants',
+      });
     } else if (end <= start) {
       defects.push({ code: 'end_not_after_start', detail: 'ends_at must be after starts_at' });
     }
@@ -508,7 +537,8 @@ export function validateCampaignPacket(
     });
   }
 
-  const allCopy = `${packet.creative.headline} ${packet.creative.body} ${packet.creative.call_to_action}`.toLowerCase();
+  const allCopy =
+    `${packet.creative.headline} ${packet.creative.body} ${packet.creative.call_to_action}`.toLowerCase();
   for (const name of UNSUPPORTED_CONNECTOR_NAMES) {
     if (allCopy.includes(name)) {
       defects.push({
@@ -525,7 +555,8 @@ export function validateCampaignPacket(
   if (!packet.destination.url.includes('utm_campaign=')) {
     defects.push({
       code: 'destination_missing_utm',
-      detail: 'the destination URL carries no utm_campaign, so nothing arriving from it can be attributed',
+      detail:
+        'the destination URL carries no utm_campaign, so nothing arriving from it can be attributed',
     });
   }
 

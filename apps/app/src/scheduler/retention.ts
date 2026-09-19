@@ -56,7 +56,10 @@ export async function runRetentionPass(deps: RetentionPassDeps): Promise<Retenti
       maxBatches: deps.maxBatches ?? TICK_DEFAULTS.RETENTION_MAX_BATCHES,
     });
     if (result.removed > 0) {
-      logger.info('scheduler.retention.swept', { removed: result.removed, complete: result.complete });
+      logger.info('scheduler.retention.swept', {
+        removed: result.removed,
+        complete: result.complete,
+      });
     }
     return { ran: true, removed: result.removed, complete: result.complete, error: null };
   } catch (error) {

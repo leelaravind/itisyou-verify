@@ -172,10 +172,7 @@ export interface BillingRuntimeParts {
 }
 
 /** Assemble the runtime the orchestration functions take. */
-export function createBillingRuntime(
-  env: BillingEnv,
-  parts: BillingRuntimeParts,
-): BillingRuntime {
+export function createBillingRuntime(env: BillingEnv, parts: BillingRuntimeParts): BillingRuntime {
   return {
     config: billingConfigFromEnv(env),
     data: parts.data,

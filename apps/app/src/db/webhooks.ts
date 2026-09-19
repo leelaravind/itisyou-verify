@@ -9,11 +9,7 @@
 import { type Db, orNull } from './d1';
 
 export type WebhookProcessingStatus =
-  | 'received'
-  | 'processed'
-  | 'ignored'
-  | 'invalid'
-  | 'duplicate';
+  'received' | 'processed' | 'ignored' | 'invalid' | 'duplicate';
 
 export interface WebhookReceiptRow {
   readonly id: string;
@@ -136,13 +132,11 @@ export const webhookReceipts = {
     return result.meta.changes === 1;
   },
 
-  async getByEventId(
-    db: Db,
-    provider: string,
-    eventId: string,
-  ): Promise<WebhookReceiptRow | null> {
+  async getByEventId(db: Db, provider: string, eventId: string): Promise<WebhookReceiptRow | null> {
     return db
-      .prepare(`SELECT ${RECEIPT_COLUMNS} FROM webhook_receipts WHERE provider = ? AND event_id = ?`)
+      .prepare(
+        `SELECT ${RECEIPT_COLUMNS} FROM webhook_receipts WHERE provider = ? AND event_id = ?`,
+      )
       .bind(provider, eventId)
       .first<WebhookReceiptRow>();
   },
@@ -156,19 +150,13 @@ export const webhookReceipts = {
    */
   async attachWorkspace(db: Db, receiptId: string, workspaceId: string): Promise<boolean> {
     const result = await db
-      .prepare(
-        'UPDATE webhook_receipts SET workspace_id = ? WHERE id = ? AND workspace_id IS NULL',
-      )
+      .prepare('UPDATE webhook_receipts SET workspace_id = ? WHERE id = ? AND workspace_id IS NULL')
       .bind(workspaceId, receiptId)
       .run();
     return result.meta.changes === 1;
   },
 
-  async setStatus(
-    db: Db,
-    receiptId: string,
-    status: WebhookProcessingStatus,
-  ): Promise<boolean> {
+  async setStatus(db: Db, receiptId: string, status: WebhookProcessingStatus): Promise<boolean> {
     const result = await db
       .prepare('UPDATE webhook_receipts SET processing_status = ? WHERE id = ?')
       .bind(status, receiptId)
@@ -177,11 +165,7 @@ export const webhookReceipts = {
   },
 
   /** Workspace-scoped listing for the customer-visible connection health page. */
-  async listForWorkspace(
-    db: Db,
-    workspaceId: string,
-    limit = 25,
-  ): Promise<WebhookReceiptRow[]> {
+  async listForWorkspace(db: Db, workspaceId: string, limit = 25): Promise<WebhookReceiptRow[]> {
     const result = await db
       .prepare(
         `SELECT ${RECEIPT_COLUMNS} FROM webhook_receipts

@@ -107,7 +107,10 @@ export async function bootstrapOwner(
   deps: BootstrapDeps,
 ): Promise<BootstrapResult> {
   const occurredAt = deps.now.toISOString();
-  const actor = input.verifiedAuthSubject === null ? 'anonymous' : normaliseAuthSubject(input.verifiedAuthSubject);
+  const actor =
+    input.verifiedAuthSubject === null
+      ? 'anonymous'
+      : normaliseAuthSubject(input.verifiedAuthSubject);
 
   async function refuse(r: BootstrapRefusal): Promise<BootstrapResult> {
     await deps.recordAudit({ action: OWNER_BOOTSTRAP_AUDIT_ACTION, actor, outcome: r, occurredAt });
@@ -122,7 +125,8 @@ export async function bootstrapOwner(
     return refuse('unverified_subject');
   }
   const subject = normaliseAuthSubject(input.verifiedAuthSubject);
-  const expected = deps.configuredEmail === null ? null : normaliseAuthSubject(deps.configuredEmail);
+  const expected =
+    deps.configuredEmail === null ? null : normaliseAuthSubject(deps.configuredEmail);
   if (expected === null || expected !== subject) return refuse('subject_mismatch');
 
   if (await deps.platformOwnerExists()) return refuse('already_bootstrapped');

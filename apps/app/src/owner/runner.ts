@@ -48,7 +48,11 @@ export interface RunnerStatus {
 
 export type RunnerEnqueueResult =
   | { readonly ok: true; readonly job: RunnerJobView; readonly deduplicated: boolean }
-  | { readonly ok: false; readonly reason: 'kind_not_allowed' | 'no_runner'; readonly detail: string };
+  | {
+      readonly ok: false;
+      readonly reason: 'kind_not_allowed' | 'no_runner';
+      readonly detail: string;
+    };
 
 /**
  * The port. Three reads and one write — everything `/owner/operations` does and nothing
@@ -104,7 +108,8 @@ export class OfflineRunner implements MaintenanceRunnerPort {
       heartbeatAgeSeconds: null,
       currentJob: null,
       lastSuccessAt: null,
-      queuedJobs: this.#jobs.filter((j) => j.state === 'awaiting_runner' || j.state === 'queued').length,
+      queuedJobs: this.#jobs.filter((j) => j.state === 'awaiting_runner' || j.state === 'queued')
+        .length,
       unavailableReason: this.#reason,
     };
   }

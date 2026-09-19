@@ -77,7 +77,9 @@ export function renderMarkdownSubset(source: string): string {
   for (const line of lines) {
     if (line.startsWith('```')) {
       if (inCode) {
-        out.push(`<pre class="tablewrap pad-block"><code>${escapeText(code.join('\n'))}</code></pre>`);
+        out.push(
+          `<pre class="tablewrap pad-block"><code>${escapeText(code.join('\n'))}</code></pre>`,
+        );
         code = [];
         inCode = false;
       } else {
@@ -171,7 +173,9 @@ export async function loadDevelopmentStory(
 ): Promise<string | null> {
   if (assets === undefined) return null;
   try {
-    const response = await assets.fetch(new Request(new URL('/development-story.md', baseUrl).toString()));
+    const response = await assets.fetch(
+      new Request(new URL('/development-story.md', baseUrl).toString()),
+    );
     if (response.status !== 200) return null;
     const text = await response.text();
     return text.trim().length === 0 ? null : text;

@@ -246,11 +246,7 @@ export class D1BillingDataPort implements BillingDataPort {
     providerSubscriptionId: string,
     environment: BillingEnvironment,
   ): Promise<SubscriptionRecord | null> {
-    const row = await subscriptions.getByProviderId(
-      this.db,
-      providerSubscriptionId,
-      environment,
-    );
+    const row = await subscriptions.getByProviderId(this.db, providerSubscriptionId, environment);
     return row === null ? null : toSubscription(row);
   }
 
@@ -297,10 +293,7 @@ export class D1BillingDataPort implements BillingDataPort {
     void method;
   }
 
-  async findAllowance(
-    workspaceId: string,
-    billingPeriod: string,
-  ): Promise<AllowanceRecord | null> {
+  async findAllowance(workspaceId: string, billingPeriod: string): Promise<AllowanceRecord | null> {
     this.#assertPeriodKey(billingPeriod, 'findAllowance');
     const row = await entitlements.get(this.db, workspaceId, billingPeriod);
     return row === null ? null : toAllowance(row);

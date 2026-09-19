@@ -52,13 +52,15 @@ export function AdminLoginPage(options: LoginPageOptions): Html {
       </p>
     </div>
 
-    ${options.submitted
-      ? Callout({
-          tone: 'note',
-          title: 'Check your email',
-          body: html`<p>${LOGIN_ACKNOWLEDGEMENT}</p>`,
-        })
-      : null}
+    ${
+      options.submitted
+        ? Callout({
+            tone: 'note',
+            title: 'Check your email',
+            body: html`<p>${LOGIN_ACKNOWLEDGEMENT}</p>`,
+          })
+        : null
+    }
 
     ${Card({
       title: 'Email a sign-in link',
@@ -134,24 +136,31 @@ export function BootstrapPage(options: BootstrapPageOptions): Html {
       </p>
     </div>
 
-    ${options.refusal === null
-      ? null
-      : Callout({ tone: 'warn', title: 'That did not work', body: html`<p>${options.refusal}</p>` })}
+    ${
+      options.refusal === null
+        ? null
+        : Callout({
+            tone: 'warn',
+            title: 'That did not work',
+            body: html`<p>${options.refusal}</p>`,
+          })
+    }
 
-    ${options.verifiedSubject === null
-      ? Callout({
-          tone: 'warn',
-          title: 'Sign in first',
-          body: html`<p>
+    ${
+      options.verifiedSubject === null
+        ? Callout({
+            tone: 'warn',
+            title: 'Sign in first',
+            body: html`<p>
             You have not proved an email address in this session yet.
             <a href="/admin/login">Ask for a sign-in link</a>, open it, then come back. The bootstrap token
             proves which deployment this is; it does not prove who you are, and both are needed.
           </p>`,
-        })
-      : Card({
-          title: 'Bootstrap token',
-          headingLevel: 2,
-          body: html`<form method="post" action="/admin/bootstrap" class="stack">
+          })
+        : Card({
+            title: 'Bootstrap token',
+            headingLevel: 2,
+            body: html`<form method="post" action="/admin/bootstrap" class="stack">
             ${CsrfField(options.csrfToken)}
             <p class="small">
               Signed in as <span class="mono">${options.verifiedSubject}</span>. The token must match this
@@ -169,7 +178,8 @@ export function BootstrapPage(options: BootstrapPageOptions): Html {
             })}
             ${Button({ label: 'Claim the owner account', variant: 'primary', type: 'submit' })}
           </form>`,
-        })}
+          })
+    }
 
     ${Card({
       title: 'What happens next',
@@ -187,5 +197,9 @@ export function BootstrapPage(options: BootstrapPageOptions): Html {
 }
 
 export function bootstrapDocument(options: BootstrapPageOptions): Html {
-  return OwnerLayout({ title: 'Claim the owner account', path: '/admin/bootstrap', body: BootstrapPage(options) });
+  return OwnerLayout({
+    title: 'Claim the owner account',
+    path: '/admin/bootstrap',
+    body: BootstrapPage(options),
+  });
 }

@@ -121,15 +121,16 @@ const MAX_BOUNDARY_STEPS = 1_200; // a century either way
 export function allowancePeriodKeyAt(atIso: string, currentPeriodEndIso: string): string {
   const at = Date.parse(atIso);
   if (Number.isNaN(at)) {
-    throw new TypeError(`allowancePeriodKeyAt needs an ISO-8601 instant, received: ${String(atIso)}`);
+    throw new TypeError(
+      `allowancePeriodKeyAt needs an ISO-8601 instant, received: ${String(atIso)}`,
+    );
   }
   const anchor = anchorOf(currentPeriodEndIso);
 
   // Start from a close estimate, then correct. Both loops are bounded; an unbounded walk
   // over a corrupt date is a hang, and a hang on the settle path is an outage.
   const atDate = new Date(at);
-  let k =
-    (atDate.getUTCFullYear() - anchor.year) * 12 + (atDate.getUTCMonth() - anchor.month) - 1;
+  let k = (atDate.getUTCFullYear() - anchor.year) * 12 + (atDate.getUTCMonth() - anchor.month) - 1;
 
   let steps = 0;
   while (boundaryAt(anchor, k) <= at) {

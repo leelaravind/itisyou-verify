@@ -70,7 +70,10 @@ export class TickBudget {
 
   constructor(options: TickBudgetOptions = {}) {
     this.wallClockMs = Math.max(1, options.wallClockMs ?? TICK_DEFAULTS.WALL_CLOCK_MS);
-    this.maxExternalCalls = Math.max(0, options.maxExternalCalls ?? TICK_DEFAULTS.MAX_EXTERNAL_CALLS);
+    this.maxExternalCalls = Math.max(
+      0,
+      options.maxExternalCalls ?? TICK_DEFAULTS.MAX_EXTERNAL_CALLS,
+    );
     this.maxRuns = Math.max(0, options.maxRuns ?? TICK_DEFAULTS.MAX_RUNS_PER_TICK);
     this.maxOutbox = Math.max(0, options.maxOutbox ?? TICK_DEFAULTS.MAX_OUTBOX_PER_TICK);
     const started = Date.now();

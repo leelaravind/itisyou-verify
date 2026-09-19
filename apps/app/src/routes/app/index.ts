@@ -37,7 +37,11 @@ import {
 } from './onboardingPages.js';
 import { RunDetailPage, RunListPage, RunNotFoundPage } from './runPages.js';
 import { CancelPage, ConnectionsPage, SupportFormPage, UsagePage } from './accountPages.js';
-import { DEADLINE_CHOICES, SyntheticCustomerDataPort, maskedAccountLabel } from './syntheticPort.js';
+import {
+  DEADLINE_CHOICES,
+  SyntheticCustomerDataPort,
+  maskedAccountLabel,
+} from './syntheticPort.js';
 import type { CoverageMode } from '@verify/contracts';
 import type { CustomerDataPort, ProofRunView, SupportResult, WriteResult } from './port.js';
 import { html, type Html } from '@verify/ui';
@@ -69,13 +73,16 @@ export function createAppRoutes(resolve: PortResolver = syntheticResolver): Hono
   const routes = new Hono<RouteBindings>();
 
   /** Wrap a page body in the authenticated layout, with the synthetic notice if applicable. */
-  function shell(port: CustomerDataPort, options: {
-    readonly title: string;
-    readonly path: string;
-    readonly accountLabel?: string;
-    readonly csrfToken?: string;
-    readonly body: Html;
-  }): Html {
+  function shell(
+    port: CustomerDataPort,
+    options: {
+      readonly title: string;
+      readonly path: string;
+      readonly accountLabel?: string;
+      readonly csrfToken?: string;
+      readonly body: Html;
+    },
+  ): Html {
     const notice = syntheticNotice(port.synthetic);
     const stripe = syntheticStripe(port.synthetic);
     return AppLayout({
@@ -84,9 +91,10 @@ export function createAppRoutes(resolve: PortResolver = syntheticResolver): Hono
       ...(options.accountLabel === undefined ? {} : { accountLabel: options.accountLabel }),
       ...(options.csrfToken === undefined ? {} : { csrfToken: options.csrfToken }),
       ...(stripe === null ? {} : { beforeMain: stripe }),
-      body: notice === null
-        ? options.body
-        : html`<div class="wrap pad-top">${notice}</div>
+      body:
+        notice === null
+          ? options.body
+          : html`<div class="wrap pad-top">${notice}</div>
             ${options.body}`,
     });
   }
@@ -97,7 +105,10 @@ export function createAppRoutes(resolve: PortResolver = syntheticResolver): Hono
    */
   async function withSession(
     c: Context<RouteBindings>,
-    render: (port: CustomerDataPort, session: NonNullable<Awaited<ReturnType<CustomerDataPort['session']>>>) => Promise<Response>,
+    render: (
+      port: CustomerDataPort,
+      session: NonNullable<Awaited<ReturnType<CustomerDataPort['session']>>>,
+    ) => Promise<Response>,
   ): Promise<Response> {
     const port = await resolve(c);
     const session = await port.session();
@@ -142,7 +153,12 @@ export function createAppRoutes(resolve: PortResolver = syntheticResolver): Hono
       shell(port, {
         title: 'Sign in',
         path: '/app/sign-in',
-        body: SignInPage({ csrfToken: body['csrf_token'] ?? null, submitted: result, email, linkSent: false }),
+        body: SignInPage({
+          csrfToken: body['csrf_token'] ?? null,
+          submitted: result,
+          email,
+          linkSent: false,
+        }),
       }),
       { status: 422 },
     );

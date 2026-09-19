@@ -184,7 +184,12 @@ export async function reconcileAllowancePeriods(
 
   const folds: LegacyFold[] = [];
   const repairs: CounterRepair[] = [];
-  const overLimit: AllowanceReconciliationReport['overLimit'] = [];
+  const overLimit: {
+    workspaceId: string;
+    billingPeriod: string;
+    used: number;
+    runLimit: number;
+  }[] = [];
   const failures: { workspaceId: string; error: string }[] = [];
   let rowsExamined = 0;
 
@@ -529,9 +534,7 @@ async function listWorkspaces(
   // tenant-scope:exempt platform-wide repair pass; every read below is re-scoped by the
   // workspace_id this query returns, and nothing is returned to a customer request.
   const result = await db
-    .prepare(
-      `SELECT DISTINCT workspace_id FROM entitlements ORDER BY workspace_id LIMIT ?`,
-    )
+    .prepare(`SELECT DISTINCT workspace_id FROM entitlements ORDER BY workspace_id LIMIT ?`)
     .bind(limit)
     .all<{ workspace_id: string }>();
   return result.results.map((row) => row.workspace_id);
@@ -553,7 +556,10 @@ async function currentPeriodEnd(
   return row?.current_period_end ?? null;
 }
 
-async function entitlementRows(db: Db, workspaceId: string): Promise<readonly EntitlementRowLite[]> {
+async function entitlementRows(
+  db: Db,
+  workspaceId: string,
+): Promise<readonly EntitlementRowLite[]> {
   const result = await db
     .prepare(
       `SELECT workspace_id, billing_period, run_limit, consumed, reserved, updated_at

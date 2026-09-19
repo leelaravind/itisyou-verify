@@ -88,10 +88,7 @@ export type AllowanceOutcome<T> =
   | { readonly ok: true; readonly next: T }
   | { readonly ok: false; readonly reason: AllowanceFailure };
 
-export type AllowanceFailure =
-  | 'at_allowance'
-  | 'no_reservation_held'
-  | 'invalid_snapshot';
+export type AllowanceFailure = 'at_allowance' | 'no_reservation_held' | 'invalid_snapshot';
 
 /** Take one unit. Fails rather than going negative; the caller shows "at allowance". */
 export function reserve(snapshot: AllowanceSnapshot): AllowanceOutcome<AllowanceSnapshot> {
@@ -148,7 +145,10 @@ export function allowanceView(snapshot: AllowanceSnapshot): AllowanceView {
   const percentUsed =
     snapshot.runLimit === 0
       ? 100
-      : Math.min(100, Math.round(((snapshot.consumed + snapshot.reserved) / snapshot.runLimit) * 100));
+      : Math.min(
+          100,
+          Math.round(((snapshot.consumed + snapshot.reserved) / snapshot.runLimit) * 100),
+        );
   return {
     runLimit: snapshot.runLimit,
     used: snapshot.consumed,

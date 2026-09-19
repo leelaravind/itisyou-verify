@@ -19,6 +19,25 @@
  *
  * No template takes raw HTML. Every interpolated value is escaped on the HTML side and
  * inserted literally on the text side.
+ *
+ * ## Reachability — read this before trusting anything below
+ *
+ * Audited 2026-09-19 with the question that matters: not "is this implemented" but **does
+ * a real request or a real scheduled tick reach it**. The answer today is that **no
+ * template in this file has a live send path**.
+ *
+ * `payment_problem` comes closest and still does not arrive. The Stripe webhook route is
+ * mounted, a signed `invoice.payment_failed` reaches `handleStripeEvent`, and that builds
+ * a `payment_problem` notification — and then returns it in `outcome.notifications`,
+ * which `routes/webhooks/stripe.ts` logs and discards. Nothing calls `sendNotification`.
+ * The other eleven have no caller at all.
+ *
+ * So the words here are correct and unreached. That is not an argument for leaving a
+ * false sentence in one — a template ships the moment somebody wires it, and the wiring
+ * change is the one nobody re-reads the copy during. It *is* an argument against writing
+ * a qualification into a template to describe a gap in its own delivery: a message that
+ * apologises for possibly not existing is not a message. Delivery gaps belong in the
+ * handoff and the release gate; only claims about what the *product* does belong here.
  */
 import { LIMITS } from '@verify/contracts';
 import { PLAN_AT_ALLOWANCE, PRODUCT_NAME } from '@verify/ui';
@@ -365,7 +384,26 @@ const paymentProblem: Renderer<'payment_problem'> = (vars) =>
       'Nothing else has stopped. You can still sign in, read your full run history and every past result, see evidence that is still inside its retention period, export your data, update your payment method, and cancel. All of that stays available throughout.',
       recoveryWindowSentence(vars),
       'If the window runs out, verification stays suspended and the subscription is marked unpaid. It is not cancelled — we will not end your subscription for you — and nothing of yours is deleted. A missed payment is not a deletion trigger; your data is kept exactly as our published retention policy says and nothing else.',
-      'Checking starts again when a payment is actually confirmed by our payment provider. Not on a retry, and not on a promise to pay — we will not tell you it is working again until it is.',
+      // WIRING (A09, 2026-09-19). The sentence this replaced said checking "starts again
+      // when a payment is actually confirmed", full stop. A01 grepped and found
+      // `reconcileSubscriptions()` and `runBillingMaintenance()` have no callers, so the
+      // scheduled half of `PAYMENT_RECOVERY_POLICY.resumeRequires` — "our scheduled check
+      // reading that payment back from the provider's own records" — does not run. The
+      // webhook half can resume, but only once the endpoint is registered and delivering.
+      // True about our intent, false about our behaviour, and sitting at the end of a
+      // message telling someone their service is paused: a customer reads it, waits, and
+      // nothing happens.
+      //
+      // REMOVE THIS QUALIFICATION only when ALL of the following are true, verified
+      // against the deployed candidate rather than the source tree:
+      //   1. the scheduler tick actually calls the billing maintenance pass (today
+      //      `handleScheduled` calls `runRetentionPass` and nothing billing-related);
+      //   2. a confirmed payment observed only by that scheduled read — no webhook —
+      //      moves a `past_due` subscription back to serving;
+      //   3. the auditor has reproduced that against the deployed candidate.
+      // Not on my say-so, not on the lead's, and not on A06's. The standard it keeps —
+      // confirmed, never a retry or a promise to pay — must survive the rewrite.
+      'Checking starts again once a confirmed payment reaches us. Not a retry and not a promise to pay — a payment that has actually gone through. We are still finishing the automatic check for this, so if it feels slow after you have paid, contact us and we will sort it out by hand.',
       'Card details are handled entirely by the payment provider. We never see them, and we cannot update them for you.',
     ],
     action: { url: vars.billingPortalUrl, label: 'Open the billing portal' },

@@ -22,14 +22,7 @@ import type { CampaignState } from '@verify/contracts';
 
 /** Statuses a provider read can return, normalised. `unknown` is a real answer. */
 export type ProviderCampaignStatus =
-  | 'not_found'
-  | 'in_review'
-  | 'rejected'
-  | 'scheduled'
-  | 'active'
-  | 'paused'
-  | 'ended'
-  | 'unknown';
+  'not_found' | 'in_review' | 'rejected' | 'scheduled' | 'active' | 'paused' | 'ended' | 'unknown';
 
 export type CampaignEvent =
   | { readonly type: 'packet_drafted' }
@@ -130,13 +123,23 @@ export function transition(current: CampaignLifecycle, event: CampaignEvent): Tr
     case 'packet_edited':
       // Editing anything throws the campaign back to the owner. Approval is hash-bound;
       // see `approval.ts`. This is the state-machine half of the same rule.
-      if (current.state === 'active' || current.state === 'submitted' || current.state === 'in_review') {
-        return reject(`cannot edit the packet while the campaign is ${current.state}; pause and reconcile first`);
+      if (
+        current.state === 'active' ||
+        current.state === 'submitted' ||
+        current.state === 'in_review'
+      ) {
+        return reject(
+          `cannot edit the packet while the campaign is ${current.state}; pause and reconcile first`,
+        );
       }
       return { ok: true, next: { ...current, state: 'awaiting_owner' } };
 
     case 'approval_revoked':
-      if (current.state === 'active' || current.state === 'submitted' || current.state === 'in_review') {
+      if (
+        current.state === 'active' ||
+        current.state === 'submitted' ||
+        current.state === 'in_review'
+      ) {
         // Revocation does not stop delivery by itself. It requests a pause.
         return { ok: true, next: { ...current, pause_requested: true, state: 'pause_pending' } };
       }
@@ -168,7 +171,12 @@ export function transition(current: CampaignLifecycle, event: CampaignEvent): Tr
       // The whole point: 2xx does not mean active.
       return {
         ok: true,
-        next: { ...current, state: 'submitted', external_id: event.external_id, outcome_unknown: false },
+        next: {
+          ...current,
+          state: 'submitted',
+          external_id: event.external_id,
+          outcome_unknown: false,
+        },
       };
     }
 
@@ -204,7 +212,10 @@ export function transition(current: CampaignLifecycle, event: CampaignEvent): Tr
       }
       // A pause we asked for and the provider does not yet show is pause_pending.
       const state: CampaignState =
-        current.pause_requested && observed !== 'paused' && observed !== 'ended' && observed !== 'rejected'
+        current.pause_requested &&
+        observed !== 'paused' &&
+        observed !== 'ended' &&
+        observed !== 'rejected'
           ? 'pause_pending'
           : observed;
       return {
@@ -214,7 +225,8 @@ export function transition(current: CampaignLifecycle, event: CampaignEvent): Tr
           state,
           external_id: externalId,
           outcome_unknown: event.provider_status === 'unknown',
-          pause_requested: observed === 'paused' || observed === 'ended' ? false : current.pause_requested,
+          pause_requested:
+            observed === 'paused' || observed === 'ended' ? false : current.pause_requested,
           last_observed_at: event.observed_at,
         },
       };
@@ -227,13 +239,18 @@ export function transition(current: CampaignLifecycle, event: CampaignEvent): Tr
         next: {
           ...current,
           pause_requested: true,
-          state: current.state === 'paused' || current.state === 'ended' ? current.state : 'pause_pending',
+          state:
+            current.state === 'paused' || current.state === 'ended'
+              ? current.state
+              : 'pause_pending',
         },
       };
 
     case 'owner_confirmed_paused':
       if (current.external_id === null) {
-        return reject('cannot confirm a pause for a campaign with no external id — there is nothing to have paused');
+        return reject(
+          'cannot confirm a pause for a campaign with no external id — there is nothing to have paused',
+        );
       }
       return {
         ok: true,
@@ -339,14 +356,18 @@ export function resolveAfterReconcile(
   const next = applied.ok ? applied.next : lifecycle;
 
   if (finding.found && finding.external_id !== null) {
-    return { plan: { action: 'adopt_existing', external_id: finding.external_id }, lifecycle: next };
+    return {
+      plan: { action: 'adopt_existing', external_id: finding.external_id },
+      lifecycle: next,
+    };
   }
   if (finding.provider_status === 'unknown') {
     // We still do not know. Creating now is exactly the duplicate we are avoiding.
     return {
       plan: {
         action: 'refuse',
-        reason: 'reconcile could not determine whether a campaign exists; refusing to create a possible duplicate',
+        reason:
+          'reconcile could not determine whether a campaign exists; refusing to create a possible duplicate',
       },
       lifecycle: next,
     };

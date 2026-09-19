@@ -23,7 +23,12 @@
  * performed, `ok` is false and `message` says what actually happened.
  */
 import type { AssertionResult } from '@verify/domain';
-import type { ConnectionStatus, CoverageMode, RunStatus, SubscriptionStatus } from '@verify/contracts';
+import type {
+  ConnectionStatus,
+  CoverageMode,
+  RunStatus,
+  SubscriptionStatus,
+} from '@verify/contracts';
 
 /* --------------------------------------------------------------- session / identity */
 

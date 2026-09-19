@@ -43,7 +43,9 @@ import type { RunDetailView, RunPage } from './port.js';
  */
 export function maskValues(value: string | null): string | null {
   if (value === null) return null;
-  return value.replace(/[^\s,;<>"'()]+@[^\s,;<>"'()]+\.[^\s,;<>"'()]+/g, (address) => maskEmail(address));
+  return value.replace(/[^\s,;<>"'()]+@[^\s,;<>"'()]+\.[^\s,;<>"'()]+/g, (address) =>
+    maskEmail(address),
+  );
 }
 
 export interface RunListPageOptions {
@@ -62,19 +64,23 @@ export function RunListPage(options: RunListPageOptions): Html {
       lede: 'Newest first. A run is one enquiry your automation told us about, checked against the evidence we read back.',
     })}
 
-    ${items.length === 0
-      ? EmptyState({
-          title: 'No runs received yet',
-          body:
-            'Nothing has reached us for this workflow. That is not a pass — if you expected enquiries by now, your automation may not be sending us events.',
-          actions: [Button({ label: 'Check your setup', href: '/app/onboarding/activation' })],
-        })
-      : html`<div class="stack">
+    ${
+      items.length === 0
+        ? EmptyState({
+            title: 'No runs received yet',
+            body: 'Nothing has reached us for this workflow. That is not a pass — if you expected enquiries by now, your automation may not be sending us events.',
+            actions: [Button({ label: 'Check your setup', href: '/app/onboarding/activation' })],
+          })
+        : html`<div class="stack">
           ${Table({
             caption: `Runs for ${options.workflowName}`,
             captionHidden: true,
             columns: [
-              { key: 'status', header: 'Result', cell: (run) => StatusBadge({ status: run.status as StatusKey }) },
+              {
+                key: 'status',
+                header: 'Result',
+                cell: (run) => StatusBadge({ status: run.status as StatusKey }),
+              },
               {
                 key: 'id',
                 header: 'Run',
@@ -84,14 +90,28 @@ export function RunListPage(options: RunListPageOptions): Html {
                     >${run.id}</a
                   >`,
               },
-              { key: 'summary', header: 'Enquiry', cell: (run) => html`<span class="mono">${maskValues(run.summary)}</span>` },
-              { key: 'ref', header: 'Reference', cell: (run) => html`<span class="mono">${run.correlationId}</span>` },
-              { key: 'occurred', header: 'Received', numeric: true, cell: (run) => formatInstant(run.occurredAt) },
+              {
+                key: 'summary',
+                header: 'Enquiry',
+                cell: (run) => html`<span class="mono">${maskValues(run.summary)}</span>`,
+              },
+              {
+                key: 'ref',
+                header: 'Reference',
+                cell: (run) => html`<span class="mono">${run.correlationId}</span>`,
+              },
+              {
+                key: 'occurred',
+                header: 'Received',
+                numeric: true,
+                cell: (run) => formatInstant(run.occurredAt),
+              },
               {
                 key: 'decided',
                 header: 'Decided',
                 numeric: true,
-                cell: (run) => (run.decidedAt === null ? 'still checking' : formatInstant(run.decidedAt)),
+                cell: (run) =>
+                  run.decidedAt === null ? 'still checking' : formatInstant(run.decidedAt),
               },
               {
                 key: 'checks',
@@ -103,13 +123,20 @@ export function RunListPage(options: RunListPageOptions): Html {
             rows: items,
           })}
           ${Pagination({
-            newerHref: options.page.prevCursor === null ? null : `${options.basePath}?cursor=${options.page.prevCursor}`,
-            olderHref: options.page.nextCursor === null ? null : `${options.basePath}?cursor=${options.page.nextCursor}`,
+            newerHref:
+              options.page.prevCursor === null
+                ? null
+                : `${options.basePath}?cursor=${options.page.prevCursor}`,
+            olderHref:
+              options.page.nextCursor === null
+                ? null
+                : `${options.basePath}?cursor=${options.page.nextCursor}`,
             shown: items.length,
             noun: 'runs',
             label: 'Run list pages',
           })}
-        </div>`}
+        </div>`
+    }
 
     ${StandingLimitations()}
   </div>`;
@@ -147,16 +174,18 @@ export function RunDetailPage(options: RunDetailPageOptions): Html {
       ${StatusBadge({ status: run.status as StatusKey, large: true })}
     </div>
 
-    ${decisive === null
-      ? null
-      : ClaimRule({
-          status: run.status as StatusKey,
-          caption: decisive.label,
-          claimLabel: 'Your rule expected',
-          claim: maskValues(decisive.expected_display) ?? '',
-          observedLabel: 'We retrieved',
-          observed: maskValues(decisive.observed_display),
-        })}
+    ${
+      decisive === null
+        ? null
+        : ClaimRule({
+            status: run.status as StatusKey,
+            caption: decisive.label,
+            claimLabel: 'Your rule expected',
+            claim: maskValues(decisive.expected_display) ?? '',
+            observedLabel: 'We retrieved',
+            observed: maskValues(decisive.observed_display),
+          })
+    }
 
     ${Card({
       title: 'The verdict',
@@ -164,12 +193,14 @@ export function RunDetailPage(options: RunDetailPageOptions): Html {
       body: html`<div class="stack">
         ${RunVerdict({ status: run.status as StatusKey, explanation })}
         <p class="small mono">${run.statusReason}</p>
-        ${run.lateCompletion
-          ? html`<p class="small">
+        ${
+          run.lateCompletion
+            ? html`<p class="small">
               The evidence arrived after the deadline had passed. The run is recorded as a late completion,
               which is a different thing from being on time.
             </p>`
-          : null}
+            : null
+        }
       </div>`,
     })}
 
@@ -208,11 +239,17 @@ export function RunDetailPage(options: RunDetailPageOptions): Html {
         ['Enquiry reference', html`<span>${run.correlationId}</span>`],
         ['Recipient', html`<span>${maskEmail(run.recipient)}</span>`],
         ['Source type', html`<span>${run.sourceType}</span>`],
-        ['Rule version', html`<span>${run.rulesRef} · schema v${String(run.rulesSchemaVersion)}</span>`],
+        [
+          'Rule version',
+          html`<span>${run.rulesRef} · schema v${String(run.rulesSchemaVersion)}</span>`,
+        ],
         ['Enquiry received', html`<span>${formatInstant(run.occurredAt)}</span>`],
         ['Deadline', html`<span>${formatInstant(run.deadlineAt)}</span>`],
         ['Last observed', html`<span>${formatInstant(run.observedAt)}</span>`],
-        ['Decided at', html`<span>${run.decidedAt === null ? 'not decided yet' : formatInstant(run.decidedAt)}</span>`],
+        [
+          'Decided at',
+          html`<span>${run.decidedAt === null ? 'not decided yet' : formatInstant(run.decidedAt)}</span>`,
+        ],
       ]),
     })}
 

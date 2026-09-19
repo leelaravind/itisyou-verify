@@ -46,13 +46,15 @@ export const CLEANUP_CATEGORIES: readonly CleanupCategory[] = [
     id: 'synthetic_workspaces',
     label: 'Synthetic demo workspaces',
     removes: 'Workspaces we created ourselves for demos and tests, and everything inside them.',
-    safeBecause: 'Nobody signed up for these. They are marked synthetic at the moment they are created.',
+    safeBecause:
+      'Nobody signed up for these. They are marked synthetic at the moment they are created.',
   },
   {
     id: 'expired_sessions',
     label: 'Expired sign-in sessions',
     removes: 'Session rows whose expiry has already passed.',
-    safeBecause: 'They cannot be used to sign in. Removing them frees space and shortens the list of things to review.',
+    safeBecause:
+      'They cannot be used to sign in. Removing them frees space and shortens the list of things to review.',
   },
   {
     id: 'consumed_login_tokens',
@@ -64,19 +66,22 @@ export const CLEANUP_CATEGORIES: readonly CleanupCategory[] = [
     id: 'expired_visit_sessions',
     label: 'Expired visit records',
     removes: 'Aggregate visit rows past their retention date.',
-    safeBecause: 'These hold no address and no identity, and we said we would delete them on this schedule.',
+    safeBecause:
+      'These hold no address and no identity, and we said we would delete them on this schedule.',
   },
   {
     id: 'dead_outbox_entries',
     label: 'Dead background jobs',
     removes: 'Outbox rows that exhausted their retries and were marked dead.',
-    safeBecause: 'They will never be dispatched. Their failure is already recorded in the audit trail.',
+    safeBecause:
+      'They will never be dispatched. Their failure is already recorded in the audit trail.',
   },
   {
     id: 'stale_quality_runs',
     label: 'Old test-centre runs',
     removes: 'Finished test runs older than the retention window, and their stored results.',
-    safeBecause: 'The release evidence packs are kept separately. This removes the working rows, not the reports.',
+    safeBecause:
+      'The release evidence packs are kept separately. This removes the working rows, not the reports.',
   },
   {
     id: 'orphaned_preview_cleanups',
@@ -100,19 +105,23 @@ export function cleanupCategory(id: string): CleanupCategory | null {
 export const OUT_OF_SCOPE: readonly { readonly what: string; readonly instead: string }[] = [
   {
     what: 'Real customer workspaces, runs and evidence',
-    instead: 'Use the customer record and the deletion request flow, which records who asked and when.',
+    instead:
+      'Use the customer record and the deletion request flow, which records who asked and when.',
   },
   {
     what: 'Evidence still inside its retention window',
-    instead: 'Wait for retention to expire, or change the retention setting deliberately and record why.',
+    instead:
+      'Wait for retention to expire, or change the retention setting deliberately and record why.',
   },
   {
     what: 'Backups and exports',
-    instead: 'These are the thing you fall back on. Removing one needs a decision, not a cleanup run.',
+    instead:
+      'These are the thing you fall back on. Removing one needs a decision, not a cleanup run.',
   },
   {
     what: 'Active credentials and connections',
-    instead: 'Rotate or revoke the connection on the Connections page, which tells the customer what happened.',
+    instead:
+      'Rotate or revoke the connection on the Connections page, which tells the customer what happened.',
   },
   {
     what: 'Anything belonging to another project in the same account',
@@ -161,17 +170,18 @@ export interface CleanupInventory {
 }
 
 export type ScopeRefusal =
-  | 'not_our_resource'
-  | 'customer_data'
-  | 'under_retention'
-  | 'category_not_allowed';
+  'not_our_resource' | 'customer_data' | 'under_retention' | 'category_not_allowed';
 
 /**
  * The single scope gate. Every item passes through it in the preview and again in the
  * execution — deliberately twice, because the two calls are separated by a human reading a
  * page and by anything else that may have happened in between.
  */
-export function isInScope(item: InventoryItem): { readonly ok: true } | { readonly ok: false; readonly refusal: ScopeRefusal; readonly why: string } {
+export function isInScope(
+  item: InventoryItem,
+):
+  | { readonly ok: true }
+  | { readonly ok: false; readonly refusal: ScopeRefusal; readonly why: string } {
   if (!isCleanupCategory(item.category)) {
     return {
       ok: false,
@@ -238,7 +248,11 @@ export interface PreviewDeps {
 
 export type PreviewResult =
   | { readonly ok: true; readonly inventory: CleanupInventory }
-  | { readonly ok: false; readonly reason: 'no_categories' | 'unknown_category'; readonly detail: string };
+  | {
+      readonly ok: false;
+      readonly reason: 'no_categories' | 'unknown_category';
+      readonly detail: string;
+    };
 
 /** Build the inventory. Deletes nothing; a preview that could delete would not be a preview. */
 export async function previewCleanup(
@@ -246,7 +260,11 @@ export async function previewCleanup(
   deps: PreviewDeps,
 ): Promise<PreviewResult> {
   if (input.categories.length === 0) {
-    return { ok: false, reason: 'no_categories', detail: 'Choose at least one category to look at.' };
+    return {
+      ok: false,
+      reason: 'no_categories',
+      detail: 'Choose at least one category to look at.',
+    };
   }
   for (const category of input.categories) {
     if (!isCleanupCategory(category)) {
@@ -303,7 +321,8 @@ export async function previewCleanup(
 // Execution
 // ---------------------------------------------------------------------------
 
-export type ResourceOutcome = 'deleted' | 'quarantined' | 'skipped_identity_mismatch' | 'skipped_out_of_scope' | 'failed';
+export type ResourceOutcome =
+  'deleted' | 'quarantined' | 'skipped_identity_mismatch' | 'skipped_out_of_scope' | 'failed';
 
 export interface ResourceReport {
   readonly resourceId: string;
@@ -396,7 +415,10 @@ export interface ExecuteInput {
  * interruption are all outcomes with reports, because an exception here would leave the
  * owner with no record of what had already been removed.
  */
-export async function executeCleanup(input: ExecuteInput, deps: ExecuteDeps): Promise<ExecuteResult> {
+export async function executeCleanup(
+  input: ExecuteInput,
+  deps: ExecuteDeps,
+): Promise<ExecuteResult> {
   const startedAt = deps.now().toISOString();
   const current = await deps.rescan();
 
@@ -494,7 +516,9 @@ export async function executeCleanup(input: ExecuteInput, deps: ExecuteDeps): Pr
   }
 
   const handledSet = new Set(handled);
-  const remaining = current.items.filter((i) => !handledSet.has(i.resourceId)).map((i) => i.resourceId);
+  const remaining = current.items
+    .filter((i) => !handledSet.has(i.resourceId))
+    .map((i) => i.resourceId);
   const complete = remaining.length === 0 && interrupted === null;
 
   const deleted = resources.filter((r) => r.outcome === 'deleted').length;
@@ -504,7 +528,11 @@ export async function executeCleanup(input: ExecuteInput, deps: ExecuteDeps): Pr
   ).length;
   const failedCount = resources.filter((r) => r.outcome === 'failed').length;
 
-  const state: CleanupReport['state'] = complete ? (failedCount > 0 ? 'failed' : 'completed') : 'partial';
+  const state: CleanupReport['state'] = complete
+    ? failedCount > 0
+      ? 'failed'
+      : 'completed'
+    : 'partial';
 
   const summary = complete
     ? failedCount > 0
@@ -530,9 +558,7 @@ export async function executeCleanup(input: ExecuteInput, deps: ExecuteDeps): Pr
       skipped,
       failedCount,
       reclaimedBytes: reclaimedKnown ? reclaimed : null,
-      checkpoint: complete
-        ? null
-        : { handled, remaining, inventoryHash: current.hash },
+      checkpoint: complete ? null : { handled, remaining, inventoryHash: current.hash },
       summary,
     },
   };

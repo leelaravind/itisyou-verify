@@ -51,9 +51,7 @@ export function TodoOwnerInput(options: TodoOptions): Html {
  * A list of owner legal fields, each rendered with `TodoOwnerInput`. Used by the terms and
  * privacy pages so all the gaps are in one obvious place rather than scattered.
  */
-export function OwnerIdentityList(
-  entries: readonly (readonly [string, string, string])[],
-): Html {
+export function OwnerIdentityList(entries: readonly (readonly [string, string, string])[]): Html {
   return html`<dl class="kv">
     ${entries.map(
       ([label, field, value]) => html`<dt>${label}</dt>

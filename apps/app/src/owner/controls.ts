@@ -112,12 +112,14 @@ export function isPathSuspended(path: string, controls: Controls): boolean {
 
 /** What a control actually stops, in the owner's words. Rendered next to every switch. */
 export const CONTROL_DESCRIPTION: Readonly<
-  Record<ControlKey, { readonly label: string; readonly stops: string; readonly doesNotStop: string }>
+  Record<
+    ControlKey,
+    { readonly label: string; readonly stops: string; readonly doesNotStop: string }
+  >
 > = {
   ads: {
     label: 'Advertising',
-    stops:
-      'We stop submitting new campaigns and ask the ad platform to pause the running ones.',
+    stops: 'We stop submitting new campaigns and ask the ad platform to pause the running ones.',
     doesNotStop:
       'An ad already being shown may keep running until the platform confirms the pause. Until it confirms, this reads "pause requested", not "paused".',
   },
@@ -161,7 +163,11 @@ export type ControlChangeResult =
 /** Pure. The caller persists the returned state and writes the audit row. */
 export function applyControlChange(current: Controls, change: ControlChange): ControlChangeResult {
   if (!isControlKey(change.key)) {
-    return { ok: false, reason: 'unknown_control', detail: `${String(change.key)} is not a control` };
+    return {
+      ok: false,
+      reason: 'unknown_control',
+      detail: `${String(change.key)} is not a control`,
+    };
   }
   const existing = current[change.key];
   if (existing.paused === change.paused) {

@@ -115,8 +115,7 @@ export async function cancelSubscription(
     requested: when,
     providerStatus: result.status,
     cancelAtPeriodEnd: result.cancel_at_period_end,
-    servedUntil:
-      when === 'period_end' ? subscription.currentPeriodEnd : null,
+    servedUntil: when === 'period_end' ? subscription.currentPeriodEnd : null,
     note:
       when === 'period_end'
         ? 'Your plan stays active until the end of the period you have already paid for. No further payment will be taken.'

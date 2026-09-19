@@ -390,7 +390,12 @@ async function readTotpCounter(db: Db, userId: string): Promise<number | null> {
  * exactly one wins — which is the property the whole replay defence rests on, and the one
  * a read-then-write silently loses.
  */
-async function claimTotpCounter(db: Db, userId: string, counter: number, now: Date): Promise<boolean> {
+async function claimTotpCounter(
+  db: Db,
+  userId: string,
+  counter: number,
+  now: Date,
+): Promise<boolean> {
   return settings.claimMonotonicCounter(db, {
     key: totpCounterKey(userId),
     counter,

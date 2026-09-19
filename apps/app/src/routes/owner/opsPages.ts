@@ -10,7 +10,17 @@
  * stop — and it lists the paths that keep working regardless, because a customer's ability
  * to cancel is not the owner's to switch off.
  */
-import { Button, Callout, Card, Checkbox, Field, KeyValues, Table, html, type Html } from '@verify/ui';
+import {
+  Button,
+  Callout,
+  Card,
+  Checkbox,
+  Field,
+  KeyValues,
+  Table,
+  html,
+  type Html,
+} from '@verify/ui';
 import { formatMoney, money } from '@verify/contracts';
 import {
   CONTROL_DESCRIPTION,
@@ -64,25 +74,29 @@ export function OperationsPage(options: {
         >${runner.connected && fresh ? 'connected' : 'not connected'}</span
       >`,
       body: html`<div class="stack-sm">
-        ${runner.unavailableReason === null
-          ? null
-          : Callout({
-              tone: 'warn',
-              title: 'Nothing is listening',
-              body: html`<p>${runner.unavailableReason}</p>
+        ${
+          runner.unavailableReason === null
+            ? null
+            : Callout({
+                tone: 'warn',
+                title: 'Nothing is listening',
+                body: html`<p>${runner.unavailableReason}</p>
                 <p class="small">
                   Jobs you queue are saved. They are not lost, and they are not done — they will run when a
                   runner is paired. Anything on this page showing a queue is waiting on that.
                 </p>`,
-            })}
+              })
+        }
         ${KeyValues([
           ['Device', UnknownAware(runner.deviceLabel)],
           [
             'Last heartbeat',
             html`${Instant(runner.lastHeartbeatAt)}
-            ${runner.heartbeatAgeSeconds === null
-              ? null
-              : html` <span class="micro muted">(${runner.heartbeatAgeSeconds}s ago)</span>`}`,
+            ${
+              runner.heartbeatAgeSeconds === null
+                ? null
+                : html` <span class="micro muted">(${runner.heartbeatAgeSeconds}s ago)</span>`
+            }`,
           ],
           [
             'Current job',
@@ -128,21 +142,27 @@ export function OperationsPage(options: {
       title: 'Messages that never finished sending',
       headingLevel: 2,
       aside: html`<span
-        class="badge ${options.view.notifications.unavailableReason !== null
-          ? 'badge--unverified'
-          : options.view.notifications.stuck.length > 0
-            ? 'badge--failed'
-            : 'badge--verified'}"
-        data-notifications-state="${options.view.notifications.unavailableReason !== null
-          ? 'unknown'
-          : options.view.notifications.stuck.length > 0
-            ? 'stuck'
-            : 'clear'}"
-        >${options.view.notifications.unavailableReason !== null
-          ? 'not checked'
-          : options.view.notifications.stuck.length > 0
-            ? `${options.view.notifications.stuck.length} stuck`
-            : 'none stuck'}</span
+        class="badge ${
+          options.view.notifications.unavailableReason !== null
+            ? 'badge--unverified'
+            : options.view.notifications.stuck.length > 0
+              ? 'badge--failed'
+              : 'badge--verified'
+        }"
+        data-notifications-state="${
+          options.view.notifications.unavailableReason !== null
+            ? 'unknown'
+            : options.view.notifications.stuck.length > 0
+              ? 'stuck'
+              : 'clear'
+        }"
+        >${
+          options.view.notifications.unavailableReason !== null
+            ? 'not checked'
+            : options.view.notifications.stuck.length > 0
+              ? `${options.view.notifications.stuck.length} stuck`
+              : 'none stuck'
+        }</span
       >`,
       body: html`<div class="stack-sm">
         ${Callout({
@@ -157,47 +177,58 @@ export function OperationsPage(options: {
             ${Math.round(NOTIFICATION_STUCK_AFTER_SECONDS / 60)} minutes is here.
           </p>`,
         })}
-        ${options.view.notifications.unavailableReason === null
-          ? Table({
-              caption: 'Notifications that claimed a row and never reported an outcome',
-              columns: [
-                {
-                  key: 'template',
-                  header: 'Message',
-                  rowHeader: true,
-                  cell: (row) => html`<span class="mono">${row.template}</span>`,
-                },
-                { key: 'channel', header: 'Channel', cell: (row) => row.channel },
-                {
-                  key: 'workspace',
-                  header: 'Workspace',
-                  cell: (row) =>
-                    row.workspaceId === null
-                      ? html`<span class="muted">platform</span>`
-                      : html`<span class="mono micro">${row.workspaceId}</span>`,
-                },
-                { key: 'age', header: 'Stuck for', cell: (row) => describeAge(row.ageSeconds) },
-                { key: 'attempts', header: 'Attempts', numeric: true, cell: (row) => String(row.attemptCount) },
-                {
-                  key: 'status',
-                  header: 'Last thing the provider said',
-                  cell: (row) =>
-                    row.providerStatus === null
-                      ? html`<span class="muted" data-unknown="true">nothing</span>`
-                      : html`<span class="mono micro">${row.providerStatus}</span>`,
-                },
-                { key: 'action', header: 'What to do', cell: (row) => suggestedActionFor(row.template) },
-              ],
-              rows: options.view.notifications.stuck,
-              empty: html`<p class="muted">
+        ${
+          options.view.notifications.unavailableReason === null
+            ? Table({
+                caption: 'Notifications that claimed a row and never reported an outcome',
+                columns: [
+                  {
+                    key: 'template',
+                    header: 'Message',
+                    rowHeader: true,
+                    cell: (row) => html`<span class="mono">${row.template}</span>`,
+                  },
+                  { key: 'channel', header: 'Channel', cell: (row) => row.channel },
+                  {
+                    key: 'workspace',
+                    header: 'Workspace',
+                    cell: (row) =>
+                      row.workspaceId === null
+                        ? html`<span class="muted">platform</span>`
+                        : html`<span class="mono micro">${row.workspaceId}</span>`,
+                  },
+                  { key: 'age', header: 'Stuck for', cell: (row) => describeAge(row.ageSeconds) },
+                  {
+                    key: 'attempts',
+                    header: 'Attempts',
+                    numeric: true,
+                    cell: (row) => String(row.attemptCount),
+                  },
+                  {
+                    key: 'status',
+                    header: 'Last thing the provider said',
+                    cell: (row) =>
+                      row.providerStatus === null
+                        ? html`<span class="muted" data-unknown="true">nothing</span>`
+                        : html`<span class="mono micro">${row.providerStatus}</span>`,
+                  },
+                  {
+                    key: 'action',
+                    header: 'What to do',
+                    cell: (row) => suggestedActionFor(row.template),
+                  },
+                ],
+                rows: options.view.notifications.stuck,
+                empty: html`<p class="muted">
                 Nothing is stuck. This was actually checked — it is not an empty list from a read that did not run.
               </p>`,
-            })
-          : Callout({
-              tone: 'warn',
-              title: 'Not checked',
-              body: html`<p data-dependency="true">${options.view.notifications.unavailableReason}</p>`,
-            })}
+              })
+            : Callout({
+                tone: 'warn',
+                title: 'Not checked',
+                body: html`<p data-dependency="true">${options.view.notifications.unavailableReason}</p>`,
+              })
+        }
       </div>`,
     })}
 
@@ -207,14 +238,25 @@ export function OperationsPage(options: {
       body: Table({
         caption: 'Maintenance jobs and their state',
         columns: [
-          { key: 'kind', header: 'Job', rowHeader: true, cell: (job) => html`<span class="mono">${job.kind}</span>` },
-          { key: 'state', header: 'State', cell: (job) => html`<span class="mono">${job.state}</span>` },
+          {
+            key: 'kind',
+            header: 'Job',
+            rowHeader: true,
+            cell: (job) => html`<span class="mono">${job.kind}</span>`,
+          },
+          {
+            key: 'state',
+            header: 'State',
+            cell: (job) => html`<span class="mono">${job.state}</span>`,
+          },
           { key: 'created', header: 'Requested', cell: (job) => Instant(job.createdAt) },
           {
             key: 'blocked',
             header: 'Waiting on',
             cell: (job) =>
-              job.blockedReason === null ? html`<span class="muted">—</span>` : html`${job.blockedReason}`,
+              job.blockedReason === null
+                ? html`<span class="muted">—</span>`
+                : html`${job.blockedReason}`,
           },
         ],
         rows: options.view.maintenanceJobs,
@@ -237,9 +279,11 @@ export function OperationsPage(options: {
           ['Proposals waiting for you', UnknownAware(options.view.assistant.pendingProposals)],
           ['Last call', Instant(options.view.assistant.lastCallAt)],
         ])}
-        ${options.view.assistant.unavailableReason === null
-          ? null
-          : html`<p class="small">${options.view.assistant.unavailableReason}</p>`}
+        ${
+          options.view.assistant.unavailableReason === null
+            ? null
+            : html`<p class="small">${options.view.assistant.unavailableReason}</p>`
+        }
       </div>`,
     })}
 
@@ -372,12 +416,14 @@ export function ControlsPage(options: {
           body: html`<div class="stack-sm">
             <p class="measure"><strong>Pausing this stops:</strong> ${description.stops}</p>
             <p class="measure"><strong>It does not stop:</strong> ${description.doesNotStop}</p>
-            ${state.paused
-              ? html`<p class="small">
+            ${
+              state.paused
+                ? html`<p class="small">
                   Paused since ${Instant(state.since)} by <span class="mono">${state.by ?? 'unknown'}</span>.
                   ${state.note === null ? null : html`Note: ${state.note}`}
                 </p>`
-              : null}
+                : null
+            }
             ${ActionForm({
               action: `/owner/controls/${encodeURIComponent(key)}`,
               csrfToken: options.csrfToken,
@@ -388,7 +434,9 @@ export function ControlsPage(options: {
                   hint: 'Whoever reads the audit trail later, including you, will be glad of a sentence.',
                 })}
                 ${Button({
-                  label: state.paused ? `Resume ${description.label.toLowerCase()}` : `Pause ${description.label.toLowerCase()}`,
+                  label: state.paused
+                    ? `Resume ${description.label.toLowerCase()}`
+                    : `Pause ${description.label.toLowerCase()}`,
                   variant: state.paused ? 'default' : 'danger',
                   type: 'submit',
                 })}`,
@@ -438,22 +486,26 @@ export function SettingsPage(options: SettingsPageOptions): Html {
       lede: 'Things you can change without anyone deploying anything.',
     })}
 
-    ${options.savedMessage === null
-      ? null
-      : Callout({ tone: 'note', title: 'Saved', body: html`<p>${options.savedMessage}</p>` })}
+    ${
+      options.savedMessage === null
+        ? null
+        : Callout({ tone: 'note', title: 'Saved', body: html`<p>${options.savedMessage}</p>` })
+    }
 
-    ${pending.length === 0
-      ? null
-      : Callout({
-          tone: 'todo',
-          title: 'Your business details are not filled in',
-          body: html`<p>
+    ${
+      pending.length === 0
+        ? null
+        : Callout({
+            tone: 'todo',
+            title: 'Your business details are not filled in',
+            body: html`<p>
               The public terms and privacy pages have to carry a real trading name and a real address. Nobody
               on the build team knows yours, and we will not invent one — the pages currently show
               <span class="mono">${TODO_OWNER_INPUT}</span> where these belong.
             </p>
             <p class="small">Still needed: ${pending.join(', ')}.</p>`,
-        })}
+          })
+    }
 
     ${Card({
       title: 'Business details',
@@ -652,12 +704,18 @@ export function SettingsPage(options: SettingsPageOptions): Html {
         ${Table({
           caption: 'Current approved limits',
           columns: [
-            { key: 'scope', header: 'Budget', rowHeader: true, cell: (row) => html`<span class="mono">${row[0]}</span>` },
+            {
+              key: 'scope',
+              header: 'Budget',
+              rowHeader: true,
+              cell: (row) => html`<span class="mono">${row[0]}</span>`,
+            },
             {
               key: 'limit',
               header: 'Limit',
               numeric: true,
-              cell: (row) => html`<span class="mono">${formatMoney(money(row[1], options.budgetLimits.currency))}</span>`,
+              cell: (row) =>
+                html`<span class="mono">${formatMoney(money(row[1], options.budgetLimits.currency))}</span>`,
             },
           ],
           rows: Object.entries(options.budgetLimits.limits),

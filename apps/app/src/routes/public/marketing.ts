@@ -112,7 +112,12 @@ export function HowItWorksPage(): Html {
 
     ${StandingLimitations()}
     ${ButtonRow([
-      Button({ label: 'See a worked example', href: '/demo', variant: 'primary', icon: iconArrow() }),
+      Button({
+        label: 'See a worked example',
+        href: '/demo',
+        variant: 'primary',
+        icon: iconArrow(),
+      }),
       Button({ label: 'See the price', href: '/pricing', variant: 'quiet' }),
     ])}
   </div>`;
@@ -210,7 +215,8 @@ export function SecurityPage(): Html {
     <section class="stack">
       <h2>Subprocessors</h2>
       ${Table({
-        caption: 'Every third party that processes data on our behalf, what it does, and what it sees',
+        caption:
+          'Every third party that processes data on our behalf, what it does, and what it sees',
         columns: [
           { key: 'name', header: 'Subprocessor', rowHeader: true, cell: (row) => row.name },
           { key: 'role', header: 'Role', cell: (row) => row.role },
@@ -258,7 +264,11 @@ export function SupportPage(): Html {
     })}
 
     ${ButtonRow([
-      Button({ label: 'Send a message from your workspace', href: '/app/support', variant: 'primary' }),
+      Button({
+        label: 'Send a message from your workspace',
+        href: '/app/support',
+        variant: 'primary',
+      }),
     ])}
 
     <section class="stack">

@@ -10,7 +10,12 @@
  * Nothing in `apps/app/src/scheduler/**` calls `fetch`, reads an environment variable or
  * constructs a provider URL. If you find yourself wanting to, add a port instead.
  */
-import type { Connector, ConnectorCredentials, ConnectionConfig, ProviderId } from '@verify/connectors';
+import type {
+  Connector,
+  ConnectorCredentials,
+  ConnectionConfig,
+  ProviderId,
+} from '@verify/connectors';
 
 /**
  * A connection the scheduler may actually use, with its secret already opened.
@@ -80,7 +85,11 @@ export interface OutboxEvent {
 
 /** Bounded retention work for one tick. Implemented over A09's resumable sweep. */
 export interface RetentionSweeper {
-  sweep(input: { readonly now: Date; readonly batchSize: number; readonly maxBatches: number }): Promise<{
+  sweep(input: {
+    readonly now: Date;
+    readonly batchSize: number;
+    readonly maxBatches: number;
+  }): Promise<{
     readonly removed: number;
     readonly complete: boolean;
   }>;

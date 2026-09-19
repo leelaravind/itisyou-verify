@@ -104,7 +104,11 @@ export async function applyMetricsSync(
  * no amount: if the provider restates the spend for an interval we have already settled,
  * that is a correction the owner must see, not a second silent deduction.
  */
-export function spendIdempotencyKey(campaignId: string, intervalStart: string, intervalEnd: string): string {
+export function spendIdempotencyKey(
+  campaignId: string,
+  intervalStart: string,
+  intervalEnd: string,
+): string {
   return `campaign_spend:${campaignId}:${intervalStart}:${intervalEnd}`;
 }
 

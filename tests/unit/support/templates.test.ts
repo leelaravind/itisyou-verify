@@ -227,9 +227,32 @@ describe('notification templates', () => {
     expect(body).toContain('it is not cancelled');
     expect(body).toContain('nothing of yours is deleted');
     expect(body).toContain('published retention policy');
-    // Resumption takes a confirmed payment, not a retry and not a promise.
-    expect(body).toContain('confirmed by our payment provider');
-    expect(body).toContain('not on a retry');
+  });
+
+  it('CUST-229 the resumption promise keeps its standard and admits the automatic check is unfinished', () => {
+    // The sentence this pins replaced one that was true about our intent and false about
+    // our behaviour: `reconcileSubscriptions()` and `runBillingMaintenance()` have no
+    // callers, so nothing automatically resumes on a confirmed payment. It sat at the end
+    // of a message telling someone their service is paused, which is the worst possible
+    // place for a reassurance the product cannot honour — the customer waits, and nothing
+    // happens.
+    const body = renderNotification('payment_problem', VARS.payment_problem).text.toLowerCase();
+
+    // 1. The standard survives: confirmed, never a retry or a promise to pay.
+    expect(body).toContain('a confirmed payment');
+    expect(body).toContain('not a retry and not a promise to pay');
+    expect(body).toContain('actually gone through');
+
+    // 2. It admits the automatic path is unfinished rather than implying it works.
+    expect(body).toContain('still finishing the automatic check');
+
+    // 3. It gives a route that actually exists today — a person.
+    expect(body).toContain('contact us');
+    expect(body).toContain('by hand');
+
+    // And it no longer states the bare promise the code cannot keep.
+    expect(body).not.toContain('checking starts again when a payment is actually confirmed');
+    expect(body).not.toContain('we will not tell you it is working again until it is');
   });
 
   it('CUST-288 an immediate cancellation is not told it keeps a period it has already lost', () => {

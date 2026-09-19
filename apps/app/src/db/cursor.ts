@@ -72,6 +72,7 @@ export function buildPage<T extends { readonly id: string; readonly created_at: 
   const last = items[items.length - 1];
   return {
     items,
-    nextCursor: last === undefined ? null : encodeCursor({ createdAt: last.created_at, id: last.id }),
+    nextCursor:
+      last === undefined ? null : encodeCursor({ createdAt: last.created_at, id: last.id }),
   };
 }

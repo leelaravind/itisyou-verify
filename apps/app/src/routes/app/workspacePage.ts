@@ -42,7 +42,10 @@ export interface WorkspacePageOptions {
  * workflow's own completion window: six windows of silence is the point at which "quiet
  * business" and "automation stopped calling us" become worth separating.
  */
-function expectedActivity(deadlineSeconds: number): { window_seconds: number; minimum_events: number } {
+function expectedActivity(deadlineSeconds: number): {
+  window_seconds: number;
+  minimum_events: number;
+} {
   return { window_seconds: deadlineSeconds * 6, minimum_events: 1 };
 }
 
@@ -51,12 +54,16 @@ function connectionRow(connection: ConnectionView): Html {
     <div class="margin-row__gutter">${StatusBadge(connectionPresentation(connection.status))}</div>
     <div class="stack-sm">
       <h3>${connection.displayName}</h3>
-      ${connection.problem === null
-        ? html`<p class="small muted">Last checked ${formatInstant(connection.lastCheckedAt)}.</p>`
-        : html`<p class="small">${connection.problem}</p>`}
-      ${connection.nextStep === null
-        ? null
-        : html`<p class="small"><strong>Next step.</strong> ${connection.nextStep}</p>`}
+      ${
+        connection.problem === null
+          ? html`<p class="small muted">Last checked ${formatInstant(connection.lastCheckedAt)}.</p>`
+          : html`<p class="small">${connection.problem}</p>`
+      }
+      ${
+        connection.nextStep === null
+          ? null
+          : html`<p class="small"><strong>Next step.</strong> ${connection.nextStep}</p>`
+      }
     </div>
   </div>`;
 }
@@ -70,7 +77,11 @@ export function WorkspacePage(options: WorkspacePageOptions): Html {
         lede: 'Nothing is being checked. An empty workspace is not a passing workspace.',
       })}
       ${ButtonRow([
-        Button({ label: 'Start the setup', href: '/app/onboarding/compatibility', variant: 'primary' }),
+        Button({
+          label: 'Start the setup',
+          href: '/app/onboarding/compatibility',
+          variant: 'primary',
+        }),
       ])}
     </div>`;
   }
@@ -103,7 +114,11 @@ export function WorkspacePage(options: WorkspacePageOptions): Html {
         caption: 'The most recent runs in this workspace',
         captionHidden: true,
         columns: [
-          { key: 'status', header: 'Result', cell: (run: RunListItem) => StatusBadge({ status: run.status as StatusKey }) },
+          {
+            key: 'status',
+            header: 'Result',
+            cell: (run: RunListItem) => StatusBadge({ status: run.status as StatusKey }),
+          },
           {
             key: 'id',
             header: 'Run',
@@ -113,7 +128,12 @@ export function WorkspacePage(options: WorkspacePageOptions): Html {
                 >${run.id}</a
               >`,
           },
-          { key: 'occurred', header: 'Enquiry received', numeric: true, cell: (run: RunListItem) => formatInstant(run.occurredAt) },
+          {
+            key: 'occurred',
+            header: 'Enquiry received',
+            numeric: true,
+            cell: (run: RunListItem) => formatInstant(run.occurredAt),
+          },
           {
             key: 'checks',
             header: 'Required checks',

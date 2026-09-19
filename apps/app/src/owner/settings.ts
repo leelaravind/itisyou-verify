@@ -21,7 +21,9 @@ import type { AccessMode, Currency } from '@verify/contracts';
 export const TODO_OWNER_INPUT = 'TODO_OWNER_INPUT';
 
 export function isOwnerInputPending(value: string | null | undefined): boolean {
-  return value === undefined || value === null || value.trim().length === 0 || value === TODO_OWNER_INPUT;
+  return (
+    value === undefined || value === null || value.trim().length === 0 || value === TODO_OWNER_INPUT
+  );
 }
 
 /** Every settings key this panel reads or writes, in one place. */
@@ -87,7 +89,9 @@ export const REQUIRED_BUSINESS_FIELDS: readonly (keyof BusinessDetails)[] = [
 ];
 
 export function pendingBusinessFields(details: BusinessDetails): readonly string[] {
-  return REQUIRED_BUSINESS_FIELDS.filter((field) => isOwnerInputPending(details[field])).map(String);
+  return REQUIRED_BUSINESS_FIELDS.filter((field) => isOwnerInputPending(details[field])).map(
+    String,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -170,7 +174,9 @@ export const DEFAULT_RETENTION: RetentionSettings = {
   supportCaseDays: 365,
 };
 
-export const RETENTION_BOUNDS: Readonly<Record<keyof RetentionSettings, { readonly min: number; readonly max: number }>> = {
+export const RETENTION_BOUNDS: Readonly<
+  Record<keyof RetentionSettings, { readonly min: number; readonly max: number }>
+> = {
   evidenceDays: { min: 1, max: 90 },
   runDays: { min: 7, max: 365 },
   auditDays: { min: 30, max: 2555 },
@@ -299,10 +305,14 @@ export function validateRetention(input: Partial<Record<keyof RetentionSettings,
 
 /** Pence, from a `£12.34` or `12.34` string. Rejects anything with more than two decimals. */
 export function parseMinorUnits(raw: string): number | null {
-  const cleaned = raw.trim().replace(/^[£$€]/, '').replace(/,/g, '');
+  const cleaned = raw
+    .trim()
+    .replace(/^[£$€]/, '')
+    .replace(/,/g, '');
   if (!/^\d+(\.\d{1,2})?$/.test(cleaned)) return null;
   const [whole = '0', fraction = ''] = cleaned.split('.');
-  const pence = Number.parseInt(whole, 10) * 100 + Number.parseInt(fraction.padEnd(2, '0') || '0', 10);
+  const pence =
+    Number.parseInt(whole, 10) * 100 + Number.parseInt(fraction.padEnd(2, '0') || '0', 10);
   return Number.isSafeInteger(pence) ? pence : null;
 }
 
@@ -319,14 +329,16 @@ export function validatePricing(input: {
   else if (amount <= 0) errors['monthlyAmount'] = 'The price has to be more than nothing.';
 
   const runs = Number.parseInt((input.runsIncluded ?? '').trim(), 10);
-  if (!Number.isSafeInteger(runs) || runs <= 0) errors['runsIncluded'] = 'Enter a whole number of runs.';
+  if (!Number.isSafeInteger(runs) || runs <= 0)
+    errors['runsIncluded'] = 'Enter a whole number of runs.';
 
   const currency: Currency =
     input.currency === 'USD' ? 'USD' : input.currency === 'EUR' ? 'EUR' : 'GBP';
 
   const priceId = cleanText(input.stripePriceId, 80);
   if (priceId.length > 0 && !/^price_[A-Za-z0-9]+$/.test(priceId)) {
-    errors['stripePriceId'] = 'A Stripe price id looks like price_ followed by letters and numbers.';
+    errors['stripePriceId'] =
+      'A Stripe price id looks like price_ followed by letters and numbers.';
   }
 
   return {

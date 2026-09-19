@@ -106,7 +106,9 @@ export const OWNER_CAPABILITIES = [
 export type OwnerCapability = (typeof OWNER_CAPABILITIES)[number];
 
 /** Viewing is not consequential. Everything else is, and everything else needs recent MFA. */
-const READ_ONLY_CAPABILITIES: ReadonlySet<OwnerCapability> = new Set<OwnerCapability>(['owner.view']);
+const READ_ONLY_CAPABILITIES: ReadonlySet<OwnerCapability> = new Set<OwnerCapability>([
+  'owner.view',
+]);
 
 export function isConsequential(capability: OwnerCapability): boolean {
   return !READ_ONLY_CAPABILITIES.has(capability);
@@ -247,8 +249,10 @@ export function authorise(
   // Gate 1 — does this principal belong in the panel? Everything here answers 404.
   if (principal.kind === 'anonymous') return notFound('no session');
   if (!isSessionLive(principal, now)) return notFound('session expired or revoked');
-  if (!principal.isPlatformOwner && !principal.isAutomation) return notFound('not a platform principal');
-  if (automationLifetimeExceeded(principal)) return notFound('automation identity issued beyond its permitted lifetime');
+  if (!principal.isPlatformOwner && !principal.isAutomation)
+    return notFound('not a platform principal');
+  if (automationLifetimeExceeded(principal))
+    return notFound('automation identity issued beyond its permitted lifetime');
 
   // Gate 2 — capability. A principal that got this far may be told what it cannot do.
   const held = capabilitiesFor(principal);

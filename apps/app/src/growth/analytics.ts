@@ -72,9 +72,15 @@ export interface VisitIdentityInput {
  */
 const FIELD_SEPARATOR = '\u001f';
 
-export async function visitSessionId(input: VisitIdentityInput, salt: string, now: Date): Promise<string> {
+export async function visitSessionId(
+  input: VisitIdentityInput,
+  salt: string,
+  now: Date,
+): Promise<string> {
   if (salt.length < 16) {
-    throw new TypeError('ANALYTICS_SALT must be at least 16 characters; a short salt makes the hash reversible');
+    throw new TypeError(
+      'ANALYTICS_SALT must be at least 16 characters; a short salt makes the hash reversible',
+    );
   }
   const material = [
     'verify.visit.v1',
@@ -157,7 +163,8 @@ export function classifyVisit(input: VisitRequestInput, sessionId: string): Visi
   if (CRAWLER_UA_MARKERS.some((marker) => ua.includes(marker))) return 'bot_suspected';
   if (input.method.toUpperCase() !== 'GET') return 'bot_suspected';
   // A browser-shaped agent that is not a known crawler. Still only "external", not "human".
-  if (ua.includes('mozilla/') || ua.includes('safari/') || ua.includes('firefox/')) return 'external';
+  if (ua.includes('mozilla/') || ua.includes('safari/') || ua.includes('firefox/'))
+    return 'external';
   return 'unknown';
 }
 
@@ -436,7 +443,11 @@ export function attributeSignup(
     };
   }
   if (session.utm_campaign === null) {
-    return { attributed: false, reason: 'no_campaign_utm', detail: 'the session carried no utm_campaign' };
+    return {
+      attributed: false,
+      reason: 'no_campaign_utm',
+      detail: 'the session carried no utm_campaign',
+    };
   }
   if (session.utm_campaign !== campaignUtm) {
     return {
@@ -448,7 +459,11 @@ export function attributeSignup(
   const visited = Date.parse(session.first_seen_at);
   const signed = Date.parse(signupAtIso);
   if (Number.isNaN(visited) || Number.isNaN(signed)) {
-    return { attributed: false, reason: 'unparseable_times', detail: 'visit or signup time is not an ISO-8601 instant' };
+    return {
+      attributed: false,
+      reason: 'unparseable_times',
+      detail: 'visit or signup time is not an ISO-8601 instant',
+    };
   }
   if (signed < visited) {
     return {
