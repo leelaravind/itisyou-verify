@@ -93,3 +93,44 @@ Recorded after the fact, not predicted.
 The pattern worth keeping: cheaper tiers are good at producing the shape of a thing and
 unreliable about specific facts. Anything they emit that names a URL, a version, an
 endpoint or a price gets verified by a deterministic check before it is trusted.
+
+---
+
+## Rebalancing onto Fable — 19 September 2026, after a session limit destroyed eleven agents
+
+Two facts forced a change to how work is routed, and both are worth recording because
+neither was a preference.
+
+**The first is that concentrating work on one model concentrates its failure.** Eleven
+specialists were running, most of them on the strongest available model. At 15:30 the
+session hit its usage limit and HTTP 429 terminated every one of them mid-task — not
+gracefully, not at a checkpoint, simply at whatever line each was on. Nothing was lost
+from the filesystem, which was verified afterwards rather than assumed, but a great deal
+of reasoning was. A roster that shares one limit does not degrade under pressure; it
+stops all at once.
+
+**The second is that the owner pointed out Fable's allowance was going unused** — twice.
+That is a second pool with its own limit, and leaving it idle while the first one is
+exhausted is simply poor routing.
+
+### What moved, and why each one
+
+| Workstream | Model | Why this one |
+| --- | --- | --- |
+| Workflow signing-key issuance | **Fable** | Consequential and narrow. It is the single gap blocking the vertical slice: no customer can obtain a key, so no signed event can be sent by anyone. Needs care about a secret shown once and never again, not breadth |
+| Customer experience and design integration | **Fable** | Large, judgement-heavy, and mostly about restraint — taking a generated design system's visual language while rejecting every claim it invented |
+| Job authorisation, maintenance runner, assistant | **Fable** | A latent authorisation hole plus an honest audit of what the assistant can actually reach. Security reasoning, bounded scope |
+| Integration and the vertical slice | Opus | The hardest reasoning on the project: signed requests, exactly-once accounting, five denial cases each needing two assertions |
+| Independent auditing | Opus | Must be capable of disbelieving four other specialists and the lead, including on claims that look finished |
+| Security hygiene and `SEC-632` | Opus | A 218-second event-loop block whose root cause took two independent investigations to establish |
+| Test ledger and accounting | Sonnet | Careful arithmetic against a moving tree. Precision, not invention — and it found a real ledger integrity failure nobody had noticed |
+| Data layer seed and tenant predicate | Sonnet | Three bounded, well-specified fixes with the answers already written down |
+
+### The principle this settled
+
+Route by *what the work demands*, not by what is strongest. But also spread across pools,
+because a roster on one limit has a single point of failure, and this project discovered
+that the expensive way. Deterministic work — counting tests, validating a schema,
+scanning for secrets and now scanning for unearned claims — still goes to code rather
+than to any model, because those are exactly the jobs where a model is slower, dearer and
+less reliable.
