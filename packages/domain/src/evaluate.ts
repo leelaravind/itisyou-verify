@@ -16,6 +16,8 @@
  */
 import {
   AppError,
+  BINDABLE_FIELDS,
+  BINDABLE_OPERATORS,
   DELIVERY_CONTRADICTING_STATUSES,
   DELIVERY_PROVING_STATUSES,
   EMAIL_STATUS,
@@ -67,6 +69,28 @@ export interface EvaluationContext {
   readonly connectedCrmAccountId?: string | null;
   /** As above, for the connected email provider account. */
   readonly connectedEmailAccountId?: string | null;
+  /**
+   * This run's own expected values, for assertions whose `expected_from` binds to the
+   * source event. When omitted, or when the named value is missing or blank, every bound
+   * assertion is UNKNOWN with `BINDING_UNAVAILABLE`. A missing binding is never a pass and
+   * is never replaced by a literal guess. The scheduler supplies it from the run's event.
+   */
+  readonly sourceEvent?: RunBindings | null;
+}
+
+/**
+ * The run's own expected values, drawn from its signed source event by the scheduler.
+ *
+ * The evaluator never reads a source event itself. It is handed exactly the two values the
+ * contract lets a rule name (`EXPECTED_FROM`), already validated by `sourceEventSchema`
+ * upstream — so the binding is per run at evaluation time, which is what "the acknowledgement
+ * went to the address *this* enquiry named" needs and a version-wide literal cannot give.
+ */
+export interface RunBindings {
+  /** `SourceEvent.correlation_id` — the value the CRM record should carry. */
+  readonly correlation_id?: string | null | undefined;
+  /** `SourceEvent.expected.email_recipient` — where the acknowledgement should have gone. */
+  readonly email_recipient?: string | null | undefined;
 }
 
 /**
@@ -215,8 +239,30 @@ function emailRef(event: EmailEventEvidence): string {
   return `email_event:${event.provider}:${event.message_id}:${event.status}`;
 }
 
-/** A spec problem the evaluator cannot honestly act on. Null when the spec is usable. */
-function specProblem(spec: AssertionSpec): string | null {
+type ResolvedExpected =
+  { readonly ok: true; readonly expected: AssertionSpec['expected'] } | { readonly ok: false };
+
+/**
+ * The value this assertion compares against, for this run.
+ *
+ * A literal is used as written. A bound value is looked up in the context and must be present
+ * and non-blank: a blank recipient on the enquiry is not an address to compare with, and
+ * comparing against '' would let an empty provider field "match" it.
+ */
+function resolveExpected(spec: AssertionSpec, ctx: EvaluationContext): ResolvedExpected {
+  if (spec.expected_from === undefined) return { ok: true, expected: spec.expected };
+  const bound =
+    spec.expected_from === 'source_event.correlation_id'
+      ? ctx.sourceEvent?.correlation_id
+      : ctx.sourceEvent?.email_recipient;
+  return present(bound) ? { ok: true, expected: bound } : { ok: false };
+}
+
+/**
+ * A spec problem the evaluator cannot honestly act on. Null when the spec is usable.
+ * `expected` is the value already resolved for this run — a literal, or the bound value.
+ */
+function specProblem(spec: AssertionSpec, expected: AssertionSpec['expected']): string | null {
   const isCrmField = CRM_FIELDS.has(spec.field);
   const isEmailField = EMAIL_FIELDS.has(spec.field);
   if (!isCrmField && !isEmailField) return `unknown field: ${spec.field}`;
@@ -225,27 +271,37 @@ function specProblem(spec: AssertionSpec): string | null {
   if (spec.field === 'record.property' && spec.property_name === undefined) {
     return 'record.property requires property_name';
   }
+  // The Zod contract already rejects these; the evaluator refuses independently so a
+  // hand-built or migrated rule set cannot bind where the contract says it may not.
+  if (spec.expected_from !== undefined) {
+    if (!BINDABLE_OPERATORS.includes(spec.operator)) {
+      return 'expected_from only binds equals or normalised_email_equals';
+    }
+    if (!BINDABLE_FIELDS[spec.expected_from].includes(spec.field)) {
+      return `${spec.expected_from} cannot bind ${spec.field}`;
+    }
+  }
   switch (spec.operator) {
     case 'occurred_within': {
-      if (typeof spec.expected !== 'number' || !Number.isInteger(spec.expected)) {
+      if (typeof expected !== 'number' || !Number.isInteger(expected)) {
         return 'occurred_within expects an integer number of seconds';
       }
-      if (spec.expected < 0) return 'occurred_within expects a non-negative window';
+      if (expected < 0) return 'occurred_within expects a non-negative window';
       return null;
     }
     case 'one_of': {
-      if (!Array.isArray(spec.expected) || spec.expected.length === 0) {
+      if (!Array.isArray(expected) || expected.length === 0) {
         return 'one_of expects a non-empty array of allowed values';
       }
       return null;
     }
     case 'provider_status_in': {
-      if (!Array.isArray(spec.expected) || spec.expected.length === 0) {
+      if (!Array.isArray(expected) || expected.length === 0) {
         return 'provider_status_in expects a non-empty array of statuses';
       }
       if (spec.field !== 'message.status')
         return 'provider_status_in only addresses message.status';
-      const unknownStatus = spec.expected.find((s) => !EMAIL_STATUS_SET.has(s));
+      const unknownStatus = expected.find((s) => !EMAIL_STATUS_SET.has(s));
       if (unknownStatus !== undefined) return `unknown email status: ${unknownStatus}`;
       return null;
     }
@@ -254,8 +310,8 @@ function specProblem(spec: AssertionSpec): string | null {
     case 'equals':
     case 'not_equals':
     case 'normalised_email_equals': {
-      if (typeof spec.expected !== 'string') return `${spec.operator} expects a string`;
-      if (spec.expected.trim() === '') return `${spec.operator} expects a non-empty value`;
+      if (typeof expected !== 'string') return `${spec.operator} expects a string`;
+      if (expected.trim() === '') return `${spec.operator} expects a non-empty value`;
       return null;
     }
     default:
@@ -263,7 +319,20 @@ function specProblem(spec: AssertionSpec): string | null {
   }
 }
 
-export function describeExpected(spec: AssertionSpec): string {
+/**
+ * What the rule asked for, in words a customer can read.
+ *
+ * For a bound assertion, `resolved` is this run's own value and is shown as the expectation —
+ * pages mask addresses before display, exactly as they do for a literal one. Without a
+ * resolved value the description names the binding rather than inventing a literal.
+ */
+export function describeExpected(spec: AssertionSpec, resolved?: string): string {
+  if (spec.expected_from !== undefined) {
+    if (resolved !== undefined) return resolved;
+    return spec.expected_from === 'source_event.correlation_id'
+      ? "this enquiry's reference, which this run's event did not carry"
+      : "the address this enquiry named, which this run's event did not carry";
+  }
   switch (spec.operator) {
     case 'exists':
       return 'present';
@@ -313,6 +382,7 @@ function applyOperator(
   spec: AssertionSpec,
   value: string | null | undefined,
   occurredAt: Date,
+  expected: AssertionSpec['expected'],
 ): Verdict {
   if (spec.operator === 'exists') {
     if (present(value)) return SUPPORTED;
@@ -327,26 +397,26 @@ function applyOperator(
   switch (spec.operator) {
     case 'equals': {
       if (!present(value)) return contradicted('VALUE_MISMATCH');
-      return compareStrings(spec.field, value, String(spec.expected))
+      return compareStrings(spec.field, value, String(expected))
         ? SUPPORTED
         : contradicted('VALUE_MISMATCH');
     }
     case 'not_equals': {
       // An empty value is not proof that the value is not the forbidden one.
       if (!present(value)) return unknown('EVIDENCE_NOT_RETURNED');
-      return compareStrings(spec.field, value, String(spec.expected))
+      return compareStrings(spec.field, value, String(expected))
         ? contradicted('VALUE_MISMATCH')
         : SUPPORTED;
     }
     case 'normalised_email_equals': {
       if (!present(value)) return contradicted('VALUE_MISMATCH');
       const observed = normaliseEmailAddress(value);
-      const expected = normaliseEmailAddress(String(spec.expected));
-      return observed === expected ? SUPPORTED : contradicted('VALUE_MISMATCH');
+      const wanted = normaliseEmailAddress(String(expected));
+      return observed === wanted ? SUPPORTED : contradicted('VALUE_MISMATCH');
     }
     case 'one_of': {
       if (!present(value)) return contradicted('VALUE_MISMATCH');
-      const allowed = Array.isArray(spec.expected) ? spec.expected : [];
+      const allowed = Array.isArray(expected) ? expected : [];
       return allowed.some((a) => compareStrings(spec.field, value, a))
         ? SUPPORTED
         : contradicted('VALUE_MISMATCH');
@@ -356,7 +426,7 @@ function applyOperator(
       // A corrupt or missing timestamp is not a late timestamp. We simply cannot tell — and
       // the provider did answer us, so this is an omission, not an outage.
       if (observedMs === null) return unknown('EVIDENCE_NOT_RETURNED');
-      const windowSeconds = typeof spec.expected === 'number' ? spec.expected : 0;
+      const windowSeconds = typeof expected === 'number' ? expected : 0;
       const deltaMs = observedMs - occurredAt.getTime();
       // Evidence that predates the business event cannot have been produced by it.
       if (deltaMs < 0) return contradicted('OUTSIDE_TIME_WINDOW');
@@ -413,6 +483,7 @@ function buildResult(
   observedDisplay: string | null,
   observedAt: string | null,
   evidenceRef: string | null,
+  expectedDisplay: string = describeExpected(spec),
 ): AssertionResult {
   return {
     rule_id: spec.rule_id,
@@ -420,7 +491,7 @@ function buildResult(
     mandatory: spec.mandatory,
     status: verdict.status,
     reason_code: verdict.reason,
-    expected_display: describeExpected(spec),
+    expected_display: expectedDisplay,
     observed_display: observedDisplay,
     observed_at: observedAt,
     evidence_ref: evidenceRef,
@@ -501,16 +572,29 @@ function evaluateOne(
   bundle: EvidenceBundle,
   ctx: EvaluationContext,
 ): AssertionResult {
+  // 0. A bound expectation this run cannot supply. The rule may be perfectly well formed; it
+  //    is this run's event that carries nothing to compare with. UNKNOWN — never a pass, and
+  //    never a literal guessed in its place.
+  const resolved = resolveExpected(spec, ctx);
+  if (!resolved.ok) return buildResult(spec, unknown('BINDING_UNAVAILABLE'), null, null, null);
+  const expected = resolved.expected;
+  const expectedDisplay = describeExpected(
+    spec,
+    spec.expected_from !== undefined && typeof expected === 'string' ? expected : undefined,
+  );
+
   // 1. A spec we cannot honestly act on never guesses.
-  const problem = specProblem(spec);
-  if (problem !== null) return buildResult(spec, unknown('RULE_UNSUPPORTED'), null, null, null);
+  const problem = specProblem(spec, expected);
+  if (problem !== null) {
+    return buildResult(spec, unknown('RULE_UNSUPPORTED'), null, null, null, expectedDisplay);
+  }
 
   const gapsForSource = bundle.gaps.filter((g) => g.source === spec.source);
 
   // 2. Ambiguity beats everything, including a record we happen to hold: if we cannot tell
   //    which record is the customer's, nothing derived from it is trustworthy.
   if (gapsForSource.some((g) => g.code === 'AMBIGUOUS_MATCH')) {
-    return buildResult(spec, unknown('RECORD_AMBIGUOUS'), null, null, null);
+    return buildResult(spec, unknown('RECORD_AMBIGUOUS'), null, null, null, expectedDisplay);
   }
 
   let candidates =
@@ -521,9 +605,11 @@ function evaluateOne(
   // 3. Nothing to look at.
   if (candidates.length === 0) {
     const gap = gapsForSource[0];
-    if (gap !== undefined) return buildResult(spec, unknown(mapGapToReason(gap)), null, null, null);
+    if (gap !== undefined) {
+      return buildResult(spec, unknown(mapGapToReason(gap)), null, null, null, expectedDisplay);
+    }
     // No evidence and no explanation: we cannot claim the connector established absence.
-    return buildResult(spec, unknown('AWAITING_EVIDENCE'), null, null, null);
+    return buildResult(spec, unknown('AWAITING_EVIDENCE'), null, null, null, expectedDisplay);
   }
 
   // 4. Account ownership. A customer-supplied record id is a locator, never a fact — a record
@@ -539,6 +625,7 @@ function evaluateOne(
         foreign?.value ?? null,
         foreign?.at ?? null,
         foreign?.ref ?? null,
+        expectedDisplay,
       );
     }
     candidates = owned;
@@ -556,6 +643,7 @@ function evaluateOne(
         claimed?.value ?? null,
         claimed?.at ?? null,
         claimed?.ref ?? null,
+        expectedDisplay,
       );
     }
     candidates = independent;
@@ -574,18 +662,21 @@ function evaluateOne(
       observed === '' ? null : observed,
       chosen?.at ?? null,
       chosen?.ref ?? null,
+      expectedDisplay,
     );
   }
 
   let best: { verdict: Verdict; candidate: Candidate } | null = null;
   for (const candidate of candidates) {
-    const verdict = applyOperator(spec, candidate.value, ctx.occurredAt);
+    const verdict = applyOperator(spec, candidate.value, ctx.occurredAt, expected);
     if (best === null || COMBINE_RANK[verdict.status] > COMBINE_RANK[best.verdict.status]) {
       best = { verdict, candidate };
     }
   }
   /* c8 ignore next */
-  if (best === null) return buildResult(spec, unknown('AWAITING_EVIDENCE'), null, null, null);
+  if (best === null) {
+    return buildResult(spec, unknown('AWAITING_EVIDENCE'), null, null, null, expectedDisplay);
+  }
 
   const value = best.candidate.value;
   return buildResult(
@@ -594,6 +685,7 @@ function evaluateOne(
     value === undefined ? null : value,
     best.candidate.at,
     best.candidate.ref,
+    expectedDisplay,
   );
 }
 

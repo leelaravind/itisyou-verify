@@ -53,6 +53,12 @@ export const REASON_CODE = [
   'AWAITING_EVIDENCE',
   'CORRELATION_MISSING',
   'RULE_UNSUPPORTED',
+  /**
+   * The rule binds its expected value to the run's own source event (`expected_from`), and
+   * this run's event did not carry a readable one. The rule is fine; this run cannot be
+   * judged on it. Distinct from RULE_UNSUPPORTED, whose next step is "edit the check".
+   */
+  'BINDING_UNAVAILABLE',
 ] as const;
 export type ReasonCode = (typeof REASON_CODE)[number];
 

@@ -22,6 +22,39 @@ export const OPERATOR = [
 ] as const;
 export type Operator = (typeof OPERATOR)[number];
 
+/**
+ * Where an assertion's expected value may come from when it is not a literal authored into
+ * the workflow version but a value the run's own signed source event carried.
+ *
+ * A closed enum of two *names*, not a path language. Each entry denotes one field of the
+ * already-validated `SourceEvent`; the scheduler resolves it and hands the evaluator the
+ * value. Nothing here is parsed, traversed or executed, and the set of things a rule can
+ * compute is unchanged — only where one string literal comes from.
+ *
+ * Why it exists. `expected` is shared by every run a version judges, so "the acknowledgement
+ * went to the address *this* enquiry named" could not be expressed at all. The rule that
+ * stood in for it — `exists` on `message.recipient` — proved only that an email had *a*
+ * recipient, and a run could come back VERIFIED with the acknowledgement at the wrong
+ * address. The CRM side had the same hole on the record-id locator path.
+ */
+export const EXPECTED_FROM = [
+  'source_event.correlation_id',
+  'source_event.email_recipient',
+] as const;
+export type ExpectedFrom = (typeof EXPECTED_FROM)[number];
+
+/** Which fields each binding may address. A binding on any other field is rejected. */
+export const BINDABLE_FIELDS: Readonly<Record<ExpectedFrom, readonly string[]>> = Object.freeze({
+  'source_event.correlation_id': Object.freeze(['record.correlation_id', 'record.property']),
+  'source_event.email_recipient': Object.freeze(['message.recipient', 'record.email']),
+});
+
+/** The only operators that may take a bound value: the two that compare one string. */
+export const BINDABLE_OPERATORS: readonly Operator[] = Object.freeze([
+  'equals',
+  'normalised_email_equals',
+]);
+
 /** Field paths a rule may address. An allowlist, not free-form traversal. */
 export const CRM_FIELD = [
   'record.id',
@@ -65,6 +98,14 @@ export const assertionSpecSchema = z
       z.number().int(),
       z.array(z.string().max(128)).max(20),
     ]),
+    /**
+     * When present, the value compared against is drawn from the run's own source event at
+     * evaluation time and `expected` must be the empty string. Only `equals` and
+     * `normalised_email_equals` may bind, and only to the field each binding is the
+     * counterpart of (`BINDABLE_FIELDS`). A run whose event does not carry the value is
+     * UNKNOWN on that assertion, never a pass.
+     */
+    expected_from: z.enum(EXPECTED_FROM).optional(),
     /** Optional checks are reported but never change the mandatory outcome. See plan §16.4. */
     mandatory: z.boolean().default(true),
     /** Human label shown beside the result. */
@@ -124,6 +165,29 @@ export const assertionSpecSchema = z
         message: 'exists takes no expected value; use an empty string',
         path: ['expected'],
       });
+    }
+    if (spec.expected_from !== undefined) {
+      if (!BINDABLE_OPERATORS.includes(spec.operator)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'expected_from is only valid with equals or normalised_email_equals',
+          path: ['expected_from'],
+        });
+      }
+      if (spec.expected !== '') {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'expected must be an empty string when expected_from binds the value',
+          path: ['expected'],
+        });
+      }
+      if (!BINDABLE_FIELDS[spec.expected_from].includes(spec.field)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `${spec.expected_from} cannot bind ${spec.field}`,
+          path: ['field'],
+        });
+      }
     }
   });
 

@@ -24,7 +24,14 @@ import {
   type AssertionExplanation,
   type WorkflowHealth,
 } from '@verify/domain';
-import type { EvidenceBundle, RunStatus, WorkflowRules } from '@verify/contracts';
+import { LIMITS, type EvidenceBundle, type RunStatus, type WorkflowRules } from '@verify/contracts';
+/*
+ * Deliberate: the demo's rules come from the real rule compiler — the pure function that
+ * turns a customer's two onboarding forms into a `WorkflowRules` document. It touches no
+ * database. Importing it here is what makes the demo unable to show a check that a real
+ * workflow does not perform (see `demoRules()` below).
+ */
+import { composeWorkflowRules } from '../../db/ruleCompiler.js';
 /*
  * Deliberate: this imports the shared synthetic fixture *builders* from `tests/fixtures/`.
  *
@@ -49,7 +56,6 @@ import {
   makeEmailEventWithStatus,
   makeEmptyBundle,
   makeEvidenceBundle,
-  makeStandardWorkflow,
   makeUnreachableBundle,
 } from '../../../../../tests/fixtures/index.js';
 
@@ -78,13 +84,47 @@ export interface DemoRun {
   readonly sourceType: string;
 }
 
-const RULES: WorkflowRules = makeStandardWorkflow();
+/**
+ * The rules this demo judges against are exactly the rules a real workspace gets.
+ *
+ * Until 2026-09-19 the demo ran the shared `makeStandardWorkflow()` fixture, which asserts
+ * `normalised_email_equals` on the recipient — a check the evaluator implements but that no
+ * customer workflow emits: the onboarding composer asserts only that the recipient field
+ * `exists`. The demo was therefore showing a visitor a comparison the product never performs
+ * on a real run. So the demo now composes its rules through the same function the onboarding
+ * forms use, with every check switched on, and `tests/unit/public/demo-rules.test.ts` pins
+ * the two together. The composer now binds the recipient and correlation checks to the run's
+ * own event (`expected_from`), so the demo shows that comparison for the same reason it did
+ * not before: because real runs perform it.
+ */
+function demoRules(): WorkflowRules {
+  const composed = composeWorkflowRules({
+    correlationProperty: 'verify_correlation_id',
+    deadlineSeconds: LIMITS.DEFAULT_DEADLINE_SECONDS,
+    coverageMode: 'customer_triggered',
+    requireRecordExists: true,
+    requireCorrelationMatch: true,
+    requireEmailDelivered: true,
+    requireRecipientMatch: true,
+  });
+  if (!composed.ok) {
+    // A demo that cannot compose the product's own rules must fail loudly, not render a
+    // hand-written substitute that looks like them.
+    throw new Error(`demo rules did not compose: ${composed.failure.message}`);
+  }
+  return composed.rules;
+}
+
+const RULES: WorkflowRules = demoRules();
 
 const EVAL_CONTEXT = {
   occurredAt: T_EVENT,
   now: T_INSIDE_WINDOW,
   connectedCrmAccountId: CONNECTED_CRM_ACCOUNT,
   connectedEmailAccountId: CONNECTED_EMAIL_ACCOUNT,
+  // The synthetic enquiry's own values, exactly as the scheduler hands a real run's. The
+  // composer binds two checks to them, so without this the demo's runs could never verify.
+  sourceEvent: { correlation_id: CORRELATION_VALUE, email_recipient: RECIPIENT },
 } as const;
 
 interface Scenario {

@@ -145,7 +145,7 @@ describe('explainRunStatus', () => {
   it('VERIFY-174 a reason code missing from the map would be caught at compile time, and none is missing at runtime', () => {
     const codes: ReasonCode[] = [...REASON_CODE];
     expect(codes.every((code) => explainReasonCode(code).sentence.length > 0)).toBe(true);
-    expect(codes).toHaveLength(16);
+    expect(codes).toHaveLength(17);
   });
 
   it('VERIFY-194 an omitted field reads differently from an unreachable provider', () => {

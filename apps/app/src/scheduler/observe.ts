@@ -286,6 +286,13 @@ export async function observeRun(run: DueRun, deps: ObserveDeps): Promise<Observ
       now: deps.now,
       connectedCrmAccountId: gathered.accounts.hubspot,
       connectedEmailAccountId: gathered.accounts.resend,
+      // The run's own expected values, for assertions bound with `expected_from`. Drawn from
+      // the same parsed source event as the locator — so a payload we could not read binds
+      // nothing, and every bound assertion is UNKNOWN rather than judged against a guess.
+      sourceEvent: {
+        correlation_id: locator.correlation_value ?? null,
+        email_recipient: locator.recipient ?? null,
+      },
     });
   } catch {
     const resolved = await resolveWithoutEvaluation(

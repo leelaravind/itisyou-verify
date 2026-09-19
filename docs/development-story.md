@@ -65,6 +65,25 @@ Customers define expectations using a closed set of typed operators — `exists`
 `normalised_email_equals`, `occurred_within`, `provider_status_in`, `one_of` — over an
 allowlisted set of fields.
 
+Every operator in that list is implemented in the evaluator and covered by its tests. For
+most of one day that was not the same as every one being used. Until 19 September 2026 the
+composer that turns the onboarding forms into rules emitted `exists` and
+`provider_status_in` only, so a real run checked that the acknowledgement carried _a_
+recipient address — not that it carried _this enquiry's_ address — and a run whose
+acknowledgement went to the wrong person could come back verified. The reason was
+structural: a rule's expected value is a literal shared by every run a version judges, so
+"the address _this_ enquiry named" could not be written down at all.
+
+The fix widened the language by exactly one thing, and it is not an expression: a rule may
+now name one of two values from the run's own signed event — its correlation reference or
+its expected recipient — as a closed, typed reference (`expected_from`). Server code
+resolves it; nothing is parsed or executed. The composer now binds the recipient check to
+the enquiry's address with `normalised_email_equals`, and the correlation check to the
+enquiry's reference with `equals`. A run whose event carries nothing to compare with is
+_unknown_ on that check, never a pass. This is tested against the in-process harness: the
+wrong address fails the run. It has not been exercised against a live Resend account,
+because no credential exists yet.
+
 The alternative was a general expression language. It was rejected: a general language
 lets a customer rule become an unbounded computation or a network request, and it makes
 the distinction between "failed" and "could not be checked" impossible to prove. A small
@@ -79,6 +98,13 @@ Stripping `+tag` would mean `boss+anything@corp.com` — an address the customer
 could satisfy a rule about having emailed `boss@corp.com`. Verification must never widen
 an equivalence class. Dot-stripping is a Gmail-specific convention and is simply wrong for
 other providers.
+
+That reasoning is a property of the `normalised_email_equals` operator. For most of one day
+it was documented here while no customer workflow emitted the operator, so the paragraph
+above described a protection no real run had. Since 19 September 2026 the composer binds the
+recipient check with that operator to the address each enquiry named, so the safeguard
+applies to a real run — proven against the in-process harness, not yet against a live
+provider account.
 
 ### The line between "wrong" and "unknown"
 
