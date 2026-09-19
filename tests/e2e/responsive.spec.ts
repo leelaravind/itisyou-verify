@@ -148,7 +148,19 @@ test('capture screenshots at three widths', async ({ page, context }) => {
   // Best effort: the public pages shoot either way, and the authenticated ones are skipped
   // by the status check below rather than saved as pictures of a sign-in page.
   await signInAsAutomation(context);
-  await mkdir('docs/screenshots', { recursive: true });
+
+  // Where the pictures go. Locally that is the tracked directory, because updating the
+  // committed screenshots is the point of running this.
+  //
+  // In CI it must NOT be, and this is not a stylistic preference. Writing into a tracked
+  // path leaves the working tree dirty, and `build-gate-artefact.mjs` then refuses to
+  // produce a release number -- correctly, because a number computed from a modified tree
+  // does not belong to any commit. That is what took the gate down from 19 September 2026,
+  // the day the browser suite was brought into CI: every run since had regenerated these
+  // PNGs and then failed on the dirtiness it had just created. The screenshots were never
+  // the problem and neither was the refusal; they simply could not both be right.
+  const outDir = process.env['SCREENSHOT_DIR'] ?? 'docs/screenshots';
+  await mkdir(outDir, { recursive: true });
   for (const viewport of WIDTHS) {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     for (const task of PRIMARY_TASKS) {
@@ -159,7 +171,7 @@ test('capture screenshots at three widths', async ({ page, context }) => {
       // evidence that a layout works is worse than no picture at all.
       if (response?.status() !== 200) continue;
       await page.screenshot({
-        path: `docs/screenshots/${task.slug}--${viewport.name}.png`,
+        path: `${outDir}/${task.slug}--${viewport.name}.png`,
         fullPage: viewport.name !== 'mobile-390',
       });
     }
