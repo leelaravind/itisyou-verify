@@ -8,6 +8,7 @@
  * sealed envelope and must open it with the AAD they rebuild from their own context.
  */
 import type { ConnectionStatus } from '@verify/contracts';
+import { newWebhookPathId } from './resendWebhookPort';
 import { type Db, orNull, resultAt } from './d1';
 
 export type Provider = 'hubspot' | 'resend';
@@ -168,6 +169,31 @@ export const connections = {
             credential.aad,
             params.lastCheckAt,
           ),
+      );
+    }
+
+    /*
+     * A Resend connection needs somewhere for Resend to call.
+     *
+     * `assignWebhookPathId` existed, was exported, and was called by nothing but a test —
+     * so `webhook_path_id` stayed null, no URL could be shown to the customer, no signed
+     * delivery could arrive, and the connection could never leave `testing`. The page was
+     * honest about being unfinished while being structurally unable to finish, which is a
+     * worse failure than an error: it looks like patience.
+     *
+     * Assigned here rather than in a later step, and inside the same batch, because a
+     * connection that exists without a path to call it is the state that was broken. Only
+     * when null: rotating an existing path silently would break a webhook the customer has
+     * already registered with Resend. Rotation is a deliberate act with its own call.
+     */
+    if (params.provider === 'resend') {
+      statements.push(
+        db
+          .prepare(
+            `UPDATE connections SET webhook_path_id = ?
+              WHERE workspace_id = ? AND id = ? AND webhook_path_id IS NULL`,
+          )
+          .bind(newWebhookPathId(), params.workspaceId, connectionId),
       );
     }
 
