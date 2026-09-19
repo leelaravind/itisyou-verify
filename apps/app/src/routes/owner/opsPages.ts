@@ -24,10 +24,13 @@ import {
 import { formatMoney, money } from '@verify/contracts';
 import {
   CONTROL_DESCRIPTION,
+  CONTROL_ENFORCEMENT,
   CONTROL_KEYS,
   PROTECTED_PATHS,
+  type ControlKey,
   type Controls,
 } from '../../owner/controls.js';
+import { healthRow } from './dashboardPages.js';
 import { describeAccessMode, AUTOMATION_DENIED, MFA_WINDOW_SECONDS } from '../../owner/access.js';
 import {
   pendingBusinessFields,
@@ -63,6 +66,18 @@ export function OperationsPage(options: {
       eyebrow: 'Operations',
       title: 'How the service is running',
       lede: 'Health, what was deployed, what is alerting, and whether the maintenance runner is actually there.',
+    })}
+
+    ${Card({
+      title: 'Service health',
+      headingLevel: 2,
+      body:
+        options.view.health.length === 0
+          ? html`<p class="muted" data-health-empty="true">
+              Nothing on this deployment reports health, so there is nothing to show. That is an
+              absence of measurement, not a clean bill.
+            </p>`
+          : html`<div class="stack-sm" data-health="true">${options.view.health.map(healthRow)}</div>`,
     })}
 
     ${Card({
@@ -374,6 +389,49 @@ export function OperationsPage(options: {
 // Controls
 // ---------------------------------------------------------------------------
 
+/**
+ * What actually enforces this switch — rendered on the switch, not buried in a comment.
+ *
+ * Every one of these four wrote a settings row, said "Paused." and changed nothing: the
+ * middleware that consults them did not exist. Two are enforced now. The other two are not
+ * enforceable yet, and that fact belongs in front of the owner at the moment they are
+ * deciding whether they have stopped something. A switch that silently does nothing is the
+ * failure `OWNER-324/325/326` exist to prevent, and it was sitting in the control panel
+ * those cases guard.
+ */
+function enforcementNote(key: ControlKey): Html {
+  const enforcement = CONTROL_ENFORCEMENT[key];
+  if (enforcement.kind === 'http_paths') {
+    return Callout({
+      tone: 'note',
+      title: 'This switch is enforced',
+      body: html`<p data-enforced="true" data-control-enforcement="${key}">
+        Requests to
+        ${enforcement.paths.map((p) => html`<span class="mono">${p}</span> `)}
+        are refused with an explanation while this is paused. Everything else keeps working.
+      </p>`,
+    });
+  }
+  if (enforcement.kind === 'action') {
+    return Callout({
+      tone: 'note',
+      title: 'This switch is enforced',
+      body: html`<p data-enforced="true" data-control-enforcement="${key}">
+        ${enforcement.what} The check runs inside the action itself, at the moment you press it, so
+        there is no page to go around.
+      </p>`,
+    });
+  }
+  return Callout({
+    tone: 'warn',
+    title: 'This switch does not stop anything yet',
+    body: html`<p data-enforced="false" data-control-enforcement="${key}">
+      ${enforcement.why} You can still press it and the state is recorded, but do not rely on it to stop
+      anything. Owner: ${enforcement.owner}.
+    </p>`,
+  });
+}
+
 export function ControlsPage(options: {
   readonly controls: Controls;
   readonly csrfToken: string | null;
@@ -416,6 +474,7 @@ export function ControlsPage(options: {
           body: html`<div class="stack-sm">
             <p class="measure"><strong>Pausing this stops:</strong> ${description.stops}</p>
             <p class="measure"><strong>It does not stop:</strong> ${description.doesNotStop}</p>
+            ${enforcementNote(key)}
             ${
               state.paused
                 ? html`<p class="small">

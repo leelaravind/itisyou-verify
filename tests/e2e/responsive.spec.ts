@@ -13,6 +13,7 @@ import {
   SEED_MISSING,
   automationCookieIsPresent,
   customerSurfaceReady,
+  firstRunPath,
   signInAsAutomation,
 } from './helpers/session';
 
@@ -30,10 +31,33 @@ const PRIMARY_TASKS = [
   { path: '/how-it-works', slug: 'how-it-works' },
   { path: '/app', slug: 'app-workspace' },
   { path: '/app/runs', slug: 'app-runs' },
-  { path: '/app/runs/run_syn_0002', slug: 'app-run-detail' },
+  // Resolved at run time from the seeded workspace's own run list; see `resolveTask`.
+  { path: 'RUN_DETAIL', slug: 'app-run-detail' },
   { path: '/app/onboarding/outcome', slug: 'app-onboarding-outcome' },
   { path: '/terms', slug: 'terms' },
 ] as const;
+
+/**
+ * A run detail has no stable path: the seeded D1 workspace does not contain the synthetic
+ * port's `run_syn_0002`, and measuring a 404 measures nothing. So the run-detail task is
+ * resolved from the run list on the page under test, and recorded as unmeasured — as an
+ * annotation, not a silent pass — when the workspace has no run to open.
+ */
+async function resolveTask(
+  page: Page,
+  task: (typeof PRIMARY_TASKS)[number],
+): Promise<string | null> {
+  if (task.path !== 'RUN_DETAIL') return task.path;
+  const path = await firstRunPath(page);
+  if (path === null) {
+    test.info().annotations.push({
+      type: 'unmeasured',
+      description:
+        'app-run-detail: the seeded workspace has no run to open, so its layout was not measured',
+    });
+  }
+  return path;
+}
 
 async function horizontalOverflow(page: Page): Promise<number> {
   return page.evaluate(() => {
@@ -77,17 +101,17 @@ for (const viewport of WIDTHS) {
     test.skip(!(await customerSurfaceReady(page)), CUSTOMER_WORKSPACE_MISSING);
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     for (const task of PRIMARY_TASKS) {
-      const response = await page.goto(task.path);
+      const path = await resolveTask(page, task);
+      if (path === null) continue;
+      const response = await page.goto(path);
       // The status check is not incidental. An error page has almost no content and so never
       // overflows, which means a broken route would make this case pass without measuring
       // anything. Assert the page actually rendered before believing its layout.
-      expect(response?.status(), `${task.path} did not render; its layout was not measured`).toBe(
-        200,
-      );
+      expect(response?.status(), `${path} did not render; its layout was not measured`).toBe(200);
       const overflow = await horizontalOverflow(page);
       expect(
         overflow,
-        `${task.path} at ${viewport.width}px overflows by ${overflow}px: ${(await offendingElements(page)).join(', ')}`,
+        `${path} at ${viewport.width}px overflows by ${overflow}px: ${(await offendingElements(page)).join(', ')}`,
       ).toBeLessThanOrEqual(1);
     }
   });
@@ -128,7 +152,9 @@ test('capture screenshots at three widths', async ({ page, context }) => {
   for (const viewport of WIDTHS) {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     for (const task of PRIMARY_TASKS) {
-      const response = await page.goto(task.path);
+      const path = await resolveTask(page, task);
+      if (path === null) continue;
+      const response = await page.goto(path);
       // Never save a screenshot of an error page into docs/ — a picture of a 500 filed as
       // evidence that a layout works is worse than no picture at all.
       if (response?.status() !== 200) continue;

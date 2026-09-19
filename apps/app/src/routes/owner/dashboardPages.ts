@@ -25,7 +25,16 @@ import type {
   ServiceHealthView,
 } from '../../owner/port.js';
 
-function healthRow(item: ServiceHealthView): Html {
+/**
+ * One service-health row.
+ *
+ * Exported because `OperationsView.health` existed and was rendered by **nothing** — the
+ * operations page's own lede promised "Health, what was deployed, what is alerting" and the
+ * page showed three of the four. A view model nobody renders is a claim that data is
+ * visible when it is not, which is the same defect as a switch that reports success and
+ * changes nothing, one level down.
+ */
+export function healthRow(item: ServiceHealthView): Html {
   const tone =
     item.state === 'ok'
       ? 'note'

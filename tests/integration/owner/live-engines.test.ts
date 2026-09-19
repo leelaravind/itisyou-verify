@@ -849,3 +849,53 @@ describe('the owner can see whether this deployment can actually take money', ()
     expect(row?.observedAt).toBe(NOW.toISOString());
   });
 });
+
+/* -------------------------------------------------------------------------- */
+/* the advertising stop switch, which is the other half of the approval gate   */
+/* -------------------------------------------------------------------------- */
+
+describe('pausing advertising actually stops a campaign starting', () => {
+  it('OWNER-386 a paused ads switch refuses activation before the approval is even read', async () => {
+    seedCampaign();
+    const app = await mount();
+    const approvalId = await seedCampaignApproval();
+
+    // The switch, through the real owner route.
+    await app.post('/owner/controls/ads', { paused: 'yes' });
+
+    const response = await app.post('/owner/ads/cmp_first/activate', {
+      approval_id: approvalId,
+    });
+    const body = await response.text();
+    expect(body).toMatch(/advertising is paused/i);
+
+    // The campaign did not move, and — the part that matters — the approval was not spent.
+    // The check runs before the approval is read precisely so that a pause never costs the
+    // owner an authorisation they will need again when they un-pause.
+    expect(
+      one<{ state: string }>('SELECT state FROM campaigns WHERE id = ?', 'cmp_first')?.state,
+    ).toBe('awaiting_owner');
+    expect(
+      one<{ status: string; consumed_at: string | null }>(
+        'SELECT status, consumed_at FROM approvals WHERE id = ?',
+        approvalId,
+      ),
+    ).toMatchObject({ status: 'granted', consumed_at: null });
+  });
+
+  it('OWNER-387 with the switch off the same request activates, so the refusal is the switch', async () => {
+    seedCampaign();
+    const app = await mount();
+    const approvalId = await seedCampaignApproval();
+
+    // No pause this time. Everything else is identical, which is what makes OWNER-386 a
+    // statement about the switch rather than about the fixture.
+    const response = await app.post('/owner/ads/cmp_first/activate', {
+      approval_id: approvalId,
+    });
+    expect(await response.text()).not.toMatch(/advertising is paused/i);
+    expect(
+      one<{ status: string }>('SELECT status FROM approvals WHERE id = ?', approvalId)?.status,
+    ).toBe('consumed');
+  });
+});

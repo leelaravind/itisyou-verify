@@ -132,10 +132,14 @@ export {
   createRefundApprovalConsumer,
 } from './approvalClaims';
 export {
+  AUTOMATION_ADMIN_AUTH_SUBJECT,
+  AUTOMATION_ADMIN_WORKSPACE_ROLE,
   AUTOMATION_AUTH_SUBJECT,
+  AUTOMATION_WORKSPACE_ID,
   automationSeedExports,
   buildAutomationSeed,
   seedAutomationIdentity,
+  seedAutomationWorkflowAdmin,
 } from './automationSeed';
 export type { AutomationSeed, AutomationSeedRequest } from './automationSeed';
 

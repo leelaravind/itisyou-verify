@@ -89,10 +89,35 @@ export interface AutomationSeedRequest {
   readonly authSubject?: string;
 }
 
+/**
+ * A separate, narrowly-scoped identity that CAN configure a workflow — authorised because
+ * the viewer identity above cannot, and nothing could be configured through the real UI
+ * without one.
+ *
+ * The owner's written reason, verbatim:
+ *
+ * > Without an identity that can configure a workflow, no workflow can be configured in any
+ * > test, so the vertical slice can never be proven, so the product would ship on unit tests
+ * > alone. This project has now found five separate workstreams whose code was correct,
+ * > thoroughly tested and reachable by no request. Shipping on that basis is the specific
+ * > failure the slice exists to prevent, and it is a larger risk than a scoped admin
+ * > credential.
+ *
+ * It is never the viewer identity elevated — a distinct subject, a distinct user row, a
+ * distinct session — and it is scoped to `AUTOMATION_WORKSPACE_ID`, the same synthetic
+ * workspace, and nothing else. `AUTH-460` asserts it holds no membership anywhere a real
+ * workspace could be. It exists only when a caller (`scripts/seed-automation-identity.mjs`
+ * behind `SEED_WORKFLOW_ADMIN=1`, or a test) explicitly asks for it — nothing here seeds it
+ * automatically, the same way nothing seeds `seedAutomationIdentity` automatically.
+ */
+export const AUTOMATION_ADMIN_AUTH_SUBJECT = 'automation-admin@itisyou.test';
+export const AUTOMATION_ADMIN_WORKSPACE_ROLE = 'workspace_admin' as const;
+
 export interface AutomationSeed {
   readonly userId: string;
   readonly workspaceId: string;
-  readonly workspaceRole: 'workspace_viewer';
+  /** `workspace_viewer` from `seedAutomationIdentity`, `workspace_admin` from the workflow-admin variant. */
+  readonly workspaceRole: 'workspace_viewer' | 'workspace_admin';
   /** `verify_session` over http, `__Host-verify_session` over https. Read it; do not assume. */
   readonly sessionCookieName: string;
   readonly sessionCookieValue: string;
@@ -226,6 +251,88 @@ export async function seedAutomationIdentity(
   });
 
   return { ...draft, userId: user.id, sessionId };
+}
+
+/**
+ * Create the workflow-admin identity and its session — the same shape as
+ * `seedAutomationIdentity`, with two deliberate differences: a distinct subject/user, and
+ * `workspace_admin` rather than `workspace_viewer` on the membership row.
+ *
+ * Never call this from anywhere that is not explicitly asking for a write-capable identity.
+ * There is no environment-variable check inside this function on purpose — the same reason
+ * `seedAutomationIdentity` has none: gating belongs to the caller that decides whether this
+ * identity should exist at all (`scripts/seed-automation-identity.mjs`'s
+ * `SEED_WORKFLOW_ADMIN`, or a test that says so by calling this directly).
+ */
+export async function seedAutomationWorkflowAdmin(
+  db: Db,
+  request: AutomationSeedRequest,
+): Promise<AutomationSeed> {
+  const draft = buildAutomationSeed(request);
+  const now = request.now ?? new Date();
+  const authSubject = (request.authSubject ?? AUTOMATION_ADMIN_AUTH_SUBJECT).trim().toLowerCase();
+
+  const user = await users.createOrGet(db, {
+    id: draft.userId,
+    authSubject,
+    displayName: 'Automation workflow-admin test identity',
+    createdAt: draft.createdAt,
+  });
+
+  // The same synthetic workspace the viewer identity uses — never a second one. Scoping
+  // this identity to a workspace that is `is_synthetic = 1`, and to no other membership row
+  // at all, is what "cannot touch a real one" means in practice.
+  await workspaces
+    .createWithOwner(db, {
+      workspaceId: AUTOMATION_WORKSPACE_ID,
+      name: 'Automation test workspace',
+      userId: user.id,
+      createdAt: draft.createdAt,
+      isSynthetic: true,
+    })
+    .catch(async () => {
+      await db
+        .prepare("UPDATE workspaces SET status = 'active', is_synthetic = 1 WHERE id = ?")
+        .bind(AUTOMATION_WORKSPACE_ID)
+        .run();
+    });
+
+  await memberships.add(db, {
+    workspaceId: AUTOMATION_WORKSPACE_ID,
+    userId: user.id,
+    role: AUTOMATION_ADMIN_WORKSPACE_ROLE,
+    createdAt: draft.createdAt,
+  });
+
+  const sessionId = await hashToken(draft.sessionCookieValue, 'session');
+  await sessions.create(db, {
+    idHash: sessionId,
+    userId: user.id,
+    createdAt: draft.createdAt,
+    expiresAt: draft.expiresAt,
+    isAutomation: true,
+    mfaVerifiedAt: draft.createdAt,
+  });
+
+  await auditEvents.record(db, {
+    id: newId(ID_PREFIX.auditEvent, now.getTime()),
+    actor: user.id,
+    actorKind: 'automation',
+    action: 'auth.automation_admin.seeded',
+    occurredAt: draft.createdAt,
+    redactedMetadata: JSON.stringify({
+      lifetime_seconds: draft.lifetimeSeconds,
+      environment: request.environment,
+      secure: draft.secure,
+    }),
+  });
+
+  return {
+    ...draft,
+    userId: user.id,
+    sessionId,
+    workspaceRole: AUTOMATION_ADMIN_WORKSPACE_ROLE,
+  };
 }
 
 /**

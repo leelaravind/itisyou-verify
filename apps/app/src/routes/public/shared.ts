@@ -91,7 +91,10 @@ export function formatInstant(iso: string | null | undefined): string {
   // `new Date()` almost never has a zero millisecond, so the old spelling rendered
   // `2026-09-19 12:10:15.869Z UTC` — a string carrying both a `Z` and a `UTC`, which is not
   // a format. Found on a screenshot of /app/usage, not by reading this line.
-  return `${new Date(ms).toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, '')} UTC`;
+  return `${new Date(ms)
+    .toISOString()
+    .replace('T', ' ')
+    .replace(/\.\d{3}Z$/, '')} UTC`;
 }
 
 /** A duration a person can read, from seconds. */

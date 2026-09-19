@@ -134,7 +134,9 @@ describe('an UNVERIFIED row is an absence with a stated reason, not a blank', ()
     // Never an em dash, an ellipsis or an empty cell.
     expect(retrieved).not.toMatch(/—|…|<td[^>]*>\s*<\/td>/);
     // The reason is adjacent and visible: in the row, not behind a control.
-    const reason = visibleText(/<[^>]*data-row-reason[^>]*>[\s\S]*?<\/[a-z]+>/.exec(unknown ?? '')?.[0] ?? '');
+    const reason = visibleText(
+      /<[^>]*data-row-reason[^>]*>[\s\S]*?<\/[a-z]+>/.exec(unknown ?? '')?.[0] ?? '',
+    );
     expect(reason.toLowerCase()).toContain('could not reach the connected system');
     expect(unknown).not.toContain('<details');
   });
@@ -178,7 +180,9 @@ describe('an UNVERIFIED row is an absence with a stated reason, not a blank', ()
     // Not rounded up: one confirmed of two is not a pass.
     expect(text.toLowerCase()).not.toContain('every item matched');
     // The strip is outside the table, so it is not mistaken for a row.
-    expect((panel ?? '').indexOf('</table>')).toBeLessThan((panel ?? '').indexOf('compare__verdict'));
+    expect((panel ?? '').indexOf('</table>')).toBeLessThan(
+      (panel ?? '').indexOf('compare__verdict'),
+    );
   });
 
   it('CUST-426 a FAILED row emphasises both values, never only the "wrong" side', async () => {
