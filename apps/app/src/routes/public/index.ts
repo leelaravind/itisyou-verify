@@ -24,9 +24,32 @@ import { DevelopmentStoryPage, loadDevelopmentStory } from './developmentStory.j
 import { HomePage } from './home.js';
 import { PrivacyPage, RefundsPage, StatusPage, TermsPage } from './legal.js';
 import { HowItWorksPage, PricingPage, SecurityPage, SupportPage } from './marketing.js';
-import { page, type RouteBindings } from './shared.js';
+import { failureBody, page, type RouteBindings } from './shared.js';
 
 export const publicRoutes = new Hono<RouteBindings>();
+
+/**
+ * The failure state for the public surface. Nothing here reads a database, so this is
+ * rarely reached — but a page that cannot be built must still answer with a page, not the
+ * JSON envelope the Worker's global handler produces for the API. The cause is logged and
+ * never rendered.
+ */
+publicRoutes.onError((error, c) => {
+  console.error('public_page_failed', { path: c.req.path, message: String(error) });
+  return page(
+    c,
+    PublicLayout({
+      title: 'We could not load this page',
+      path: c.req.path,
+      body: failureBody({
+        retryHref: c.req.path,
+        supportHref: '/support',
+        requestId: c.req.header('cf-ray') ?? 'unknown',
+      }),
+    }),
+    { status: 500 },
+  );
+});
 
 publicRoutes.get('/', (c) =>
   page(

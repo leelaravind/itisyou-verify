@@ -98,4 +98,8 @@ export {
 export { createRunnerRoutes, type RunnerRouteDeps } from './routes.js';
 
 /** Live bindings for A07's owner ports in `apps/app/src/owner/runner.ts`. */
-export { D1AssistantStatusPort, D1MaintenanceRunnerPort } from './ownerPort.js';
+export {
+  D1AssistantStatusPort,
+  D1MaintenanceRunnerPort,
+  D1RunnerPairingPort,
+} from './ownerPort.js';

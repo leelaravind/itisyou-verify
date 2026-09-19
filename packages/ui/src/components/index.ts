@@ -55,6 +55,7 @@ export {
   InactivityNotice,
   NextStep,
   RunVerdict,
+  gapsFrom,
   meterFillClass,
   percentFloor,
   StandingLimitations,
@@ -65,5 +66,13 @@ export {
   type ExplanationLike,
   type InactivityLike,
   type RunVerdictOptions,
+  type VerdictGap,
   type WorkflowHealthLike,
 } from './evidence.js';
+export {
+  Comparator,
+  comparatorSentence,
+  orderComparatorRows,
+  type ComparatorOptions,
+  type ComparatorRow,
+} from './comparator.js';

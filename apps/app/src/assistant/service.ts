@@ -26,9 +26,9 @@ import {
   reserveForCall,
   type ReservationOutcome,
 } from './budget.js';
-import { buildMessages } from './prompt.js';
+import { buildMessages, fenceUntrusted } from './prompt.js';
 import { loadAssistantConfig } from './settings.js';
-import { dispatchToolCall, TOOL_SCHEMAS } from './tools.js';
+import { dispatchToolCall, PROPOSAL_TOOLS, TOOL_SCHEMAS } from './tools.js';
 import type { AssistantDataPort } from './port.js';
 import type { Db } from '../db/d1.js';
 import {
@@ -189,6 +189,12 @@ export async function ask(
   }
 
   const messages: AssistantMessage[] = [...context.messages];
+  // Starts from the sections the caller supplied and only ever moves to `false`. A read
+  // tool's result is text that passed through a customer's workflow definition or a
+  // provider's error channel, so the moment one is fed back to the model this turn has
+  // read untrusted text and — per the documented rule — cannot produce a proposal. The
+  // flag is per turn: the next question starts clean.
+  let proposalsAllowed = context.proposalsAllowed;
   const toolsUsed: string[] = [];
   const refusals: RefusedToolCall[] = [];
   const proposals: Proposal[] = [];
@@ -258,17 +264,35 @@ export async function ask(
           port: deps.port,
           actor,
           now: deps.now(),
-          proposalsAllowed: context.proposalsAllowed,
+          proposalsAllowed,
         },
         toolCall,
       );
       if (result.ok) {
         toolsUsed.push(toolCall.name);
         if (result.proposal !== null) proposals.push(result.proposal);
-        messages.push({
-          role: 'user',
-          content: `[tool result: ${toolCall.name}]\n${result.result}`,
-        });
+        if (PROPOSAL_TOOLS.has(toolCall.name)) {
+          // A proposal echo is text this server composed from validated arguments.
+          messages.push({
+            role: 'user',
+            content: `[tool result: ${toolCall.name}]\n${result.result}`,
+          });
+        } else {
+          // A read result carries `reason_code`, `redacted_summary` and assertion labels —
+          // strings that originated with a provider or a customer. It goes back to the
+          // model the same way a support ticket would: fenced, neutralised, and with the
+          // turn marked as having read untrusted text. `encodeToolResult` already capped
+          // it at 4,000 characters; the cap is passed through rather than halved again.
+          proposalsAllowed = false;
+          messages.push({
+            role: 'user',
+            content: `[tool result: ${toolCall.name}]\n${fenceUntrusted(
+              `tool_result_${toolCall.name}`,
+              result.result,
+              ASSISTANT_LIMITS.MAX_TOOL_RESULT_CHARS,
+            )}`,
+          });
+        }
       } else {
         refusals.push(result.refusal);
         messages.push({

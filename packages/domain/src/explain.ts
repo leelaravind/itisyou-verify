@@ -73,7 +73,7 @@ const REASON_TEXT: Record<ReasonCode, { sentence: string; next_step: string | nu
   },
   EVIDENCE_UNAVAILABLE: {
     sentence:
-      'We could not retrieve the evidence this check needs, so it is unverified rather than failed.',
+      'We could not retrieve the evidence this check needs, so it is unverified rather than failed. The gap is in our reading, not a fault we found in your automation.',
     next_step: 'Nothing to do yet. We will look again while the completion window is open.',
   },
   EVIDENCE_NOT_RETURNED: {

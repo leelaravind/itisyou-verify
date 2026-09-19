@@ -353,7 +353,17 @@ export function summariseWorkflowHealth(counts: RunCounts): WorkflowHealth {
     };
   }
 
-  const percentage = Math.round((counts.verified / decided) * 100);
+  /*
+   * Floored, never rounded to nearest. 199 verified of 200 decided is 99.5%, and
+   * `Math.round` made it the integer 100 — which the workspace page then printed as
+   * "100%" and drew as a completely full bar (`meter__fill--100`), for a workflow with a
+   * run that failed. This is the same defect as the 33%-drawn-as-100% meter and the
+   * 499-of-500 usage figure, one layer further up: a partial result rendered as a
+   * complete one. A figure that errs mean is survivable here; one that errs generous is
+   * the exact lie the product exists to refuse. 100 is only ever reached when every
+   * decided run really was verified.
+   */
+  const percentage = Math.floor((counts.verified / decided) * 100);
 
   if (counts.failed > 0) {
     return {

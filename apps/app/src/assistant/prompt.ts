@@ -87,12 +87,22 @@ export function neutraliseUntrusted(text: string): string {
     .join('END-UNTRUSTED_DATA->>');
 }
 
-/** Fence one untrusted section. Label is sanitised too — it is often provider-supplied. */
-export function fenceUntrusted(label: string, text: string): string {
+/**
+ * Fence one untrusted section. Label is sanitised too — it is often provider-supplied.
+ *
+ * `maxChars` defaults to the section cap. Tool results are already bounded by
+ * `encodeToolResult` (4,000 chars) and pass their own cap so a run explanation is not cut
+ * in half a second time; the fence and the neutralisation are identical either way.
+ */
+export function fenceUntrusted(
+  label: string,
+  text: string,
+  maxChars: number = ASSISTANT_LIMITS.MAX_UNTRUSTED_CHARS,
+): string {
   const safeLabel = String(label ?? 'data')
     .replace(/[^A-Za-z0-9_.-]/g, '_')
     .slice(0, 60);
-  const body = truncate(neutraliseUntrusted(text), ASSISTANT_LIMITS.MAX_UNTRUSTED_CHARS);
+  const body = truncate(neutraliseUntrusted(text), maxChars);
   return `${FENCE_OPEN} name="${safeLabel}">\n${body}\n${FENCE_CLOSE}`;
 }
 

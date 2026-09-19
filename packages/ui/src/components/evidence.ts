@@ -45,9 +45,58 @@ export function NextStep(nextStep: string | null): Html | null {
   return html`<p class="small"><strong>Next step.</strong> ${nextStep}</p>`;
 }
 
+/** One check that could not be completed, and why — the shape of a hole in a verdict. */
+export interface VerdictGap {
+  /** The check's customer-facing label. */
+  readonly label: string;
+  /** The plain sentence for what blocked it. Never a reason code. */
+  readonly reason: string;
+}
+
 export interface RunVerdictOptions {
   readonly status: StatusKey;
   readonly explanation: ExplanationLike;
+  /**
+   * What could not be checked, for an UNVERIFIED verdict. Ignored for the other three.
+   *
+   * VERIFIED and FAILED are complete statements. UNVERIFIED is not a statement at all
+   * until it names what is missing, so an UNVERIFIED verdict always renders a follow-up
+   * line: one per gap given here, or — if the caller has none — a line saying so, because
+   * a verdict with a hole in it must show the shape of the hole and silence would hide it.
+   */
+  readonly gaps?: readonly VerdictGap[];
+}
+
+/**
+ * The follow-up lines under an UNVERIFIED verdict. In the flow, at body size, never inside
+ * a `<details>` or a `title` attribute: the reader who does not open a disclosure is exactly
+ * the reader who will treat amber as a soft failure.
+ */
+function verdictGaps(gaps: readonly VerdictGap[] | undefined): Html {
+  if (gaps === undefined || gaps.length === 0) {
+    return html`<p class="verdict-gap" data-verdict-gap>
+      Which check could not be completed was not recorded for this run, so we cannot name it here.
+    </p>`;
+  }
+  return html`${gaps.map(
+    (gap) => html`<p class="verdict-gap" data-verdict-gap>
+      Could not check <strong>${gap.label}</strong>: ${gap.reason}
+    </p>`,
+  )}`;
+}
+
+/**
+ * Pick the gaps out of a run's assertion results: every check that reached neither a
+ * confirmation nor a contradiction. Callers supply the plain sentence for each, because
+ * this package is a leaf and does not import the domain's explanations.
+ */
+export function gapsFrom<Row extends { readonly status: AssertionKey; readonly label: string }>(
+  results: readonly Row[],
+  sentenceFor: (row: Row) => string,
+): readonly VerdictGap[] {
+  return results
+    .filter((row) => row.status === 'UNKNOWN' || row.status === 'PENDING')
+    .map((row) => ({ label: row.label, reason: sentenceFor(row) }));
 }
 
 /** A run's headline verdict: badge, one honest sentence, and a next step only if real. */
@@ -56,6 +105,7 @@ export function RunVerdict(options: RunVerdictOptions): Html {
     <div class="row">${StatusBadge({ status: options.status, large: true })}</div>
     <h2>${options.explanation.headline}</h2>
     <p class="lede">${options.explanation.sentence}</p>
+    ${options.status === 'UNVERIFIED' ? verdictGaps(options.gaps) : null}
     ${NextStep(options.explanation.next_step)}
   </div>`;
 }

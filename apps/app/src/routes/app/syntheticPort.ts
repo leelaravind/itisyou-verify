@@ -56,6 +56,7 @@ import {
 } from '../../../../../tests/fixtures/index.js';
 import type {
   ActivationView,
+  SigningKeyIssueResult,
   ConnectionCredentialsInput,
   ConnectionView,
   ConnectorCompatibility,
@@ -599,8 +600,25 @@ export class SyntheticCustomerDataPort implements CustomerDataPort {
       subscriptionStatus: null,
       eventEndpoint: '/api/v1/events',
       workflowId: WORKFLOW_ID,
+      // Obviously synthetic, and not derivable from anything: there is no root key here.
+      signingKeyId: ['evk', 'synthetic', '0000000000000000'].join('_'),
       signingKeyHint: maskToken(['whsec', 'synthetic', '000000000000abcd'].join('_')),
+      signingKeyIssuance: {
+        canIssue: false,
+        cannotIssueReason:
+          'This workspace is running on synthetic data. There is no root key here and no real workflow to bind one to, so no signing key can be issued.',
+      },
       firstRunId: runs[0]?.id ?? null,
+    };
+  }
+
+  /** Nothing to derive from and nothing to bind to. Says so rather than minting a decoy. */
+  async issueSigningKey(): Promise<SigningKeyIssueResult> {
+    return {
+      outcome: 'refused',
+      reason: 'unavailable',
+      message:
+        'No signing key was issued. This workspace is running on synthetic data: there is no root key here and no real workflow to bind one to, so nothing was changed.',
     };
   }
 

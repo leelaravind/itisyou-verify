@@ -22,7 +22,7 @@
  */
 import { Hono, type Context } from 'hono';
 import { AppLayout } from '@verify/ui';
-import { page, type RouteBindings } from '../public/shared.js';
+import { failureBody, page, type RouteBindings } from '../public/shared.js';
 import { syntheticNotice, syntheticStripe } from './chrome.js';
 import { SignInPage } from './authPages.js';
 import { WorkspacePage } from './workspacePage.js';
@@ -97,6 +97,36 @@ function signingKeyStatus(result: SigningKeyIssueResult): number {
 
 export function createAppRoutes(resolve: PortResolver = syntheticResolver): Hono<RouteBindings> {
   const routes = new Hono<RouteBindings>();
+
+  /**
+   * The failure state for every customer screen at once.
+   *
+   * Hono applies a sub-app's error handler to its own routes when the sub-app is mounted,
+   * so this catches anything thrown under `/app` — a database that is unreachable, a port
+   * that cannot resolve the session — before it reaches the Worker's global handler and
+   * its JSON envelope. The cause is logged with the path and never rendered. The status is
+   * 500 and the body is `no-store`: a failure must not be cached and must not be read as a
+   * verdict about anything.
+   *
+   * The ordinary `shell()` is not used here on purpose: it needs a resolved port, and the
+   * port resolving is one of the things that may have failed.
+   */
+  routes.onError((error, c) => {
+    console.error('customer_page_failed', { path: c.req.path, message: String(error) });
+    return page(
+      c,
+      AppLayout({
+        title: 'We could not load this page',
+        path: c.req.path,
+        body: failureBody({
+          retryHref: c.req.path,
+          supportHref: '/app/support',
+          requestId: c.req.header('cf-ray') ?? 'unknown',
+        }),
+      }),
+      { status: 500 },
+    );
+  });
 
   /** Wrap a page body in the authenticated layout, with the synthetic notice if applicable. */
   function shell(

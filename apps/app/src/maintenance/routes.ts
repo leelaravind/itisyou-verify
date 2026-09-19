@@ -144,13 +144,19 @@ export function createRunnerRoutes(deps: RunnerRouteDeps): Hono {
   });
 
   /**
-   * The owner's view. Read-only and safe to render on every dashboard load.
+   * A paired device's view of the queue. Device-signed like every other endpoint here.
    *
-   * Access control is the owner middleware A07 mounts in front of this router; this handler
-   * deliberately does not invent its own, so there is exactly one owner gate in the app.
+   * This used to be unauthenticated. The comment above it said access control was "the
+   * owner middleware A07 mounts in front of this router" — no such middleware exists, and
+   * `apps/app/src/index.ts` mounts this router bare, so the endpoint listed device ids,
+   * labels, presence and job counts to anyone on the internet. The owner panel never used
+   * it (it reads `D1MaintenanceRunnerPort.status()` behind the owner session), so the only
+   * legitimate caller is a paired runner, and that is now the only caller admitted.
    */
   app.get('/status', async (c) => {
     const db = deps.db(c as unknown as { env: unknown });
+    const auth = await authenticate(db, c.req.raw.headers, 'GET', '/status', '');
+    if (!auth.ok) return c.json({ error: { code: auth.reason } }, statusFor(auth.reason));
     return c.json(await runnerStatus(db, clock()));
   });
 

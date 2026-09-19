@@ -32,6 +32,9 @@ import {
 } from '../owner/runner.js';
 import { ASSISTANT_SETTINGS_KEY } from '../assistant/types.js';
 import { parseAssistantConfig } from '../assistant/settings.js';
+import { newId } from '../lib/ids.js';
+import type { PairingOutcome, RunnerPairingPort } from '../owner/runner.js';
+import { openPairing } from './devices.js';
 import { enqueueJob, runnerAvailability } from './jobs.js';
 import { isMaintenanceJobKind } from './kinds.js';
 import { maintenanceJobs, runnerDevices, type MaintenanceJobRow } from './store.js';
@@ -175,6 +178,54 @@ export class D1MaintenanceRunnerPort implements MaintenanceRunnerPort {
       return { ok: false, reason: 'no_runner', detail: 'the job could not be read back' };
     }
     return { ok: true, job: toJobView(row, outcome.queuedBecause), deduplicated: false };
+  }
+}
+
+/**
+ * The live binding for A07's `RunnerPairingPort`.
+ *
+ * Until this class existed, `POST /owner/operations/runner/pair` could only ever reach
+ * `PairingUnavailable`, because `apps/app/src/index.ts` passes no `resolvePairing` to
+ * `createOwnerRoutes` and there was nothing to pass. No pairing code could be minted, so
+ * `runner_devices` was always empty, so every signed runner endpoint could only answer 401.
+ * The whole connector was unreachable from the one step that starts it.
+ *
+ * This class makes the wiring a one-liner in the composition root, which is the lead's file:
+ *
+ *     resolvePairing: async (ctx) => new D1RunnerPairingPort((ctx.env as Env).DB),
+ *
+ * It implements no access control of its own — deliberately, and exactly as the route's
+ * comment says: the gate is `maintenance.dispatch` behind recent MFA at the call site, and
+ * there is one gate, not two that can disagree.
+ */
+export class D1RunnerPairingPort implements RunnerPairingPort {
+  constructor(private readonly db: Db) {}
+
+  async openPairing(input: {
+    readonly label: string;
+    readonly ownerId: string;
+    readonly now: Date;
+  }): Promise<PairingOutcome> {
+    try {
+      const invitation = await openPairing(this.db, {
+        // No `ID_PREFIX` entry exists for a runner device; `rdv` is chosen here and used
+        // nowhere else. If the lead adds one to `lib/ids.ts`, this becomes that constant.
+        deviceId: newId('rdv', input.now.getTime()),
+        ownerId: input.ownerId,
+        label: input.label,
+        now: input.now.toISOString(),
+      });
+      return { ok: true, invitation };
+    } catch (error) {
+      // The likely cause is `runner_devices.owner_id REFERENCES users(id)` refusing a
+      // principal with no user row. Nothing was written; say so rather than surface SQL.
+      return {
+        ok: false,
+        dependency:
+          'The pairing could not be recorded against your owner account, so no pairing code has been created ' +
+          `and there is nothing to type into a runner. (${error instanceof Error ? error.message.slice(0, 120) : 'unknown error'})`,
+      };
+    }
   }
 }
 

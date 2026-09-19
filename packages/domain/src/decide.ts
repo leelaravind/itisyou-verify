@@ -43,12 +43,22 @@ export const DECISION_REASON = {
   PENDING_WINDOW: 'The agreed completion window is still open, so we are still looking.',
   PENDING_ACCESS:
     'We could not reach a connected system yet. We will try again inside the completion window.',
+  /*
+   * The three UNVERIFIED reasons each end by saying whose gap it is. "Unverified rather
+   * than failed" states the status correctly and undersells the one thing that makes it
+   * fair: the reading failed on our side of the check, and the customer's automation has
+   * not been found at fault. A sentence that stops at the status leaves the reader to
+   * infer the blame, and amber invites them to infer the wrong one.
+   */
   UNVERIFIED_ACCESS:
-    'We could not retrieve the evidence needed to judge this run, so it is unverified rather than failed.',
+    'We could not retrieve the evidence needed to judge this run, so it is unverified rather than failed. ' +
+    'The gap is on our side of the check — we could not reach or read the connected system — and it is not a fault we found in your automation.',
   UNVERIFIED_INCOMPLETE:
-    'The deadline passed with some required checks still unproven, so this run is unverified rather than failed.',
+    'The deadline passed with some required checks still unproven, so this run is unverified rather than failed. ' +
+    'Unproven means we did not get a reading in time; it is not a fault we found in your automation.',
   UNVERIFIED_BUDGET:
-    'We used every observation allowed for this run without proving the required checks, so it is unverified.',
+    'We used every observation allowed for this run without proving the required checks, so it is unverified. ' +
+    'That is a limit on how often we look, not a fault we found in your automation.',
 } as const;
 
 const UNRESOLVED: ReadonlySet<AssertionResult['status']> = new Set(['UNKNOWN', 'PENDING']);

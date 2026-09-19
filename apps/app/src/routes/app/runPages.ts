@@ -14,6 +14,7 @@ import {
   Breadcrumb,
   Card,
   ClaimRule,
+  Comparator,
   CoverageNotice,
   EmptyState,
   KeyValues,
@@ -23,8 +24,10 @@ import {
   StatusBadge,
   Table,
   attrs,
+  gapsFrom,
   html,
   safeHref,
+  type ComparatorRow,
   type Html,
   type StatusKey,
 } from '@verify/ui';
@@ -162,6 +165,23 @@ export function RunDetailPage(options: RunDetailPageOptions): Html {
     run.results[run.results.length - 1] ??
     null;
 
+  /**
+   * The comparator: every check, what the workflow reported beside what we retrieved, with
+   * a verdict per row and the run's verdict — the domain's decision, not a re-derivation —
+   * under it. With a single check the simpler claim rule says the same thing in less room.
+   * Addresses are masked on both sides: an expected value is customer data too.
+   */
+  const comparatorRows: readonly ComparatorRow[] = run.results.map((result) => ({
+    field: result.label,
+    status: result.status,
+    reported: maskValues(result.expected_display) ?? '',
+    retrieved: maskValues(result.observed_display),
+    reason:
+      result.status === 'UNKNOWN' || result.status === 'PENDING'
+        ? explainAssertion(result).sentence
+        : null,
+  }));
+
   return html`<div class="wrap section stack-lg">
     ${Breadcrumb([
       { label: 'Workspace', href: '/app' },
@@ -175,23 +195,36 @@ export function RunDetailPage(options: RunDetailPageOptions): Html {
     </div>
 
     ${
-      decisive === null
-        ? null
-        : ClaimRule({
-            status: run.status as StatusKey,
-            caption: decisive.label,
-            claimLabel: 'Your rule expected',
-            claim: maskValues(decisive.expected_display) ?? '',
-            observedLabel: 'We retrieved',
-            observed: maskValues(decisive.observed_display),
+      run.results.length > 1
+        ? Comparator({
+            caption: `Enquiry ${run.correlationId} — ${maskValues(run.workflowName) ?? run.workflowName}`,
+            detail: `Last observed ${formatInstant(run.observedAt)} · window closed ${formatInstant(run.deadlineAt)}`,
+            rows: comparatorRows,
+            verdict: run.status as StatusKey,
           })
+        : decisive === null
+          ? null
+          : ClaimRule({
+              status: run.status as StatusKey,
+              caption: decisive.label,
+              claimLabel: 'Your rule expected',
+              claim: maskValues(decisive.expected_display) ?? '',
+              observedLabel: 'We retrieved',
+              observed: maskValues(decisive.observed_display),
+            })
     }
 
     ${Card({
       title: 'The verdict',
       headingLevel: 2,
       body: html`<div class="stack">
-        ${RunVerdict({ status: run.status as StatusKey, explanation })}
+        ${RunVerdict({
+          status: run.status as StatusKey,
+          explanation,
+          // The follow-up line an UNVERIFIED verdict must carry: which check could not be
+          // completed, and the plain sentence for why. Ignored for the other three.
+          gaps: gapsFrom(run.results, (result) => explainAssertion(result).sentence),
+        })}
         <p class="small mono">${run.statusReason}</p>
         ${
           run.lateCompletion

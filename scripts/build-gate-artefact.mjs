@@ -182,17 +182,26 @@ const vitestSameCommit =
 // `packages/contracts/src/evidence.ts` (commit `6509969`) added `transport: 'live' |
 // 'simulated' | 'unknown'`, recording whether a piece of evidence actually left the
 // process, independently of `origin` (which only records the channel). Requiring
-// `transport === 'live'` for a mandatory assertion is the correct end state — accepting
-// anything less is the same failure this field exists to catch, one layer up — but the
-// evaluator (`packages/domain/src/evaluate.ts`) does not check it yet, deliberately: every
-// piece of evidence produced before `6509969` has no `transport` at all, so flipping that
-// switch today would move the citable gate number for a reason invisible to anyone reading
-// it, and a gate that moves invisibly is how people learn to stop trusting it.
+// `transport === 'live'` for a `provider_readback` assertion to support a mandatory check
+// is the correct end state for THAT origin — accepting anything less is the same failure
+// this field exists to catch, one layer up — but the evaluator
+// (`packages/domain/src/evaluate.ts`) does not check it yet, deliberately: every piece of
+// evidence produced before `6509969` has no `transport` at all, so flipping that switch
+// today would move the citable gate number for a reason invisible to anyone reading it, and
+// a gate that moves invisibly is how people learn to stop trusting it.
 //
-// So this section exists to make the *pending* state visible instead of silent. It answers
-// one question: of the evidence PATHS capable of independently supporting a mandatory
-// assertion (`provider_readback` / `provider_webhook`), how many have ever been confirmed
-// to leave the process for real?
+// This is deliberately about `provider_readback` only. `provider_webhook`'s claim is "the
+// provider signed this", verified by the signature check over the raw bytes — a fact
+// `transport` cannot speak to, since whether the bytes crossed a real network is irrelevant
+// to whether they are authentically signed. So `transport` stays `'unknown'` on webhook
+// evidence permanently, by ruling, and stage (c) never touches it — see `not_applicable`
+// below. Folding webhook paths into this section as if they were merely unconfirmed would
+// misstate a decided question as an open one.
+//
+// So this section exists to make the *pending* state visible instead of silent, for the one
+// origin transport actually measures. It answers: of the `provider_readback` evidence
+// PATHS capable of independently supporting a mandatory assertion, how many have ever been
+// confirmed to leave the process for real?
 //
 // This is a table, not a computed scan of the evidence contract, because that scan would
 // require importing a TypeScript workspace package into a loader-free Node script. The
@@ -218,12 +227,15 @@ const MANDATORY_CAPABLE_TRANSPORT_PATHS = [
   {
     provider: 'resend',
     origin: 'provider_webhook',
-    // Deliberately not confirmable through this mechanism. A valid Svix signature proves
-    // the bytes match the shared secret and are fresh; it does not prove the request that
-    // carried them was ever really received, so no test can honestly assert `live` here —
-    // asserting it would reproduce the exact defect this field exists to catch. This path
-    // stays `unknown` by design, tracked so it is visible, and its owner is whoever holds
-    // `apps/app/src/routes/webhooks/resend.ts` — not this gate, and not stage (c)'s trigger.
+    // Not pending, and not unconfirmable for want of a test someone hasn't written yet:
+    // `transport` does not apply to this origin's claim, permanently, by ruling. A
+    // `provider_readback` claims *we went and asked* — undermined by nobody going, which is
+    // exactly what `transport` verifies, which is why stage (c) requires it there. A
+    // `provider_webhook` claims *the provider signed this* — undermined only by a forged
+    // signature, which the signature check (already run, on the raw bytes) verifies
+    // independently of whether the bytes crossed a real network to get here. So this path
+    // stays `'unknown'` forever, correctly, and is excluded from `confirmable_paths_total`
+    // and from the stage-c trigger — not tracked as a gap awaiting a fix.
     confirming_case_id: null,
     confirmable: false,
   },
@@ -247,13 +259,14 @@ const transportPaths = MANDATORY_CAPABLE_TRANSPORT_PATHS.map((p) => {
 const confirmableTotal = transportPaths.filter((p) => p.confirmable).length;
 const confirmedLive = transportPaths.filter((p) => p.live_confirmed).length;
 const pendingLive = transportPaths.filter((p) => p.confirmable && !p.live_confirmed);
-const excludedByDesign = transportPaths.filter((p) => !p.confirmable);
+const notApplicable = transportPaths.filter((p) => !p.confirmable);
 
 const evidenceTransport = {
   // Named precisely so it survives being quoted alone: this is a count of PATHS (provider ×
-  // origin combinations), not of test cases or of live runs.
+  // origin combinations), not of test cases or of live runs. It covers `provider_readback`
+  // only — see `not_applicable` below for why `provider_webhook` is a different question.
   description:
-    'Evidence paths capable of independently supporting a mandatory assertion (origin provider_readback or provider_webhook) for which transport: "live" has never been confirmed. Not a failure and not folded into the floors or the citable total — it is the number that says whether requiring transport: "live" in the evaluator (stage c of the transport migration) would currently be safe.',
+    'provider_readback evidence paths for which transport: "live" has never been confirmed. Not a failure and not folded into the floors or the citable total — it is the number that says whether requiring transport: "live" in the evaluator (stage c of the transport migration) would currently be safe. provider_webhook paths are tracked separately in not_applicable: transport does not measure their claim, by ruling, not by gap.',
   mandatory_capable_paths_total: transportPaths.length,
   confirmable_paths_total: confirmableTotal,
   confirmed_live: confirmedLive,
@@ -263,23 +276,27 @@ const evidenceTransport = {
     confirming_case_id: p.confirming_case_id,
     last_checked_status: p.last_checked_status,
   })),
-  excluded_by_design: excludedByDesign.map((p) => ({
+  // Ruling, not a gap: a provider_webhook's claim is "the provider signed this", verified by
+  // the signature check on the raw bytes, independently of whether the bytes crossed a real
+  // network. transport records whether a call left the process, which is not a fact this
+  // claim depends on — so 'unknown' here is the honest permanent value, not a path awaiting
+  // a test nobody has written. Never counted towards, or against, the stage-c trigger.
+  not_applicable: notApplicable.map((p) => ({
     provider: p.provider,
     origin: p.origin,
     reason:
-      'a signature proves the bytes are authentic and fresh, not that the request was really received; no test can honestly assert live for this path, so it is tracked separately and is not part of the stage-c trigger',
+      'transport does not apply to this claim: a provider_webhook is verified by its signature over the raw bytes, not by whether the call left this process, so transport stays \'unknown\' permanently and by design, not as a gap',
   })),
   stage_c_trigger:
     'The evaluator may start requiring transport === "live" for a mandatory-supporting ' +
-    'provider_readback assertion once EVERY row in confirmable_paths_total above reads ' +
+    'provider_readback assertion once EVERY row counted in confirmable_paths_total reads ' +
     'confirmed_live === true, i.e. pending_confirmation is empty — concretely, once ' +
     'CONN-900 (HubSpot) and CONN-901 (Resend) have both actually run against a real, ' +
-    'authorised credential and passed, rather than skipping. It does NOT require the ' +
-    'excluded_by_design row (resend provider_webhook) to ever be confirmed: that path is ' +
-    'permanently unknown by design, and the trigger condition must not be written in a ' +
-    'way that can never be satisfied because of it. Whether provider_webhook should then ' +
-    'be barred from mandatory support entirely, or judged by a different rule, is a ' +
-    'separate product decision for whoever owns that route, not a precondition of this one.',
+    'authorised credential and passed, rather than skipping. Stage (c) changes the bar for ' +
+    'provider_readback ONLY. It does not touch, and is not blocked or satisfied by, the ' +
+    'not_applicable row (resend provider_webhook): that path\'s claim was never about ' +
+    'transport, so its evidence is unaffected when the flip happens, and it stays ' +
+    '\'unknown\' by design afterwards too — that is not a residual gap.',
 };
 
 const artefact = {
@@ -378,7 +395,7 @@ for (const f of floors) {
   );
 }
 console.log('');
-console.log('  evidence transport — mandatory-capable paths with transport never confirmed live');
+console.log('  evidence transport — provider_readback paths with transport never confirmed live');
 console.log(
   `    confirmed live      ${evidenceTransport.confirmed_live} / ${evidenceTransport.confirmable_paths_total}`,
 );
@@ -391,8 +408,8 @@ if (evidenceTransport.pending_confirmation.length > 0) {
 } else {
   console.log('    none pending — stage (c) trigger condition is met for every confirmable path');
 }
-for (const p of evidenceTransport.excluded_by_design) {
-  console.log(`    excluded by design  ${p.provider} ${p.origin} — ${p.reason}`);
+for (const p of evidenceTransport.not_applicable) {
+  console.log(`    N/A (by ruling)     ${p.provider} ${p.origin} — ${p.reason}`);
 }
 console.log('');
 console.log(

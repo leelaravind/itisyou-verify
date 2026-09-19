@@ -5,7 +5,7 @@
  * server-rendered page should carry. Nothing here touches the database or a provider.
  */
 import type { Context } from 'hono';
-import { render, type Html } from '@verify/ui';
+import { Button, ErrorState, html, render, type Html } from '@verify/ui';
 
 /**
  * The bindings these routes read. A superset is fine — the lead's `BootstrapEnv` already
@@ -40,6 +40,46 @@ export async function page(
     'referrer-policy': 'strict-origin-when-cross-origin',
     'x-content-type-options': 'nosniff',
   });
+}
+
+export interface FailureBodyOptions {
+  /** Where "Try again" goes — the page that failed. */
+  readonly retryHref: string;
+  /** The support route appropriate to the surface: signed-in or public. */
+  readonly supportHref: string;
+  /** The request id from the edge, so the support queue can find the same event. */
+  readonly requestId: string;
+}
+
+/**
+ * The failure state every rendered route shares.
+ *
+ * Until this existed, an exception under `/app` or `/` fell through to the Worker's global
+ * `onError`, which answers a JSON envelope — right for `/api/v1`, and a wall of braces for
+ * a person who clicked "Runs". A realistic failure state says what failed, what did NOT
+ * happen (no run was decided, nothing was changed, nothing was charged — a page that fails
+ * must never be read as a verdict), what to do, and a reference. It never carries the
+ * cause: an error body naming an internal identifier is a gift to whoever is probing, and
+ * the cause is logged with the request instead.
+ *
+ * Rendered inside the ordinary layout so the reader keeps the navigation and a way out,
+ * and announced (`role="alert"`) so a screen reader hears the replacement content.
+ */
+export function failureBody(options: FailureBodyOptions): Html {
+  return html`<div class="wrap section stack-lg measure">
+    ${ErrorState({
+      title: 'We could not load this page',
+      body:
+        'Something on our side failed while this page was being built. No run has been decided, no ' +
+        'setting has been changed and nothing has been charged as a result. Try again in a moment; if it ' +
+        'keeps happening, write to support and quote the reference below so we can find the same event.',
+      requestId: options.requestId,
+      actions: [
+        Button({ label: 'Try again', href: options.retryHref, variant: 'primary' }),
+        Button({ label: 'Contact support', href: options.supportHref, variant: 'quiet' }),
+      ],
+    })}
+  </div>`;
 }
 
 /** ISO-8601 UTC, rendered for a human without ever guessing a local timezone. */
