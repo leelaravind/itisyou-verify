@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-19T22:40:18.006Z",
+  "generated_at": "2026-09-19T23:05:35.939Z",
   "generated_by": "A11 — QA and Release",
-  "snapshot_commit": "af23e90",
+  "snapshot_commit": "33a6ea3",
   "basis": "Rebased onto the implemented suite. requirement = the test title; setup and expected = the test's own statements; status = the recorded run. risk is an area statement written per test file and labelled risk_source: \"area\".",
   "cases": [
     {
@@ -45023,6 +45023,40 @@
       "status": "implemented",
       "runner": "vitest",
       "area": "H:/itisyou-verify/tests/integration/db/resendWebhook.test.ts",
+      "countable": false
+    },
+    {
+      "id": "AUTH-433",
+      "category": "auth_tenancy",
+      "level": "integration",
+      "requirement": "a deployment with no mail transport says nothing was sent, rather than claiming one was",
+      "risk": "Behaviour covered by H:/itisyou-verify/tests/integration/db/ownerPort.test.ts. Registered so the citable count measures the suite that exists rather than a subset of it.",
+      "risk_source": "area",
+      "setup": "See the referenced test; it seeds its own fixtures.",
+      "expected": "a deployment with no mail transport says nothing was sent, rather than claiming one was",
+      "owner_agent": "A11",
+      "implementation_ref": "H:/itisyou-verify/tests/integration/db/ownerPort.test.ts:365",
+      "provider_backed": false,
+      "status": "implemented",
+      "runner": "vitest",
+      "area": "H:/itisyou-verify/tests/integration/db/ownerPort.test.ts",
+      "countable": false
+    },
+    {
+      "id": "OWNER-200",
+      "category": "owner_panel",
+      "level": "integration",
+      "requirement": "a deployment that sends nothing does not tell the visitor a link is on its way",
+      "risk": "Behaviour covered by H:/itisyou-verify/tests/integration/owner/routes.test.ts. Registered so the citable count measures the suite that exists rather than a subset of it.",
+      "risk_source": "area",
+      "setup": "See the referenced test; it seeds its own fixtures.",
+      "expected": "a deployment that sends nothing does not tell the visitor a link is on its way",
+      "owner_agent": "A11",
+      "implementation_ref": "H:/itisyou-verify/tests/integration/owner/routes.test.ts:594",
+      "provider_backed": false,
+      "status": "implemented",
+      "runner": "vitest",
+      "area": "H:/itisyou-verify/tests/integration/owner/routes.test.ts",
       "countable": false
     }
   ]

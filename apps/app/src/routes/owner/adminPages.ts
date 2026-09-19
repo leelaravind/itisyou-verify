@@ -20,15 +20,42 @@
 import { Button, Callout, Card, CsrfField, Field, html, type Html } from '@verify/ui';
 import { OwnerLayout } from './chrome.js';
 
-/** The identical answer every sign-in submission receives. */
+/**
+ * The answer when a link genuinely went out.
+ *
+ * It is identical for every address, which is the point: it must never reveal whether an
+ * account exists. What it may vary with is whether this DEPLOYMENT can send mail at all,
+ * because that is not a fact about the address and every visitor can observe it anyway.
+ */
 export const LOGIN_ACKNOWLEDGEMENT =
   'If that address can sign in here, a link is on its way. It expires in fifteen minutes and can be used once. ' +
   'We do not say whether an account exists, to anyone, ever.';
 
+/**
+ * The answer when nothing was sent, because no mail transport is configured here.
+ *
+ * Until 20 September 2026 this page showed the sentence above on every deployment,
+ * including ones that send nothing, so a visitor waited for a mail that did not exist. The
+ * token really was minted and really did expire; it was simply never delivered. Saying
+ * "a link is on its way" when no link is on its way is the precise failure this product
+ * was built to catch in other people's systems.
+ *
+ * It still reveals nothing about the address.
+ */
+export const LOGIN_NO_TRANSPORT =
+  'No sign-in link was sent. This deployment has no email delivery configured, so nothing ' +
+  'would arrive and we will not pretend otherwise. We do not say whether an account ' +
+  'exists, to anyone, ever.';
+
 export interface LoginPageOptions {
   readonly csrfToken: string | null;
-  /** Shown after a submission. Always {@link LOGIN_ACKNOWLEDGEMENT}, never anything else. */
+  /** Shown after a submission. */
   readonly submitted: boolean;
+  /**
+   * What the deployment actually did. Governs which of the two acknowledgements is shown,
+   * and nothing else -- it carries no information about the address.
+   */
+  readonly delivery?: 'sent' | 'no_transport';
   /** A field-level error for a genuinely malformed address. Never an existence signal. */
   readonly fieldError: string | null;
   /** The address the person typed, echoed so they do not retype it. Escaped by the template. */
@@ -55,9 +82,13 @@ export function AdminLoginPage(options: LoginPageOptions): Html {
     ${
       options.submitted
         ? Callout({
-            tone: 'note',
-            title: 'Check your email',
-            body: html`<p>${LOGIN_ACKNOWLEDGEMENT}</p>`,
+            // "Check your email" over a deployment that sent nothing is the whole defect.
+            // Both the heading and the tone follow what actually happened.
+            tone: options.delivery === 'no_transport' ? 'warn' : 'note',
+            title: options.delivery === 'no_transport' ? 'Nothing was sent' : 'Check your email',
+            body: html`<p>
+              ${options.delivery === 'no_transport' ? LOGIN_NO_TRANSPORT : LOGIN_ACKNOWLEDGEMENT}
+            </p>`,
           })
         : null
     }

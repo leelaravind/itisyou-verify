@@ -350,10 +350,25 @@ describe('owner auth port', () => {
 
   it('AUTH-420 a sign-in request answers identically whether or not the account exists', async () => {
     const auth = new D1OwnerAuth({ db: h.db, env: env() });
-    await expect(auth.requestSignInLink(OWNER_EMAIL)).resolves.toBeUndefined();
-    await expect(auth.requestSignInLink('nobody@example.com')).resolves.toBeUndefined();
-    // Both minted a token; neither told the caller anything.
+    // The assertion is EQUALITY, not a particular value. This used to assert `undefined`,
+    // which passed for a method that returned nothing whatever it did -- and that method
+    // was minting tokens it never emailed while the page said a link was on its way. What
+    // must never vary is the answer for a known address versus an unknown one; what may
+    // vary is whether this deployment can send at all.
+    const known = await auth.requestSignInLink(OWNER_EMAIL);
+    const unknown = await auth.requestSignInLink('nobody@example.com');
+    expect(known).toEqual(unknown);
+    // Both minted a token; neither told the caller which was which.
     expect(countRows(h, 'login_tokens')).toBe(2);
+  });
+
+  it('AUTH-433 a deployment with no mail transport says nothing was sent, rather than claiming one was', async () => {
+    // `env()` here configures no RESEND_API_KEY or RESEND_FROM_ADDRESS.
+    const auth = new D1OwnerAuth({ db: h.db, env: env() });
+    expect(await auth.requestSignInLink(OWNER_EMAIL)).toEqual({ delivery: 'no_transport' });
+    // The token is still minted and still expires. It simply was not delivered, and the
+    // difference between "not delivered" and "delivered" is now reportable.
+    expect(countRows(h, 'login_tokens')).toBe(1);
   });
 
   it('AUTH-421 repeated sign-in requests are rate limited, still without telling the caller', async () => {
