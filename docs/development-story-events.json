@@ -13,11 +13,15 @@
       "model_id": "claude-opus-5[1m]",
       "status": "implemented",
       "goal": "Establish what the environment can actually do before committing to an architecture.",
-      "inputs": ["ITISYOU_Verify_Implementation_Plan (1).md"],
+      "inputs": [
+        "ITISYOU_Verify_Implementation_Plan (1).md"
+      ],
       "changed_artifacts": [],
       "commit_sha": null,
       "decision_summary": "Verified toolchain, GitHub identity and scopes, Cloudflare account and token permissions, disk space, and that verify.itisyou.app was unclaimed.",
-      "alternatives_considered": ["Assume the documented environment and start building"],
+      "alternatives_considered": [
+        "Assume the documented environment and start building"
+      ],
       "decision_reason": "The plan explicitly warns against assuming account access. Three findings changed later decisions: the Cloudflare OAuth token carries zone:read only, the account already holds 32 unrelated Workers and 13 unrelated D1 databases, and this machine's local DNS resolver is broken so hostname checks must use DNS-over-HTTPS.",
       "test_evidence_refs": [],
       "limitations": "Cloudflare plan tier was inferred from the existing count of 13 D1 databases exceeding the free-tier limit, not read from a billing API.",
@@ -32,7 +36,10 @@
       "model_id": "claude-opus-5[1m]",
       "status": "tested",
       "goal": "Freeze the vocabulary every agent shares, so twelve specialists cannot each invent their own.",
-      "inputs": ["plan §15", "plan §16"],
+      "inputs": [
+        "plan §15",
+        "plan §16"
+      ],
       "changed_artifacts": [
         "packages/contracts/src/status.ts",
         "packages/contracts/src/errors.ts",
@@ -48,7 +55,9 @@
         "Decimal money library"
       ],
       "decision_reason": "A general expression language would let a customer rule become an unbounded computation or a network request, and would make the FAILED/UNVERIFIED distinction unprovable. Integer pence removes an entire class of cap-drift bug; a decimal library would add a dependency for no benefit at this scale.",
-      "test_evidence_refs": ["tsc strict clean"],
+      "test_evidence_refs": [
+        "tsc strict clean"
+      ],
       "limitations": "The operator set covers the one supported workflow shape. A second workflow shape will need a contract version bump, not an added escape hatch.",
       "next_step": "Schema and deployment."
     },
@@ -92,11 +101,20 @@
       "model_id": "claude-opus-5[1m]",
       "status": "deployed",
       "goal": "Make a permanently public repository safe before any code that touches credentials exists.",
-      "inputs": ["plan §2"],
-      "changed_artifacts": [".gitignore", "scripts/scan-secrets.mjs", "SECURITY.md", "README.md"],
+      "inputs": [
+        "plan §2"
+      ],
+      "changed_artifacts": [
+        ".gitignore",
+        "scripts/scan-secrets.mjs",
+        "SECURITY.md",
+        "README.md"
+      ],
       "commit_sha": "08f5b33",
       "decision_summary": "Secret scanning and push protection enabled, private vulnerability reporting enabled, Dependabot alerts and its automatic dependency-update pull requests enabled, a branch ruleset blocking deletion and force-push and requiring a reviewed pull request, and default workflow permissions set to read.",
-      "alternatives_considered": ["Start private and flip to public at release"],
+      "alternatives_considered": [
+        "Start private and flip to public at release"
+      ],
       "decision_reason": "The founder requires permanent public visibility, so every byte must be treated as permanently disclosed from the first commit. Writing .gitignore and the secret scanner before generating any credential is the only ordering that works.",
       "test_evidence_refs": [
         "GitHub push protection blocked a push containing credential-shaped test fixtures; fixtures were rewritten rather than allowlisted"
@@ -113,7 +131,10 @@
       "model_id": "claude-sonnet-5",
       "status": "implemented",
       "goal": "Settle the offer and write factual copy, so no agent later invents a claim.",
-      "inputs": ["docs/agent-brief.md", "packages/contracts"],
+      "inputs": [
+        "docs/agent-brief.md",
+        "packages/contracts"
+      ],
       "changed_artifacts": [
         "docs/product-scope.md",
         "docs/competitors.md",
@@ -123,7 +144,9 @@
       "decision_summary": "Produced a claims-to-implementation map and cut every claim nothing implements.",
       "alternatives_considered": [],
       "decision_reason": "Claims cut included real-time results (results depend on a one-minute poll and a deadline up to an hour), works with any CRM, we tell you the automation is broken (we observe downstream evidence, not the automation), and tenant isolation stated as a present-tense guarantee before the enforcing code existed.",
-      "test_evidence_refs": ["tsc strict clean"],
+      "test_evidence_refs": [
+        "tsc strict clean"
+      ],
       "limitations": "Legal identity fields left as TODO_OWNER_INPUT. Worst-case external-call volume of 4,000 per workspace per month is an estimate pending the connector implementation.",
       "next_step": "A05 renders this content."
     },
@@ -136,8 +159,14 @@
       "model_id": "claude-opus-5",
       "status": "tested",
       "goal": "Make a false VERIFIED structurally impossible.",
-      "inputs": ["packages/contracts"],
-      "changed_artifacts": ["packages/domain/src/", "tests/unit/domain/", "tests/fixtures/"],
+      "inputs": [
+        "packages/contracts"
+      ],
+      "changed_artifacts": [
+        "packages/domain/src/",
+        "tests/unit/domain/",
+        "tests/fixtures/"
+      ],
       "commit_sha": "605509e",
       "decision_summary": "Pure, time-injected evaluator and decision table. Email normalisation deliberately does not strip +tags or dots. Only RECORD_NOT_FOUND and EVENT_NOT_OBSERVED are authoritative absences.",
       "alternatives_considered": [
@@ -145,7 +174,9 @@
         "Treating any missing evidence at the deadline as FAILED"
       ],
       "decision_reason": "Verification must never widen an equivalence class: stripping a +tag would let an address the customer controls satisfy a rule about emailing the enquirer. Treating any absence as FAILED would convert our own outages into customer failures.",
-      "test_evidence_refs": ["195 cases VERIFY-001..VERIFY-195, all passing"],
+      "test_evidence_refs": [
+        "195 cases VERIFY-001..VERIFY-195, all passing"
+      ],
       "limitations": "Pure logic only. It proves the decision is correct given a bundle; it does not prove the bundle was gathered correctly — that is A04's connectors.",
       "next_step": "Connectors must supply provider_account_id and honest origin values."
     },
@@ -158,7 +189,10 @@
       "model_id": "claude-opus-5",
       "status": "tested",
       "goal": "Tenant scoping, idempotency and credential handling that hold under concurrency.",
-      "inputs": ["migrations/0001_init.sql", "packages/contracts"],
+      "inputs": [
+        "migrations/0001_init.sql",
+        "packages/contracts"
+      ],
       "changed_artifacts": [
         "packages/security/src/",
         "apps/app/src/lib/",
@@ -174,7 +208,9 @@
         "better-sqlite3 as a test harness"
       ],
       "decision_reason": "A conditional UPDATE inside a D1 batch cannot abort the batch — it silently reports zero changes after the inserts have already committed, which would admit an event without reserving its allowance. The NOT NULL violation is the only mechanism that rolls the whole batch back. vitest-pool-workers 0.9.14 fails to start against the hoisted miniflare; Node 22's built-in node:sqlite gave the same SQLite engine with no new dependency.",
-      "test_evidence_refs": ["205 cases across API-, AUTH- and PERSIST- ranges, all passing"],
+      "test_evidence_refs": [
+        "205 cases across API-, AUTH- and PERSIST- ranges, all passing"
+      ],
       "limitations": "The SQLite harness exercises real SQL, real transactions and the real idempotency guards, but not Cloudflare network behaviour, D1 replicas or true OS-level parallelism.",
       "next_step": "Six security findings from A10 to fix."
     },
@@ -187,7 +223,9 @@
       "model_id": "claude-opus-5",
       "status": "tested",
       "goal": "Challenge the implementation independently rather than confirm it.",
-      "inputs": ["the whole tree as read-only"],
+      "inputs": [
+        "the whole tree as read-only"
+      ],
       "changed_artifacts": [
         "docs/threat-model.md",
         "docs/security-acceptance.md",
@@ -214,7 +252,11 @@
       "model_id": "claude-opus-5",
       "status": "implemented",
       "goal": "Make the 500-case release gate honest rather than inflated.",
-      "inputs": ["packages/contracts", "migrations/0001_init.sql", "docs/product-scope.md"],
+      "inputs": [
+        "packages/contracts",
+        "migrations/0001_init.sql",
+        "docs/product-scope.md"
+      ],
       "changed_artifacts": [
         "docs/test-plan.md",
         "docs/test-cases.json",
@@ -241,8 +283,14 @@
       "model_id": "claude-opus-5[1m]",
       "status": "deployed",
       "goal": "Mount the routers behind a strict Content-Security-Policy and confirm the deployed pages are correct by looking at them.",
-      "inputs": ["A05 routers", "packages/ui CSS and theme script"],
-      "changed_artifacts": ["apps/app/src/index.ts", "apps/app/public/favicon.svg"],
+      "inputs": [
+        "A05 routers",
+        "packages/ui CSS and theme script"
+      ],
+      "changed_artifacts": [
+        "apps/app/src/index.ts",
+        "apps/app/public/favicon.svg"
+      ],
       "commit_sha": "ab4b345",
       "decision_summary": "Hash-based CSP with no unsafe-inline, computed from the same constants the page renders. One narrow concession: style-src-attr allows inline style attributes; script-src-attr is none.",
       "alternatives_considered": [
@@ -267,8 +315,14 @@
       "model_id": "claude-opus-5[1m]",
       "status": "deployed",
       "goal": "Replace the holding page at verify.itisyou.app with the real public site.",
-      "inputs": ["A05 routers and design system", "A01 factual content"],
-      "changed_artifacts": ["apps/app/src/index.ts", "apps/app/public/development-story.md"],
+      "inputs": [
+        "A05 routers and design system",
+        "A01 factual content"
+      ],
+      "changed_artifacts": [
+        "apps/app/src/index.ts",
+        "apps/app/public/development-story.md"
+      ],
       "commit_sha": "249d062",
       "decision_summary": "Deployed the marketing site, the worked-example demo, the legal pages and the development story to production. The customer application is reachable but runs on a synthetic data port, labelled as such on every page.",
       "alternatives_considered": [
@@ -292,8 +346,12 @@
       "model_id": "claude-opus-5[1m]",
       "status": "tested",
       "goal": "Stop the tenant-scope source scan reporting customer-facing prose as unscoped SQL.",
-      "inputs": ["tests/security/integration/source-scan.test.ts"],
-      "changed_artifacts": ["tests/security/integration/source-scan.test.ts"],
+      "inputs": [
+        "tests/security/integration/source-scan.test.ts"
+      ],
+      "changed_artifacts": [
+        "tests/security/integration/source-scan.test.ts"
+      ],
       "commit_sha": "249d062",
       "decision_summary": "The SQL detector now requires a verb AND a clause, both uppercase, and a paired check fails the build on any lowercase SQL verb in the data layer.",
       "alternatives_considered": [
@@ -367,6 +425,97 @@
       ],
       "limitations": "The onboarding coverage-mode selector is asserted by the domain constant it now reads, not by an HTTP request: every /app route answers 401 without a session, and seeding one needs a real D1 and the owner-authentication wiring. Four claims are recommended for removal rather than qualification (docs/product-scope.md 11.3) and were deliberately left in place, because removing a page or a policy is the owner’s decision. No provider was contacted and no credential exists, so the mock-only statement is itself the only thing that could be verified about the connectors. CUST-343, CUST-344 and CUST-345 were green from the moment they were written: nothing was found for those three classes, and they are standing guards rather than regressions. The competitor check bars a capability claim about a named competitor, not the naming itself — \"we never see inside n8n, Make, Zapier\" is deliberately still permitted, because it is a statement about our own blindness.",
       "next_step": "Owner to rule on the four removal candidates in docs/product-scope.md 11.3. The provider-proof notice comes down when CONN-900 and CONN-901 have actually run against real accounts, and the activation notice when the event-intake route, the Resend webhook mount, the entitlement check and the billing maintenance pass are all wired."
+    },
+    {
+      "event_id": "EVT-0014",
+      "timestamp": "2026-09-19T14:45:00Z",
+      "milestone_id": "M-INTAKE",
+      "task_id": "T-MOUNT-EVENTS",
+      "agent_role": "lead",
+      "model_id": "claude-opus-5",
+      "status": "tested",
+      "goal": "Make POST /api/v1/events reachable, since the route the product is named for answered 404 in every deployment.",
+      "inputs": [
+        "apps/app/src/money/**",
+        "tests/integration/money/d1ports.ts"
+      ],
+      "changed_artifacts": [
+        "apps/app/src/index.ts",
+        "apps/app/src/db/workflowSigningKeys.ts",
+        "apps/app/src/db/allowanceRepair.ts",
+        "tests/integration/money/d1ports.ts"
+      ],
+      "commit_sha": "5b7c450a2125a389bb2ffac7088d3387061e520a",
+      "decision_summary": "Mounted the events route and moved its two D1 ports from the test tree into apps/app/src/db/, where SEC-201 requires SQL to live. They had been written in tests because their author did not own that directory, which meant production implemented the port nowhere at all.",
+      "alternatives_considered": "Leave the ports in the test tree and import them from production. Rejected: it would make a test file a production dependency and invert the dependency the lint rule exists to protect.",
+      "decision_reason": "A module that is mounted nowhere is not a feature. The schema had carried signing_key_hash and signing_key_ref since migration 0001 and setSigningKey had existed to write them, but nothing ever called it, so no customer could hold a key and no signed request could be verified. The intake was missing one layer below where anyone was looking.",
+      "test_evidence_refs": [
+        "live probe: POST /api/v1/events returned 404 before the mount and 401 SIGNATURE_INVALID after",
+        "tsc exit 0"
+      ],
+      "limitations": "Proven against a local worker only. Not yet reproduced against a candidate deployment, and EVENT_SIGNING_ROOT_KEY is not provisioned in any environment, so a genuinely signed event has never been admitted anywhere. The 503-not-401 behaviour when the key id is real but the root key is missing is UNVERIFIED.",
+      "next_step": "Auditor reproduces against a candidate release; owner provisions EVENT_SIGNING_ROOT_KEY."
+    },
+    {
+      "event_id": "EVT-0015",
+      "timestamp": "2026-09-19T14:50:00Z",
+      "milestone_id": "M-QUALITY",
+      "task_id": "T-RUNNER-DIAGNOSIS",
+      "agent_role": "lead",
+      "model_id": "claude-opus-5",
+      "status": "implemented",
+      "goal": "Correct a causal claim I published in commit 66b8d38 that turned out to be false.",
+      "inputs": [
+        "tests/security/integration/secret-hygiene.test.ts"
+      ],
+      "changed_artifacts": [
+        "scripts/run-tests.mjs",
+        "vitest.config.ts"
+      ],
+      "commit_sha": "5b7c450a2125a389bb2ffac7088d3387061e520a",
+      "decision_summary": "Commit 66b8d38 states that the test runner instability is caused by our own agent concurrency. That is wrong. Two specialists independently established the real cause: SEC-632 blocks its worker event loop for 218,015 ms inside a synchronous execFileSync, against a next-slowest file of 2,188 ms, and the framework birpc timer is a hard-coded 60 s. One file, one worker, an otherwise empty pool reproduces it.",
+      "alternatives_considered": "Lower maxWorkers, which appeared to help intermittently and would have treated a symptom. Raise the RPC timeout, which is not configurable in either installed version and would have hidden the defect rather than fixed it.",
+      "decision_reason": "The apparent failures moved between files across runs because they were whichever files shared a worker with the blocking one. That pattern is what made concurrency a plausible cause, and it is exactly why a plausible cause needed an experiment rather than an explanation. Git history cannot be rewritten on this project, so the earlier claim is corrected here rather than erased.",
+      "test_evidence_refs": [
+        "isolation run: one file, one worker, empty pool, timeout still fires",
+        "measured 218,015 ms for secret-hygiene.test.ts against 2,188 ms next slowest",
+        "diff of createForksRpcOptions across both installed versions: no timeout key in either"
+      ],
+      "limitations": "A second isolation pass to confirm SEC-632 is the ONLY contributor did not finish before the session limit terminated it. Until it does, one cause is established and a second is not ruled out.",
+      "next_step": "A09 fixes SEC-632 at source; two consecutive clean full runs close it."
+    },
+    {
+      "event_id": "EVT-0016",
+      "timestamp": "2026-09-19T14:55:00Z",
+      "milestone_id": "M-DESIGN",
+      "task_id": "T-CLAIM-GATE",
+      "agent_role": "lead",
+      "model_id": "claude-opus-5",
+      "status": "tested",
+      "goal": "Stop an unearned claim reaching a visitor, after a design tool proved that instructing it is not a control.",
+      "inputs": [
+        "design/stitch/screens/batch-02/**"
+      ],
+      "changed_artifacts": [
+        "scripts/scan-claims.mjs",
+        "scripts/release.mjs",
+        "design/stitch/INVENTORY.md",
+        "packages/ui/src/content/home.ts",
+        "packages/ui/src/content/legal.ts",
+        "apps/app/src/routes/public/story/narrative.ts",
+        "docs/development-story-events.json"
+      ],
+      "commit_sha": "5b7c450a2125a389bb2ffac7088d3387061e520a",
+      "decision_summary": "Added a claim scanner and wired it into the release gate. Sixteen screens were generated in Google Stitch; halfway through, the tool was given an explicit itemised instruction to stop making unearned claims and visibly adopted it, restating the rules back. The finished export still carried ZERO-TRUST on 13 of 20 screens, SOC2 on 6, ISO 27001 on 2, a fabricated quote naming two real competitors on 4, and AUTO-REMEDIAT on 2.",
+      "alternatives_considered": "Rely on review. Rejected on the evidence above: correcting a generator does not clean what it already produced and does not reliably stop it producing more.",
+      "decision_reason": "The first version of the scanner reported 96 findings and almost none were claims: it flagged the constant that defines the forbidden phrases, the tests asserting the validator rejects them, and the audit report whose finding was that none of it appears on the site. A check with that signal-to-noise is switched off within a week. Narrowing it to source that renders to a visitor, plus the rendered HTML itself, took it to 3 — all denials, each carrying a stated reason.",
+      "test_evidence_refs": [
+        "scan-claims exit 0 on the tree",
+        "scan-claims exit 1 on a planted SOC 2 / auto-healed / trusted-by claim, then 0 again after restore",
+        "rendered pass over 21 served pages: exit 0"
+      ],
+      "limitations": "It proves no banned phrase is present. It does not prove the remaining claims are true; only checking each against the code does that. The rendered pass is only as current as the pages fed to it.",
+      "next_step": "Run the served-pages pass against the candidate deployment on every release."
     }
   ]
 }
