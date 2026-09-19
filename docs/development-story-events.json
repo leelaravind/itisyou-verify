@@ -2,7 +2,7 @@
   "schema_version": 1,
   "project": "itisyou-verify",
   "generated_at": "2026-09-19T09:32:11.970Z",
-  "note": "Structured record of what was decided, built and verified. Observable facts and short decision rationales only — never reasoning traces, private prompts, credentials or customer data. Unknown values stay null rather than being guessed.",
+  "note": "Structured record of what was decided, built and verified. Observable facts and short decision rationales only \u2014 never reasoning traces, private prompts, credentials or customer data. Unknown values stay null rather than being guessed.",
   "events": [
     {
       "event_id": "EVT-0001",
@@ -37,8 +37,8 @@
       "status": "tested",
       "goal": "Freeze the vocabulary every agent shares, so twelve specialists cannot each invent their own.",
       "inputs": [
-        "plan §15",
-        "plan §16"
+        "plan \u00a715",
+        "plan \u00a716"
       ],
       "changed_artifacts": [
         "packages/contracts/src/status.ts",
@@ -102,7 +102,7 @@
       "status": "deployed",
       "goal": "Make a permanently public repository safe before any code that touches credentials exists.",
       "inputs": [
-        "plan §2"
+        "plan \u00a72"
       ],
       "changed_artifacts": [
         ".gitignore",
@@ -177,7 +177,7 @@
       "test_evidence_refs": [
         "195 cases VERIFY-001..VERIFY-195, all passing"
       ],
-      "limitations": "Pure logic only. It proves the decision is correct given a bundle; it does not prove the bundle was gathered correctly — that is A04's connectors.",
+      "limitations": "Pure logic only. It proves the decision is correct given a bundle; it does not prove the bundle was gathered correctly \u2014 that is A04's connectors.",
       "next_step": "Connectors must supply provider_account_id and honest origin values."
     },
     {
@@ -207,7 +207,7 @@
         "@cloudflare/vitest-pool-workers for integration tests",
         "better-sqlite3 as a test harness"
       ],
-      "decision_reason": "A conditional UPDATE inside a D1 batch cannot abort the batch — it silently reports zero changes after the inserts have already committed, which would admit an event without reserving its allowance. The NOT NULL violation is the only mechanism that rolls the whole batch back. vitest-pool-workers 0.9.14 fails to start against the hoisted miniflare; Node 22's built-in node:sqlite gave the same SQLite engine with no new dependency.",
+      "decision_reason": "A conditional UPDATE inside a D1 batch cannot abort the batch \u2014 it silently reports zero changes after the inserts have already committed, which would admit an event without reserving its allowance. The NOT NULL violation is the only mechanism that rolls the whole batch back. vitest-pool-workers 0.9.14 fails to start against the hoisted miniflare; Node 22's built-in node:sqlite gave the same SQLite engine with no new dependency.",
       "test_evidence_refs": [
         "205 cases across API-, AUTH- and PERSIST- ranges, all passing"
       ],
@@ -298,7 +298,7 @@
         "A blanket unsafe-inline",
         "Leaving inline geometry blocked"
       ],
-      "decision_reason": "The first strict policy blocked inline style attributes, so the demo page verification-rate meter fell back to full width: the number said 33% and the bar said 100%. The markup was correct throughout — only a screenshot revealed it. On a product whose thesis is that a partial result must never display as a pass, an inflated bar is the worst available defect, so the concession was taken deliberately and named in the code rather than hidden. A blanket unsafe-inline would not even have worked, since the spec ignores it while a hash is present.",
+      "decision_reason": "The first strict policy blocked inline style attributes, so the demo page verification-rate meter fell back to full width: the number said 33% and the bar said 100%. The markup was correct throughout \u2014 only a screenshot revealed it. On a product whose thesis is that a partial result must never display as a pass, an inflated bar is the worst available defect, so the concession was taken deliberately and named in the code rather than hidden. A blanket unsafe-inline would not even have worked, since the spec ignores it while a hash is present.",
       "test_evidence_refs": [
         "Deployed to staging and screenshotted before and after; meter renders 33% after the fix",
         "All 13 public routes return 200 with the policy applied"
@@ -360,7 +360,7 @@
       ],
       "decision_reason": "The payment-recovery notice says you can update your card and mentions runs and evidence, which a case-insensitive keyword match read as an unscoped query on customer tables. Allowlisting the file or bending the copy around a detector both leave the detector wrong. A security check that fires on English gets muted, and a muted check protects nothing. Tightening to uppercase opens a loophole for lowercase SQL, so the two changes are a pair and neither is safe alone.",
       "test_evidence_refs": [
-        "Measured rather than assumed: across 285 string literals in the data layer the old rule detected 121 statements and the new rule detects exactly the same 121 — zero detection lost",
+        "Measured rather than assumed: across 285 string literals in the data layer the old rule detected 121 statements and the new rule detects exactly the same 121 \u2014 zero detection lost",
         "SEC-205 added; 19 cases in the file pass"
       ],
       "limitations": "The scan is a structural heuristic over source text. It cannot see SQL assembled at runtime, and it is not a substitute for the behavioural tenant-isolation tests.",
@@ -404,7 +404,7 @@
         "packages/ui/src/content/legal.ts"
       ],
       "commit_sha": null,
-      "decision_summary": "Twelve published claims were corrected against what the code does today. The site had been promising a second coverage mode that would detect a run that never started; nothing implements it, the onboarding form still offered it, and the development story already claimed that had been fixed. The connector claim — we read the record back from HubSpot and Resend — is now accompanied on every page that makes it by the statement that it has never been run against a real provider account. The seven-day payment-recovery policy is now displayed on the one page a prospective customer can actually read. Eleven regression cases (CUST-330..CUST-340) drive the real Worker entry point and assert the response body. A second pass, prompted by a design audit of a Stitch-generated landing page that carried two false compliance-certification badges, a fabricated attributed quote, automatic repair of a customer system language and USD pricing tiers, ruled each of those classes out on the real site. Three were absent outright. One heading on the visual development story used the exact phrasing of a third-party security attestation for what is an internal cross-review, but in the exact register of a security attestation — and was reworded. Four figures were retyped as literals where a constant governs them and now interpolate it.",
+      "decision_summary": "Twelve published claims were corrected against what the code does today. The site had been promising a second coverage mode that would detect a run that never started; nothing implements it, the onboarding form still offered it, and the development story already claimed that had been fixed. The connector claim \u2014 we read the record back from HubSpot and Resend \u2014 is now accompanied on every page that makes it by the statement that it has never been run against a real provider account. The seven-day payment-recovery policy is now displayed on the one page a prospective customer can actually read. Eleven regression cases (CUST-330..CUST-340) drive the real Worker entry point and assert the response body. A second pass, prompted by a design audit of a Stitch-generated landing page that carried two false compliance-certification badges, a fabricated attributed quote, automatic repair of a customer system language and USD pricing tiers, ruled each of those classes out on the real site. Three were absent outright. One heading on the visual development story used the exact phrasing of a third-party security attestation for what is an internal cross-review, but in the exact register of a security attestation \u2014 and was reworded. Four figures were retyped as literals where a constant governs them and now interpolate it.",
       "alternatives_considered": [
         "Soften the development story so the coverage-mode claim became true by wording rather than by code",
         "Add the provider-proof caveat once in the footer instead of beside each claim it qualifies",
@@ -414,16 +414,16 @@
       ],
       "decision_reason": "The coverage-mode claim was fixed in code rather than in prose because the story was describing a real fix that had not been made, and rewriting the description of a fix is how a project learns to describe instead of fix. The provider-proof notice sits against each claim rather than in the footer because a caveat a reader meets after forming the belief has not corrected anything. The pricing page stays because the purchase control was already visibly closed and the terms are what a buyer needs to evaluate the product at all. The tests go through apps/app/src/index.ts because the dominant defect on this project is correct code reached by nothing: a case that calls PricingPage() proves the function is right and proves nothing about what GET /pricing puts on the wire. The four absent claim classes got regression cases anyway, because \"we looked and found nothing\" is worth nothing once the looking stops: a negative finding without a standing check is a statement about one afternoon. The retyped figures got a source-level assertion rather than a rendering one, because four copies of \"30 days\" all render correctly right up to the moment the constant changes, which is exactly when a claims test should fire and a rendering assertion would not.",
       "test_evidence_refs": [
-        "tests/integration/public/claims.test.ts — 11 cases, all committed red against the site as it stood (11 failed) and green after the corrections (11 passed)",
+        "tests/integration/public/claims.test.ts \u2014 11 cases, all committed red against the site as it stood (11 failed) and green after the corrections (11 passed)",
         "CUST-334 asserts the payment-recovery disclosure against PAYMENT_RECOVERY_POLICY itself, so changing the approved window fails the test rather than leaving stale prose",
         "CUST-331 sweeps all ten public pages for the withdrawn coverage promise rather than checking the two that were reported",
         "tests/unit/ui/pages.test.ts CUST-043 tightened to the unqualified heading, so restoring the old copy fails in two places",
         "CUST-342..345 assert the four audited claim classes absent from every public page, matching visible text and raw markup; CUST-342 was red on an attestation-shaped heading and is green after the rewording",
         "CUST-346 asserts price, currency, allowance, retention and recovery window against LIMITS and PAYMENT_RECOVERY_POLICY, and that no $, EUR or USD figure appears on any page",
         "CUST-347 reads the six customer-facing copy modules as source and fails on a hard-coded governed figure; proven red against the HEAD blobs, which carried four (two in faq.ts, one in legal.ts, one in the /pricing meta description)",
-        "No <img> element and no <pre> or <code> block exists on any public page — asserted, not assumed, so no badge graphic or install command can appear without failing a test"
+        "No <img> element and no <pre> or <code> block exists on any public page \u2014 asserted, not assumed, so no badge graphic or install command can appear without failing a test"
       ],
-      "limitations": "The onboarding coverage-mode selector is asserted by the domain constant it now reads, not by an HTTP request: every /app route answers 401 without a session, and seeding one needs a real D1 and the owner-authentication wiring. Four claims are recommended for removal rather than qualification (docs/product-scope.md 11.3) and were deliberately left in place, because removing a page or a policy is the owner’s decision. No provider was contacted and no credential exists, so the mock-only statement is itself the only thing that could be verified about the connectors. CUST-343, CUST-344 and CUST-345 were green from the moment they were written: nothing was found for those three classes, and they are standing guards rather than regressions. The competitor check bars a capability claim about a named competitor, not the naming itself — \"we never see inside n8n, Make, Zapier\" is deliberately still permitted, because it is a statement about our own blindness.",
+      "limitations": "The onboarding coverage-mode selector is asserted by the domain constant it now reads, not by an HTTP request: every /app route answers 401 without a session, and seeding one needs a real D1 and the owner-authentication wiring. Four claims are recommended for removal rather than qualification (docs/product-scope.md 11.3) and were deliberately left in place, because removing a page or a policy is the owner\u2019s decision. No provider was contacted and no credential exists, so the mock-only statement is itself the only thing that could be verified about the connectors. CUST-343, CUST-344 and CUST-345 were green from the moment they were written: nothing was found for those three classes, and they are standing guards rather than regressions. The competitor check bars a capability claim about a named competitor, not the naming itself \u2014 \"we never see inside n8n, Make, Zapier\" is deliberately still permitted, because it is a statement about our own blindness.",
       "next_step": "Owner to rule on the four removal candidates in docs/product-scope.md 11.3. The provider-proof notice comes down when CONN-900 and CONN-901 have actually run against real accounts, and the activation notice when the event-intake route, the Resend webhook mount, the entitlement check and the billing maintenance pass are all wired."
     },
     {
@@ -514,7 +514,7 @@
       "alternatives_considered": [
         "Rely on review. Rejected on the evidence above: correcting a generator does not clean what it already produced and does not reliably stop it producing more."
       ],
-      "decision_reason": "The first version of the scanner reported 96 findings and almost none were claims: it flagged the constant that defines the forbidden phrases, the tests asserting the validator rejects them, and the audit report whose finding was that none of it appears on the site. A check with that signal-to-noise is switched off within a week. Narrowing it to source that renders to a visitor, plus the rendered HTML itself, took it to 3 — all denials, each carrying a stated reason.",
+      "decision_reason": "The first version of the scanner reported 96 findings and almost none were claims: it flagged the constant that defines the forbidden phrases, the tests asserting the validator rejects them, and the audit report whose finding was that none of it appears on the site. A check with that signal-to-noise is switched off within a week. Narrowing it to source that renders to a visitor, plus the rendered HTML itself, took it to 3 \u2014 all denials, each carrying a stated reason.",
       "test_evidence_refs": [
         "scan-claims exit 0 on the tree",
         "scan-claims exit 1 on a planted certification / remediation / social-proof claim, then 0 again after restore",
@@ -542,18 +542,18 @@
         "scripts/scan-claims.mjs"
       ],
       "commit_sha": "0c7fc08cee3b1264c1c0716b82ecef5f8770b0aa",
-      "decision_summary": "The auditor closed one open question and opened seven findings. It established what the lead had not: with a REAL signing key id present and EVENT_SIGNING_ROOT_KEY absent, the intake answers 503 SIGNING_KEY_UNREADABLE rather than 401 — the fault is ours and the status says so. It also refused to verify notifications, because doing so required inventing a Stripe webhook secret, and a green result under a fabricated credential is indistinguishable in a register from a real one.",
+      "decision_summary": "The auditor closed one open question and opened seven findings. It established what the lead had not: with a REAL signing key id present and EVENT_SIGNING_ROOT_KEY absent, the intake answers 503 SIGNING_KEY_UNREADABLE rather than 401 \u2014 the fault is ours and the status says so. It also refused to verify notifications, because doing so required inventing a Stripe webhook secret, and a green result under a fabricated credential is indistinguishable in a register from a real one.",
       "alternatives_considered": [
         "Accept the lead's own demonstration of the lead's own claim scanner. Rejected: the auditor defeated that gate in one attempt with plain English."
       ],
-      "decision_reason": "Three findings landed on the lead. The claim scanner passed \"we fix your broken automation for you\" and \"we guarantee 100% accuracy\" while catching \"an absolutist accuracy promise\" — it turned on a verb ending, so it waved through the page it was meant to guard. The gap register cited the development story as evidence for backup restoration, and the story contains no such event; the citation was false and the row is withdrawn. And the register's owner column named agents that were not on the roster, which is unassigned work wearing owner labels.",
+      "decision_reason": "Three findings landed on the lead. The claim scanner passed \"we fix your broken automation for you\" and \"we guarantee 100% accuracy\" while catching \"an absolutist accuracy promise\" \u2014 it turned on a verb ending, so it waved through the page it was meant to guard. The gap register cited the development story as evidence for backup restoration, and the story contains no such event; the citation was false and the row is withdrawn. And the register's owner column named agents that were not on the roster, which is unassigned work wearing owner labels.",
       "test_evidence_refs": [
         "503 SIGNING_KEY_UNREADABLE reproduced with a seeded workflow and no root key",
         "12 further denial legs: wrong workflow 403, stale/future timestamp 401, stale occurred_at 422, bad schema 422, 64KiB 413",
         "scan-claims now exits 1 on all three phrases that previously passed",
         "HEAD moved four times during the pass: 5b7c450 to 25a41fc to 4b27b01 to 0c7fc08"
       ],
-      "limitations": "Nothing in this pass is deployment-verified; every measurement is local. There is no frozen candidate — HEAD moved four times while the audit ran, and one request returned 503 worker restarted mid-request. The auditor's own could-not-verify list has eight entries.",
+      "limitations": "Nothing in this pass is deployment-verified; every measurement is local. There is no frozen candidate \u2014 HEAD moved four times while the audit ran, and one request returned 503 worker restarted mid-request. The auditor's own could-not-verify list has eight entries.",
       "next_step": "Freeze a candidate commit before the next audit pass. Notifications stay unverified until a real Stripe webhook secret exists."
     },
     {
@@ -621,7 +621,7 @@
       "alternatives_considered": [
         "Restore staging as-is. Rejected: staging holds one workspace and no runs, so it would have proved only that the command runs."
       ],
-      "decision_reason": "The earlier claim was withdrawn because its citation did not resolve — the register said the evidence was in the story and the story had no such event. Re-running the drill was cheaper than arguing about whether the first one counted, and the schema refusing the first seed attempt outright was itself worth recording: a drill against a schema that accepts anything proves much less.",
+      "decision_reason": "The earlier claim was withdrawn because its citation did not resolve \u2014 the register said the evidence was in the story and the story had no such event. Re-running the drill was cheaper than arguing about whether the first one counted, and the schema refusing the first seed attempt outright was itself worth recording: a drill against a schema that accepts anything proves much less.",
       "test_evidence_refs": [
         "counts preserved 3/3/3/3 across workspaces, runs, evidence and source_events",
         "run statuses preserved as VERIFIED,UNVERIFIED,FAILED rather than collapsed",
@@ -653,7 +653,7 @@
       "alternatives_considered": [
         "Deploy immediately when the exposure was found. Rejected: the gate exists to stop exactly that, and the disclosure was near-zero because nothing was paired and until that commit nothing could pair."
       ],
-      "decision_reason": "The gate refused three separate attempts before this one and was right each time — first on three lint errors every specialist had labelled \"not mine\", then on a claim visible only in a page as actually served, then because a documentation commit had moved HEAD past the artefact. A gate that never refuses is not a gate, and each refusal cost minutes while catching something real.",
+      "decision_reason": "The gate refused three separate attempts before this one and was right each time \u2014 first on three lint errors every specialist had labelled \"not mine\", then on a claim visible only in a page as actually served, then because a documentation commit had moved HEAD past the artefact. A gate that never refuses is not a gate, and each refusal cost minutes while catching something real.",
       "test_evidence_refs": [
         "artefact commit matches HEAD exactly, produced_by github-actions, tree clean",
         "2213 citable distinct passing cases against a minimum of 500, all twelve category floors met",
@@ -664,6 +664,175 @@
       ],
       "limitations": "The Playwright suite did not execute in CI, so 31 browser cases sit outside the number that gated this deploy. No provider has ever been contacted, so the connector layer is proven against its own specification rather than against HubSpot or Resend. Live payments, payouts and paid advertising remain gated and untested end to end by design.",
       "next_step": "Provider credentials from the owner; approval to publish the organic posts."
+    },
+    {
+      "event_id": "EVT-0021",
+      "timestamp": "2026-09-19T20:51:00Z",
+      "milestone_id": "M-PROVIDERS",
+      "task_id": "T-RESEND-LIVE",
+      "agent_role": "connectors",
+      "model_id": "claude-opus-5",
+      "status": "deployed",
+      "goal": "Make a Resend connection reach ready the only legitimate way: because a correctly signed provider callback actually arrived.",
+      "inputs": [
+        "a dedicated Resend API key, least privilege available (Resend offers no read-only preset)",
+        "a webhook subscribed to exactly the six events the connector maps"
+      ],
+      "changed_artifacts": [
+        "migrations/0005_connection_webhook_verified.sql",
+        "apps/app/src/db/resendWebhookPort.ts",
+        "apps/app/src/db/customerPort.ts",
+        "packages/connectors/src/connect.ts"
+      ],
+      "commit_sha": "38f05b7",
+      "decision_summary": "Added the webhook_verified_at column the endpoint resolver had been standing in for. The resolver reported last_check_at as webhookVerifiedAt; last_check_at is written the moment a credential validates, so on a real connection it is never NULL, which made the route promotion test (webhookVerifiedAt === null) permanently false. The promotion code was correct, guarded against revoked connections and cross-workspace writes, and covered by tests. Nothing could reach it.",
+      "alternatives_considered": [
+        "Set the status directly once a signed delivery is seen. Rejected: that is the flag-setting the connector copy explicitly promises not to do, and it would have hidden the missing column rather than fixing it."
+      ],
+      "decision_reason": "Every test seeded a connection without last_check_at, so it read NULL there and the substitution looked correct. Two genuinely signed deliveries were received and processed on staging and the connection did not move; only then was the cause visible. CONN-315 sets last_check_at the way a real connect does, and that single line is the difference between a test that catches this and one that does not.",
+      "test_evidence_refs": [
+        "CONN-315 confirmed to FAIL against the old mapping before the fix",
+        "CONN-316 covers the verified case so a second delivery does not repeat the write",
+        "staging connection promoted at 2026-09-19T20:51:16.811Z by a genuine signed callback"
+      ],
+      "limitations": [
+        "Resend offers only Full access or Sending access, so the evidence-read key carries send capability the connector never exercises. A provider granularity limit, not a choice."
+      ],
+      "next_step": "Rotate the staging webhook path id, which leaked into a session transcript, and issue production a freshly generated one."
+    },
+    {
+      "event_id": "EVT-0022",
+      "timestamp": "2026-09-19T21:05:00Z",
+      "milestone_id": "M-RELEASE",
+      "task_id": "T-INTAKE-ROBUSTNESS",
+      "agent_role": "integration",
+      "model_id": "claude-opus-5",
+      "status": "deployed",
+      "goal": "Stop a dependency the intake never calls from being able to refuse every customer event.",
+      "inputs": [
+        "wrangler tail against the staging worker while posting an unsigned event"
+      ],
+      "changed_artifacts": [
+        "apps/app/src/index.ts",
+        "tests/integration/money/events-route-stripe-key.test.ts"
+      ],
+      "commit_sha": "cb02b02",
+      "decision_summary": "POST /api/v1/events answered 500 on staging AND production. The mount builds a Stripe gateway only to satisfy a type -- admission reads our own tables and never calls the provider -- but guarded on secretKey.length > 0, which asks whether a key exists rather than whether it is usable, and createStripeClient throws on a key that is neither test nor live. A rejected key now degrades to the same failing object as no key at all.",
+      "alternatives_considered": [
+        "Only replace the malformed key and leave the guard. Rejected: that fixes this incident and leaves the next bad key free to take the intake down again.",
+        "Make createStripeClient tolerant. Rejected: for a caller about to take money, throwing on a bad key is correct. The caller decides, not the client."
+      ],
+      "decision_reason": "The surrounding comment was written to fix this exact defect one step earlier and still missed it. Every test passed throughout because they construct the money runtime directly and never take the mount branch. One line of wrangler tail gave the cause that no amount of reading had.",
+      "test_evidence_refs": [
+        "BILL-290 and BILL-291 confirmed to FAIL against the previous guard",
+        "API-620 asserts the warning never prints the key it warns about",
+        "staging answers 401 SIGNATURE_INVALID to an unsigned event after deploy"
+      ],
+      "limitations": [
+        "The stored key was also wrong and was replaced from the Stripe sandbox. Production still ran the old build at the time of writing."
+      ],
+      "next_step": "Redeploy production at a CI-verified commit so the intake stops answering 500 there."
+    },
+    {
+      "event_id": "EVT-0023",
+      "timestamp": "2026-09-19T21:10:00Z",
+      "milestone_id": "M-RELEASE",
+      "task_id": "T-GATE-REPAIR",
+      "agent_role": "qa",
+      "model_id": "claude-opus-5",
+      "status": "tested",
+      "goal": "Find out why the release gate was red and make it mean something again.",
+      "inputs": [
+        "gh run view --log-failed on three consecutive failed runs"
+      ],
+      "changed_artifacts": [
+        ".github/workflows/ci.yml",
+        "tests/e2e/responsive.spec.ts"
+      ],
+      "commit_sha": "5ac7be4",
+      "decision_summary": "The gate had never passed since the browser suite joined CI, for two independent reasons. First, the migration step named verify-itisyou-db-local, a binding wrangler.jsonc does not declare; wrangler then ignores migrations_dir, looks in apps/app/migrations, and errors \"No migrations present\", which sends the reader after missing files that were never missing. Second, the screenshot test writes into the tracked docs/screenshots/, leaving the tree dirty, so build-gate-artefact.mjs correctly refused to produce a number for a tree matching no commit.",
+      "alternatives_considered": [
+        "Restore the tree before building the artefact. Rejected: that hides that the screenshots changed rather than stopping them from changing.",
+        "Let the artefact ignore known-regenerated paths. Rejected: weakening the check that was the only thing telling the truth here."
+      ],
+      "decision_reason": "Three commits shipped under a red gate, including a production deploy, while the release was described as pinned to a passing one. Neither half of the screenshot problem was wrong on its own and they could not both be right; SCREENSHOT_DIR lets CI keep the pictures without modifying the repository to produce them.",
+      "test_evidence_refs": [
+        "both failures reproduced locally before the fix",
+        "CI green at 5ac7be4, first passing gate since the suite was added"
+      ],
+      "limitations": [
+        "72 ledger reconciliation defects remain, mostly duplicate case ids across files. Pre-existing and untouched."
+      ],
+      "next_step": "Clear the 72 remaining ledger reconciliation defects, which are duplicate case ids across files."
+    },
+    {
+      "event_id": "EVT-0024",
+      "timestamp": "2026-09-19T21:15:00Z",
+      "milestone_id": "M-PROVIDERS",
+      "task_id": "T-VERTICAL-SLICE",
+      "agent_role": "lead",
+      "model_id": "claude-opus-5",
+      "status": "tested",
+      "goal": "Drive the deployed intake with a real signed event and real provider evidence, rather than asserting it works.",
+      "inputs": [
+        "a signing key issued through the real customer route",
+        "a Resend delivery event from a real send to a provider simulator address"
+      ],
+      "changed_artifacts": [
+        "(no code change; staging data and deployed requests)"
+      ],
+      "commit_sha": "5ac7be4",
+      "decision_summary": "A correctly signed event was accepted and created run_01M2XR57DX42B55B1CFCF74B24 (202, PENDING). Every refusal path behaved: duplicate returned the same run with duplicate:true and took no second allowance unit, wrong workflow 403, stale 422, future-dated 422, malformed 422, a rotated-out key 401. Allowance reserved moved to exactly 2 for two distinct runs and, with the limit lowered, the next event was refused 429 ALLOWANCE_EXHAUSTED.",
+      "alternatives_considered": [
+        "Wait for onboarding to be openable and drive it entirely through the UI. Rejected: the compatibility gate is held shut by an honesty notice that must not come down before the evidence exists, so the prerequisites were seeded directly while every request still went through the real deployed routes."
+      ],
+      "decision_reason": "The activation notice claims three things are unfinished. Two of them could only be settled by real requests, and reading the code is exactly what produced the two defects found earlier the same evening.",
+      "test_evidence_refs": [
+        "run_01M2XR57DX42B55B1CFCF74B24 created by a signed event against the deployed worker",
+        "entitlements.reserved = 2 for two distinct runs, unchanged by the duplicate",
+        "429 ALLOWANCE_EXHAUSTED observed on the deployed service"
+      ],
+      "limitations": [
+        "No deployed environment has yet produced a VERIFIED or FAILED verdict from real evidence. The scheduled step that would do it has never run outside production.",
+        "HubSpot holds a real validated credential but no live record readback has been demonstrated."
+      ],
+      "next_step": "Deploy the staging cron so the scheduled verdict step runs on a deployment for the first time, then finish the slice through to a verdict."
+    },
+    {
+      "event_id": "EVT-0025",
+      "timestamp": "2026-09-19T21:40:00Z",
+      "milestone_id": "M-RELEASE",
+      "task_id": "T-EVIDENCE-CORRELATION",
+      "agent_role": "connectors",
+      "model_id": "claude-opus-5",
+      "status": "tested",
+      "goal": "Attach delivery evidence to the run it actually belongs to.",
+      "inputs": [
+        "two pending runs observed on the deployed service, and one unrelated delivery event"
+      ],
+      "changed_artifacts": [
+        "apps/app/src/db/runs.ts",
+        "apps/app/src/db/resendWebhookPort.ts",
+        "tests/integration/db/harness.ts"
+      ],
+      "commit_sha": "dfd55ae",
+      "decision_summary": "recordEmailEvidence passed no run id, so recordProviderEvent fell back to the most recently created pending run in the workspace, whatever it was for. Correlation now happens at the caller: expected.email_message_id first, then the whole recipient address case-insensitively, each query selecting LIMIT 2 so ambiguity is visible rather than hidden behind a LIMIT 1. Two pending runs on the same address with no message id writes nothing at all.",
+      "alternatives_considered": [
+        "Break the tie by recency, or by closest deadline. Rejected: both are a coin toss settled in the customer favour, and a wrong attachment reads as a pass.",
+        "Build the correlation placeholder run the old docblock described. Rejected as larger than the defect; the envelope already carries a message id nothing was consuming."
+      ],
+      "decision_reason": "The docblock above the fallback said a webhook that guessed would attach evidence to the wrong run, and then the code guessed, because the placeholder it described was never built. Two enquiries in flight at once is ordinary, and one enquiry acknowledgement satisfying another enquiry check falsifies the single claim this product makes while every assertion and status mapping around it stays correct. Missing evidence reads as UNVERIFIED; misattributed evidence reads as a pass.",
+      "test_evidence_refs": [
+        "observed on the deployed service: evidence attached to the newer of two pending runs, belonging to neither",
+        "CONN-317, CONN-318 and CONN-319 each confirmed to FAIL against the old fallback",
+        "CONN-320 late webhook, CONN-321 cross-tenant",
+        "full suite 2,578 passed, 0 failed, 3 skipped; CI green"
+      ],
+      "limitations": [
+        "The test harness seeded payload_json as an empty object, which no real source event is. That gap is why correlation could go untested, and seedRun now seeds a real expected block.",
+        "HubSpot record evidence takes a different path and has not been reviewed for the same defect."
+      ],
+      "next_step": "Review the HubSpot record-evidence path for the same correlation defect, and consume expected.crm_record_id where it is supplied."
     }
   ]
 }
