@@ -176,9 +176,17 @@ jobs:
       - name: Install the browser
         run: npx playwright install --with-deps chromium
 
+      # The database NAME has to be one wrangler.jsonc actually declares. Given a name it
+      # cannot find, wrangler does not fail on the name -- it falls back to a default
+      # migrations directory (`apps/app/migrations`), finds nothing there, and errors with
+      # "No migrations present", which reads like a missing-migrations problem and is not.
+      # `verify-itisyou-db-local` was never a declared binding, so this step had never once
+      # succeeded; it took the gate down from 19 September 2026 and the message sent every
+      # reader to the wrong place. `--local` keeps it on a local SQLite file regardless of
+      # which declared binding is named, so nothing here can reach the remote database.
       - name: Apply migrations to the local database
         working-directory: apps/app
-        run: npx wrangler d1 migrations apply verify-itisyou-db-local --local
+        run: npx wrangler d1 migrations apply verify-itisyou-db-staging --local
 
       - name: Seed the scoped automation identity
         id: seed
