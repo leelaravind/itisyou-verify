@@ -695,9 +695,7 @@
         "CONN-316 covers the verified case so a second delivery does not repeat the write",
         "staging connection promoted at 2026-09-19T20:51:16.811Z by a genuine signed callback"
       ],
-      "limitations": [
-        "Resend offers only Full access or Sending access, so the evidence-read key carries send capability the connector never exercises. A provider granularity limit, not a choice."
-      ],
+      "limitations": "Resend offers only Full access or Sending access, so the evidence-read key carries send capability the connector never exercises. A provider granularity limit, not a choice.",
       "next_step": "Rotate the staging webhook path id, which leaked into a session transcript, and issue production a freshly generated one."
     },
     {
@@ -728,9 +726,7 @@
         "API-620 asserts the warning never prints the key it warns about",
         "staging answers 401 SIGNATURE_INVALID to an unsigned event after deploy"
       ],
-      "limitations": [
-        "The stored key was also wrong and was replaced from the Stripe sandbox. Production still ran the old build at the time of writing."
-      ],
+      "limitations": "The stored key was also wrong and was replaced from the Stripe sandbox. Production still ran the old build at the time of writing.",
       "next_step": "Redeploy production at a CI-verified commit so the intake stops answering 500 there."
     },
     {
@@ -760,9 +756,7 @@
         "both failures reproduced locally before the fix",
         "CI green at 5ac7be4, first passing gate since the suite was added"
       ],
-      "limitations": [
-        "72 ledger reconciliation defects remain, mostly duplicate case ids across files. Pre-existing and untouched."
-      ],
+      "limitations": "72 ledger reconciliation defects remain, mostly duplicate case ids across files. Pre-existing and untouched.",
       "next_step": "Clear the 72 remaining ledger reconciliation defects, which are duplicate case ids across files."
     },
     {
@@ -792,10 +786,7 @@
         "entitlements.reserved = 2 for two distinct runs, unchanged by the duplicate",
         "429 ALLOWANCE_EXHAUSTED observed on the deployed service"
       ],
-      "limitations": [
-        "No deployed environment has yet produced a VERIFIED or FAILED verdict from real evidence. The scheduled step that would do it has never run outside production.",
-        "HubSpot holds a real validated credential but no live record readback has been demonstrated."
-      ],
+      "limitations": "No deployed environment has yet produced a VERIFIED or FAILED verdict from real evidence. The scheduled step that would do it has never run outside production. HubSpot holds a real validated credential but no live record readback has been demonstrated.",
       "next_step": "Deploy the staging cron so the scheduled verdict step runs on a deployment for the first time, then finish the slice through to a verdict."
     },
     {
@@ -828,10 +819,7 @@
         "CONN-320 late webhook, CONN-321 cross-tenant",
         "full suite 2,578 passed, 0 failed, 3 skipped; CI green"
       ],
-      "limitations": [
-        "The test harness seeded payload_json as an empty object, which no real source event is. That gap is why correlation could go untested, and seedRun now seeds a real expected block.",
-        "HubSpot record evidence takes a different path and has not been reviewed for the same defect."
-      ],
+      "limitations": "The test harness seeded payload_json as an empty object, which no real source event is. That gap is why correlation could go untested, and seedRun now seeds a real expected block. HubSpot record evidence takes a different path and has not been reviewed for the same defect.",
       "next_step": "Review the HubSpot record-evidence path for the same correlation defect, and consume expected.crm_record_id where it is supplied."
     }
   ]
