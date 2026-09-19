@@ -87,21 +87,67 @@ interface PostOptions {
   /** `undefined` sends the site's own origin; `null` sends no Origin and no Referer. */
   readonly origin?: string | null;
   readonly signedIn?: boolean;
+  /** Override the CSRF cookie half. `undefined` fetches a real one; `null` sends none. */
+  readonly csrfCookie?: string | null;
+  /** Override the submitted token half. `undefined` fetches a real one; `null` sends none. */
+  readonly csrfToken?: string | null;
+}
+
+/**
+ * A real double-submit CSRF pair, fetched the way a browser gets one: `GET` the activation
+ * page this same session will act from, read the cookie the response set, and read the same
+ * value back out of the rendered form's hidden field.
+ */
+async function realCsrfPair(
+  s: SignedIn,
+  rootKey: string | null,
+): Promise<{ cookie: string; token: string }> {
+  const response = await worker.fetch(
+    new Request(`${BASE}${ACTIVATION_PATH}`, {
+      headers: { cookie: `__Host-verify_session=${SESSION_VALUE}` },
+    }),
+    envFor(s.h, rootKey),
+    ctx,
+  );
+  const html = await response.text();
+  const getSetCookie = (response.headers as { getSetCookie?: () => string[] }).getSetCookie;
+  const setCookie =
+    typeof getSetCookie === 'function' ? getSetCookie.call(response.headers) : [response.headers.get('set-cookie') ?? ''];
+  const csrfSet = setCookie.find((line) => line.includes('verify_csrf'));
+  const cookie = csrfSet === undefined ? undefined : /verify_csrf=([^;]+)/.exec(csrfSet)?.[1];
+  const token = /name="csrf_token"\s+value="([^"]*)"/.exec(html)?.[1];
+  if (cookie === undefined || token === undefined || token === '') {
+    throw new Error(`realCsrfPair: activation page rendered no usable pair:\n${html.slice(0, 400)}`);
+  }
+  return { cookie, token };
 }
 
 /** A browser-shaped form POST to the issue/rotate route. */
 async function postIssue(s: SignedIn, options: PostOptions = {}): Promise<Served> {
+  const rootKey = options.rootKey === undefined ? ROOT_KEY : options.rootKey;
+  const pair =
+    options.csrfCookie === undefined || options.csrfToken === undefined
+      ? await realCsrfPair(s, rootKey)
+      : { cookie: '', token: '' };
+  const cookieValue = options.csrfCookie === undefined ? pair.cookie : options.csrfCookie;
+  const tokenValue = options.csrfToken === undefined ? pair.token : options.csrfToken;
+
   const headers = new Headers({ 'content-type': 'application/x-www-form-urlencoded' });
-  if (options.signedIn !== false) headers.set('cookie', `__Host-verify_session=${SESSION_VALUE}`);
+  const cookies: string[] = [];
+  if (options.signedIn !== false) cookies.push(`__Host-verify_session=${SESSION_VALUE}`);
+  if (cookieValue !== null) cookies.push(`__Host-verify_csrf=${cookieValue}`);
+  if (cookies.length > 0) headers.set('cookie', cookies.join('; '));
   if (options.origin !== null) headers.set('origin', options.origin ?? BASE);
+  const body = new URLSearchParams({ intent: 'issue' });
+  if (tokenValue !== null) body.set('csrf_token', tokenValue);
   return serve(
     await worker.fetch(
       new Request(`${BASE}${ISSUE_PATH}`, {
         method: 'POST',
         headers,
-        body: new URLSearchParams({ csrf_token: 'form-token', intent: 'issue' }).toString(),
+        body: body.toString(),
       }),
-      envFor(s.h, options.rootKey === undefined ? ROOT_KEY : options.rootKey),
+      envFor(s.h, rootKey),
       ctx,
     ),
   );

@@ -166,8 +166,12 @@ describe('a refusal never confirms what was refused', () => {
       // The refusal must not echo the path, the resource or the reason it was interesting.
       expect(visibleText(one.html).toLowerCase()).toContain('sign in');
     }
-    // Every refusal is the same document, so the response cannot be used to probe.
-    const bodies = new Set(served.map((one) => one.html));
+    // Every refusal is the same document, once the per-request CSRF token is normalised
+    // away — it is freshly minted on every response so the sign-in form itself has a real
+    // double-submit pair, and that is the only thing that may legitimately differ here.
+    const normaliseCsrf = (markup: string): string =>
+      markup.replace(/value="[A-Za-z0-9_-]{20,}"/g, 'value="T"');
+    const bodies = new Set(served.map((one) => normaliseCsrf(one.html)));
     expect(bodies.size).toBe(1);
   });
 });
