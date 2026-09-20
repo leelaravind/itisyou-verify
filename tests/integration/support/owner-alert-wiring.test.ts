@@ -160,6 +160,40 @@ describe('a cron tick pings the owner when only the owner can act', () => {
     expect(s.calls[0]?.body, 'the alert does not name its deployment').toContain('test');
   });
 
+  it('OWNER-504 on production the design figure goes out once the payments milestone is already delivered, and only once', async () => {
+    // The gate that never opened. The payments milestone runs on every production tick
+    // once the secrets are present and answers `duplicate` from its second tick onward --
+    // and still marks the pass attempted. Gated on `!attempted`, the design figure never
+    // left the function, and the owner was told on 20 September that it had been sent.
+    // Read from the live table: one payments row at 01:51 and no design row at all.
+    const s = scene({ ENVIRONMENT: 'production' });
+
+    // Counted after EACH tick. The first draft of this case awaited all three ticks and
+    // then asserted "one call after tick 1" -- against an array that already held tick 2's
+    // message. It failed on a correct implementation, which is the mirror image of the
+    // defect this file exists to catch.
+    const first = await s.tick();
+    const afterFirst = s.calls.length;
+    const second = await s.tick();
+    const afterSecond = s.calls.length;
+    const third = await s.tick();
+    const afterThird = s.calls.length;
+
+    // Tick 1: the payments milestone is the fresh message; nothing else is sent that tick.
+    expect(first.ownerAlert?.outcome).toBe('sent');
+    expect(afterFirst).toBe(1);
+    expect(s.calls[0]?.body).toContain('Sandbox payment secrets present on');
+    // Tick 2: the payments milestone is a duplicate, so the design figure is the fresh one.
+    expect(second.ownerAlert?.outcome, 'the design figure never went out').toBe('sent');
+    expect(afterSecond).toBe(2);
+    expect(s.calls[1]?.body).toContain('screens composed against their reference');
+    expect(s.calls[1]?.body).toMatch(/\d+ of \d+ \(\d+%\)/);
+    expect(s.calls[1]?.body).not.toMatch(/100%/);
+    // Tick 3: both are duplicates; the phone stays quiet.
+    expect(third.ownerAlert?.outcome).toBe('duplicate');
+    expect(afterThird, 'a milestone repeated').toBe(2);
+  });
+
   it('OWNER-499 with no Telegram configured the tick still succeeds and records why', async () => {
     const s = scene({
       STRIPE_SECRET_KEY: 'not-a-stripe-key',
