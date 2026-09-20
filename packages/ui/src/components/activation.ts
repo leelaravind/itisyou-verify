@@ -89,11 +89,17 @@ export function UnavailableAction(options: UnavailableActionOptions): Html {
 /**
  * The standing reason every taken-down activation control gives.
  *
- * One sentence, drawn from A01's notice rather than written afresh, so the control and the
- * banner above it cannot drift apart.
+ * Drawn from the same fact as the banner above it, and it drifted anyway: the banner was
+ * corrected when the signed-event endpoint went live and this copy was not, so `/pricing`
+ * served both sentences at once and one of them was false. "One sentence so they cannot
+ * drift apart" was the intention; two constants was the implementation, and the intention
+ * does not survive that. Found by the independent auditor on 20 September 2026.
+ *
+ * It now names the reason that is actually true, which is also the one that matters to
+ * somebody about to pay.
  */
 export const ACTIVATION_UNAVAILABLE_REASON =
-  'We are not taking payment or activating new workspaces while the endpoint that receives your automation’s signed events is not live. Nothing here is broken on your side.';
+  'We are not taking payment or activating new workspaces yet: no purchase has been completed end to end on a live deployment, and a HubSpot record has never been read back from a real portal. Nothing here is broken on your side.';
 
 /** What we can honestly say about when it returns, which is not a date. */
 export const ACTIVATION_UNAVAILABLE_WHEN =

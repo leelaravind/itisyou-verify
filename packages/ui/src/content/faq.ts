@@ -134,6 +134,6 @@ export const FAQ_ENTRIES: readonly FaqEntry[] = [
     id: 'is-verification-live-today',
     question: 'Is this actually running for real accounts right now?',
     answer:
-      'Not yet. The checking logic described on this site is real and tested, but the parts that connect it to a real, paying workspace are not finished: the endpoint that receives your automation\'s signed events is not live, a Resend connection cannot yet finish reaching "ready", and the automatic checks that pause verification at your plan allowance or after a failed payment do not yet run on a schedule. We are not taking payment or activating new workspaces until those are wired and confirmed. This page will stop saying that the day it stops being true.',
+      'Not yet, and the reason is narrower than it used to be. Three things this answer once listed are now done: the endpoint that receives your automation\'s signed events is live and refuses an unsigned request, a Resend connection reaches "ready" only once a correctly signed callback has actually arrived, and the plan allowance is enforced on the live request path. What remains is the part that matters most before anyone pays: no purchase has been completed end to end on a live deployment, and a HubSpot record has never been read back from a real portal. We are not taking payment until both are done. This page stops saying it the day it stops being true, which is why it says less today than it did yesterday.',
   },
 ];
