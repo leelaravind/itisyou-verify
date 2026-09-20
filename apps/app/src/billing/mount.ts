@@ -153,8 +153,22 @@ export function assertBillingSecrets(env: BillingEnv): void {
  * `null` rather than on the signature comparison.
  */
 export function createEndpointSecretResolver(env: BillingEnv): StripeEndpointSecretResolver {
-  const configuredId = env.STRIPE_WEBHOOK_PATH_ID ?? '';
-  const secret = env.STRIPE_WEBHOOK_SECRET ?? '';
+  // Trimmed where they are READ, for the reason written out at `billingConfigFromEnv`
+  // below -- and this is the function that needed it most. `wrangler secret put NAME` fed
+  // by a pipe stores the trailing newline the generating command printed. On the path id
+  // that newline makes `timingSafeEqual` fail on LENGTH, so this resolver returns null and
+  // the route rejects on the lookup before the signature is ever considered. On the secret
+  // it makes the HMAC key a different key. Either way the answer is the same
+  // `400 INVALID_SIGNATURE` a forged delivery gets, by deliberate design -- so the one
+  // configuration mistake an operator is most likely to make was indistinguishable from an
+  // attack, and was reported to the owner as a missing secret three times.
+  //
+  // Only the CONFIGURED values are trimmed. The supplied `opaqueId` is not: trimming the
+  // input would mean an id with whitespace around it is accepted as the id, which turns a
+  // tolerance for our own provisioning into a widened gate. BILL-632 asserts that
+  // distinction.
+  const configuredId = (env.STRIPE_WEBHOOK_PATH_ID ?? '').trim();
+  const secret = (env.STRIPE_WEBHOOK_SECRET ?? '').trim();
   return async (opaqueId: string): Promise<string | null> => {
     if (configuredId.length === 0 || secret.length === 0) return null;
     // `timingSafeEqual` compares equal-length strings in constant time and returns false
@@ -204,18 +218,39 @@ export function createBillingRuntime(env: BillingEnv, parts: BillingRuntimeParts
  * still builds, but `resolveEndpointSecret` returns `null` for every id, so every delivery
  * is a 400 — which is the correct degraded behaviour for an unconfigured money path.
  */
+/**
+ * The default rejection log.
+ *
+ * `createStripeWebhookRoute` falls back to a NO-OP when no log is supplied, and for months
+ * nothing supplied one. The route carefully writes which of three causes refused a
+ * delivery -- unknown endpoint, wrong secret, stale timestamp -- because the response
+ * deliberately tells the caller nothing. All three were written into a function that threw
+ * them away.
+ *
+ * So the default lives here instead, where deps are assembled. A diagnostic whose default
+ * is silence is not a diagnostic; the caller may still override it, and a test that wants
+ * quiet passes its own.
+ */
+function defaultWebhookLog(entry: Record<string, string | number | boolean>): void {
+  console.log('stripe_webhook', entry);
+}
+
 export function createStripeWebhookDeps(
   env: BillingEnv,
-  parts: BillingRuntimeParts,
+  parts: BillingRuntimeParts & {
+    readonly log?: (entry: Record<string, string | number | boolean>) => void;
+  },
 ): StripeWebhookDeps {
   assertBillingSecrets(env);
   const runtime = createBillingRuntime(env, parts);
-  const unknownKey = env.STRIPE_WEBHOOK_UNKNOWN_KEY;
+  // Same reasoning as the resolver. This one is not a credential, but a stand-in key that
+  // differs between deployments by a trailing newline is still a stand-in key that behaves
+  // differently between deployments, which defeats the point of having one.
+  const unknownKey = (env.STRIPE_WEBHOOK_UNKNOWN_KEY ?? '').trim();
   return {
     ...runtime,
     resolveEndpointSecret: createEndpointSecretResolver(env),
-    ...(typeof unknownKey === 'string' && unknownKey.length > 0
-      ? { unknownEndpointKey: unknownKey }
-      : {}),
+    log: parts.log ?? defaultWebhookLog,
+    ...(unknownKey.length > 0 ? { unknownEndpointKey: unknownKey } : {}),
   };
 }

@@ -96,6 +96,168 @@ describe('mount readiness', () => {
     expect(await resolve('')).toBeNull();
   });
 
+  /**
+   * `wrangler secret put NAME` fed by a pipe stores the trailing newline the generating
+   * command printed. That already cost this project a day on `STRIPE_PRICE_ID`, and the
+   * fix trimmed the price id in `billingConfigFromEnv` — four lines below a resolver that
+   * trims nothing.
+   *
+   * Both values here fail differently and produce the SAME `400 INVALID_SIGNATURE`:
+   * a newline on the path id makes `timingSafeEqual` fail on length, so the resolver
+   * returns null and the route rejects on the lookup before the signature is even
+   * considered; a newline on the secret makes the HMAC key wrong. From outside, and by
+   * deliberate design, the two are indistinguishable from a genuinely forged delivery.
+   */
+  it('BILL-630 a path id set with a trailing newline still resolves — the operator set the value they meant', async () => {
+    const resolve = createEndpointSecretResolver(
+      env({
+        STRIPE_WEBHOOK_PATH_ID: `${PATH_ID}
+`,
+      }),
+    );
+    expect(await resolve(PATH_ID)).toBe(WEBHOOK_SECRET);
+  });
+
+  it('BILL-631 a signing secret set with surrounding whitespace still verifies a genuine signature', async () => {
+    const resolve = createEndpointSecretResolver(
+      env({
+        STRIPE_WEBHOOK_SECRET: ` ${WEBHOOK_SECRET}
+`,
+      }),
+    );
+    // The resolver hands the verifier a key, and a key with a newline in it is a
+    // different key. What comes back must be the value without the newline.
+    expect(await resolve(PATH_ID)).toBe(WEBHOOK_SECRET);
+  });
+
+  it('BILL-632 tolerating whitespace does not weaken the gate', async () => {
+    const resolve = createEndpointSecretResolver(
+      env({
+        STRIPE_WEBHOOK_PATH_ID: `${PATH_ID}
+`,
+      }),
+    );
+    // A genuinely different id is still refused, and whitespace INSIDE the supplied id is
+    // not the same id. Trimming the configured value must not become trimming the input.
+    expect(await resolve(`${PATH_ID}x`)).toBeNull();
+    expect(await resolve(PATH_ID.slice(0, -1))).toBeNull();
+    expect(await resolve(` ${PATH_ID}`)).toBeNull();
+    expect(await resolve('')).toBeNull();
+  });
+
+  it('BILL-633 a correctly signed delivery is accepted when both secrets were set with a trailing newline', async () => {
+    const harness = createHarness();
+    const deps = createStripeWebhookDeps(
+      env({
+        STRIPE_WEBHOOK_PATH_ID: `${PATH_ID}
+`,
+        STRIPE_WEBHOOK_SECRET: `${WEBHOOK_SECRET}
+`,
+      }),
+      {
+        data: harness.data,
+        gateway: harness.gateway,
+        newId: harness.newId,
+        now: harness.now,
+      },
+    );
+    const route = createStripeWebhookRoute(deps);
+    const event = stripeEvent('invoice.paid', invoiceObject(), { id: 'evt_newline_probe' });
+    const delivery = await signedDelivery(event, harness.now(), WEBHOOK_SECRET);
+
+    const response = await route.request(`/api/v1/webhooks/stripe/${PATH_ID}`, {
+      method: 'POST',
+      headers: delivery.headers,
+      body: delivery.body,
+    });
+
+    // This is the exact shape of the six events Stripe delivered and both deployments
+    // refused. If this is a 400, the secrets being "missing" was never the diagnosis.
+    expect(response.status, 'a genuine signed delivery was rejected').toBe(200);
+  });
+
+  /**
+   * The route writes which of three causes refused a delivery, because the RESPONSE
+   * deliberately tells the caller nothing. `createStripeWebhookRoute` falls back to a
+   * no-op when no log is supplied, and nothing supplied one — so every reason was
+   * discarded at the mount, and six refused deliveries for a real payment were as opaque
+   * from inside the system as from outside it. The sibling Resend route wired its log.
+   */
+  it('BILL-634 assembled deps always carry a rejection log — a diagnostic whose default is silence is not a diagnostic', () => {
+    const harness = createHarness();
+    const deps = createStripeWebhookDeps(env(), {
+      data: harness.data,
+      gateway: harness.gateway,
+      newId: harness.newId,
+      now: harness.now,
+    });
+    expect(typeof deps.log).toBe('function');
+  });
+
+  it('BILL-635 a refused delivery names its cause to the operator while telling the caller nothing', async () => {
+    const harness = createHarness();
+    const lines: Record<string, string | number | boolean>[] = [];
+    const deps = createStripeWebhookDeps(env(), {
+      data: harness.data,
+      gateway: harness.gateway,
+      newId: harness.newId,
+      now: harness.now,
+      log: (entry) => lines.push(entry),
+    });
+    const route = createStripeWebhookRoute(deps);
+    const event = stripeEvent('invoice.paid', invoiceObject(), { id: 'evt_wrong_secret' });
+    // Signed with a key that is not this endpoint's.
+    const delivery = await signedDelivery(event, harness.now(), UNKNOWN_KEY);
+
+    const response = await route.request(`/api/v1/webhooks/stripe/${PATH_ID}`, {
+      method: 'POST',
+      headers: delivery.headers,
+      body: delivery.body,
+    });
+    const payload = (await response.json()) as { error: { code: string; message: string } };
+
+    expect(response.status).toBe(400);
+    // The caller learns nothing beyond "invalid signature" — that part must not regress.
+    expect(payload.error.code).toBe('INVALID_SIGNATURE');
+    expect(JSON.stringify(payload)).not.toMatch(/endpoint|secret|timestamp|stale/i);
+
+    // The operator learns which of the three it was.
+    const rejection = lines.find((l) => l['event'] === 'stripe_webhook_rejected');
+    expect(rejection, 'the refusal was not logged at all').toBeDefined();
+    expect(String(rejection?.['reason'])).toContain('signature_');
+    // A wrong secret under a KNOWN path id must not be reported as an unknown endpoint.
+    expect(String(rejection?.['reason'])).not.toContain('unknown_endpoint');
+  });
+
+  it('BILL-636 an unknown path id is logged as an unknown endpoint, and still answers the caller identically', async () => {
+    const harness = createHarness();
+    const lines: Record<string, string | number | boolean>[] = [];
+    const deps = createStripeWebhookDeps(env(), {
+      data: harness.data,
+      gateway: harness.gateway,
+      newId: harness.newId,
+      now: harness.now,
+      log: (entry) => lines.push(entry),
+    });
+    const route = createStripeWebhookRoute(deps);
+    const event = stripeEvent('invoice.paid', invoiceObject(), { id: 'evt_unknown_path' });
+    // Correctly signed for the real endpoint, delivered to an id we never issued.
+    const delivery = await signedDelivery(event, harness.now(), WEBHOOK_SECRET);
+
+    const response = await route.request(
+      '/api/v1/webhooks/stripe/ffffffffffffffffffffffffffffffff',
+      {
+        method: 'POST',
+        headers: delivery.headers,
+        body: delivery.body,
+      },
+    );
+
+    expect(response.status).toBe(400);
+    const rejection = lines.find((l) => l['event'] === 'stripe_webhook_rejected');
+    expect(String(rejection?.['reason'])).toContain('unknown_endpoint');
+  });
+
   it('BILL-225 STRIPE_MODE must be test or live and nothing else', () => {
     expect(billingEnvironmentOf(env())).toBe('test');
     expect(billingEnvironmentOf(env({ STRIPE_MODE: 'live' }))).toBe('live');
