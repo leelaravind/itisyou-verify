@@ -902,3 +902,127 @@ describe('failure of our own handler', () => {
     expect(report.discrepancies.map((entry) => entry.kind)).toContain('allowance_period_missing');
   });
 });
+
+/**
+ * BILL-640..643 — an event for a workspace this deployment does not hold.
+ *
+ * Both deployments share one Stripe sandbox, so production receives events for checkout
+ * sessions staging created, carrying a `client_reference_id` production has never held.
+ * On 20 September 2026, the moment signature verification started working on production,
+ * two handlers threw on exactly that and the route answered 500 — so Stripe retried,
+ * for ever, an event that could never succeed. `invoice.paid` already had the guard and
+ * correctly answered "unknown customer" and ignored it; the other two did not.
+ *
+ * The rule these pin: an event this deployment cannot act on is IGNORED by name, answered
+ * 200 so the provider stops retrying, and leaves nothing half-written.
+ */
+describe('an event for a workspace this deployment does not hold', () => {
+  it('BILL-640 a checkout for an unknown workspace is ignored by name, not failed', async () => {
+    const harness = createHarness({ knownWorkspaces: [] });
+    const event = stripeEvent(
+      'checkout.session.completed',
+      {
+        id: 'cs_elsewhere',
+        mode: 'subscription',
+        client_reference_id: 'ws_on_the_other_deployment',
+        customer: 'cus_elsewhere',
+        subscription: 'sub_elsewhere',
+        payment_status: 'paid',
+      },
+      { id: 'evt_checkout_elsewhere' },
+    );
+
+    const response = await deliver(harness, event);
+
+    // 200, so the provider stops retrying. A 500 here is the defect: Stripe retried an
+    // event that cannot succeed until the attempts ran out.
+    expect(response.status, 'the handler threw instead of ignoring').toBe(200);
+    // And nothing was written for a workspace we do not have.
+    expect(harness.data.debug.customers()).toHaveLength(0);
+    expect(harness.data.debug.subscriptions()).toHaveLength(0);
+    expect(harness.data.debug.allowances()).toHaveLength(0);
+  });
+
+  it('BILL-641 a subscription naming an unknown workspace is ignored for THAT reason, and grants no allowance', async () => {
+    // Asserted on the logged effect, not on the store being empty.
+    //
+    // The first version of this case asserted `subscriptions()` and `allowances()` were
+    // empty, and it passed with the guard REMOVED — the in-memory store has no foreign
+    // key, so it cannot reproduce the constraint violation that made production answer
+    // 500, and something else short-circuited the write anyway. A case that is green
+    // against the defect it is named for is worse than no case, because the name is then
+    // the only evidence and the name is wrong.
+    //
+    // The effect string is the precise observable: with the guard it is
+    // `subscription_for_unknown_workspace`; without it the handler proceeds past the
+    // check and reports something else.
+    const harness = createHarness({ knownWorkspaces: [] });
+    const lines: Record<string, string | number | boolean>[] = [];
+    const event = stripeEvent(
+      'customer.subscription.created',
+      subscriptionObject({ id: 'sub_elsewhere', workspaceId: 'ws_elsewhere' }),
+      { id: 'evt_sub_elsewhere' },
+    );
+    const { body, headers } = await signedDelivery(event, harness.at(), WEBHOOK_SECRET);
+    const app = createStripeWebhookRoute({
+      ...harness,
+      resolveEndpointSecret: async (opaqueId) => (opaqueId === OPAQUE_ID ? WEBHOOK_SECRET : null),
+      log: (entry) => lines.push(entry),
+    });
+
+    const response = await app.request(PATH, { method: 'POST', headers, body });
+
+    expect(response.status).toBe(200);
+    const handled = lines.find((l) => l['event'] === 'stripe_webhook_handled');
+    expect(handled?.['effect']).toBe('subscription_for_unknown_workspace');
+    // And the one that would cost money: no allowance for a workspace that is not ours.
+    expect(harness.data.debug.allowances()).toHaveLength(0);
+  });
+
+  it('BILL-642 the same events for a workspace this deployment DOES hold are still acted on', async () => {
+    // The guard must not be a way to ignore everything. This is the same pair of events
+    // against a deployment that knows the workspace, and it must still do the work.
+    const harness = createHarness({ knownWorkspaces: [WS] });
+    const event = stripeEvent(
+      'checkout.session.completed',
+      {
+        id: 'cs_ours',
+        mode: 'subscription',
+        client_reference_id: WS,
+        customer: 'cus_ours',
+        subscription: 'sub_ours',
+        payment_status: 'paid',
+      },
+      { id: 'evt_checkout_ours' },
+    );
+
+    const response = await deliver(harness, event);
+
+    expect(response.status).toBe(200);
+    expect(harness.data.debug.customers()).toHaveLength(1);
+  });
+
+  it('BILL-643 an unknown workspace is refused on presence, not on the id being absent', async () => {
+    // `checkout_without_workspace_reference` already existed and covers a MISSING id. The
+    // defect was a PRESENT id naming a workspace this deployment does not hold — a
+    // different condition that produced a 500 rather than an ignore.
+    const harness = createHarness({ knownWorkspaces: ['ws_something_else'] });
+    const event = stripeEvent(
+      'checkout.session.completed',
+      {
+        id: 'cs_named_but_absent',
+        mode: 'subscription',
+        client_reference_id: 'ws_named_but_absent',
+        customer: 'cus_x',
+        subscription: 'sub_x',
+        payment_status: 'paid',
+      },
+      { id: 'evt_named_but_absent' },
+    );
+
+    const response = await deliver(harness, event);
+
+    expect(response.status).toBe(200);
+    expect(harness.data.debug.customers()).toHaveLength(0);
+  });
+});

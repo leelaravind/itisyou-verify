@@ -131,6 +131,18 @@ async function handleCheckoutCompleted(
     readString(session, 'client_reference_id') ?? readMetadata(session, 'workspace_id');
   if (workspaceId === null) return ignored('checkout_without_workspace_reference');
 
+  // Named, and known HERE. Both deployments share one Stripe sandbox, so production
+  // receives events for sessions staging created, carrying a workspace id production has
+  // never held. Without this guard the customer binding below is written against a
+  // foreign key that refuses it, the handler throws, the route answers 500, and Stripe
+  // retries for ever an event that cannot succeed. Observed on production on 20 September
+  // 2026 the moment signature verification started working: two handlers threw where
+  // `invoice.paid`, which already had the equivalent guard, correctly answered
+  // "unknown customer" and ignored it.
+  if (!(await data.workspaceExists(workspaceId))) {
+    return ignored('checkout_for_unknown_workspace', null, workspaceId);
+  }
+
   const sessionId = readString(session, 'id');
   const customerId = readId(session, 'customer');
   const subscriptionId = readId(session, 'subscription');
@@ -240,6 +252,13 @@ async function handleSubscriptionChanged(
 
   const workspaceId = await resolveWorkspace(deps, object, stored);
   if (workspaceId === null) {
+    return ignored('subscription_for_unknown_workspace', null, providerSubscriptionId);
+  }
+  // Resolvable is not the same as present. `resolveWorkspace` can return an id read
+  // straight out of the event's own metadata, which is a name and not a guarantee that
+  // this deployment holds it. Same reason as the checkout handler above: shared sandbox,
+  // two deployments, one of them has never seen the workspace.
+  if (!(await deps.data.workspaceExists(workspaceId))) {
     return ignored('subscription_for_unknown_workspace', null, providerSubscriptionId);
   }
 

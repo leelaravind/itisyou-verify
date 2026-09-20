@@ -131,6 +131,25 @@ export type WebhookProcessingStatus =
   'received' | 'processed' | 'ignored' | 'invalid' | 'duplicate';
 
 export interface BillingDataPort {
+  // -- deployment scope -----------------------------------------------------
+
+  /**
+   * Does this deployment know this workspace at all?
+   *
+   * A signed Stripe event carries `client_reference_id` -- our own workspace id, written
+   * when we created the session. Both deployments share one Stripe sandbox, so production
+   * receives events for sessions staging created, naming a workspace production has never
+   * heard of. Until 20 September 2026 the checkout handler wrote a billing-customer row
+   * keyed to that id regardless, the foreign key refused it, the handler threw, and the
+   * route answered 500 -- so Stripe retried an event that could never succeed, for ever.
+   *
+   * The subscription handler already had the equivalent guard
+   * (`subscription_for_unknown_workspace`). This is the same judgement, available to the
+   * handler that needed it: an event this deployment cannot act on is IGNORED by name, not
+   * failed, and never half-applied.
+   */
+  workspaceExists(workspaceId: string): Promise<boolean>;
+
   // -- billing customer -----------------------------------------------------
 
   /** The Stripe customer this workspace is bound to, if any. */

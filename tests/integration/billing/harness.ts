@@ -151,6 +151,8 @@ export function createHarness(
     readonly environment?: 'test' | 'live';
     readonly startAt?: string;
     readonly gracePeriodDays?: number;
+    /** Workspace ids this simulated deployment holds. Omitted, every id is known. */
+    readonly knownWorkspaces?: readonly string[];
   } = {},
 ): BillingHarness {
   const environment = options.environment ?? 'test';
@@ -160,7 +162,9 @@ export function createHarness(
     publicBaseUrl: 'https://verify.itisyou.example',
     ...(options.gracePeriodDays === undefined ? {} : { gracePeriodDays: options.gracePeriodDays }),
   });
-  const data = createMemoryBillingStore();
+  const data = createMemoryBillingStore(
+    options.knownWorkspaces === undefined ? {} : { knownWorkspaces: options.knownWorkspaces },
+  );
   const gateway = createStubGateway({ livemode: environment === 'live' });
 
   let clock = Date.parse(options.startAt ?? '2026-09-19T09:00:00.000Z');
