@@ -207,15 +207,18 @@ describe('palette contrast', () => {
       ['light', 'fieldBorder', 'paper', 3.88],
       ['light', 'fieldBorder', 'surface', 4.28],
       ['light', 'focus', 'paper', 5.29],
-      ['dark', 'ink', 'paper', 16.12],
-      ['dark', 'muted', 'paper', 8.81],
-      ['dark', 'faint', 'paper', 6.54],
-      ['dark', 'verified', 'paper', 9.52],
-      ['dark', 'failed', 'paper', 8.57],
-      ['dark', 'unverified', 'paper', 9.47],
-      ['dark', 'pending', 'paper', 9.06],
-      ['dark', 'focus', 'paper', 8.78],
-      ['dark', 'fieldBorder', 'paper', 4.38],
+      // Recomputed when the dark palette became the owner-approved Stitch system. These
+      // moved together with the comment in tokens.ts, which is the whole point of this
+      // case: neither the numbers nor the colours may change on their own.
+      ['dark', 'ink', 'paper', 14.39],
+      ['dark', 'muted', 'paper', 10.45],
+      ['dark', 'faint', 'paper', 7.65],
+      ['dark', 'verified', 'paper', 10.88],
+      ['dark', 'failed', 'paper', 10.94],
+      ['dark', 'unverified', 'paper', 10.93],
+      ['dark', 'pending', 'paper', 8.53],
+      ['dark', 'focus', 'paper', 10.93],
+      ['dark', 'fieldBorder', 'paper', 5.85],
     ];
 
     for (const [theme, fg, bg, claim] of asserted) {

@@ -71,11 +71,20 @@ describe('design tokens', () => {
     expect(compressed).toBeLessThan(10_000);
   });
 
-  it('CUST-005 the dark palette is reachable both by preference and by an explicit override, in both directions', () => {
-    expect(CSS).toContain('@media (prefers-color-scheme:dark)');
-    expect(CSS).toContain(':root:not([data-theme="light"])');
-    expect(CSS).toContain(':root[data-theme="dark"]');
-    expect(CSS).toContain(':root[data-theme="light"]');
+  it('CUST-005 both palettes are reachable by preference and by an explicit override, in both directions', () => {
+    // The default inverted when the owner-approved Stitch system arrived: the bare `:root`
+    // is now dark and a light PREFERENCE opts out of it, where it used to be the reverse.
+    // The property this case exists for is unchanged and is still the thing asserted --
+    // neither palette may become unreachable, whichever one is the default.
+    expect(CSS, 'the bare root must carry the default palette').toContain(
+      ':root{color-scheme:dark',
+    );
+    expect(CSS, 'a light preference must be honoured').toContain(
+      '@media (prefers-color-scheme:light)',
+    );
+    expect(CSS).toContain(':root:not([data-theme="dark"])');
+    expect(CSS, 'an explicit dark override must exist').toContain(':root[data-theme="dark"]');
+    expect(CSS, 'an explicit light override must exist').toContain(':root[data-theme="light"]');
   });
 
   it('CUST-006 reduced motion is respected and focus is always visible', () => {

@@ -97,32 +97,71 @@ export const LIGHT = {
 } as const;
 
 /**
- * Dark palette. Every ratio here is higher than its light counterpart — measured against
- * `paper` (#0D1217):
- *   ink 16.12:1, muted 8.81:1, faint 6.54:1, verified 9.52:1, failed 8.57:1,
- *   unverified 9.47:1, pending 9.06:1, focus 8.78:1, fieldBorder 4.38:1.
- * Each status on its own tint stays at or above 7.8:1.
+ * Dark palette — the owner-approved Stitch "Empirical Verification System".
+ *
+ * ## Why this replaced the previous dark palette, and what it costs
+ *
+ * The comment at the top of this file argues that colour should be reserved for evidence
+ * and that the product should carry no brand hue. That was my reasoning, and it was
+ * genuinely held. The owner commissioned a design in Stitch, approved it, and asked for it
+ * to be implemented; a design decision belongs to the person whose product it is, so the
+ * approved palette wins and the argument above is now a record of what was traded away
+ * rather than a rule still being followed.
+ *
+ * What is NOT traded away is the evidence vocabulary. Stitch names four status colours and
+ * they map one-to-one onto the four run statuses this product is built around —
+ * `status-confirmed` to VERIFIED, `status-discrepancy` to FAILED, `status-inconclusive` to
+ * UNVERIFIED, `status-pending` to PENDING. Status is still never signalled by hue alone:
+ * the glyph, the label and the border all survive unchanged, which is why RESIL-182 still
+ * passes.
+ *
+ * ## The one value that is not Stitch's
+ *
+ * `pending` is `#a3b1c4` where Stitch specifies `#94a3b8`. Stitch's value reads 6.7:1 on
+ * any badge tint dark enough to sit inside this palette, and this file's own floor for a
+ * status on its own tint is 7.8:1. The choice was to lower the floor or to lighten the
+ * slate by a shade that is still plainly the same colour; lowering a measured
+ * accessibility minimum to fit a palette is the kind of quiet subtraction this project has
+ * been caught making before. Everything else is Stitch's value unchanged.
+ *
+ * Measured against `paper` (#0f131c), recomputed from these exact values rather than
+ * carried over:
+ *   ink 14.39:1, muted 10.45:1, faint 7.65:1, verified 10.88:1, failed 10.94:1,
+ *   unverified 10.93:1, pending 8.53:1, focus 10.93:1, fieldBorder 5.85:1.
+ * Each status on its own tint stays at or above 7.8:1 — the measured floor is 8.18:1,
+ * which is `pending`, the value discussed above.
  */
 export const DARK = {
-  paper: '#0D1217',
-  surface: '#161D25',
-  sunken: '#090D11',
-  ink: '#E9EEF3',
-  muted: '#A6B3C0',
-  faint: '#8C9AA8',
-  rule: '#27313B',
-  ruleStrong: '#3C4954',
-  fieldBorder: '#6B7C8C',
-  focus: '#7FB3FF',
-  verified: '#5CCCA4',
-  failed: '#FF9082',
-  unverified: '#E8AE45',
-  pending: '#A4B6C9',
-  tintVerified: '#10261F',
-  tintFailed: '#2A1613',
-  tintUnverified: '#291F0E',
-  tintPending: '#151D26',
-  onInk: '#0D1217',
+  /** Stitch `surface` / `background`. */
+  paper: '#0f131c',
+  /** Stitch `surface-container`. */
+  surface: '#1c2029',
+  /** Stitch `surface-canvas`, the lowest container. */
+  sunken: '#0a0e17',
+  /** Stitch `on-surface`. */
+  ink: '#dfe2ef',
+  muted: '#b7c4cf',
+  faint: '#9aa8b5',
+  rule: '#2a3340',
+  /** Stitch `border-hairline`. */
+  ruleStrong: '#3c4a42',
+  /** Stitch `outline`. */
+  fieldBorder: '#86948a',
+  /** Stitch `border-active` / `secondary`. A focus ring is a function, and this one is loud. */
+  focus: '#4cd7f6',
+  /** Stitch `status-confirmed`. */
+  verified: '#4edea3',
+  /** Stitch `status-discrepancy`. */
+  failed: '#ffb4ab',
+  /** Stitch `status-inconclusive`. */
+  unverified: '#ffb95f',
+  /** Stitch `status-pending`, lightened one shade — see the note above. */
+  pending: '#a3b1c4',
+  tintVerified: '#0d2a20',
+  tintFailed: '#2c1614',
+  tintUnverified: '#2b1f0d',
+  tintPending: '#111823',
+  onInk: '#0f131c',
 } as const;
 
 /** Both palettes carry the same keys; the values are plain strings, not literals. */
@@ -134,10 +173,21 @@ export type Palette = { readonly [K in keyof typeof LIGHT]: string };
  * would be a subprocessor we have not declared on the privacy page.
  */
 export const FONT = {
-  /** Prose. Everything a person at this company wrote. */
-  sans: 'ui-sans-serif, system-ui, -apple-system, "Segoe UI Variable Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+  /**
+   * Prose. Everything a person at this company wrote.
+   *
+   * The approved Stitch system specifies Plus Jakarta Sans for headings and Inter for
+   * body. Both are NAMED FIRST and neither is fetched: the stack falls through to the
+   * system UI face when they are not installed locally. That is deliberate and the reason
+   * is on the privacy page -- a `fonts.gstatic.com` request would make Google a
+   * subprocessor we have not declared, and a Worker that inlines its whole stylesheet
+   * should not then block first paint on a third-party host. Self-hosting them as Worker
+   * assets is the honest way to get the exact faces and is not done yet; until it is, this
+   * renders in the system face rather than pretending otherwise.
+   */
+  sans: '"Plus Jakarta Sans", Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI Variable Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
   /** Evidence. Everything a machine produced: values, ids, timestamps, status labels. */
-  mono: 'ui-monospace, "Cascadia Mono", "Cascadia Code", "SF Mono", "JetBrains Mono", "Roboto Mono", Menlo, Consolas, "Liberation Mono", monospace',
+  mono: '"JetBrains Mono", ui-monospace, "Cascadia Mono", "Cascadia Code", "SF Mono", "Roboto Mono", Menlo, Consolas, "Liberation Mono", monospace',
 } as const;
 
 /** Type scale. Display sizes are fluid; body sizes are fixed so line length stays honest. */

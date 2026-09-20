@@ -46,9 +46,19 @@ function vars(p: Palette): string {
   --c-on-ink:${p.onInk};`;
 }
 
+/*
+ * Dark by default, because the approved design is a dark design.
+ *
+ * `:root` previously carried the light palette and dark was reached only through
+ * `prefers-color-scheme`. The owner-approved Stitch system is dark-first, so the bare root
+ * is now dark and a light preference -- or an explicit `data-theme="light"` -- opts out of
+ * it. Both palettes are still complete and both are still measured by the contrast suite;
+ * this changes which one a visitor meets with no preference set, not whether the other
+ * exists.
+ */
 const BASE = `
 :root{
-  color-scheme:light;${vars(LIGHT)}
+  color-scheme:dark;${vars(DARK)}
   --f-sans:${FONT.sans};
   --f-mono:${FONT.mono};
   --t-display:${TYPE.display};
@@ -67,8 +77,8 @@ const BASE = `
   --w-margin:${LAYOUT.margin};
   --w-step:${LAYOUT.stepMargin};
 }
-@media (prefers-color-scheme:dark){
-  :root:not([data-theme="light"]){color-scheme:dark;${vars(DARK)}}
+@media (prefers-color-scheme:light){
+  :root:not([data-theme="dark"]){color-scheme:light;${vars(LIGHT)}}
 }
 :root[data-theme="dark"]{color-scheme:dark;${vars(DARK)}}
 :root[data-theme="light"]{color-scheme:light;${vars(LIGHT)}}
