@@ -37,6 +37,7 @@ import {
 } from './onboardingPages.js';
 import { RunDetailPage, RunListPage, RunNotFoundPage } from './runPages.js';
 import { CancelPage, ConnectionsPage, SupportFormPage, UsagePage } from './accountPages.js';
+import { BillingPage, BillingReturnPage } from './billingPages.js';
 import {
   DEADLINE_CHOICES,
   SyntheticCustomerDataPort,
@@ -949,6 +950,58 @@ export function createAppRoutes(resolve: PortResolver = syntheticResolver): Hono
   );
 
   /* --------------------------------------------------------------- cancellation */
+
+  /*
+   * The two pages Stripe returns a customer to, which had never existed.
+   *
+   * `checkoutReturnUrls` has always pointed at these paths and `portalReturnUrl` at the
+   * second. The first real sandbox payment, on 20 September 2026, ended on a 404 — the
+   * dominant defect class arriving at the worst moment available, immediately after
+   * somebody paid.
+   *
+   * Both are GET and read-only. Nothing here activates a subscription: activation is the
+   * webhook's job, and a redirect is not evidence that we have been told anything.
+   */
+  routes.get('/billing/return', async (c) =>
+    withSession(c, async (port, session) => {
+      const sessionId = c.req.query('session_id') ?? null;
+      return page(
+        c,
+        shell(port, {
+          title: 'Billing',
+          path: '/app/billing',
+          accountLabel: maskedAccountLabel(session.email),
+          csrfToken: session.csrfToken,
+          body: BillingReturnPage({
+            activation: await port.activation(),
+            // Stripe substitutes its own placeholder, so this is never customer input in
+            // the ordinary case -- but it arrives in a query string, so it is rendered as
+            // text and never used to look anything up.
+            sessionId: sessionId === '' ? null : sessionId,
+          }),
+        }),
+      );
+    }),
+  );
+
+  routes.get('/billing', async (c) =>
+    withSession(c, async (port, session) =>
+      page(
+        c,
+        shell(port, {
+          title: 'Billing',
+          path: '/app/billing',
+          accountLabel: maskedAccountLabel(session.email),
+          csrfToken: session.csrfToken,
+          body: BillingPage({
+            activation: await port.activation(),
+            portal: await port.billingPortalLink(),
+            checkoutCancelled: c.req.query('checkout') === 'cancelled',
+          }),
+        }),
+      ),
+    ),
+  );
 
   routes.get('/cancel', async (c) =>
     withSession(c, async (port, session) =>
