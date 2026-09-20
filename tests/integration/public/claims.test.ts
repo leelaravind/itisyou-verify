@@ -158,19 +158,30 @@ describe('CUST-333 pages that claim we read HubSpot and Resend say how that has 
    * home page, how it works, security — said nothing, so a visitor reading "we read the
    * record back from HubSpot" had no way to learn it had never been done.
    */
-  it('CUST-333 every page making the claim states which provider is proven and which is not', async () => {
+  it('CUST-333 every page making the claim states what the proof covers and what it does not', async () => {
     // `/demo` is in this list deliberately. It was the one public page that omitted the
     // notice, and it is the page a paid advert would land on -- a disclosure missing from
     // the page the traffic reaches is not a disclosure.
+    //
+    // Rewritten 20 September 2026. This case used to require the notice to name HubSpot as
+    // UNPROVEN, which was the honest thing to require while it was. HubSpot was proven that
+    // morning -- a contact read back from a live portal supported a verified run -- so the
+    // old assertion would have forced the page to keep saying something false, and a test
+    // that pins a stale disclosure is as dangerous as no test.
+    //
+    // What replaces it is the property that survives either state: a page claiming we read
+    // your records back must say WHEN each provider was actually exercised, and must not let
+    // "it worked against our account" stand for "it will work against yours". The second
+    // half is now the load-bearing one, and it is the half a reader is most likely to
+    // assume in our favour.
     for (const path of ['/', '/how-it-works', '/security', '/demo']) {
       const body = text((await get(path)).html);
-      // Asserted by substance rather than by sentence. The wording changed when Resend
-      // became proven; the property is that each provider's state is stated, and the
-      // earlier version of this case would have kept a notice saying LESS than was true.
-      expect(body, path).toMatch(/HubSpot has not|not[^.]*read back[^.]*HubSpot/i);
-      expect(body, path).toContain('designed and tested rather than observed');
-      // A stub proving nothing about the provider is the reason the qualification exists.
-      expect(body, path).toContain('it cannot prove the provider sends it');
+      // Each provider named with the date it was exercised, so "proven" cannot float free.
+      expect(body, path).toMatch(/Resend,?\s+19 September 2026/);
+      expect(body, path).toMatch(/HubSpot,?\s+20 September 2026/);
+      // And the limit of that proof, stated on the same page.
+      expect(body, path).toContain('our own accounts and our own synthetic records');
+      expect(body, path).toContain('not prove anything about your portal');
     }
   });
 });
