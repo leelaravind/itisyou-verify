@@ -50,6 +50,7 @@ function connection(overrides: Partial<ConnectionView> = {}): ConnectionView {
     lastCheckedAt: null,
     problem: null,
     nextStep: null,
+    webhookUrl: null,
     ...overrides,
   };
 }

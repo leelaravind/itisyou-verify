@@ -72,6 +72,14 @@ export interface ConnectionView {
   readonly problem: string | null;
   /** What the customer can do about it, or null when there is nothing useful to suggest. */
   readonly nextStep: string | null;
+  /**
+   * The address Resend must call for THIS connection, assembled from `PUBLIC_BASE_URL` and
+   * the connection's `webhook_path_id` at read time. Null for HubSpot, and for Resend until
+   * a key has been checked. Until 20 September the connect page told every customer this
+   * address "does not exist in this deployment yet" while the route was mounted and the id
+   * was assigned on submit -- a connection that could never be finished through the product.
+   */
+  readonly webhookUrl: string | null;
 }
 
 /* ---------------------------------------------------------------------- workflow */

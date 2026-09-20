@@ -70,6 +70,7 @@ function connection(overrides: Partial<ConnectionView> = {}): ConnectionView {
     lastCheckedAt: null,
     problem: null,
     nextStep: null,
+    webhookUrl: null,
     ...overrides,
   };
 }
@@ -78,7 +79,9 @@ const resend = (overrides: Partial<ConnectionView> = {}): ConnectionView =>
   connection({ provider: 'resend', displayName: 'Resend', ...overrides });
 
 async function connect(connections: readonly ConnectionView[]): Promise<string> {
-  return render(ConnectPage({ connections, csrfToken: CSRF, submitted: null, canSubmitCredentials: true }));
+  return render(
+    ConnectPage({ connections, csrfToken: CSRF, submitted: null, canSubmitCredentials: true }),
+  );
 }
 
 /**
@@ -130,7 +133,9 @@ describe('the connect step composition', () => {
     // Two abreast only from desktop width. Each card carries a form, so a tablet stacks
     // them rather than squeezing a password field into a third of the page.
     expect(declarationsFor('.split')).not.toContain('grid-template-columns');
-    expect(CSS).toContain('@media (min-width:64rem){.split{grid-template-columns:repeat(2,minmax(0,1fr))}}');
+    expect(CSS).toContain(
+      '@media (min-width:64rem){.split{grid-template-columns:repeat(2,minmax(0,1fr))}}',
+    );
 
     // Inside each card, in document order: the head, the readback pane, the permission
     // notice, the paste box, the two boundary lists. Every line of all three lists is
@@ -143,18 +148,24 @@ describe('the connect step composition', () => {
       const permission = slice.indexOf(`data-permission-notice="${c.provider}"`);
       const form = slice.indexOf('<form method="post" action="/app/onboarding/connect"');
       const boundaries = slice.indexOf(`data-connect-boundaries="${c.provider}"`);
-      for (const at of [pane, permission, form, boundaries]) expect(at, c.provider).toBeGreaterThan(-1);
+      for (const at of [pane, permission, form, boundaries])
+        expect(at, c.provider).toBeGreaterThan(-1);
       expect(pane, c.provider).toBeLessThan(permission);
       expect(permission, c.provider).toBeLessThan(form);
       expect(form, c.provider).toBeLessThan(boundaries);
-      for (const line of guide.weRead) expect(text(slice.slice(pane, permission)), line).toContain(collapse(line));
+      for (const line of guide.weRead)
+        expect(text(slice.slice(pane, permission)), line).toContain(collapse(line));
       for (const line of [...guide.weNeverDo, ...guide.cannotProve]) {
         expect(text(slice.slice(boundaries)), line).toContain(collapse(line));
       }
       const formSlice = slice.slice(form, slice.indexOf('</form>', form));
       expect(formSlice, c.provider).toContain(`name="csrf_token" value="${CSRF}"`);
-      expect(formSlice, c.provider).toContain(`<input type="hidden" name="provider" value="${c.provider}" />`);
-      expect(formSlice, c.provider).toContain('<input type="hidden" name="intent" value="credentials" />');
+      expect(formSlice, c.provider).toContain(
+        `<input type="hidden" name="provider" value="${c.provider}" />`,
+      );
+      expect(formSlice, c.provider).toContain(
+        '<input type="hidden" name="intent" value="credentials" />',
+      );
       expect(formSlice, c.provider).toMatch(/<button[^>]*type="submit"/);
     }
 
@@ -167,8 +178,12 @@ describe('the connect step composition', () => {
     expect(tally).toBeGreaterThan(-1);
     expect(onward).toBeGreaterThan(tally);
     const tallySlice = bandSlice.slice(tally, bandSlice.indexOf('</ul>', tally));
-    expect(tallySlice).toContain(`data-connection-tally="${CONNECTION_PRESENTATION.not_connected.label}"`);
-    expect(tallySlice).toContain(`data-connection-tally="${CONNECTION_PRESENTATION.testing.label}"`);
+    expect(tallySlice).toContain(
+      `data-connection-tally="${CONNECTION_PRESENTATION.not_connected.label}"`,
+    );
+    expect(tallySlice).toContain(
+      `data-connection-tally="${CONNECTION_PRESENTATION.testing.label}"`,
+    );
     expect(count(tallySlice, '<span class="tally__count">1</span>')).toBe(2);
     expect(tallySlice).toContain('badge--unverified');
     expect(tallySlice).toContain('badge--pending');
@@ -210,11 +225,23 @@ describe('the compatibility step composition', () => {
     const commitment = markup.indexOf('>One more thing, and it is real work<', control);
     const unavailable = markup.indexOf('data-unavailable', commitment);
     const onward = markup.indexOf('href="/how-it-works"', unavailable);
-    for (const at of [head, tally, notice, grid, providers, control, commitment, unavailable, onward]) {
+    for (const at of [
+      head,
+      tally,
+      notice,
+      grid,
+      providers,
+      control,
+      commitment,
+      unavailable,
+      onward,
+    ]) {
       expect(at).toBeGreaterThan(-1);
     }
     // One column until desktop width, then seven parts to five.
-    expect(CSS).toContain('@media (min-width:60rem){.grid-7-5{grid-template-columns:minmax(0,7fr) minmax(0,5fr);align-items:start}}');
+    expect(CSS).toContain(
+      '@media (min-width:60rem){.grid-7-5{grid-template-columns:minmax(0,7fr) minmax(0,5fr);align-items:start}}',
+    );
 
     // One card per provider in the wider column, each with its facts in a pane, all of
     // them before the control column begins.
@@ -224,7 +251,8 @@ describe('the compatibility step composition', () => {
     for (const entry of entries) {
       expect(text(providersSlice)).toContain(entry.displayName);
       expect(text(providersSlice)).toContain(entry.purpose);
-      for (const requirement of entry.requirements) expect(text(providersSlice)).toContain(requirement);
+      for (const requirement of entry.requirements)
+        expect(text(providersSlice)).toContain(requirement);
     }
 
     // The tally names only labels that occur, wearing the badge the cards wear.
@@ -285,7 +313,10 @@ describe('the reference copy stays in the reference', () => {
           }),
         ),
       ],
-      ['/app/onboarding/compatibility', await render(CompatibilityPage(await p.connectorCompatibility()))],
+      [
+        '/app/onboarding/compatibility',
+        await render(CompatibilityPage(await p.connectorCompatibility())),
+      ],
     ];
     for (const [path, markup] of pages) {
       // style-src-attr 'none': a style attribute here renders as nothing, silently.

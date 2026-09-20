@@ -3,7 +3,7 @@
 Supersedes `docs/launch-plan.md`. One owner, one status, one next action, one closing
 evidence per item. Updated in place; no second copy anywhere.
 
-**Now:** 12:12 UTC · **Allowance resets:** 13:45 UTC · **Remaining:** ~1h30m
+**Now:** 12:30 UTC · **Allowance resets:** 13:45 UTC · **Remaining:** ~1h15m
 
 Status: `done` · `active` · `blocked` · `queued`
 
@@ -105,7 +105,7 @@ Status: `done` · `active` · `blocked` · `queued`
 ## Launch blockers (only these stop a launch)
 
 1. **1.2 to 1.6, production-origin payment path** — now unblocked on the identity side (owner claimed, enrolled, test workspace `ws_01M2Z9TE8795829F6132BD4B5F` created, customer signed in 12:0xZ). Checkout eligibility needs both connections `ready`, a workflow and a published outcome: the owner is pasting the HubSpot and Resend credentials; the Resend connection reaches `ready` only when a signed callback arrives.
-2. **Connect page defect (found 12:10Z):** `/app/onboarding/connect` renders "The webhook address is not published yet … that endpoint does not exist in this deployment yet" **unconditionally**, while `POST /api/v1/webhooks/resend/:opaqueId` is mounted and `connections.webhook_path_id` is set on credential submit. A customer cannot finish Resend through the product; the page also states something false. Fix: render the real endpoint URL from `webhook_path_id` and drop the callout. Queued behind the checkout proof.
+2. **Connect page defect (found 12:10Z):** `/app/onboarding/connect` renders "The webhook address is not published yet … that endpoint does not exist in this deployment yet" **unconditionally**, while `POST /api/v1/webhooks/resend/:opaqueId` is mounted and `connections.webhook_path_id` is set on credential submit. A customer cannot finish Resend through the product; the page also states something false. Fixed 12:30Z: `ConnectionView.webhookUrl` assembled from `webhook_path_id`; the card now shows the real address (or says it appears once the key is checked); CUST-482. In CI → deploy.
 3. **4.5, campaign**: submitted, ad under Google review, not delivering. Unchanged.
 4. **Live payments:** NOT READY — 7 of 13 FAIL (`docs/live-payment-approval.md`).
 
