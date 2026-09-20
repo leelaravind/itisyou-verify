@@ -414,7 +414,7 @@ checking logic are not yet live.
 > connection reaches "ready" only once a correctly signed callback has actually arrived,
 > and the plan allowance is enforced on the live request path. What is not finished is the
 > part that matters most before anyone pays: live payments are switched off until the owner
-> turns them on separately, and this deployment cannot yet create a new customer workspace. So we
+> turns them on separately, and no customer workspace exists on this deployment yet: public signup is closed, and only the owner can create one, by hand. So we
 > are not taking payment or activating new workspaces yet. This notice comes down when
 > that last part is done, and not before.
 

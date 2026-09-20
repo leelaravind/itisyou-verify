@@ -106,7 +106,7 @@ describe('the service activation notice', () => {
     // while this page kept naming them -- on the sign-in route the owner met when their
     // own sign-in failed. The gaps it names now are the two that are actually open.
     expect(body).toContain('live payments are switched off');
-    expect(body).toContain('cannot yet create a new customer workspace');
+    expect(body).toContain('public signup is closed, and only the owner can create one');
     // And it still says what it will take to change, rather than "soon".
     expect(body).toContain('when either of those changes');
     expect(body).toContain('not taking payment or activating new workspaces');
