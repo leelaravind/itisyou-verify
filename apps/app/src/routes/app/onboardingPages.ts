@@ -743,14 +743,47 @@ export function ReviewPage(options: ReviewPageOptions): Html {
 
       ${preCheckoutDisclosure()}
 
-      <!-- No form and no submit control while the activation path is closed. A disabled
-           <button> is still a button, and an attribute is a thin thing to stand between a
-           customer and a charge we cannot honour. -->
-      ${UnavailableAction({
-        label: 'Continue to secure checkout',
-        reason: ACTIVATION_UNAVAILABLE_REASON,
-        whenBack: ACTIVATION_UNAVAILABLE_WHEN,
-      })}
+      ${
+        order.paymentsMode === 'live'
+          ? null
+          : Callout({
+              tone: 'note',
+              title: 'Payments are in Stripe’s sandbox right now',
+              body: html`<p>
+                Continuing hands you to a Stripe test checkout, which will say so at the top of its own
+                page. No card is charged and no money moves. We are deliberately not taking live payment
+                until the owner approves it, so this path exists to be exercised end to end rather than
+                to sell you anything today.
+              </p>`,
+            })
+      }
+
+      <!-- The control exists exactly when createCheckout would succeed, and is absent
+           otherwise. It used to be absent unconditionally, behind a comment explaining that
+           a disabled button is still a button -- a good argument for not using a disabled
+           attribute, and no argument at all for hard-coding the answer. The condition is
+           order.ready, the same value createCheckout refuses on, so this page cannot offer
+           a purchase the server would decline. The blockers are what make it false, so the
+           blockers are the reason shown. (No backticks in this comment: it sits inside a
+           template literal, and one closed it.) -->
+      ${
+        order.ready
+          ? html`<form method="post" action="/app/onboarding/checkout" class="stack-sm">
+              ${CsrfField(options.csrfToken)}
+              ${Button({
+                label: 'Continue to secure checkout',
+                variant: 'primary',
+                type: 'submit',
+              })}
+            </form>`
+          : UnavailableAction({
+              label: 'Continue to secure checkout',
+              reason:
+                order.blockers[0] ??
+                'Something above is not finished yet, so there is nothing to buy.',
+              whenBack: 'The button appears here as soon as it is.',
+            })
+      }
       ${ButtonRow([Button({ label: 'Back to the proof run', href: '/app/onboarding/proof', variant: 'quiet' })])}
 
       ${Callout({

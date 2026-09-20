@@ -66,8 +66,8 @@ hex-shaped, expired-shaped — against `/app/sign-in/complete`:
 ```
 8258e874e90260deab7d009c4009b120  <- token=''
 8258e874e90260deab7d009c4009b120  <- token='no-such-token'
-8258e874e90260deab7d009c4009b120  <- token='0123456789abcdef0123456789abcdef'
-8258e874e90260deab7d009c4009b120  <- token='expired-looking-abcdefabcdefabcdef'
+8258e874e90260deab7d009c4009b120  <- token='0123456789abcdef0123456789abcdef'   # secret-scan:allow synthetic probe string, never issued
+8258e874e90260deab7d009c4009b120  <- token='expired-looking-abcdefabcdefabcdef'   # secret-scan:allow synthetic probe string, never issued
 ```
 
 All 401, all `len=33189`, all identical once the per-request CSRF nonce is normalised. I
