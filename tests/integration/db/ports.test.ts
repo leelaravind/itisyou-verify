@@ -246,6 +246,7 @@ describe('BillingDataPort against D1', () => {
     amountMinor: 2900,
     currency: 'GBP',
     checkoutSessionId: null,
+    paymentIntentId: null,
     idempotencyKey: key,
     createdAt: T0,
     updatedAt: T0,

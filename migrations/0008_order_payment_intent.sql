@@ -1,0 +1,20 @@
+-- The payment that paid for THIS order.
+--
+-- Supersedes the intent of `subscriptions.latest_payment_intent_id` for refunds, and
+-- corrects a false statement I committed in migration 0007. That migration said the
+-- period columns existed "so a refund cannot be aimed at a payment for a different
+-- period" and that "`issueRefund` refuses rather than guessing". It does not: the period
+-- was stored, typed, carried forward -- and read by nothing. The independent auditor
+-- refunded a July order against October's payment and Stripe was called. The migration
+-- documented a guard that was never implemented, which is worse than having no guard,
+-- because the next reader believes it is there.
+--
+-- Comparing an order's date against a payment period would have been a heuristic, and a
+-- heuristic on a money path is exactly the guessing this product exists to refuse. So the
+-- link is made exact instead: `invoice.paid` already resolves the order it paid for, and
+-- the payment id is recorded against that order. A refund then aims at the payment for
+-- the order it was asked about, or refuses.
+--
+-- The subscription columns stay for the period they genuinely describe -- the most recent
+-- paid period -- and are no longer load-bearing for refunds.
+ALTER TABLE orders ADD COLUMN payment_intent_id TEXT;

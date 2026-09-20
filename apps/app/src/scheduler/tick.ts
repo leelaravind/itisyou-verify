@@ -534,7 +534,11 @@ export async function handleScheduled(
             data: new D1BillingDataPort(db),
             gateway: createStripeClient({ secretKey: env.STRIPE_SECRET_KEY ?? '' }),
             billingContact: createBillingContactLookup(db),
-            newId: (prefix: string) => newId(prefix),
+            // Seeded from the TICK's instant, not the wall clock. `newId(prefix)` alone
+            // takes Date.now(), so a builder given an injected `now` was minting ids from
+            // a different clock -- the same divergence found in the two ports, in a fourth
+            // builder. It also made id ordering untestable at a fixed instant.
+            newId: (prefix: string) => newId(prefix, now.getTime()),
             now: () => toIso(now),
           }),
           allowanceRepair: new D1AllowanceRepair(db),

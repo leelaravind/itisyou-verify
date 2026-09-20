@@ -661,14 +661,21 @@ Every line has to survive the claim scanner and be true of the deployed service 
 **Headlines**
 1. `Did the automation actually do it?`
 2. `Check the outcome, not the run log`
-3. `Reads HubSpot and Resend directly`
+3. `Reads the email outcome back from Resend`
 
 **Descriptions**
-1. `Your workflow says success. We check whether the CRM record and the acknowledgement email actually exist, by reading them back ourselves.`
+1. `Your workflow says success. We check whether the acknowledgement actually reached the recipient, by reading the outcome back from Resend ourselves.`
 2. `Four answers: verified, failed, unverified, pending. Missing evidence is never reported as a pass. One workflow shape, HubSpot and Resend only.`
 
 No superlative, no guarantee, no claim of accuracy or uptime, and the limitation is in the
 ad rather than discovered after the click.
+
+**The HubSpot claim was removed from the headline on the auditor's finding.** The first
+draft said "Reads HubSpot and Resend directly". Resend is proven -- a real signed callback
+and a real read-back decided a run on 19 September. HubSpot is not: a credential is stored
+and validated against a live portal, and no record has ever been read back from one. An
+advert carries no notice with it, so a headline is the one place a qualification cannot be
+added later. The copy now claims only the half that has been observed.
 
 ### What must be true before it runs
 

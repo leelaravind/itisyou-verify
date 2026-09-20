@@ -98,6 +98,7 @@ async function seedOrder(harness: BillingHarness, workspaceId = WS, orderId = 'o
     amountMinor: 2900,
     currency: 'GBP',
     checkoutSessionId: 'cs_stub_1',
+    paymentIntentId: null,
     idempotencyKey: `checkout:v1:${workspaceId}`,
     createdAt: harness.at(),
     updatedAt: harness.at(),

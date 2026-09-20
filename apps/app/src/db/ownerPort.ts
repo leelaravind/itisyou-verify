@@ -28,6 +28,7 @@ import { ANONYMOUS_PRINCIPAL, type OwnerPrincipal } from '../owner/access';
 import {
   APPROVAL_LIFETIME_SECONDS,
   checkCampaignApproval,
+  checkOwnerApproval,
   claimApproval,
   consumeApproval,
   explainApprovalRejection,
@@ -806,16 +807,30 @@ export class D1OwnerDataPort implements OwnerDataPort {
     // control could not then action. The control was dead and the suite was green over it.
     //
     // So the target is resolved FIRST, and a refusal here creates nothing.
-    const subscription = await runtime.data.findSubscriptionForWorkspace(
-      input.workspaceId,
-      this.#env.STRIPE_MODE === 'live' ? 'live' : 'test',
-    );
-    const paymentIntentId = subscription?.latestPaymentIntentId ?? null;
+    // THIS order's payment, not the workspace's most recent one.
+    //
+    // The first version of this read `subscription.latestPaymentIntentId`, and migration
+    // 0007 claimed a period guard stopped it aiming at the wrong period. There was no
+    // guard: the auditor refunded a July order against October's payment and Stripe was
+    // called. Comparing dates would have been a heuristic, so the link is exact instead --
+    // `invoice.paid` records the payment against the order it paid for.
+    const order = await runtime.data.findOrder(input.workspaceId, input.orderId);
+    const paymentIntentId = order?.paymentIntentId ?? null;
     if (paymentIntentId === null) {
       await this.#audit(ctx, 'owner.refund.no_target', input.orderId);
       return writeFailed(
-        'No refund was submitted and no approval was spent. We have not recorded a payment to refund against for this workspace: the payment reference is learned when an invoice is paid, so there is nothing to aim a refund at yet.',
+        'No refund was submitted and no approval was spent. We have not recorded which payment paid for that order, so there is nothing to aim a refund at. The payment reference is learned when an invoice is paid.',
       );
+    }
+
+    // The approval is checked against this exact payload BEFORE anything is created.
+    // Previously only the no-target refusal happened first, so a hash mismatch still left
+    // a `queued_for_owner` row behind that the owner could not then action -- which is the
+    // orphan-row half of the finding, and it was still true after the first fix.
+    const preflight = await checkOwnerApproval(approval, payload, ctx.now);
+    if (!preflight.valid) {
+      await this.#audit(ctx, 'owner.refund.refused', input.orderId);
+      return writeFailed(explainApprovalRejection(preflight.reason));
     }
 
     try {
