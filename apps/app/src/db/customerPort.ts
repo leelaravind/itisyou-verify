@@ -23,6 +23,7 @@ import { LIMITS, formatMoney, money } from '@verify/contracts';
 import { generateCsrfToken, maskToken, sha256Hex, stableStringify } from '@verify/security';
 import { AppError } from '@verify/contracts';
 import { establishConnection, type ProviderId } from '@verify/connectors';
+import { secretKeyIsUsable } from '@verify/connectors/stripe';
 import type {
   ActivationView,
   ConnectionCredentialsInput,
@@ -889,6 +890,18 @@ export class D1CustomerDataPort implements CustomerDataPort {
       else if (page.items[0].current_version_id === null) {
         blockers.push('Publish your expected outcome before subscribing.');
       }
+    }
+    // A key that is present but malformed is the same fact as a key that is absent: this
+    // deployment cannot take money. Checking only for emptiness is what let staging render
+    // a working-looking checkout button in front of a call that threw
+    // `Stripe secret key does not look like a test or live key` -- a 500 the customer met
+    // only after deciding to buy. Found by pressing the button on a deployment; no unit
+    // test could have seen it, because every one of them supplies a well-formed fixture.
+    const secretKey = this.#env.STRIPE_SECRET_KEY ?? '';
+    if (secretKey !== '' && !secretKeyIsUsable(secretKey)) {
+      blockers.push(
+        'Payments are not enabled in this environment: STRIPE_SECRET_KEY is set but is not a usable Stripe key. That is our configuration, not something on your side.',
+      );
     }
     if ((this.#env.STRIPE_PRICE_ID ?? '') === '' || (this.#env.STRIPE_SECRET_KEY ?? '') === '') {
       // Naming the secret is not a leak -- these are variable names, not values -- and the

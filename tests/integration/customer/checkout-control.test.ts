@@ -165,3 +165,34 @@ describe('the review page offers a control that reaches checkout', () => {
     expect(body).toContain('No card is charged');
   });
 });
+
+/**
+ * The condition the page renders on must mean "this deployment can actually charge".
+ *
+ * Added after the button was pressed on staging and answered 500. `orderSummary` checked
+ * that `STRIPE_SECRET_KEY` was non-empty, staging held a malformed value, and so the review
+ * page offered a checkout in front of a call that threw
+ * `Stripe secret key does not look like a test or live key` — a customer meeting the
+ * failure only after deciding to buy. Every unit test supplies a well-formed fixture, which
+ * is exactly why none of them could see it.
+ *
+ * Case ids `BILL-615..BILL-616`.
+ */
+describe('a deployment that cannot charge does not offer to', () => {
+  it('BILL-615 a malformed Stripe key blocks checkout instead of 500ing after the click', async () => {
+    connectBoth(h, ws);
+
+    // Non-empty, and not a key. The exact shape staging was holding.
+    const body = await reviewPage(h, ws, { STRIPE_SECRET_KEY: 'not-a-stripe-key' });
+
+    expect(checkoutForm(body), 'checkout was offered with an unusable Stripe key').toBeNull();
+    expect(body).toContain('is not a usable Stripe key');
+  });
+
+  it('BILL-616 a well-formed key still offers checkout, so the guard is not simply off', async () => {
+    connectBoth(h, ws);
+
+    // The paired case: a guard that blocks everything would pass BILL-615 and be useless.
+    expect(checkoutForm(await reviewPage(h, ws))).not.toBeNull();
+  });
+});

@@ -118,6 +118,21 @@ export function scrubSecret(value: string, secret?: string): string {
   return out.replace(/\b(?:sk|rk|whsec)_[A-Za-z0-9_]{6,}/g, '[redacted-stripe-key]');
 }
 
+/**
+ * Whether a key can make a client at all, without throwing to find out.
+ *
+ * Exists because a caller that is deciding whether to OFFER a purchase needs the same
+ * answer as the caller about to take money, and must not have to catch an exception whose
+ * message carries the key to get it. Staging shipped a malformed key while
+ * `orderSummary` checked only that the string was non-empty, so the review page rendered a
+ * working-looking checkout button in front of a call that could never succeed: the product
+ * asserting something about itself that was not true, which is the class of defect this
+ * product exists to catch in other people's systems.
+ */
+export function secretKeyIsUsable(secretKey: string): boolean {
+  return /^(?:sk|rk)_(?:test|live)_/.test(secretKey);
+}
+
 /** `sk_test_…` / `rk_test_…` are test mode; `sk_live_…` / `rk_live_…` are live. */
 export function environmentForSecretKey(secretKey: string): StripeEnvironment {
   if (/^(?:sk|rk)_test_/.test(secretKey)) return 'test';
