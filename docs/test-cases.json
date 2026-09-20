@@ -38726,6 +38726,23 @@
       "countable": true
     },
     {
+      "id": "RESIL-183",
+      "category": "accessibility_resilience",
+      "level": "unit",
+      "requirement": "every responsive breakpoint the stylesheet relies on is still emitted",
+      "risk": "The owner-approved design was implemented at the token layer, which restyles nineteen screens at once and could have been done in a way that left the layout rules behind. Nothing in the suite was watching the breakpoints, so a future token edit could drop mobile silently and every other test would stay green.",
+      "risk_source": "case",
+      "setup": "The generated stylesheet, checked for the six media queries it actually uses: a phone-only rule below 40rem and the ladder from 34rem to 60rem.",
+      "expected": "All six are present; the failure message names the missing query.",
+      "owner_agent": "A11",
+      "implementation_ref": "tests/unit/ui/tokens.test.ts:81",
+      "provider_backed": false,
+      "status": "passing",
+      "runner": "vitest",
+      "area": "tests/unit/ui/tokens.test.ts",
+      "countable": true
+    },
+    {
       "id": "RESIL-300",
       "category": "accessibility_resilience",
       "level": "integration",
