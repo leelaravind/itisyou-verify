@@ -9,7 +9,7 @@
  *
  * This is a test double and says so. The real implementation is A02's D1 repositories.
  */
-import type { VisitSession } from './analytics';
+import type { VisitClassification, VisitSession } from './analytics';
 import type {
   CampaignMetricsRow,
   CampaignSyncState,
@@ -35,6 +35,24 @@ export interface MemoryGrowthPort extends GrowthDataPort {
   purgeExpired(now: string): number;
 }
 
+/** The two classifications that exclude a session from every reported figure. */
+const EXCLUDED: readonly VisitClassification[] = ['internal_test', 'bot_suspected'];
+
+/**
+ * Contract rule 7, in one place so both this port and the SQL one can be read against it.
+ *
+ * A stored classification may be corrected INTO an excluded class and may never leave one.
+ * The asymmetry is the safety property: a correction can only ever reduce the external
+ * figure the launch objective is measured by, never inflate it.
+ */
+export function excludedFirst(
+  stored: VisitClassification,
+  incoming: VisitClassification,
+): VisitClassification {
+  if (EXCLUDED.includes(stored)) return stored;
+  return EXCLUDED.includes(incoming) ? incoming : stored;
+}
+
 export function createMemoryGrowthPort(options: MemoryGrowthPortOptions = {}): MemoryGrowthPort {
   const rows = new Map<string, VisitSession & { lastSeenAt: string }>();
   const metrics = new Map<string, CampaignMetricsRow>();
@@ -58,7 +76,14 @@ export function createMemoryGrowthPort(options: MemoryGrowthPortOptions = {}): M
       const existing = rows.get(session.id);
       if (existing !== undefined) {
         // A repeat visit is an UPDATE. Never a second row.
-        const touched = { ...existing, lastSeenAt: seenAt, page_views: existing.page_views + 1 };
+        const touched = {
+          ...existing,
+          lastSeenAt: seenAt,
+          page_views: existing.page_views + 1,
+          // Rule 7: a classification may only ever move toward exclusion, so a correction
+          // can reduce the external figure and can never inflate it.
+          classification: excludedFirst(existing.classification, session.classification),
+        };
         rows.set(session.id, touched);
         return { inserted: false, pageViews: touched.page_views };
       }
