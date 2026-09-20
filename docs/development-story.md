@@ -306,6 +306,40 @@ wording, assert it stays silent on our own true sentences, and assert the patter
 no control character. The second half matters as much as the first: the real plan price
 must still pass, and a sentence denying that a trial exists must stay sayable.
 
+### Every control was correct, and none of them could be reached
+
+On 20 September the owner tried to sign in on production and the page said "we tried and
+the attempt failed". Reading the production database instead of the page gave the sequence
+that follows, and each step was invisible to the tests that existed.
+
+The sign-in request had never sent anything. The port passed the notification sender a
+request in a shape it did not read, behind a type cast that hid the mismatch; the recipient
+was `undefined`, `.trim()` threw, the throw was swallowed as "failed" before any row was
+written, and the test for this path asserted the failure message — so it enshrined the bug.
+Fixed, a real message reached the owner's inbox (Resend: delivered) within a minute.
+
+Then the tables said what the page could not: 0 users, 0 platform owners, 0 workspaces, 11
+sign-in links issued and 0 redeemed. Three absences, all structural. Signup is closed and the
+seed script refuses production by design, so no path could create a workspace at all.
+`enrolTotp` — the function that enrols an authenticator — was written, tested, and called by
+nothing, so the two-factor gate in front of every consequential owner action could never be
+passed. And `/admin/verify` called the TOTP check without a session id, so a correct code was
+accepted, audited as accepted, and stamped nothing the gate could see.
+
+Each control was right. Each was unreachable. The fix was never to loosen a control: an
+owner-panel action creates a workspace (consequential, needs a fresh code, audited, and
+structurally absent from the automation identity's capabilities); an enrolment page shows the
+seed and recovery codes once on a response that is never cached; and the verify route now
+resolves the session it is stamping exactly the way the login-complete route does. One test
+(AUTH-452) keeps the old defect as a tripwire: a correct code with no session id must still
+stamp nothing, so the fix cannot quietly regress into "the code was right, therefore let them
+through".
+
+What remains is the owner's, and it is listed in `docs/owner-actions.md` in order: set the
+bootstrap address and a token on the deployment, claim the owner account, enrol, create the
+isolated test workspace, sign in as it. Nothing in that list can be done from this side, and
+nothing in it should be.
+
 ### An approved design almost nobody would have seen
 
 The owner commissioned a design, approved it, and asked for it. The first implementation
@@ -393,12 +427,7 @@ retrieved record belonged to a different enquiry was contradicted on the correla
 reference rather than merely reported missing. Against our own accounts and our own
 synthetic records, which proves the providers answer us and nothing about your portal.
 
-**Not yet true.** Live customer payments, because that needs the owner's approval and
-verified business details. Ten genuine external visits — the counter records them now and
-the honest count is still zero. Per-screen layout against every approved reference: the
-shared layer is live, several screens are composed, and the rest are ours. The
-demonstration page's runs are still fixtures. Advertising: a campaign is drafted within an
-approved budget, has never served an impression, and has spent nothing.
+**Not yet true.** Live customer payments, because that needs the owner's approval and verified business details. A first workspace on production: the supported path now exists (deployed 20 September at `569e8e3`) and the steps only the owner can take are listed in `docs/owner-actions.md`; until they are taken, production has no owner, no authenticator and no workspace. Ten genuine external visits — the counter records them now and the honest count is still zero. Per-screen layout against every approved reference: the shared layer is live, fifteen of nineteen screens are composed, and the rest are ours. The demonstration page's runs are still fixtures. Advertising: the campaign was published by the owner, was found to carry no keywords and no ads, has since had both entered within a GBP 12.25 total (GBP 14.99 with the UK DST fee and VAT), and has never served an impression or spent anything.
 
 **Spent so far: £0.00 confirmed** against the £100 budget — no campaign activated, no new
 paid resource, and the £30 contingency untouched and separately gated. That figure rests

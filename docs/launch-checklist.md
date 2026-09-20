@@ -3,7 +3,7 @@
 Supersedes `docs/launch-plan.md`. One owner, one status, one next action, one closing
 evidence per item. Updated in place; no second copy anywhere.
 
-**Now:** 09:20 UTC · **Allowance resets:** 13:45 UTC · **Remaining:** ~4h25m
+**Now:** 09:55 UTC · **Allowance resets:** 13:45 UTC · **Remaining:** ~3h50m
 
 Status: `done` · `active` · `blocked` · `queued`
 
@@ -79,6 +79,12 @@ Status: `done` · `active` · `blocked` · `queued`
 
 | Owner dashboard from live ports + owner screens composed | `5da4766` | yes | yes, `dbece4ef` 08:05Z | `/owner` 404 anonymous at 08:06Z; tiles not yet viewed with an owner session on production |
 | Design-figure Telegram gate (`outcome !== 'sent'`) | `5da4766` | yes | yes | awaiting the first post-deploy cron tick; the 13-of-19 row was absent at 08:07Z |
+| Sign-in delivery (wrong request shape behind `as never`) | `8dd1a5f` | yes | yes | production: one `sign_in_link` row `sent` at 08:33:23Z; Resend "Delivered" to the owner's address |
+| M3 `workspace.create` owner action | `569e8e3` | `35502274339` | production 09:31Z (`6478fbd1`), staging 09:38Z | `/owner/customers` 404 to anonymous; not yet exercised by the owner (needs O8→O13) |
+| M4a `/admin/authenticator` enrolment page | `569e8e3` | yes | yes | `/admin/authenticator` 404 to anonymous; AUTH-451 proves enrol→code→stamp→gate opens against D1; no owner has enrolled yet |
+| M4b `/admin/verify` stamps THIS session, checks CSRF | `569e8e3` | yes | yes | AUTH-452 keeps the old defect as a tripwire; not yet exercised on production (no authenticator exists) |
+| Unknown-workspace guard, exercised on production | `47873e9` | yes | `cff4749` | 09:22Z and 09:34Z: two foreign events resent from Stripe answered 200; `webhook_receipts` rows `ignored`, `workspace_id` null |
+| Release Telegram milestone (one per deployed commit) | `7a4e026` | in progress | pending | will be proven by a `milestone_reached:release_deployed:production:<sha12>` delivery row after the first tick |
 
 ## Live figures (read from the databases at 07:47 UTC)
 
