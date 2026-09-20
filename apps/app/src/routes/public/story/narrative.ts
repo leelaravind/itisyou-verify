@@ -576,10 +576,11 @@ export const METRIC_GROUPS: readonly MetricGroup[] = [
         source: 'EVT-0011',
       },
       {
-        label: 'Live HubSpot or Resend calls from this repository',
-        value: 'none',
-        note: 'The connector path is proven against mocks. This is a known fact, not an unknown, so it is stated rather than marked unknown.',
-        source: 'docs/development-story.md § Where it stands',
+        // Was "none", with a note calling that a known fact. It stopped being one.
+        label: 'Providers run against real accounts',
+        value: '2 of 2',
+        note: 'Resend on 19 September 2026, HubSpot on 20 September. Both have supported a verified run; one has contradicted a run on a mismatched correlation reference. Against our own accounts and synthetic records.',
+        source: 'docs/workflow-evidence.md',
       },
     ],
   },
@@ -687,8 +688,8 @@ export const STANDING: readonly StandingItem[] = [
   },
   {
     heading: 'Not yet true',
-    body: 'Live payments, because that needs the owner’s verified business details. Provider-backed evidence against real HubSpot and Resend accounts, because those credentials do not exist yet — until they do, the connector path is proven against mocks, and this page will not pretend otherwise. Advertising, because no campaign has been approved and nothing has been spent.',
-    source: 'docs/development-story.md § Where it stands',
+    body: 'Live customer payments, because that needs the owner’s approval and verified business details; one sandbox payment has completed end to end on a deployment. Ten genuine external visits: the counter now records them and the honest count is still zero. Per-screen layout against every approved design. What is no longer on this list, because it stopped being true on 20 September 2026: provider-backed evidence. Both connectors have now been run against real provider accounts and have supported, contradicted and failed to answer real runs — against our own accounts and our own synthetic records, which proves the providers answer us and not anything about your portal until you connect it. Advertising: a campaign is drafted within an approved budget, has never served an impression, and has spent nothing.',
+    source: 'docs/development-story.md § Where it stands; docs/workflow-evidence.md',
   },
   {
     // Heading reworded 2026-09-19. "Independently audited" is the exact phrasing a security

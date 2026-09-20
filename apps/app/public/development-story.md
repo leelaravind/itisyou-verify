@@ -380,15 +380,25 @@ unknown rather than on a pass is the entire product.
 paid with a test card, £29.00. No live payment has been taken, and live charges stay
 disabled.
 
-**Not yet true.** The subscription that payment should have activated: the provider
-delivered six events for it and both deployments rejected all six for a signature
-mismatch, which needs a per-environment signing secret only the owner can supply. Live
-payments, because that needs the owner's verified business details. Per-screen layout
-against the nineteen approved references — the shared layer is live, the individual
-compositions are still ours, and "palette applied" is not "design implemented". The
-demonstration page's runs are still fixtures. Advertising: a campaign draft is built,
-has never served an impression, and setting its budget needs the owner to answer an
-identity challenge on their own account.
+**The payment did activate, in the end.** The paragraph that stood here said the provider
+delivered six events and both deployments rejected all six, and that no subscription
+existed. That was true when it was written and stopped being true on 20 September: the
+signing secret was present the whole time and the fault was ours — a trailing newline the
+resolver never trimmed. Resent, the events were accepted, and staging holds one active
+subscription and one allowance of 500 runs, granted exactly once, unchanged by a replay.
+
+**Both providers have now answered real calls.** Resend on 19 September, HubSpot on 20
+September: a contact read back from a live portal supported a verified run, and a run whose
+retrieved record belonged to a different enquiry was contradicted on the correlation
+reference rather than merely reported missing. Against our own accounts and our own
+synthetic records, which proves the providers answer us and nothing about your portal.
+
+**Not yet true.** Live customer payments, because that needs the owner's approval and
+verified business details. Ten genuine external visits — the counter records them now and
+the honest count is still zero. Per-screen layout against every approved reference: the
+shared layer is live, several screens are composed, and the rest are ours. The
+demonstration page's runs are still fixtures. Advertising: a campaign is drafted within an
+approved budget, has never served an impression, and has spent nothing.
 
 **Spent so far: £0.00 confirmed** against the £100 budget — no campaign activated, no new
 paid resource, and the £30 contingency untouched and separately gated. That figure rests

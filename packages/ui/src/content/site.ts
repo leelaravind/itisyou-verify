@@ -123,6 +123,17 @@ export const FOOTER_SERVICE_DESCRIPTION =
  * Remove this when `CONN-900` and `CONN-901` have actually run — not when it reads badly.
  */
 export const PROVIDER_PROOF_NOTICE: ServiceActivationNotice = {
-  headline: 'Our HubSpot and Resend connectors have not yet been run against a real account',
-  body: 'Resend has been run against a real account: on 19 September 2026 a genuinely signed delivery callback was received and a message outcome was read back from Resend itself, and a run was decided on that evidence. HubSpot has not. A real credential is stored and validated against a live portal, but no record has yet been read back from one, so every description of reading your CRM record back is designed and tested rather than observed. A stub proves we handle the response we believe a provider sends; it cannot prove the provider sends it. This notice will change again, with the date, when HubSpot is proven too.',
+  /*
+   * Updated 20 September 2026, and the headline is the part that was wrong.
+   *
+   * It read "have not yet been run against a real account" while the body directly beneath
+   * it said "Resend has been run against a real account". Both were on the same page. The
+   * headline had simply not been updated when the body was, and a reader who stopped at the
+   * heading was told the opposite of the truth -- understating, which this project treats as
+   * inaccuracy in the same way as overstating.
+   *
+   * HubSpot is now proven too, so the notice says so, with the date it promised.
+   */
+  headline: 'Both connectors have now been run against real provider accounts',
+  body: 'Resend, 19 September 2026: a genuinely signed delivery callback was received and a message outcome was read back from Resend itself, and a run was decided on that evidence. HubSpot, 20 September 2026: a contact was read back from a live portal and supported a verified run, and a second run whose record belonged to a different enquiry was contradicted on the correlation reference rather than merely reported as missing. What is still true is narrower than it was: these are our own accounts and our own synthetic records, so they prove the provider answers us and that we read the answer correctly. They do not prove anything about your portal until you connect it.',
 };

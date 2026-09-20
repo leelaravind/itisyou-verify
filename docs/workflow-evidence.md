@@ -369,3 +369,202 @@ refused, and the refusal was accepted rather than worked around.
 - **The failure class in (b2) is one of four HTTP statuses, not a known one.** See finding 4.
 - **Eight runs is not a sample.** It is one of each outcome, plus the controls needed to
   attribute them.
+
+---
+
+# Second pass — the CRM ledger
+
+The owner corrected two claims in the section above and both corrections are accepted.
+**HubSpot has never supported a verdict**: the VERIFIED run was carried entirely by a Resend
+read-back. And **`RECORD_NOT_FOUND` is not correlation-mismatch detection**: it proves we
+notice a record is _absent_, which is a different capability from noticing a record that
+_exists_ and belongs to a different enquiry. Only the second is a mismatch. This ledger
+keeps them apart.
+
+Same deployment as above (`432f4500-4f98-413c-9f5e-7f11e2af8a1e`), same product paths, same
+redaction rules.
+
+|       | Claim                                                                   | Run                              | Verdict                                                               |
+| ----- | ----------------------------------------------------------------------- | -------------------------------- | --------------------------------------------------------------------- |
+| **A** | A matching CRM record supports verification                             | —                                | **not yet proven** — awaiting the portal setup                        |
+| **B** | A retrieved record carrying another enquiry's reference is CONTRADICTED | —                                | **not yet proven** — expressible, and needs one more input; see below |
+| **C** | A CRM that does not answer stays UNKNOWN → UNVERIFIED, never a mismatch | `run_01M2YT605AA5897F63C1C44F76` | **proven**                                                            |
+
+## C. Unavailable is not mismatched — proven
+
+`run_01M2YT605AA5897F63C1C44F76` · admitted 2026-09-20T07:06:11Z · deadline 07:07:11Z ·
+decided **07:10:39Z, three and a half minutes after the deadline** · rules: `crm_record_exists`
+and `crm_correlation_matches`, both mandatory, no email checks.
+
+The correlation property was set to a name the portal does not define, so HubSpot answered
+the search with a client error rather than a record or an absence.
+
+| Assertion id                     | Rule                      | Status  | Reason                   | Observed | Evidence |
+| -------------------------------- | ------------------------- | ------- | ------------------------ | -------- | -------- |
+| `asr_01M2YTE8061D54028CF1E949B0` | `crm_correlation_matches` | UNKNOWN | `CONNECTION_UNAVAILABLE` | none     | none     |
+| `asr_01M2YTE8066711518F77A64D4C` | `crm_record_exists`       | UNKNOWN | `CONNECTION_UNAVAILABLE` | none     | none     |
+
+Verdict **UNVERIFIED**. The deadline had passed and the run still did not fail, because
+`CONNECTION_UNAVAILABLE` is not an authoritative absence; it is never reported as a mismatch,
+and no evidence row was written. The customer-facing text says "we could not look", not "your
+record was wrong".
+
+## B. What a correlation contradiction needs — expressible, one input missing
+
+The rule shape can express it. `crm_correlation_matches` is `field: record.correlation_id`,
+`operator: equals`, `expected_from: source_event.correlation_id`
+(`apps/app/src/db/ruleCompiler.ts:133-141`), and a retrieved record whose correlation value
+differs yields CONTRADICTED / VALUE_MISMATCH — the same path `VERIFY-231` covers.
+
+The missing input is **a contact record id**, not a second property. The connector's locator
+priority is get-by-id first, search second, with no fallback between them
+(`packages/connectors/src/hubspot.ts:883-895`). A _search_ can only ever return records whose
+correlation value already equals the one searched for, so the search path can produce SUPPORTED
+or `RECORD_NOT_FOUND` and **can never produce a mismatch**. Retrieving a record that belongs to
+another enquiry requires the event to carry `expected.crm_record_id`
+(`packages/contracts/src/events.ts:34`), which routes to `readContactById`
+(`hubspot.ts:505-519`); that call requests the correlation property explicitly through
+`selectProperties` (`hubspot.ts:303-321`), so the retrieved record carries a comparable value.
+
+So to prove B: an event whose `correlation_id` is enquiry **X** and whose
+`expected.crm_record_id` is the HubSpot id of the contact carrying enquiry **Y**. No connector
+change, no new operator, no new scope and no write.
+
+## Why the earlier `RECORD_NOT_FOUND` run reached FAILED
+
+Asked specifically, answered specifically. Run `run_01M2YS2Z45DE24EF1E8F2B41B0`, decided
+2026-09-20T06:50:39Z against deadline 06:48:03Z. Its two mandatory assertions:
+
+| Assertion id                     | Rule                      | Status  | Reason             |
+| -------------------------------- | ------------------------- | ------- | ------------------ |
+| `asr_01M2YS9M762529816FDE4F4CFE` | `crm_correlation_matches` | UNKNOWN | `RECORD_NOT_FOUND` |
+| `asr_01M2YS9M7674A851B2EE944CF9` | `crm_record_exists`       | UNKNOWN | `RECORD_NOT_FOUND` |
+
+Both UNKNOWN, and the run FAILED. The chain, in order, with the line that does each step
+(read at commit `121214d`; the deployment was built from an earlier one, and these files did
+not change between them):
+
+1. **HubSpot answered 2xx with an empty result set.**
+   `packages/connectors/src/hubspot.ts:672-683` — `results.length === 0` and `total === 0`
+   returns `kind: 'absent'`. A self-contradicting `total > 0` is refused as
+   `PROVIDER_UNAVAILABLE` two lines above, so an absence is never inferred from a confusing
+   answer.
+2. **The absence is only allowed to be authoritative if the status proves it.**
+   `packages/connectors/src/types.ts:394-408` — `makeAuthoritativeAbsenceGap` refuses any
+   non-2xx status, downgrading it to `PROVIDER_UNAVAILABLE`, and otherwise emits gap code
+   `NOT_FOUND`.
+3. **`NOT_FOUND` on a CRM source becomes the reason code `RECORD_NOT_FOUND`.**
+   `packages/domain/src/evaluate.ts:450-454`.
+4. **The constant that permits the transition.**
+   `packages/domain/src/evaluate.ts:100-103` —
+   `AUTHORITATIVE_ABSENCE_REASONS = { 'RECORD_NOT_FOUND', 'EVENT_NOT_OBSERVED' }`, read
+   through `isAuthoritativeAbsence` at `evaluate.ts:105-107`. Those two members are the whole
+   policy; nothing else in the system can turn a mandatory unknown into a failure.
+5. **Evidence access had to be healthy.**
+   `apps/app/src/scheduler/observe.ts:828-830` — `hasWorkingEvidenceAccess` is true only when
+   every gap held is `NOT_FOUND`. A working connection reporting an absence qualifies; a
+   timeout, a 403 or a 400 does not, which is exactly why run C above did not fail.
+6. **The code path that applies it.**
+   `packages/domain/src/decide.ts:128-129`, reached only after the earlier branches have ruled
+   out a contradiction (`:89`), a full pass (`:95`), and "still inside the window with budget
+   left" (`:105`):
+
+   ```ts
+   if (unresolved.length > 0 && unresolved.every((r) => isAuthoritativeAbsence(r.reason_code))) {
+     return { status: 'FAILED', reason: DECISION_REASON.FAILED_ABSENT };
+   }
+   ```
+
+   `every`, not `some`: one ordinary unknown alongside the absences would have sent the run to
+   `UNVERIFIED_INCOMPLETE` on the next line. It was called with `deadlineAt` and
+   `hasWorkingEvidenceAccess` from `observe.ts:359-362`.
+
+**What that verdict means, stated as narrowly as it deserves:** the connected CRM was asked
+whether any contact carried this enquiry's reference, answered successfully that none did, and
+the deadline for one to appear had passed. It is a proven absence. It is not a proven mismatch,
+and the section above should not have been read as one.
+
+## A and B — run against portal `…1406`, 2026-09-20T07:20:39Z
+
+Setup done by the lead through the owner's authenticated HubSpot session: contact property
+`itisyou_verify_ref` (single-line text, contact object) and one synthetic contact carrying
+`ENQ-MATCH-0001`. **That contact is a fabricated record with no data subject** — the address
+on it is in the IANA-reserved `example.com` domain and is undeliverable. It is not a person and
+must not later be read as one. The application connector was not changed: still three frozen
+read operations, no write path, no extra scope.
+
+Both runs used rules version `crm_record_exists` + `crm_correlation_matches`, both mandatory,
+deadline 60 s, correlation property `itisyou_verify_ref`. Record ids are shown masked.
+
+### A. A matching CRM record supports verification — **proven**
+
+`run_01M2YTSKKM2DC653F9BA114937` · admitted 07:16:54Z · decided 07:20:39Z · one observation ·
+located by search on `itisyou_verify_ref EQ ENQ-MATCH-0001`, no record id supplied.
+
+| Assertion id                     | Rule                      | Status        | Reason  | Expected         | Observed         |
+| -------------------------------- | ------------------------- | ------------- | ------- | ---------------- | ---------------- |
+| `asr_01M2YV0JA1F53A4070A4524C52` | `crm_record_exists`       | **SUPPORTED** | MATCHED | present          | record `…6976`   |
+| `asr_01M2YV0JA1C7A7E24C46944ADA` | `crm_correlation_matches` | **SUPPORTED** | MATCHED | `ENQ-MATCH-0001` | `ENQ-MATCH-0001` |
+
+Verdict **VERIFIED**.
+
+| Evidence                         | Provider      | Origin                  | Observed at          | Cited by        |
+| -------------------------------- | ------------- | ----------------------- | -------------------- | --------------- |
+| `evd_01M2YV0J4V8DE1619E3F41482C` | **`hubspot`** | **`provider_readback`** | 2026-09-20T07:20:39Z | both assertions |
+
+**This is the first HubSpot evidence row this product has ever held, and the first verdict
+HubSpot has ever supported.** Every earlier VERIFIED run was carried by Resend alone. The
+`evidence` table went from zero HubSpot rows to two in one tick.
+
+### B. A record belonging to another enquiry is contradicted — **proven**
+
+`run_01M2YTSKRX1960E7D29C38477E` · admitted 07:16:54Z · decided 07:20:39Z · one observation ·
+enquiry reference `ENQ-OTHER-9999`, `expected.crm_record_id` naming record `…6976`, so the
+connector took the read-by-id path and retrieved the contact that belongs to
+`ENQ-MATCH-0001`.
+
+| Assertion id                     | Rule                      | Status           | Reason             | Expected         | Observed         |
+| -------------------------------- | ------------------------- | ---------------- | ------------------ | ---------------- | ---------------- |
+| `asr_01M2YV0MTAD13A5E40334A4714` | `crm_record_exists`       | SUPPORTED        | MATCHED            | present          | record `…6976`   |
+| `asr_01M2YV0MTAF9859DD0456D48F3` | `crm_correlation_matches` | **CONTRADICTED** | **VALUE_MISMATCH** | `ENQ-OTHER-9999` | `ENQ-MATCH-0001` |
+
+Verdict **FAILED**.
+
+| Evidence                         | Provider      | Origin                  | Observed at          | Cited by        |
+| -------------------------------- | ------------- | ----------------------- | -------------------- | --------------- |
+| `evd_01M2YV0MN4FB9D3EA8136243BB` | **`hubspot`** | **`provider_readback`** | 2026-09-20T07:20:39Z | both assertions |
+
+This is the distinction the owner asked for, and it now has two separate runs behind it:
+
+|                             | Record retrieved? | Reason             | Verdict                | What it proves                                                  |
+| --------------------------- | ----------------- | ------------------ | ---------------------- | --------------------------------------------------------------- |
+| `run_01M2YS2Z45…` (earlier) | no                | `RECORD_NOT_FOUND` | FAILED at the deadline | we notice a record is **absent**                                |
+| `run_01M2YTSKRX…` (B)       | **yes**           | `VALUE_MISMATCH`   | FAILED immediately     | we notice a retrieved record belongs to a **different enquiry** |
+
+B failed on contradiction, not on absence, and not at a deadline — `decide.ts:89` answers
+FAILED on the first contradicted mandatory assertion before any deadline or absence logic is
+consulted. The other mandatory check passed at the same time, which is the point: a majority of
+passing checks does not rescue a contradicted one.
+
+Both evidence rows carry the same `content_digest`. That is correct and worth noting: one
+record, retrieved twice by two different locator paths, normalises to the same evidence.
+
+### The ledger, closed
+
+|       | Claim                                                                   | Run                              | Verdict                                            |
+| ----- | ----------------------------------------------------------------------- | -------------------------------- | -------------------------------------------------- |
+| **A** | A matching CRM record supports verification                             | `run_01M2YTSKKM2DC653F9BA114937` | **proven** — VERIFIED, HubSpot `provider_readback` |
+| **B** | A retrieved record carrying another enquiry's reference is contradicted | `run_01M2YTSKRX1960E7D29C38477E` | **proven** — CONTRADICTED / VALUE_MISMATCH         |
+| **C** | A CRM that does not answer stays UNKNOWN → UNVERIFIED, never a mismatch | `run_01M2YT605AA5897F63C1C44F76` | **proven** — UNVERIFIED past the deadline          |
+
+Corrections to the first pass, now that A has run: "HubSpot record readback is unproven" and
+"no live readback demonstrated" in `docs/deployed-evidence.md` are both out of date, and the
+line in `docs/test-plan.md` saying every read-back claim is "designed, not observed" is now
+false for both providers on staging. `CONN-900` still has not run in CI, so that remains true
+of the test suite.
+
+**Still not claimed.** Nothing was run against production. The connector remains read-only and
+was not touched. `transport` is still computed and not persisted, so these two rows cannot be
+audited for live-versus-simulated after the fact — the argument that they are live rests on
+the wiring and on the fact that a fabricated portal record answered with a value nothing in
+this repository knows.
