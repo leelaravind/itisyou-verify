@@ -496,11 +496,20 @@ describe('a real cron tick reaches a real customer', () => {
       workspaceId: ws.workspaceId,
       sent,
       env: scheduledEnv(h, sent),
+      /*
+       * CUSTOMER notifications only.
+       *
+       * Every case in this file asks whether a real tick reaches a real customer. The same
+       * table also holds owner alerts on the `telegram` channel — a separate pass, a
+       * separate audience — and counting those here made "the customer was told once" fail
+       * because the owner was told something unrelated in the same tick. Filtering in the
+       * helper keeps each case's assertion about its own subject; `owner-alert-wiring.test.ts`
+       * covers the other channel and asserts on it directly.
+       */
       rows: () =>
-        h.raw.prepare('SELECT * FROM notification_deliveries ORDER BY id').all() as Record<
-          string,
-          unknown
-        >[],
+        h.raw
+          .prepare("SELECT * FROM notification_deliveries WHERE channel != 'telegram' ORDER BY id")
+          .all() as Record<string, unknown>[],
       status: () =>
         (
           h.raw

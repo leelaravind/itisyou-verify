@@ -21,7 +21,13 @@ import { getConnector, type ProviderId } from '@verify/connectors';
 import { runs, type DueRun } from '../db/runs';
 import { D1BillingDataPort, createBillingContactLookup } from '../db/billingPort';
 import { D1SupportDataPort } from '../db/supportPort';
-import { sendOwnerAlert, telegramTransportFromEnv } from '../notifications/telegram';
+import type { NotificationTransport } from '../support/port';
+import {
+  milestoneAlert,
+  paymentGatewayReadyAlert,
+  sendOwnerAlert,
+  telegramTransportFromEnv,
+} from '../notifications/telegram';
 import {
   runBillingNotificationTick,
   type BillingNotificationTickReport,
@@ -623,6 +629,43 @@ export async function handleScheduled(
    */
   let ownerAlert: OwnerAlertPassReport = { attempted: false, outcome: null };
   const billingSecrets = checkBillingSecrets(billingEnv);
+
+  /**
+   * Build the owner's Telegram transport once, bound, and observed.
+   *
+   * `fetch` is BOUND, and that is not a style preference. Passing the bare global into a
+   * class that later calls `this.fetchImpl(...)` gives Workers "Illegal invocation:
+   * function called with incorrect `this` reference", and every attempt fails. No test
+   * could have caught it: every test injects a plain function, which has no `this`
+   * requirement at all, so the stub passes in exactly the place the real global fails. It
+   * was found by deploying and reading the transport's own words out of a live tick.
+   *
+   * Which is the other half: `recordedStatusFor` deliberately discards the provider's word
+   * and `notification_deliveries` has no column for a cause, so without this log an
+   * operator has a silent channel and a row that cannot say why. Both halves are here
+   * rather than at each call site so the two alerts cannot be wired differently.
+   */
+  const ownerTransport = (): NotificationTransport | undefined => {
+    const inner = telegramTransportFromEnv(
+      env as unknown as Readonly<Record<string, unknown>>,
+      options.ownerAlertFetch ?? globalThis.fetch.bind(globalThis),
+    );
+    if (inner === undefined) return undefined;
+    return {
+      send: async (message: Parameters<typeof inner.send>[0]) => {
+        const outcome = await inner.send(message);
+        if (!outcome.accepted) {
+          // eslint-disable-next-line no-console -- the operator's only view of this channel
+          console.log('owner_alert', {
+            event: 'telegram_attempt_failed',
+            provider_status: outcome.providerStatus,
+            retryable: outcome.retryable,
+          });
+        }
+        return outcome;
+      },
+    };
+  };
   // Gated on `PUBLIC_BASE_URL`, exactly as the deletions pass above is, and for the same
   // reason: a deployment without one is not serving customers -- a local dev tick, or a
   // bare Worker -- and "this deployment cannot take payment" is not news about it. Without
@@ -650,38 +693,6 @@ export async function handleScheduled(
        * request URL carries the token.
        */
       /*
-       * `fetch` is BOUND, and that is not a style preference.
-       *
-       * Passing the bare global into a class that later calls `this.fetchImpl(...)` gives
-       * Workers "Illegal invocation: function called with incorrect `this` reference", and
-       * the send fails every attempt. No test could have caught it: every test injects a
-       * plain function, which has no `this` requirement at all, so the stub passes exactly
-       * where the real global fails. It was found by deploying, reading the transport's own
-       * words out of a live tick, and only because the previous commit added that log line.
-       */
-      const inner = telegramTransportFromEnv(
-        env as unknown as Readonly<Record<string, unknown>>,
-        options.ownerAlertFetch ?? globalThis.fetch.bind(globalThis),
-      );
-      const observed =
-        inner === undefined
-          ? undefined
-          : {
-              send: async (message: Parameters<typeof inner.send>[0]) => {
-                const outcome = await inner.send(message);
-                if (!outcome.accepted) {
-                  // eslint-disable-next-line no-console -- the operator's only view of this channel
-                  console.log('owner_alert', {
-                    event: 'telegram_attempt_failed',
-                    provider_status: outcome.providerStatus,
-                    retryable: outcome.retryable,
-                  });
-                }
-                return outcome;
-              },
-            };
-
-      /*
        * A standing condition gets another chance; a delivered message does not.
        *
        * `dispatchNotification` claims the key before sending and settles the outcome onto
@@ -697,20 +708,77 @@ export async function handleScheduled(
       const result = await sendOwnerAlert(
         {
           port: supportPort,
-          transport: observed,
+          transport: ownerTransport(),
           now: () => now,
         },
         {
           kind: 'authentication_required',
           notificationKey,
           headline: 'Payments are not configured on a deployment',
+          /*
+           * The exact command, because the owner reads this on a phone.
+           *
+           * An alert that names a problem and leaves you to find the fix is a dashboard row
+           * with extra steps. `wrangler secret put` prompts for the value, so the command
+           * itself carries nothing secret and the value never passes through this message,
+           * a log, or the assistant. The secret NAMES are variable names.
+           */
           detail:
             `The ${environment} deployment cannot take payment. ` +
             `Unset or unusable: ${names.join(', ')}. ` +
-            'Only you can set these, because the value must not pass through the assistant, ' +
-            'a log or a screenshot. Set each one with wrangler secret put, then the checkout ' +
-            'control appears on the review page by itself.',
+            'Only you can fix this, because the value must not pass through the assistant, a ' +
+            'log or a screenshot. From the apps/app folder, for each name above: ' +
+            `npx wrangler secret put NAME --env ${env.ENVIRONMENT === 'production' ? 'production' : 'staging'} ` +
+            '- it prompts for the value. STRIPE_SECRET_KEY is your Stripe sandbox key ' +
+            'beginning sk underscore test. STRIPE_WEBHOOK_UNKNOWN_KEY is not from Stripe at ' +
+            'all: it is a random per-deployment value, so generate one straight into the ' +
+            'prompt rather than typing it anywhere. Then the checkout control appears on the ' +
+            'review page by itself and this message stops.',
         },
+      );
+      ownerAlert = { attempted: true, outcome: result.outcome };
+    } catch (caught) {
+      (options.logger ?? SILENT_LOGGER).warn('scheduler.owner_alert.failed', {
+        message: caught instanceof Error ? caught.message : String(caught),
+      });
+      ownerAlert = { attempted: true, outcome: 'failed' };
+    }
+  }
+
+  /*
+   * The other side of the same fact, and the two builders that still had no caller.
+   *
+   * `paymentGatewayReadyAlert` is the alert the founder asked for by name, and its own
+   * docblock says why: "the founder is waiting to do something, and a ping five minutes
+   * later is worth more than a dashboard row they will check tomorrow". It fires only for
+   * `live`, because its wording is about entering card details and nobody enters a card to
+   * make a sandbox gateway work — sending it for `test` would be the kind of
+   * almost-true message that teaches someone to stop reading the channel.
+   *
+   * A sandbox that starts working is still worth one line, so that is a milestone: no
+   * action, a stable id, and it sends once ever rather than once per tick for the life of
+   * the deployment.
+   *
+   * Deliberately in the same `if/else` as the failure alert rather than a separate pass.
+   * The question "can this deployment take money" has one answer per tick, and two passes
+   * asking it independently is how two answers start disagreeing.
+   */
+  if (billingSecrets.ready && (env.PUBLIC_BASE_URL ?? '').length > 0) {
+    try {
+      const environment = env.STRIPE_MODE === 'live' ? 'live' : 'test';
+      const alert =
+        environment === 'live'
+          ? paymentGatewayReadyAlert({ environment, dashboardPath: '/admin' })
+          : milestoneAlert({
+              milestoneId: `payments_configured:${environment}:${env.ENVIRONMENT ?? 'unknown'}`,
+              measure: 'Sandbox payments configured and usable',
+              value: 'ready',
+            });
+      const supportPort = new D1SupportDataPort(db);
+      await supportPort.releaseUndeliveredNotification(alert.notificationKey);
+      const result = await sendOwnerAlert(
+        { port: supportPort, transport: ownerTransport(), now: () => now },
+        alert,
       );
       ownerAlert = { attempted: true, outcome: result.outcome };
     } catch (caught) {

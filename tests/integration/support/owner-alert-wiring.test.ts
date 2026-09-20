@@ -129,13 +129,30 @@ describe('a cron tick pings the owner when only the owner can act', () => {
     expect(second.ownerAlert?.outcome).toBe('duplicate');
   });
 
-  it('OWNER-498 a healthy deployment sends nothing at all', async () => {
+  it('OWNER-498 a healthy deployment never sends the cannot-take-payment alert', async () => {
     const s = scene();
 
-    const report = await s.tick();
+    await s.tick();
 
-    expect(s.calls.length).toBe(0);
-    expect(report.ownerAlert?.attempted).toBe(false);
+    // The premise of this case changed deliberately when the milestone was wired: a healthy
+    // sandbox now sends ONE line saying so. What must never happen is the failure alert
+    // going out on a deployment that is fine, so that is what is asserted, rather than the
+    // weaker "nothing was sent" that no longer describes the intended behaviour.
+    const bodies = s.calls.map((call) => call.body).join(' ');
+    expect(bodies).not.toContain('cannot take payment');
+    expect(bodies).not.toContain('STRIPE_SECRET_KEY');
+  });
+
+  it('OWNER-503 a healthy sandbox says so once, and not once per tick', async () => {
+    const s = scene();
+
+    const first = await s.tick();
+    const second = await s.tick();
+
+    expect(first.ownerAlert?.outcome).toBe('sent');
+    expect(second.ownerAlert?.outcome, 'the milestone repeated').toBe('duplicate');
+    expect(s.calls.length).toBe(1);
+    expect(s.calls[0]?.body).toContain('Sandbox payments configured');
   });
 
   it('OWNER-499 with no Telegram configured the tick still succeeds and records why', async () => {
