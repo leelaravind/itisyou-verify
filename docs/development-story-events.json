@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "project": "itisyou-verify",
-  "generated_at": "2026-09-20T09:40:00Z",
+  "generated_at": "2026-09-20T11:50:00Z",
   "note": "Structured record of what was decided, built and verified. Observable facts and short decision rationales only — never reasoning traces, private prompts, credentials or customer data. Unknown values stay null rather than being guessed.",
   "events": [
     {
@@ -1376,6 +1376,42 @@
       ],
       "limitations": "The ad is filled in but not saved: Google's identity challenge stands between the Save button and the account, and only the owner may complete it. Low search volume on exact-match keywords means zero impressions is a possible outcome for the whole run. The campaign name still says 'capped GBP 12.46 net'; the budget control, not the name, caps spend.",
       "next_step": "Owner completes the identity challenge and saves the ad; read the campaign status back and report drafted / submitted / approved / delivering as separate states."
+    },
+    {
+      "event_id": "EVT-0047",
+      "timestamp": "2026-09-20T11:45:00Z",
+      "milestone_id": "M3",
+      "task_id": "T-OWNER-PATH",
+      "agent_role": "lead",
+      "model_id": "claude-fable-5-1",
+      "status": "deployed",
+      "goal": "Walk the owner through claiming the platform owner account and enrolling an authenticator on production, and fix whatever the walk finds.",
+      "inputs": [
+        "the owner's instruction to set OWNER_BOOTSTRAP_EMAIL, verify it against the authenticated session, and guide the token and authenticator setup without exposing any secret"
+      ],
+      "changed_artifacts": [
+        "apps/app/src/routes/owner/index.ts",
+        "tests/integration/owner/routes.test.ts",
+        "tests/integration/db/wiring.test.ts",
+        "docs/live-payment-approval.md",
+        "docs/owner-actions.md"
+      ],
+      "commit_sha": "f2b7d18",
+      "decision_summary": "OWNER_BOOTSTRAP_EMAIL was set on production and proved equal to the owner's live session by a boolean SQL comparison, never by printing the address. The owner claimed the account (audit: owner.bootstrap granted, 10:59:25Z) and enrolled an authenticator (auth.totp.enrolled, 11:09:28Z; eleven sealed credential rows). The first code was refused. Tracing it: the live owner port mints a fresh double-submit CSRF token per request and only the authenticated GET path set the matching cookie, so the enrolment POST rendered the confirm form with a new token and no cookie, and the verify route - which had gained a CSRF check that morning - refused it with the one instruction a page showing a one-time secret must never give, reload and try again. The cookie is now set wherever a principal is resolved. The same hour CI failed on BILL-614, whose approval fixture expired at 10:00 UTC that day under the system clock; made relative.",
+      "alternatives_considered": [
+        "Remove the CSRF check from the verify route again, which would have restored the pre-morning gap.",
+        "Set the cookie only on the enrolment response, leaving the stale-MFA confirm page with the same latent mismatch."
+      ],
+      "decision_reason": "One place that resolves the principal is the one place every rendered form passes through; setting the cookie there makes the double-submit pair a property of the response rather than of whichever route remembered. The fixture fix is recorded as its own commit because it failed a release that had not touched refunds, and a green suite that fails at a wall-clock hour is a fact the record should hold.",
+      "test_evidence_refs": [
+        "production users: auth_subject = configured address -> 1; is_platform_owner 0 -> 1 across the bootstrap",
+        "production audit_events: owner.bootstrap granted 10:59:25Z; auth.totp.enrolled 11:09:28Z; no auth.totp.accepted yet",
+        "OWNER-917 the enrol response sets the CSRF cookie for the token it renders; OWNER-918 the stale-MFA refusal does too",
+        "BILL-614 re-run green with a relative expiry; CI 35507634839 success; production /health commit f2b7d18, version 2a0ae6f4",
+        "anonymous /owner, /owner/customers, /admin/authenticator answer 404 after the bootstrap"
+      ],
+      "limitations": "The owner has not yet confirmed a code on the fixed build, so no session on production carries mfa_verified_at and no consequential owner action has run there. The proof that bootstrap is closed after first use rests on the code order and AUTH-427 until the owner makes one more attempt with the real token. Live payments: NOT READY, 7 of 13 requirements fail, recorded with evidence in docs/live-payment-approval.md.",
+      "next_step": "Owner confirms a code; lead verifies the stamp from the tables, creates the isolated test workspace with the owner, proves bootstrap is closed, then drives the production-origin sandbox checkout."
     }
   ]
 }
