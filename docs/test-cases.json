@@ -38811,6 +38811,23 @@
       "countable": true
     },
     {
+      "id": "RESIL-185",
+      "category": "accessibility_resilience",
+      "level": "unit",
+      "requirement": "the display sizes compute to the approved pixel values at both design widths",
+      "risk": "The approved design specifies type in pixels at two widths. Those are implemented as clamps, which is the right shape for a fluid page and the wrong shape to trust by eye: a clamp can be approximately right and be neither designed number. The previous scale topped out at 48px against a specified 56px, which is a fifth of a hero headline.",
+      "risk_source": "case",
+      "setup": "The clamp arithmetic evaluated at 375px and 1440px, plus the two fixed sizes read straight from the token file.",
+      "expected": "display-lg computes to 36px and 56px, display-md to 28px and 40px, headline-lg is 1.5rem and headline-sm 1.125rem. Checked by drifting h2 back to its old value, which fails the case.",
+      "owner_agent": "A11",
+      "implementation_ref": "tests/unit/ui/tokens.test.ts:131",
+      "provider_backed": false,
+      "status": "passing",
+      "runner": "vitest",
+      "area": "tests/unit/ui/tokens.test.ts",
+      "countable": true
+    },
+    {
       "id": "RESIL-300",
       "category": "accessibility_resilience",
       "level": "integration",
