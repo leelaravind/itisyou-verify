@@ -585,8 +585,11 @@ repository's own seed script, the body was signed `t=<unix>,v1=<hmac>` over `<t>
 
 Read back in the same session, `GET /app/usage` (200): "This billing period **12 / 500**, 488
 runs remaining", "Runs received **15**", 3 verified / 3 failed / 8 unverified (the fifteenth is
-still pending). The `entitlements` row read afterwards: `consumed 12`. One event, one
-increment, and the customer-facing figure equals the table.
+still pending). The `entitlements` row read afterwards, at 10:01:26Z: `consumed 11, reserved 1`.
+So the allowance moved at admission as a **reservation**, the page counts consumed + reserved,
+and `consumed` itself becomes 12 only when the run settles after its 10:31Z deadline. The
+first draft of this paragraph said "consumed 12" and was corrected within two minutes of the
+table saying otherwise; the settled figure is appended below once read.
 
 Not claimed: anything about production — it has no workspace yet — and nothing about the
 verdict of this run, which had not been decided when this was written.
