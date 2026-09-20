@@ -81,7 +81,7 @@ export interface ServiceActivationNotice {
 
 export const SERVICE_ACTIVATION_NOTICE: ServiceActivationNotice = {
   headline: 'We are not yet accepting live verification traffic',
-  body: 'Everything on this site describes how ITISYOU Verify is built to work, and the checking logic is real, tested, and has now been exercised against both providers: a Resend message outcome and a HubSpot contact have each been read back from a live account and supported a verified run, and a run whose retrieved record belonged to a different enquiry was contradicted rather than reported missing. A sandbox purchase has completed end to end on a deployment and activated a subscription exactly once. What is not finished is the part that matters most before anyone pays: live payments are switched off until the owner turns them on separately, and this deployment cannot yet create a new customer workspace. So we are not taking payment or activating new workspaces yet. This notice changes when either of those changes, and not before.',
+  body: 'Everything on this site describes how ITISYOU Verify is built to work, and the checking logic is real, tested, and has now been exercised against both providers: a Resend message outcome and a HubSpot contact have each been read back from a live account and supported a verified run, and a run whose retrieved record belonged to a different enquiry was contradicted rather than reported missing. A sandbox purchase has completed end to end on a deployment and activated a subscription exactly once. What is not finished is the part that matters most before anyone pays: live payments are switched off until the owner turns them on separately, and no customer workspace exists on this deployment yet: public signup is closed, and only the owner can create one, by hand. So we are not taking payment or activating new workspaces yet. This notice changes when either of those changes, and not before.',
 };
 
 /**
@@ -98,7 +98,7 @@ export const SERVICE_ACTIVATION_NOTICE: ServiceActivationNotice = {
  * clever.
  */
 export const FOOTER_SERVICE_DESCRIPTION =
-  'ITISYOU Verify reads HubSpot and Resend back itself and reports what the evidence shows. Not yet accepting live verification traffic: live payments are switched off until the owner turns them on separately, and this deployment cannot yet create a new customer workspace.';
+  'ITISYOU Verify reads HubSpot and Resend back itself and reports what the evidence shows. Not yet accepting live verification traffic: live payments are switched off until the owner turns them on separately, and no customer workspace exists on this deployment yet: public signup is closed, and only the owner can create one, by hand.';
 
 /**
  * What has, and has not, been proven against a real provider.

@@ -99,7 +99,7 @@ export function UnavailableAction(options: UnavailableActionOptions): Html {
  * somebody about to pay.
  */
 export const ACTIVATION_UNAVAILABLE_REASON =
-  'We are not taking payment or activating new workspaces yet: live payments are switched off until the owner turns them on separately, and this deployment cannot yet create a new customer workspace. Nothing here is broken on your side.';
+  'We are not taking payment or activating new workspaces yet: live payments are switched off until the owner turns them on separately, and no customer workspace exists on this deployment yet: public signup is closed, and only the owner can create one, by hand. Nothing here is broken on your side.';
 
 /** What we can honestly say about when it returns, which is not a date. */
 export const ACTIVATION_UNAVAILABLE_WHEN =

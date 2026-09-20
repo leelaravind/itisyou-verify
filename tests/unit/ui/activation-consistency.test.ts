@@ -46,7 +46,10 @@ const COPIES: readonly (readonly [string, string])[] = [
  */
 const OUTSTANDING: readonly (readonly [string, RegExp])[] = [
   ['live payments are switched off', /live payments are switched off/i],
-  ['no new customer workspace can be created here', /cannot yet create a new customer workspace/i],
+  [
+    'no customer workspace exists here yet',
+    /public signup is closed, and only the owner can create one/i,
+  ],
 ];
 
 /**
@@ -61,6 +64,9 @@ const CLOSED: readonly (readonly [string, RegExp])[] = [
   // page that evening -- the page the owner met when their own sign-in failed.
   ['no purchase completed end to end', /no purchase has been completed end to end/i],
   ['no HubSpot record read back', /never been read back from a real portal/i],
+  // Closed 20 September 2026 at 569e8e3: the owner panel can now create a workspace. What
+  // stays true, and is now what the notice says, is that none exists and signup is closed.
+  ['the deployment cannot create a workspace', /cannot yet create a new customer workspace/i],
 ];
 
 describe('every copy of the activation reason says the same thing', () => {

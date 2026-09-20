@@ -50,11 +50,11 @@ prove the providers answer this service correctly. They prove nothing about a cu
 
 ## 4. Public claims
 
-| Claim                                                  | Evidence                                                                                                                                                                                                                                       |
-| ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| No stale claim is served                               | release claim scan over 7 served pages, clean, at each deploy (`569e8e3` 09:31Z); CUST-333 asserts the dated provider facts                                                                                                                    |
-| The activation notice names exactly the two open gaps  | `SERVICE_ACTIVATION_NOTICE`: live payments off; this deployment cannot yet create a new customer workspace — the second half is now stale in one respect: the owner-panel path exists, public signup still does not. Reworded in the next pass |
-| Webhook receipt is never described as verdict evidence | `PROVIDER_PROOF_NOTICE`, FAQ, story page; claim-scan rules                                                                                                                                                                                     |
+| Claim                                                  | Evidence                                                                                                                                                                                                                                                                          |
+| ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| No stale claim is served                               | release claim scan over 7 served pages, clean, at each deploy (`569e8e3` 09:31Z); CUST-333 asserts the dated provider facts                                                                                                                                                       |
+| The activation notice names exactly the two open gaps  | `SERVICE_ACTIVATION_NOTICE`: live payments off; no customer workspace exists yet, public signup closed, only the owner can create one. Reworded after `569e8e3` made the owner path real; the old wording ("cannot yet create") is now in the CLOSED list of the consistency test |
+| Webhook receipt is never described as verdict evidence | `PROVIDER_PROOF_NOTICE`, FAQ, story page; claim-scan rules                                                                                                                                                                                                                        |
 
 ## 5. Design
 
