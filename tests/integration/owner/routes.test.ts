@@ -304,6 +304,33 @@ describe('owner routes — authenticator enrolment', () => {
     expect(auth.enrolCalls).toBe(1);
   });
 
+  it('OWNER-917 the enrolment response sets the CSRF cookie for the token it renders, so the confirm form can post', async () => {
+    // The production defect of 20 September 11:10Z: the live port mints a fresh token per
+    // request, the enrol POST rendered "confirm a code" with the new token and set no
+    // cookie, and the owner's first code was refused as a CSRF mismatch. A page showing a
+    // one-time secret must never answer "reload the page and try again".
+    const auth = recordingAuth(false);
+    const h = harness({ principal: ownerPrincipal({ mfaVerifiedAt: null }), auth });
+    const enrolled = await h.post('/admin/authenticator/enrol');
+    expect(enrolled.status).toBe(200);
+    const setCookie = enrolled.headers.get('set-cookie') ?? '';
+    expect(setCookie, 'the enrol response set no CSRF cookie').toContain(`verify_csrf=${CSRF}`);
+    // And the form it rendered carries that same token.
+    expect(await enrolled.text()).toContain(`value="${CSRF}"`);
+  });
+
+  it('OWNER-918 a stale-MFA refusal sets the CSRF cookie for the confirm form it renders', async () => {
+    const h = harness({
+      principal: ownerPrincipal({
+        mfaVerifiedAt: new Date(NOW.getTime() - 3_600_000).toISOString(),
+      }),
+    });
+    const refused = await h.post('/owner/controls/ads', { paused: 'yes' });
+    expect(refused.status).toBe(403);
+    expect(refused.headers.get('set-cookie') ?? '').toContain(`verify_csrf=${CSRF}`);
+    expect(await refused.text()).toContain('action="/admin/verify"');
+  });
+
   it('OWNER-916 /admin/verify refuses a post without a CSRF token before it checks any code', async () => {
     const h = harness({ principal: ownerPrincipal({ mfaVerifiedAt: null }) });
     const response = await h.post('/admin/verify', { totp: '123456' }, { omitCsrf: true });
