@@ -320,7 +320,10 @@ describe('decideRefund reaches the D1 approval store', () => {
         currency: 'GBP',
         summary: 'Refund the September charge.',
         created_at: T0,
-        expires_at: '2026-09-20T10:00:00.000Z',
+        // Relative to the REAL clock, because this case deliberately runs decideRefund on
+        // `systemClock`. A fixed date here expired at 10:00 UTC on 20 September 2026 and
+        // failed CI and the release gate that hour, on a commit that had not touched refunds.
+        expires_at: new Date(Date.now() + 86_400_000).toISOString(),
       },
     );
     h.raw
