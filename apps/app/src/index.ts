@@ -523,7 +523,8 @@ app.all('/api/v1/events', async (c) => {
       // eslint-disable-next-line no-console -- structured operational log, as below
       console.log('events', {
         warning: 'stripe_secret_key_unusable',
-        detail: 'STRIPE_SECRET_KEY is set but is neither a test nor a live key; checkout ' +
+        detail:
+          'STRIPE_SECRET_KEY is set but is neither a test nor a live key; checkout ' +
           'will fail. Event intake is unaffected because it never calls Stripe.',
       });
     }
@@ -740,6 +741,14 @@ export default {
       notifications_suppressed: report.billing?.delivery?.suppressed ?? 0,
       notifications_failed: report.billing?.delivery?.failed ?? 0,
       billing_failures: report.billing?.failures.length ?? 0,
+      // The owner-alert pass. Logged for the same reason `billing_skipped` is: a pass that
+      // ran and had nothing to say and a pass that is not wired at all look identical
+      // without this line, and the Telegram channel spent its whole existence in the second
+      // state without anyone being able to see it.
+      owner_alert:
+        report.ownerAlert?.attempted === true
+          ? (report.ownerAlert.outcome ?? 'unknown')
+          : 'not_needed',
       error: report.error ?? null,
     });
   },
