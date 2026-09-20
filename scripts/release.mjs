@@ -98,8 +98,24 @@ try {
     const branch = capture('git', ['rev-parse', '--abbrev-ref', 'HEAD']).trim();
     candidateSha = sha;
     console.log(`  candidate ${sha.slice(0, 12)} on ${branch}`);
-    if (env === 'production' && branch !== 'main') {
-      throw new Error(`production deploys come from main, not ${branch}`);
+    if (env === 'production') {
+      // The invariant is "this commit is on the pushed main history", not "the current
+      // branch is named main". The name check permitted a local `main` holding unpushed
+      // commits and refused a detached worktree sitting exactly on a pushed, CI-tested one
+      // -- which is the shape a release takes while agents hold uncommitted work in the
+      // primary tree. Fetch first so `origin/main` means what the remote says, not what
+      // this clone last saw.
+      capture('git', ['fetch', '--quiet', 'origin', 'main']);
+      const onMain = spawnSync('git', ['merge-base', '--is-ancestor', sha, 'origin/main'], {
+        encoding: 'utf8',
+        shell: process.platform === 'win32',
+      });
+      if (onMain.status !== 0) {
+        throw new Error(
+          `production deploys come from the pushed main history; ${sha.slice(0, 12)} is not on origin/main`,
+        );
+      }
+      console.log('  on origin/main: yes');
     }
   });
 
