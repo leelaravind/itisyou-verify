@@ -232,7 +232,10 @@ export function createBillingRuntime(env: BillingEnv, parts: BillingRuntimeParts
  * quiet passes its own.
  */
 function defaultWebhookLog(entry: Record<string, string | number | boolean>): void {
-  console.log('stripe_webhook', entry);
+  // `warn`, not `log`: this repository's lint rule allows only `warn` and `error`, which
+  // is also what the sibling Resend webhook route uses. A refused delivery is a warning --
+  // somebody is either misconfigured or probing, and both are worth seeing.
+  console.warn('stripe_webhook', entry);
 }
 
 export function createStripeWebhookDeps(
