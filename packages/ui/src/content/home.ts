@@ -2,7 +2,16 @@
  * Marketing home page copy. Plain data only — A05 renders it.
  */
 
-export const HOME_HEADLINE = 'Know whether your automation actually did the job.';
+/**
+ * The hero headline, split so the approved design's accent can fall on one clause.
+ *
+ * Stitch highlights part of this sentence with a gradient. The split is a DATA decision,
+ * not a markup one, so the accent lands on "actually did the job" — the clause that is the
+ * product's whole argument — rather than wherever a span happened to be placed.
+ */
+export const HOME_HEADLINE_LEAD = 'Know whether your automation';
+export const HOME_HEADLINE_ACCENT = 'actually did the job.';
+export const HOME_HEADLINE = `${HOME_HEADLINE_LEAD} ${HOME_HEADLINE_ACCENT}`;
 
 export const HOME_SUBHEAD =
   'A workflow that runs without an error is not the same as a workflow that produced the right result. We check the second thing, by reading HubSpot and Resend back ourselves.';

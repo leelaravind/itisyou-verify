@@ -21,6 +21,7 @@
  * site ships is a nine-line theme toggle that is purely additive.
  */
 import {
+  BRAND,
   DARK,
   ELEVATION,
   FONT,
@@ -88,6 +89,8 @@ const BASE = `
   --t-micro:${TYPE.micro};
   --s1:${SPACE.x1};--s2:${SPACE.x2};--s3:${SPACE.x3};--s4:${SPACE.x4};
   --s6:${SPACE.x6};--s8:${SPACE.x8};--s12:${SPACE.x12};--s16:${SPACE.x16};--s24:${SPACE.x24};
+  --brand-1:${BRAND.primary};
+  --brand-2:${BRAND.secondary};
   --e-rest:${ELEVATION.rest};
   --e-raised:${ELEVATION.raised};
   --r-control:${RADIUS.control};
@@ -166,6 +169,17 @@ a:hover{text-decoration-thickness:2px}
   letter-spacing:0.1em;color:var(--c-muted);margin:0;font-weight:500;
 }
 .display{font-size:var(--t-display);font-weight:700;line-height:1.143;letter-spacing:-0.03em;margin:0}
+/* The hero accent from the approved design. Colour is set FIRST and unconditionally: with
+   background-clip:text the text is painted by the gradient, so a browser that supports the
+   clip but fails to paint would render nothing at all. The solid colour is what remains. */
+.accent{color:var(--brand-1)}
+@supports (background-clip:text) or (-webkit-background-clip:text){
+  .accent{
+    background-image:linear-gradient(100deg,var(--brand-1),var(--brand-2));
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+}
+@media (forced-colors:active){.accent{color:CanvasText;background-image:none}}
 .lede{font-size:1.0625rem;color:var(--c-muted);margin:0}
 .small{font-size:var(--t-small)}
 .muted{color:var(--c-muted)}

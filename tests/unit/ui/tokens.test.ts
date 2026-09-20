@@ -8,6 +8,7 @@
 import { gzipSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
 import {
+  BRAND,
   CSS,
   CSS_BYTES,
   DARK,
@@ -195,6 +196,36 @@ describe('design tokens', () => {
       expect(value, `${value} is not a neutral shadow`).toMatch(
         /^(?:[^,]*rgba\(0,0,0,[\d.]+\),?\s*)+$/,
       );
+    }
+  });
+
+  it('RESIL-187 the hero accent has a solid colour before the gradient, and is not a status colour', () => {
+    /*
+     * `background-clip:text` paints the glyphs with the gradient and needs
+     * `color:transparent` to reveal it. If the gradient does not paint -- an old engine, a
+     * print stylesheet, forced colours -- transparent text on a dark ground is INVISIBLE,
+     * not merely unstyled. So the solid colour is declared first and unconditionally, the
+     * clip lives behind `@supports`, and forced-colors mode drops the gradient entirely.
+     *
+     * The second half matters more on this product than the first. A green word in this
+     * interface carries a verdict. The accent uses Stitch's `primary` (#6ffbbe), which is a
+     * deliberate shade off `status-confirmed` (#4edea3) so the two never read as the same
+     * thing, and this asserts the headline can never be painted in the verdict colour.
+     */
+    expect(CSS, 'the accent has no solid colour before the clip').toMatch(
+      /\.accent\{color:var\(--brand-1\)\}/,
+    );
+    expect(CSS, 'the clip is not behind a support query').toContain(
+      '@supports (background-clip:text)',
+    );
+    expect(CSS, 'forced colours are not handled').toMatch(
+      /@media \(forced-colors:active\)\{\.accent\{color:CanvasText/,
+    );
+    expect(BRAND.primary, 'the accent is the VERIFIED colour').not.toBe(DARK.verified);
+    // And it is still readable: measured on both surfaces it can appear on.
+    for (const ground of [DARK.paper, DARK.surface]) {
+      expect(contrast(BRAND.primary, ground)).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(BRAND.secondary, ground)).toBeGreaterThanOrEqual(4.5);
     }
   });
 

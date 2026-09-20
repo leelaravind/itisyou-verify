@@ -17,7 +17,8 @@ import {
   StatusBadge,
   html,
   type Html,
-  HOME_HEADLINE,
+  HOME_HEADLINE_ACCENT,
+  HOME_HEADLINE_LEAD,
   HOME_HOW_IT_WORKS,
   HOME_SUBHEAD,
   HOME_WHAT_THIS_DOES_NOT_DO,
@@ -46,7 +47,11 @@ function hero(): Html {
       <div class="grid grid-2 grid-center grid-wide-gap">
         <div class="stack">
           <p class="eyebrow">Independent verification of one automation</p>
-          <h1 class="display">${HOME_HEADLINE}</h1>
+          <!-- The accent falls on the clause that is the product's argument, which is a
+               decision made in the content module rather than by where a span sits here. -->
+          <h1 class="display">
+            ${HOME_HEADLINE_LEAD} <span class="accent">${HOME_HEADLINE_ACCENT}</span>
+          </h1>
           <p class="lede measure">${HOME_SUBHEAD}</p>
           ${ButtonRow([
             Button({
