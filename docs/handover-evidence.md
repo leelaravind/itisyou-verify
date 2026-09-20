@@ -5,10 +5,11 @@ rests on a database read, the table and the time are named; where it rests on a 
 case id; where it rests on a third party, what that party showed. Anything not listed here
 as proven is not proven.
 
-Deployed commits at 11:50 UTC: production and staging `f2b7d18` (Cloudflare version
-`2a0ae6f4`, `/health` commit matches). Owner path on production: platform owner claimed 10:59:25Z,
-authenticator enrolled 11:09:28Z, code confirmation pending after a CSRF defect in the enrolment
-response (fixed `b553e71`).
+Deployed commits at 12:45 UTC: production `7a72c81` (Cloudflare version `495efcdd`), staging `7a72c81`.
+Owner path on production: platform owner claimed 10:59:25Z, authenticator enrolled 11:09:28Z, code
+accepted 11:37:55Z, test workspace `ws_01M2Z9TE8795829F6132BD4B5F` created 11:39:29Z through the
+panel, bootstrap proven closed 11:59:01Z (`already_bootstrapped`), customer identity signed in 12:0xZ.
+Connections for the test workspace: none yet (owner pastes credentials).
 
 ## 1. Payments (sandbox only; live payments are off)
 
