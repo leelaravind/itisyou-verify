@@ -820,7 +820,16 @@ export async function handleScheduled(
    * when its own layout was built against its reference -- the palette reaching all
    * nineteen is the token layer, not the design.
    */
-  if (!ownerAlert.attempted && env.ENVIRONMENT === 'production') {
+  //
+  // Gated on nothing FRESH having been sent this tick, not on nothing having been
+  // attempted. The payments milestone above runs on every tick once the secrets are
+  // present, answers `duplicate` from its second tick onward, and still marks the pass
+  // attempted -- so `!attempted` was false on every production tick after 01:51, the design
+  // figure never left this function, and the owner was told it had. Read from the live
+  // `notification_deliveries` table on 20 September: one `payments_configured` row, sent at
+  // 01:51, and no design row at all. `outcome !== 'sent'` keeps one fresh message per tick
+  // and lets the figure through once the earlier milestone is already delivered.
+  if (ownerAlert.outcome !== 'sent' && env.ENVIRONMENT === 'production') {
     try {
       const progress = designProgress();
       const alert = milestoneAlert({
