@@ -16,6 +16,7 @@ import { createOwnerRoutes } from './routes/owner/index.js';
 import { createRunnerRoutes } from './maintenance/routes.js';
 import { D1RunnerPairingPort } from './maintenance/ownerPort.js';
 import { createVisitCounter } from './growth/visits.js';
+import { createD1GrowthPort } from './db/growthPort.js';
 import { createStripeWebhookRoute } from './routes/webhooks/stripe.js';
 import { createResendWebhookRoute } from './routes/webhooks/resend.js';
 import { createResendEndpointResolver, createResendWebhookData } from './db/resendWebhookPort.js';
@@ -302,11 +303,22 @@ app.use('*', async (c, next) => {
   // the salt are Worker secrets and there is no `env` until a request arrives. Cached per
   // isolate so this costs one construction, not one per visit.
   visitCounter ??= createVisitCounter({
-    // `null` until a D1 growth port exists: nothing is counted yet. Deliberate — the
-    // in-memory port forgets on every isolate, so mounting it would report plausible
-    // numbers that are silently wrong, which is worse than reporting nothing because
-    // the founder could not tell the difference.
-    port: () => null,
+    /*
+     * This was `() => null` until 20 September 2026, with a comment explaining that no D1
+     * growth port existed and that mounting the in-memory one would report "plausible
+     * numbers that are silently wrong". Both halves were right; nobody wrote the D1 one.
+     *
+     * The consequence was that after a day of real requests, `visit_sessions` held zero
+     * rows -- and the launch objective this project is measured by is ten genuine external
+     * visits. The counter, the contract, the classifier and the middleware were all
+     * complete and correct, with `null` between them and the database. The dominant defect
+     * of this codebase, landing on its own success metric.
+     *
+     * The binding comes from the enclosing request closure, not from `VisitContext`,
+     * which carries no `env` -- the same way `salt` below reaches it. Built once per
+     * isolate: the port holds only the binding.
+     */
+    port: () => createD1GrowthPort(c.env.DB as never),
     salt: () => c.env.ANALYTICS_SALT,
     internal: {
       // `null` disables header-based exclusion rather than accepting any value. A
