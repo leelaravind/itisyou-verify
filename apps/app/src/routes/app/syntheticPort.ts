@@ -556,6 +556,9 @@ export class SyntheticCustomerDataPort implements CustomerDataPort {
       priceDisplay: formatMoney(money(LIMITS.PLAN_PRICE_PENCE, 'GBP')),
       billingPeriod: 'per month',
       runsIncluded: LIMITS.PLAN_RUNS_PER_PERIOD,
+      // The demo never takes money, so it is always the sandbox answer. Stated rather than
+      // defaulted: this port renders the same review page as the real one.
+      paymentsMode: 'test' as const,
       blockers,
       ready: blockers.length === 0,
     };

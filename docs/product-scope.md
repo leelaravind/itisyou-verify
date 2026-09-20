@@ -408,13 +408,22 @@ checking logic are not yet live.
 
 > **We are not yet accepting live verification traffic.**
 > Everything on this site describes how ITISYOU Verify is built to work, and the
-> underlying checking logic is real and tested. But the parts that connect a real
-> workspace to that logic are not finished: the endpoint that receives your automation's
-> signed events is not live yet, a completed Resend connection cannot yet reach "ready",
-> and the checks that pause verification at your plan allowance or after a failed payment
-> do not yet run automatically. Because of that, we are not taking payment or activating
-> new workspaces right now. Read on for how it will work — this notice will come down
-> once it actually does.
+> underlying checking logic is real and tested. Three things this notice used to call
+> unfinished are now done, and it is only honest to say so: the endpoint that receives
+> your automation's signed events is live and refuses an unsigned request, a Resend
+> connection reaches "ready" only once a correctly signed callback has actually arrived,
+> and the plan allowance is enforced on the live request path. What is not finished is the
+> part that matters most before anyone pays: no purchase has been completed end to end on
+> a deployment, and a HubSpot record has never been read back from a real portal. So we
+> are not taking payment or activating new workspaces yet. This notice comes down when
+> that last part is done, and not before.
+
+**This specification is the fourth copy of that fact and was the last one still stale.**
+The auditor found it in pass 7, after two copies in the UI had been corrected: a document
+that _specifies_ a false notice will put it back the next time someone implements from the
+spec, which makes a stale spec worse than a stale string. The wording above is kept
+identical to `SERVICE_ACTIVATION_NOTICE` in `packages/ui/src/content/site.ts` on purpose —
+if the two ever differ, the code is right and this line is the defect.
 
 A05: render this on `/`, `/pricing`, and the entry point of the onboarding flow, above the
 fold, not in a footnote.

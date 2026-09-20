@@ -21,6 +21,7 @@ import { getConnector, type ProviderId } from '@verify/connectors';
 import { runs, type DueRun } from '../db/runs';
 import { D1BillingDataPort, createBillingContactLookup } from '../db/billingPort';
 import { D1SupportDataPort } from '../db/supportPort';
+import { sendOwnerAlert, telegramTransportFromEnv } from '../notifications/telegram';
 import {
   runBillingNotificationTick,
   type BillingNotificationTickReport,
@@ -68,6 +69,12 @@ export interface RunPassReport {
   readonly outcomes: readonly ObservationOutcome[];
 }
 
+/** The outcome of the owner-alert pass. `outcome` is null exactly when nothing was sent. */
+export interface OwnerAlertPassReport {
+  readonly attempted: boolean;
+  readonly outcome: string | null;
+}
+
 export interface TickReport {
   readonly startedAt: string;
   readonly finishedAt: string;
@@ -82,6 +89,14 @@ export interface TickReport {
   };
   /** Set when the tick itself failed. The handler still resolves; the number is the signal. */
   readonly error: string | null;
+  /**
+   * Whether this tick needed to ping the owner, and what came of it.
+   *
+   * `attempted: false` is the healthy state and is reported rather than omitted, because a
+   * pass that never runs and a pass that is not wired look identical in a log -- which is
+   * how the Telegram channel came to be unreachable without anyone noticing.
+   */
+  readonly ownerAlert?: OwnerAlertPassReport;
   /**
    * The billing-maintenance and customer-notification pass.
    *
@@ -208,12 +223,12 @@ export async function runSchedulerTick(deps: TickDeps): Promise<TickReport> {
       reason: 'expensive_verification is paused by the owner',
     });
   } else {
-  try {
-    runPass = await runDuePass(deps, budget, logger);
-  } catch (caught) {
-    error = messageOf(caught);
-    logger.warn('scheduler.runs.failed', { message: error });
-  }
+    try {
+      runPass = await runDuePass(deps, budget, logger);
+    } catch (caught) {
+      error = messageOf(caught);
+      logger.warn('scheduler.runs.failed', { message: error });
+    }
   }
 
   try {
@@ -408,6 +423,15 @@ export interface ScheduledOptions {
   readonly notificationLog?: DeliveryLog | undefined;
   /** Run every billing job regardless of the minute. Tests and a manual owner trigger. */
   readonly forceBillingMaintenance?: boolean | undefined;
+  /**
+   * The `fetch` the owner-alert pass hands to the Telegram transport.
+   *
+   * Injected for the same reason `notifications` is: with the global hardcoded, the only
+   * way to test this pass is to let it reach the network, so it would not be tested -- and
+   * an untested notification pass is how the Telegram channel came to be complete,
+   * guarded, and called by nothing. Omitted in production, where the global is correct.
+   */
+  readonly ownerAlertFetch?: typeof fetch | undefined;
 }
 
 /**
@@ -575,9 +599,74 @@ export async function handleScheduled(
     ...(money?.billing === undefined ? {} : { maintenance: money.billing }),
   });
 
+  /*
+   * The owner alert pass, and the fifth thing in this file that had no caller.
+   *
+   * `notifications/telegram.ts` is a complete, guarded channel: a kind allowlist, a shape
+   * guard that refuses rather than redacts, a one-method API allowlist protecting the
+   * founder's running poller, and `paymentGatewayReadyAlert` written for this exact
+   * situation by name. Nothing in the application called `sendOwnerAlert`. The founder
+   * asked to be pinged when something needed them and the code to do it was unreachable,
+   * which is this project's dominant defect class landing on the one path whose whole
+   * value is timing.
+   *
+   * The condition is deliberately narrow: this deployment cannot take money. That is the
+   * only state where the owner is genuinely the only person who can act, because the fix
+   * is a secret value that must never travel through anything but `wrangler secret put`.
+   *
+   * `notificationKey` is derived from the environment and the sorted list of secret NAMES,
+   * never a clock, so a five-minute cron sending this every tick sends it once -- and
+   * sends again only if a different secret becomes the problem. `dispatchNotification`
+   * enforces that; this function only has to name the event honestly.
+   *
+   * Never throws. A tick that cannot ping is a tick, not a retry.
+   */
+  let ownerAlert: OwnerAlertPassReport = { attempted: false, outcome: null };
+  const billingSecrets = checkBillingSecrets(billingEnv);
+  // Gated on `PUBLIC_BASE_URL`, exactly as the deletions pass above is, and for the same
+  // reason: a deployment without one is not serving customers -- a local dev tick, or a
+  // bare Worker -- and "this deployment cannot take payment" is not news about it. Without
+  // this, every unconfigured tick anywhere would write a delivery row saying the owner
+  // could not be told something that did not matter.
+  if (!billingSecrets.ready && (env.PUBLIC_BASE_URL ?? '').length > 0) {
+    try {
+      const names = [...billingSecrets.missing].sort();
+      const environment = env.STRIPE_MODE === 'live' ? 'live' : 'test';
+      const result = await sendOwnerAlert(
+        {
+          port: new D1SupportDataPort(db),
+          transport: telegramTransportFromEnv(
+            env as unknown as Readonly<Record<string, unknown>>,
+            options.ownerAlertFetch ?? fetch,
+          ),
+          now: () => now,
+        },
+        {
+          kind: 'authentication_required',
+          // The names, not the values. A secret name is a variable name.
+          notificationKey: `authentication_required:billing_secrets:${environment}:${names.join(',')}`,
+          headline: 'Payments are not configured on a deployment',
+          detail:
+            `The ${environment} deployment cannot take payment. ` +
+            `Unset or unusable: ${names.join(', ')}. ` +
+            'Only you can set these, because the value must not pass through the assistant, ' +
+            'a log or a screenshot. Set each one with wrangler secret put, then the checkout ' +
+            'control appears on the review page by itself.',
+        },
+      );
+      ownerAlert = { attempted: true, outcome: result.outcome };
+    } catch (caught) {
+      (options.logger ?? SILENT_LOGGER).warn('scheduler.owner_alert.failed', {
+        message: caught instanceof Error ? caught.message : String(caught),
+      });
+      ownerAlert = { attempted: true, outcome: 'failed' };
+    }
+  }
+
   return {
     ...report,
     billing,
+    ownerAlert,
     ...(money === null ? {} : { money }),
     ...(deletions.length === 0 ? {} : { deletions }),
   };

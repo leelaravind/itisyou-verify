@@ -207,3 +207,84 @@ describe('createCheckout through the port a page holds', () => {
     expect(captured).toEqual([]);
   });
 });
+
+/**
+ * The provider failing is not a 500.
+ *
+ * Added after the independent auditor made Stripe fail three ways against a real signed-in
+ * customer — a 401, a rejected price id, and no answer at all — and got a bare 500 each
+ * time, after the button was pressed. `createCheckout` already carried a careful refusal
+ * saying no card was charged; `startCheckout` throws rather than returning an outcome for
+ * these, so that sentence was unreachable for precisely the cases it was written for.
+ *
+ * "No card was charged" is true on every path here: a Checkout Session is not a charge, and
+ * a card is entered on Stripe's own page after this request has returned.
+ *
+ * Case ids `BILL-617..BILL-620`.
+ */
+describe('a provider failure refuses honestly instead of 500ing', () => {
+  /** A fetch that answers as a failing Stripe would. */
+  function failingStripe(make: () => Promise<Response>): typeof fetch {
+    return (async () => await make()) as typeof fetch;
+  }
+
+  function jsonError(status: number, message: string): () => Promise<Response> {
+    return async () =>
+      new Response(JSON.stringify({ error: { message } }), {
+        status,
+        headers: { 'content-type': 'application/json' },
+      });
+  }
+
+  /**
+   * Titles are spelled out rather than built from a loop variable.
+   *
+   * A generated title puts the case id in a template literal, so it is not a literal
+   * string anywhere in the source — `verify-test-cases.mjs` reconciles ledger ids against
+   * the ids it can read in test titles and reports the case as missing from the tree. That
+   * is not a quirk of the checker: a case id you cannot grep for is a case nobody can find
+   * from a failing report either. This exact mistake has been made in this repository once
+   * before, with `CUST-09${'{'}i + 2{'}'}`.
+   */
+  async function expectHonestRefusal(fetchImpl: typeof fetch): Promise<void> {
+    connectBoth(h, ws);
+    const port = await signedInPort(h, ws, { fetchImpl });
+
+    const result = await port.createCheckout();
+
+    expect(result.ok, 'a provider failure must not read as success').toBe(false);
+    expect(result.message).toContain('no card was charged');
+    expect(result.redirectTo).toBeNull();
+  }
+
+  it('BILL-617 a 401 from Stripe refuses and says no card was charged', async () => {
+    await expectHonestRefusal(failingStripe(jsonError(401, 'Invalid API Key provided')));
+  });
+
+  it('BILL-618 a rejected price id refuses and says no card was charged', async () => {
+    await expectHonestRefusal(failingStripe(jsonError(400, 'No such price')));
+  });
+
+  it('BILL-619 a provider that does not answer refuses and says no card was charged', async () => {
+    await expectHonestRefusal((async () => {
+      throw new TypeError('network error');
+    }) as typeof fetch);
+  });
+
+  it('BILL-620 the refusal never repeats the provider message back to the customer', async () => {
+    connectBoth(h, ws);
+    const port = await signedInPort(h, ws, {
+      fetchImpl: (async () =>
+        new Response(
+          JSON.stringify({ error: { message: `Invalid API Key provided: ${STRIPE_KEY}` } }),
+          { status: 401, headers: { 'content-type': 'application/json' } },
+        )) as typeof fetch,
+    });
+
+    const result = await port.createCheckout();
+
+    // The page shows this sentence. A provider error can quote our own key back at us.
+    expect(result.message).not.toContain(STRIPE_KEY);
+    expect(result.message).not.toContain('Invalid API Key');
+  });
+});

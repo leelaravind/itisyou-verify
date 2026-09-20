@@ -23,7 +23,7 @@ import { LIMITS, formatMoney, money } from '@verify/contracts';
 import { generateCsrfToken, maskToken, sha256Hex, stableStringify } from '@verify/security';
 import { AppError } from '@verify/contracts';
 import { establishConnection, type ProviderId } from '@verify/connectors';
-import { secretKeyIsUsable } from '@verify/connectors/stripe';
+import { scrubSecret, secretKeyIsUsable } from '@verify/connectors/stripe';
 import type {
   ActivationView,
   ConnectionCredentialsInput,
@@ -897,6 +897,16 @@ export class D1CustomerDataPort implements CustomerDataPort {
     // `Stripe secret key does not look like a test or live key` -- a 500 the customer met
     // only after deciding to buy. Found by pressing the button on a deployment; no unit
     // test could have seen it, because every one of them supplies a well-formed fixture.
+    // The same question asked of the price. `price_…` is Stripe's shape; anything else is a
+    // 400 from the provider AFTER the customer has pressed Continue. The auditor called
+    // this "the next STRIPE_SECRET_KEY" and was right: one of the pair was validated and
+    // the other was not, for no reason other than which one had already caused an outage.
+    const priceId = this.#env.STRIPE_PRICE_ID ?? '';
+    if (priceId !== '' && !/^price_[A-Za-z0-9]+$/.test(priceId)) {
+      blockers.push(
+        'Payments are not enabled in this environment: STRIPE_PRICE_ID is set but is not a Stripe price id. That is our configuration, not something on your side.',
+      );
+    }
     const secretKey = this.#env.STRIPE_SECRET_KEY ?? '';
     if (secretKey !== '' && !secretKeyIsUsable(secretKey)) {
       blockers.push(
@@ -977,23 +987,59 @@ export class D1CustomerDataPort implements CustomerDataPort {
     const { startCheckout } = await import('../billing/index');
     void secretKey;
 
-    const result = await startCheckout(
-      {
-        ...(await this.#billingRuntime()),
-        // Eligibility is `orderSummary`'s question, already answered above. Asking it
-        // again through this port keeps billing unable to take money on its own say-so.
-        checkEligibility: async () => {
-          const current = await this.orderSummary();
-          return current.ready
-            ? { eligible: true }
-            : { eligible: false, reason: current.blockers.join(' ') };
+    /*
+     * Everything below the button, including the provider failing.
+     *
+     * `startCheckout` returns an outcome for the refusals it anticipates and THROWS for a
+     * gateway that answers 401, rejects the price id, or does not answer at all. Those
+     * three are the likeliest real failures on this path, and every one of them escaped to
+     * the page error boundary as a bare 500 -- so the careful refusal wording below, which
+     * exists precisely so a customer is told no card was charged, was unreachable for
+     * exactly the cases it was written for. The auditor found this by making Stripe fail
+     * rather than by reading the method.
+     *
+     * "No card was charged" stays true on every path through this catch. A Checkout
+     * Session is not a charge; a card is entered on Stripe's page, after this request has
+     * already returned. So the sentence is safe to say even when we do not know how far
+     * the call got, which is the only reason it may be said at all.
+     *
+     * The cause is logged and never rendered: a provider error can carry a key, and this
+     * message is shown to whoever pressed the button.
+     */
+    let result: Awaited<ReturnType<typeof startCheckout>>;
+    try {
+      result = await startCheckout(
+        {
+          ...(await this.#billingRuntime()),
+          // Eligibility is `orderSummary`'s question, already answered above. Asking it
+          // again through this port keeps billing unable to take money on its own say-so.
+          checkEligibility: async () => {
+            const current = await this.orderSummary();
+            return current.ready
+              ? { eligible: true }
+              : { eligible: false, reason: current.blockers.join(' ') };
+          },
         },
-      },
-      {
-        workspaceId: scope.workspaceId,
-        ...(scope.email === undefined ? {} : { customerEmail: scope.email }),
-      },
-    );
+        {
+          workspaceId: scope.workspaceId,
+          ...(scope.email === undefined ? {} : { customerEmail: scope.email }),
+        },
+      );
+    } catch (caught) {
+      // eslint-disable-next-line no-console -- the operator's only view of a money-path failure
+      console.log('checkout', {
+        event: 'checkout_start_failed',
+        workspace_id: scope.workspaceId,
+        // `scrubSecret` removes any `sk_`/`rk_`/`whsec_` shaped token, so a provider error
+        // quoting the key back at us cannot put it in a log line.
+        message: scrubSecret(caught instanceof Error ? caught.message : String(caught)),
+      });
+      return refuse(
+        'No checkout session was created and no card was charged. Our payment provider did not ' +
+          'complete the request. Nothing about your workspace has changed; try again in a moment, ' +
+          'and if it keeps happening please contact support before trying a different card.',
+      );
+    }
 
     if (result.outcome === 'checkout_ready') {
       // Stripe's hosted page. The card is entered there and never reaches us.
