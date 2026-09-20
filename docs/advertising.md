@@ -760,3 +760,85 @@ and `docs/organic-launch.md` is written and awaiting approval. Nothing has been 
 Pointing paid traffic at the site is also worth more once the Stripe webhook is fixed: as
 of this entry the site correctly tells visitors it is not taking payment, so a click buys a
 reader, not a customer.
+
+---
+
+## 12. Second build attempt, and two corrections — 20 September 2026
+
+The first draft did not persist. The campaigns list read **"Drafts in progress: 0"** while the
+wizard's own footer said "All changes saved", so the earlier entry in section 11 claiming a
+saved draft was wrong. It is left above rather than edited, because it was reported to the
+owner as saved.
+
+The campaign was rebuilt end to end: objective, type, bidding, networks, locations, dates,
+keywords and the full ad. Two things stopped it, and one of them is a correction to the
+research in section 2.
+
+### Correction: a campaign total budget DOES exist for Search
+
+Section 2 states, as the finding that rules Google out, that "no total budget exists for
+Search; the only documented guarantee is `30.4 x average daily budget per calendar month`".
+The budget step of the live wizard offers, in plain sight:
+
+> **Campaign total budget** — Set a budget for the duration of your campaign
+
+That is a true ceiling and it is exactly the control section 2 said was missing. The whole
+`£0.41/day` derivation exists only because a total was believed impossible; with a total
+budget the correct setting is **£12.46 for the run**, which needs no arithmetic about
+calendar months and no reliance on Google's overdelivery guarantee.
+
+The earlier research was done from documentation rather than from the product. That is the
+same mistake this repository keeps finding in its own code — reading the source instead of
+running the thing — and it produced a worse spend control and a briefing the owner acted on.
+
+### The blocker: Google demands an identity re-confirmation
+
+Saving the budget triggers a **"Confirm it's you"** dialog:
+
+> To keep your data safe, please confirm that it's really you. After confirmation, you will
+> need to complete your action.
+
+That is an account authentication challenge on the owner's Google account, and it was not
+answered. Authenticating as the owner is not something the assistant may do, and clicking
+through would likely push a prompt to the owner's own device without them expecting it. The
+wizard footer now reads **"Changes failed to save"** in red, which is the honest state.
+
+**The campaign therefore cannot be completed without the owner.** Everything up to the
+budget is configured; the budget is the step that requires the challenge to be passed.
+
+### What the owner would need to do
+
+1. Open the campaign draft in Google Ads and pass the "Confirm it's you" prompt.
+2. On the Budget step choose **Campaign total budget** and enter **£12.46** — not the
+   average daily budget, and not the £23.02 Google recommends, which is nearly twice the
+   entire authorisation for a single day.
+
+### The ad copy, and why the defaults had to be thrown away
+
+Google pre-filled the ad by scraping `/demo`. The headlines it wrote included:
+
+- **"Verification Of Fake Facts"**
+- `Enq_0000000000000001` — a synthetic identifier from the worked example
+- "We Observed Bounced"
+
+and the descriptions included "Reason CONNECTION_UNAVAILABLE. What This Check Does and Does
+Not Cover". The first of those would have been a catastrophic advert for a product that
+sells honesty about evidence.
+
+All five headlines and all three descriptions were replaced with the copy in section 8,
+trimmed to Google's 30- and 90-character limits:
+
+| Slot          | Text                                                                                 | Length |
+| ------------- | ------------------------------------------------------------------------------------ | ------ |
+| Headline 1    | Did the automation do it?                                                            | 25     |
+| Headline 2    | Check the outcome, not logs                                                          | 27     |
+| Headline 3    | We read Resend back ourselves                                                        | 29     |
+| Headline 4    | Four answers, never a fifth                                                          | 27     |
+| Headline 5    | Evidence, not a green tick                                                           | 26     |
+| Description 1 | Your workflow says success. We read the outcome back from Resend ourselves.          | 75     |
+| Description 2 | Verified, failed, unverified, pending. Missing evidence is never reported as a pass. | 84     |
+| Description 3 | One workflow. HubSpot and Resend only. We say plainly what we could not check.       | 78     |
+
+Keywords are the five exact-match phrases from section 8. AI Max, text customisation and
+final-URL expansion are all **off**, so Google cannot rewrite any of the above — which,
+given what it wrote unprompted, is not a theoretical protection.
