@@ -18,11 +18,16 @@
  * an UPDATE and never a second row, a failed read is `null` rather than `0`, and a failed
  * sync writes no figures.
  *
- * Case ids `BUDGET-540..BUDGET-545`.
+ * Case ids `BUDGET-540..BUDGET-548`.
+ *
+ * `BUDGET-546..548` were added after the counter went live and immediately recorded two of
+ * this project's own browser checks as external visitors. They pin contract rule 7: a
+ * session may be corrected into an excluded class and may never leave one.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { D1GrowthPort } from '@app/db/growthPort';
-import type { VisitSession } from '@app/growth/analytics';
+import { createMemoryGrowthPort, excludedFirst } from '@app/growth/memory';
+import type { VisitClassification, VisitSession } from '@app/growth/analytics';
 import { createTestDb, type TestDb } from '../db/harness';
 
 const DAY = '2026-09-20';
@@ -134,6 +139,82 @@ describe('the visit counter reaches a database', () => {
     // "nobody visited today" — the precise failure this product exists to complain about.
     expect(counts, 'a failed read was reported as a real count').toBeNull();
     expect(expired, 'a failed read was reported as a real count').toBeNull();
+  });
+
+  it('BUDGET-546 a session learnt to be internal is corrected, even though rule 1 refuses to revise how it began', async () => {
+    // A browser cannot send the internal header, so the operator is only recognisable once
+    // the exclusion cookie is set — which is AFTER their first page view. Production
+    // recorded two of this project's own checks as external visitors for exactly that
+    // reason, on the figure the whole launch objective is measured by.
+    await port.recordVisit(session({ id: 'operator', classification: 'external' }), T('09:00'));
+    await port.recordVisit(
+      session({ id: 'operator', classification: 'internal_test' }),
+      T('09:02'),
+    );
+
+    const stored = h.raw.prepare('SELECT * FROM visit_sessions').get() as Record<string, unknown>;
+    expect(stored['classification']).toBe('internal_test');
+    // Still one row, and how the session BEGAN is still not rewritten.
+    expect(rows()).toBe(1);
+    expect(stored['first_seen_at']).toBe(T('09:00'));
+    expect(stored['landing_path']).toBe('/demo');
+
+    const counts = await port.countVisits({ since: T('00:00'), until: T('23:59') });
+    expect(counts?.external, 'the operator was still counted as a visitor').toBe(0);
+    expect(counts?.internalTest).toBe(1);
+  });
+
+  it('BUDGET-547 an excluded session can never be re-counted as a visitor', async () => {
+    // The direction is the safety property. If this ever reversed, a crawler that later
+    // sent a browser-shaped user agent would be promoted into the launch figure, and the
+    // number this project reports would be one nobody could stand behind.
+    await port.recordVisit(session({ id: 'bot', classification: 'bot_suspected' }), T('09:00'));
+    await port.recordVisit(session({ id: 'bot', classification: 'external' }), T('09:05'));
+    await port.recordVisit(session({ id: 'ours', classification: 'internal_test' }), T('09:10'));
+    await port.recordVisit(session({ id: 'ours', classification: 'external' }), T('09:15'));
+
+    const counts = await port.countVisits({ since: T('00:00'), until: T('23:59') });
+
+    expect(counts?.external, 'an excluded session was promoted back to external').toBe(0);
+    expect(counts?.botSuspected).toBe(1);
+    expect(counts?.internalTest).toBe(1);
+  });
+
+  it('BUDGET-548 the two ports agree on rule 7, so the suite cannot pass against one and fail in production', async () => {
+    // `excludedFirst` is the rule written once. The SQL says the same thing in CASE form,
+    // and these are the four transitions that decide whether a figure can be inflated.
+    const memory = createMemoryGrowthPort();
+    const cases: readonly [VisitClassification, VisitClassification, VisitClassification][] = [
+      ['external', 'internal_test', 'internal_test'],
+      ['external', 'bot_suspected', 'bot_suspected'],
+      ['bot_suspected', 'external', 'bot_suspected'],
+      ['internal_test', 'external', 'internal_test'],
+      // `unknown` stays unknown. This row was written expecting 'external' and both ports
+      // said 'unknown', which is the stronger answer and the one kept: promoting a session
+      // into `external` on a later request would INFLATE the launch figure, and rule 7
+      // exists precisely so nothing can do that. Unknown is not a visitor.
+      ['unknown', 'external', 'unknown'],
+      ['unknown', 'bot_suspected', 'bot_suspected'],
+    ];
+
+    for (const [stored, incoming, expected] of cases) {
+      expect(excludedFirst(stored, incoming), `${stored} + ${incoming}`).toBe(expected);
+
+      const id = `pair_${stored}_${incoming}`;
+      await port.recordVisit(session({ id, classification: stored }), T('09:00'));
+      await port.recordVisit(session({ id, classification: incoming }), T('09:01'));
+      const row = h.raw
+        .prepare('SELECT classification FROM visit_sessions WHERE id = ?')
+        .get(id) as { classification: string };
+      expect(
+        row.classification,
+        `SQL disagreed with excludedFirst on ${stored} + ${incoming}`,
+      ).toBe(expected);
+
+      await memory.recordVisit(session({ id, classification: stored }), T('09:00'));
+      await memory.recordVisit(session({ id, classification: incoming }), T('09:01'));
+      expect(memory.rows.get(id)?.classification, `memory port disagreed on ${id}`).toBe(expected);
+    }
   });
 
   it('BUDGET-545 a window excludes what falls outside it, at both ends', async () => {

@@ -27,6 +27,21 @@
  *     appends a second.
  *  6. **Nothing here decides anything.** Classification, attribution, stop rules and the
  *     approval hash are pure functions in this directory. The port only persists.
+ *  7. **A session's classification may only ever move toward exclusion.** On a repeat
+ *     visit, `external` or `unknown` may become `internal_test` or `bot_suspected`, and
+ *     nothing may move the other way. Added 20 September 2026, after production recorded
+ *     two sessions as external that were this project's own browser checks: a browser
+ *     cannot send the internal header, so the operator is only recognisable once the
+ *     exclusion cookie is set, which happens after the first page view. Without this rule
+ *     that first view stays external for the rest of the day, because rule 1 deliberately
+ *     refuses to revise how a session began.
+ *
+ *     The asymmetry is the whole point. Correcting a session INTO an excluded class can
+ *     only ever reduce the external figure, so no visitor and no bug can use it to inflate
+ *     the number the launch objective is measured by. Allowing the reverse would let a
+ *     session that was once recognised as automated be re-counted as a person. For the
+ *     same reason `unknown` never becomes `external` either: unknown is not a visitor, and
+ *     a later request is not permission to promote one.
  */
 import type { VisitClassification, VisitSession } from './analytics';
 

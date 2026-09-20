@@ -60,10 +60,22 @@ export class D1GrowthPort implements GrowthDataPort {
    * A second request from the same visitor on the same day must never produce a second
    * row, which is what makes "visits" a count of people-days rather than page loads. The
    * `ON CONFLICT` branch updates `last_seen_at` and increments `page_views`; it
-   * deliberately does NOT touch `first_seen_at`, `landing_path`, the UTM columns or the
-   * classification, because those describe how the session BEGAN and a later page view
-   * does not revise that. Re-attributing a visit to whatever page they happened to reach
-   * second would quietly overstate the landing page that actually earned the visit.
+   * deliberately does NOT touch `first_seen_at`, `landing_path` or the UTM columns,
+   * because those describe how the session BEGAN and a later page view does not revise
+   * that. Re-attributing a visit to whatever page they happened to reach second would
+   * quietly overstate the landing page that actually earned the visit.
+   *
+   * Classification is the one exception, and only in one direction (rule 7). A session may
+   * be corrected INTO `internal_test` or `bot_suspected` and may never leave one. That is
+   * not a revision of how the session began; it is what happens when we learn, on the
+   * second request, something we could not know on the first — a browser cannot send the
+   * internal header, so the operator only becomes recognisable once the exclusion cookie
+   * is set, which is after their first page view. Production recorded two of this
+   * project's own browser checks as external visitors for exactly that reason.
+   *
+   * The direction is the safety property: a correction can only ever REDUCE the external
+   * figure, so nothing — not a visitor, not a bug in the classifier — can use this branch
+   * to inflate the number the launch objective is measured by.
    *
    * `meta.changes` cannot distinguish an insert from an update here — D1 reports 1 for
    * both — so `inserted` is derived from the returned `page_views`: a fresh row is always
@@ -79,7 +91,13 @@ export class D1GrowthPort implements GrowthDataPort {
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
          ON CONFLICT(id) DO UPDATE SET
            last_seen_at = excluded.last_seen_at,
-           page_views = visit_sessions.page_views + 1
+           page_views = visit_sessions.page_views + 1,
+           classification = CASE
+             WHEN excluded.classification IN ('internal_test', 'bot_suspected')
+              AND visit_sessions.classification NOT IN ('internal_test', 'bot_suspected')
+             THEN excluded.classification
+             ELSE visit_sessions.classification
+           END
          RETURNING page_views`,
       )
       .bind(
