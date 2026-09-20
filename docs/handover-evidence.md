@@ -5,9 +5,10 @@ rests on a database read, the table and the time are named; where it rests on a 
 case id; where it rests on a third party, what that party showed. Anything not listed here
 as proven is not proven.
 
-Deployed commits at the time of writing: production `569e8e3` (Cloudflare version
-`6478fbd1`, `/health` commit matches at 09:31:33Z), staging `569e8e3` (09:38:05Z). A
-follow-up `7a4e026` (release Telegram milestone, story record) is in CI.
+Deployed commits at 10:00 UTC: production and staging `7a4e026` (`/health` commit matches at
+09:46Z). The release Telegram milestone it added was delivered at 09:44:39Z
+(`notification_deliveries` row `milestone_reached:release_deployed:production:7a4e0267d7f2`,
+state `sent`). A follow-up `3154a87` (notice rewording) is in CI.
 
 ## 1. Payments (sandbox only; live payments are off)
 
