@@ -3,7 +3,7 @@
 Supersedes `docs/launch-plan.md`. One owner, one status, one next action, one closing
 evidence per item. Updated in place; no second copy anywhere.
 
-**Now:** 10:15 UTC · **Allowance resets:** 13:45 UTC · **Remaining:** ~3h30m
+**Now:** 10:05 UTC · **Allowance resets:** 13:45 UTC · **Remaining:** ~3h30m
 
 Status: `done` · `active` · `blocked` · `queued`
 
@@ -22,16 +22,16 @@ Status: `done` · `active` · `blocked` · `queued`
 
 ## D2 — Core product: real HubSpot + Resend workflow
 
-| #   | Item                                                                    | Owner      | Status   | Next action | Evidence to close                                                                                                                       |
-| --- | ----------------------------------------------------------------------- | ---------- | -------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| 2.1 | Resend: correct evidence → VERIFIED                                     | A-WORKFLOW | **done** | —           | `run_01M2YRDJFB…`, provider_readback                                                                                                    |
-| 2.2 | Wrong recipient → FAILED                                                | A-WORKFLOW | **done** | —           | `run_01M2YRJG8F…`, CONTRADICTED/VALUE_MISMATCH                                                                                          |
-| 2.3 | Unavailable evidence → UNVERIFIED                                       | A-WORKFLOW | **done** | —           | `run_01M2YRBQ9E…`, EVIDENCE_NOT_RETURNED                                                                                                |
-| 2.4 | HubSpot property `itisyou_verify_ref` exists                            | lead       | **done** | —           | portal 149371406, 211→212 properties                                                                                                    |
-| 2.5 | Synthetic contact carrying a known ref                                  | lead       | **done** | —           | contact `871054966976`, `itisyou_verify_ref = ENQ-MATCH-0001`, verified across a reload                                                 |
-| 2.6 | HubSpot match → SUPPORTED/MATCHED                                       | A-WORKFLOW | **done** | —           | `run_01M2YTSKKM…` VERIFIED; `evd_01M2YV0J4V…` hubspot/provider_readback; independently confirmed by the verifier                        |
-| 2.7 | HubSpot correlation **contradiction** (retrieved record, wrong enquiry) | A-WORKFLOW | **done** | —           | `run_01M2YTSKRX…` FAILED, CONTRADICTED/VALUE_MISMATCH on `evd_01M2YV0MN4…` hubspot/provider_readback; verifier confirmed the row values |
-| 2.8 | Usage increments and shows in dashboard                                 | A-WORKFLOW | queued   | After 2.6   | `consumed` before/after, same number on `/app/usage`                                                                                    |
+| #   | Item                                                                    | Owner      | Status                   | Next action | Evidence to close                                                                                                                                                                                                             |
+| --- | ----------------------------------------------------------------------- | ---------- | ------------------------ | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2.1 | Resend: correct evidence → VERIFIED                                     | A-WORKFLOW | **done**                 | —           | `run_01M2YRDJFB…`, provider_readback                                                                                                                                                                                          |
+| 2.2 | Wrong recipient → FAILED                                                | A-WORKFLOW | **done**                 | —           | `run_01M2YRJG8F…`, CONTRADICTED/VALUE_MISMATCH                                                                                                                                                                                |
+| 2.3 | Unavailable evidence → UNVERIFIED                                       | A-WORKFLOW | **done**                 | —           | `run_01M2YRBQ9E…`, EVIDENCE_NOT_RETURNED                                                                                                                                                                                      |
+| 2.4 | HubSpot property `itisyou_verify_ref` exists                            | lead       | **done**                 | —           | portal 149371406, 211→212 properties                                                                                                                                                                                          |
+| 2.5 | Synthetic contact carrying a known ref                                  | lead       | **done**                 | —           | contact `871054966976`, `itisyou_verify_ref = ENQ-MATCH-0001`, verified across a reload                                                                                                                                       |
+| 2.6 | HubSpot match → SUPPORTED/MATCHED                                       | A-WORKFLOW | **done**                 | —           | `run_01M2YTSKKM…` VERIFIED; `evd_01M2YV0J4V…` hubspot/provider_readback; independently confirmed by the verifier                                                                                                              |
+| 2.7 | HubSpot correlation **contradiction** (retrieved record, wrong enquiry) | A-WORKFLOW | **done**                 | —           | `run_01M2YTSKRX…` FAILED, CONTRADICTED/VALUE_MISMATCH on `evd_01M2YV0MN4…` hubspot/provider_readback; verifier confirmed the row values                                                                                       |
+| 2.8 | Usage increments and shows in dashboard                                 | lead       | **done 10:01Z, staging** | —           | one signed event through `POST /api/v1/events` → 202, `run_01M2Z46X56…` PENDING; `/app/usage` in the same customer session reads **12 / 500, 488 remaining, runs received 15** (was 11 / 14); `entitlements.consumed` 11 → 12 |
 
 ## D3 — Customer and owner screens
 

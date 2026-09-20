@@ -568,3 +568,25 @@ was not touched. `transport` is still computed and not persisted, so these two r
 audited for live-versus-simulated after the fact — the argument that they are live rests on
 the wiring and on the fact that a fabricated portal record answered with a value nothing in
 this repository knows.
+
+---
+
+## (e) Usage increments, and the customer sees the same number — 20 September, 10:01 UTC
+
+Baseline read from the staging `entitlements` table: `ent_01M2YPVQ3W4BF397973DC04EE9`,
+`run_limit 500`, `consumed 11`; `runs` for the workspace: 14.
+
+One signed source event went through the real intake — the signing key was re-issued through
+`POST /app/onboarding/activation/signing-key` in a `workspace_admin` session minted by the
+repository's own seed script, the body was signed `t=<unix>,v1=<hmac>` over `<t>.<body>`, and
+`POST /api/v1/events` answered **202** with `run_01M2Z46X56869883441D8E4F11`, `PENDING`,
+`duplicate: false`. The run will settle UNVERIFIED by design: the event named no
+`email_message_id`, so no email evidence can bind to it, and the page says so.
+
+Read back in the same session, `GET /app/usage` (200): "This billing period **12 / 500**, 488
+runs remaining", "Runs received **15**", 3 verified / 3 failed / 8 unverified (the fifteenth is
+still pending). The `entitlements` row read afterwards: `consumed 12`. One event, one
+increment, and the customer-facing figure equals the table.
+
+Not claimed: anything about production — it has no workspace yet — and nothing about the
+verdict of this run, which had not been decided when this was written.
