@@ -190,6 +190,52 @@ try {
           short.map((f) => `${f.category} ${f.counted}/${f.minimum}`).join(', '),
       );
     }
+
+    /*
+     * The browser suite.
+     *
+     * This check did not exist, and its absence was not theoretical. The artefact for
+     * `e0aa820` carried `runners.playwright.stats.unexpected: 3` and `accounting.failing: 0`
+     * in the same file, `gate.met` was true, and production was deployed from it. Three
+     * browser cases failed and nothing between them and a live deployment looked.
+     *
+     * The cause is that the two halves never met. `verify-test-cases.mjs` reads the ledger
+     * and the vitest results; it never opens the Playwright report, so a failing browser
+     * case cannot become a `failing` row in the accounting. CI's own comment says such a
+     * case "becomes a recorded failure"; it became a number nothing read.
+     *
+     * `flaky` is refused as well as `unexpected`. A case that passed on retry is a case
+     * whose result depends on timing, and "it went green the second time" is not evidence
+     * about this commit -- it is the reason to look, not permission to ship.
+     */
+    const pw = artefact.runners?.playwright;
+    if (pw?.executed === true) {
+      const unexpected = Number(pw.stats?.unexpected ?? 0);
+      const flaky = Number(pw.stats?.flaky ?? 0);
+      console.log(
+        `  browser   ${pw.stats?.expected ?? 0} passed, ${unexpected} failed, ${flaky} flaky, ` +
+          `${pw.stats?.skipped ?? 0} skipped`,
+      );
+      if (unexpected > 0) {
+        complain(
+          `${unexpected} browser case(s) FAILED in that CI run. The vitest accounting reports ` +
+            `\`failing: ${artefact.accounting?.failing ?? 0}\` because it never reads the ` +
+            'Playwright report — that is how this shipped once already. Fix the cases or ' +
+            'disable the capability they cover; do not release around them.',
+        );
+      }
+      if (flaky > 0) {
+        complain(
+          `${flaky} browser case(s) passed only on retry in that CI run. A result that depends ` +
+            'on timing is not evidence about this commit.',
+        );
+      }
+    } else {
+      complain(
+        'the gate artefact records no browser run at all. The browser suite covers the ' +
+          'purchase and owner paths; releasing without it is releasing without them.',
+      );
+    }
   });
 
   if (gateCheckOnly) {

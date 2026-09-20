@@ -2,6 +2,22 @@
  * CUST-067..CUST-076 — the public journey, in a real browser, against a real Worker.
  */
 import { expect, test } from '@playwright/test';
+import { DARK, LIGHT } from '@verify/ui';
+
+/**
+ * A token's hex as the browser reports it.
+ *
+ * Three cases in this file hard-coded colours as `rgb(...)` literals. When the
+ * owner-approved palette replaced those values they began failing in CI and stayed failing
+ * for hours, because the release gate never read the browser report — so the literals were
+ * wrong AND nothing said so. Deriving them here means a palette change updates the
+ * expectation and a palette REGRESSION still fails, which a pasted literal cannot do.
+ */
+function rgbOf(hex: string): string {
+  const value = hex.replace('#', '');
+  const n = Number.parseInt(value, 16);
+  return `rgb(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255})`;
+}
 
 test.describe('public journey', () => {
   test('CUST-067 the home page says what the product does and what it does not, without scrolling past the fold for the first', async ({
@@ -139,31 +155,61 @@ test.describe('public journey', () => {
     await expect(page).toHaveURL(/#main$/);
   });
 
-  test('CUST-077 the dark palette follows the operating system preference with no JavaScript involved', async ({
+  test('CUST-077 the approved palette is served whatever the operating system prefers, with no JavaScript', async ({
     browser,
   }) => {
-    const context = await browser.newContext({ colorScheme: 'dark', javaScriptEnabled: false });
-    const page = await context.newPage();
-    await page.goto('/');
-    const background = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-    expect(background).toBe('rgb(13, 18, 23)');
-    await context.close();
+    // Rewritten 20 September 2026, and the rename is the point.
+    //
+    // This case asserted that the dark palette FOLLOWED the operating system preference.
+    // Commit 51f39f7 deliberately ended that: honouring the preference meant most machines
+    // — which are set light — saw the page unchanged, so an owner-approved redesign had
+    // been deployed where almost nobody would see it. Dark is now unconditional.
+    //
+    // The case had also hard-coded `rgb(13, 18, 23)`, the PREVIOUS dark paper. The approved
+    // palette replaced it in 48c5287 and this literal has been failing in CI ever since,
+    // invisibly, because the release gate did not read the browser report.
+    //
+    // So it now asserts the property rather than a literal: the SAME colour is served under
+    // a light preference and a dark one, it is the value the token module actually defines,
+    // and no JavaScript is involved in either.
+    const read = async (colorScheme: 'dark' | 'light'): Promise<string> => {
+      const context = await browser.newContext({ colorScheme, javaScriptEnabled: false });
+      const page = await context.newPage();
+      await page.goto('/');
+      const background = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+      await context.close();
+      return background;
+    };
+
+    const underDark = await read('dark');
+    const underLight = await read('light');
+
+    expect(underDark, 'the preference changed what was served').toBe(underLight);
+    expect(underDark).toBe(rgbOf(DARK.paper));
   });
 
-  test('CUST-078 an explicit data-theme override beats the system preference in both directions', async ({
+  test('CUST-078 the explicit override reaches both palettes, so neither becomes unreachable', async ({
     browser,
   }) => {
+    // The light palette is not deleted — it stays complete and stays measured by the
+    // contrast suite — and the explicit toggle is now the ONLY way to it. That makes this
+    // case the thing standing between "we kept light reachable" and a palette nobody can
+    // get to. Values come from the token module for the same reason as CUST-077: both
+    // literals here were the pre-Stitch colours and had been failing since 48c5287.
     const context = await browser.newContext({ colorScheme: 'dark' });
     const page = await context.newPage();
     await page.goto('/');
+
     await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'));
     expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe(
-      'rgb(241, 244, 246)',
+      rgbOf(LIGHT.paper),
     );
+
     await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
     expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe(
-      'rgb(13, 18, 23)',
+      rgbOf(DARK.paper),
     );
+
     await context.close();
   });
 
@@ -179,6 +225,8 @@ test.describe('public journey', () => {
     });
     expect(outline.style).toBe('solid');
     expect(Number.parseFloat(outline.width)).toBeGreaterThanOrEqual(2);
-    expect(outline.color).toBe('rgb(26, 95, 208)');
+    // Read from the token module, not written down. The literal here was the pre-Stitch
+    // focus blue and had been failing since the approved palette landed.
+    expect(outline.color).toBe(rgbOf(DARK.focus));
   });
 });
