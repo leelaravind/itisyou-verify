@@ -274,7 +274,10 @@ export function SystemDiagram(): Html {
     tone: 'sunken',
   });
 
-  // the outside world, dashed: adapters exist, never called live
+  // The outside world. This box said "never run against a live account" until 20 September
+  // 2026, when it stopped being true for one of the three: a deployment holds real Resend
+  // evidence. It is now said per provider, because one sentence covering three providers
+  // goes stale the moment any one of them moves.
   body += svgLine(352, 180, 352, 438, 'diag-line');
   body += svgLine(344, 180, 352, 180, 'diag-line');
   body += svgArrow(352, 438, 338, 438);
@@ -285,8 +288,8 @@ export function SystemDiagram(): Html {
     h: 52,
     lines: [
       'HubSpot · Resend · Stripe (external)',
-      'adapters built and tested against mocks',
-      'never run against a live account',
+      'Resend: live evidence on a deployment',
+      'HubSpot: connected, no evidence yet',
     ],
     mono: true,
     tone: 'external',
@@ -302,9 +305,11 @@ export function SystemDiagram(): Html {
       'A visitor’s browser talks to one Cloudflare Worker running Hono. Inside it, routers for the public site, the customer app, the owner dashboard, ' +
       'the API, webhooks, the scheduler, the assistant, support and growth, each labelled with the specialist role that owned it. ' +
       'The Worker is built from five shared packages: contracts, domain, security, connectors and ui. It reads and writes Cloudflare D1 in EU-West, ' +
-      'a one-minute cron trigger drives it in production only, and a dashed box for HubSpot, Resend and Stripe notes that the adapters exist ' +
-      'but have never run against a live account. The full list is beside this figure.',
-    caption: html`One Worker, one database, one cron, five packages. The dashed box is dashed
-    because it has never been exercised live.`,
+      'a one-minute cron trigger drives it in production only, and a dashed box for HubSpot, Resend and Stripe records what each has actually done: ' +
+      'Resend has produced real evidence on a deployment, HubSpot is connected and has produced none, and Stripe has taken one sandbox payment. ' +
+      'The full list is beside this figure.',
+    caption: html`One Worker, one database, one cron, five packages. The box is dashed because
+    what is outside it is the only part this service cannot test by running itself. Stripe has
+    taken one sandbox payment; live charges are disabled.`,
   });
 }

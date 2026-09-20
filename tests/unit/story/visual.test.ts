@@ -482,11 +482,30 @@ describe('system and roles', () => {
 /* ------------------------------------------------------------------ honesty */
 
 describe('honesty rules', () => {
-  it('DOC-122 the page states that the provider integration has never run against a live account', () => {
+  /**
+   * This case used to assert the page said the connectors had NEVER run live. On
+   * 20 September 2026 that stopped being true for one of the three providers and stayed true
+   * for another, and a single sentence covering three providers is exactly the shape that goes
+   * stale silently — so the assertion is now per provider, and the strongest of the three is
+   * pinned in the negative: HubSpot is connected and must never be described as proven while
+   * it has produced no evidence.
+   */
+  it('DOC-122 the page states per provider what has and has not run against a live account', () => {
     expect(body).toContain('data-never-live');
-    expect(body).toMatch(phrase('never been run against a live HubSpot or Resend account'));
+    // Resend: what it has actually produced, named as evidence rather than as a connection.
+    expect(body).toMatch(phrase('one provider read-back and two signed provider webhooks'));
+    // HubSpot: connected is not proven, and the page says so in those words.
+    expect(body).toMatch(phrase('HubSpot is connected and has produced no evidence at all'));
+    expect(body).toMatch(phrase('connected is not proven'));
+    // Stripe: sandbox only, and the live position stated beside it.
+    expect(body).toMatch(phrase('one sandbox payment'));
+    expect(body).toMatch(phrase('live charges are disabled'));
+    // The superseded blanket claim is gone from the page entirely, diagram included.
+    expect(body).not.toMatch(phrase('never run against a live account'));
+    expect(body).not.toMatch(phrase('never been run against a live HubSpot or Resend account'));
     const svg = block(body, 'data-diagram="system"', '</svg>');
-    expect(svg).toContain('never run against a live account');
+    expect(svg).toContain('Resend: live evidence on a deployment');
+    expect(svg).toContain('HubSpot: connected, no evidence yet');
   });
 
   it('DOC-123 every named failure is told in three parts: what went wrong, why the tests missed it, what changed', () => {
@@ -502,6 +521,12 @@ describe('honesty rules', () => {
       'detector',
       'haiku',
       'drift',
+      // Added 20 September 2026. The page had told eleven failures and stopped, while the
+      // record kept gaining them — the drift this very list exists to catch, one level up.
+      'return',
+      'counter',
+      'invisible',
+      'preference',
     ];
     for (const id of required) {
       const article = block(body, `data-failure="${id}"`, '</article>');

@@ -59,13 +59,22 @@ to `PRODUCT_LINKS` in `packages/ui/src/layout/layouts.ts` so the footer links to
 | Decision cards                | JSON `decision_summary`, `alternatives_considered`, `decision_reason`, `limitations`, `test_evidence_refs`, `changed_artifacts`, `inputs`, `commit_sha`, `model_id`, `next_step` | Rendered verbatim; the test asserts byte equality after escaping. Limitations sit in a visible `callout--limit` above the disclosure. An empty `alternatives_considered` says "None recorded." A null `commit_sha` says "not recorded". An empty `test_evidence_refs` says the record therefore claims nothing tested.               |
 | Evidence panels               | JSON `test_evidence_refs` figures; prose § Where it stands; `docs/model-routing.md`; `docs/audit-summary.md`                                                                     | Every tile carries its source. A figure with no source renders the word `unknown` in amber, with `data-known="no"`, and the test asserts no numeral appears in such a tile. Model cost, token count, Cloudflare plan tier and uptime are unknown.                                                                                    |
 
-Plus **What broke**, eleven failures each told in three parts — what went wrong, why the
+Plus **What broke**, fifteen failures each told in three parts — what went wrong, why the
 tests did not catch it, what changed — with a source line. The six the brief named are all
 there: the allowance reservation (EVT-0007), the credential binding (EVT-0008), the owner
 dashboard (commit `d0e9453`), the 33%-as-100% meter (EVT-0010 and commits `ab4b345`,
 `7a3c0e1`), the three falsified emails (commit `3673ea8`), the coverage mode with no
-implementation (commit `3c94f8d`). The other five are push protection, the pinned SHA, the
+implementation (commit `3c94f8d`). Five more are push protection, the pinned SHA, the
 SQL detector, the hallucinated URL, and the story underselling its own fix.
+
+Four were added on 20 September, after this page had told eleven and stopped while the
+record kept gaining them — which is the drift this page exists to catch, happening to the
+page itself. They are the customer returned to a 404 after paying (EVT-0036), the visitor
+counter with nothing behind it (EVT-0040), the three scanner rules that matched nothing
+because of invisible control characters (EVT-0038), and the approved design first deployed
+where almost nobody would have seen it (EVT-0037). The case that asserts each failure is
+told in three parts now names all fifteen ids, so the next one cannot be told in the
+record and left off the page.
 
 ## Design decisions
 
@@ -299,16 +308,107 @@ itself, which is worse than a stale string, because a spec puts it back the next
 somebody implements from it. Correcting them a third time would not have helped. There is
 now a test that fails when any copy names a gap that has closed, and it names which copy.
 
+### 20 September, later: the payment, the designs and the counter
+
+**The price id was valid, and my own check was rejecting it.** The previous section of
+this page said both deployments held a Stripe price id that was not a price id. They did
+not. `wrangler secret put` fed by a pipe stores the newline the generating command
+printed, and both the validator and the configuration builder anchored to end-of-string.
+The owner had set the value correctly and I had sent them back to the dashboard three
+times to look for it. The value is now trimmed where it is READ, not only where it is
+checked -- trimming in one place and not the other would have been worse than neither,
+because the check would pass and the provider would receive a newline.
+
+**Then somebody paid, and the provider returned them to a 404.** £29.00, a sandbox card,
+through the button that had not existed that morning. The billing configuration had named
+the return path since the day it was written, along with a second one for a cancelled
+checkout; neither route existed. Every case drove the checkout request and asserted on the
+redirect it produced, so the journey ended at the provider's front door and nothing
+followed the customer home. The dominant defect class arriving at the worst moment it had
+available. The page that now exists deliberately does not say the subscription is active:
+it is reached before the webhook necessarily has, and on that day the webhook was being
+rejected for a signature mismatch, so the claim would have been false for hours.
+
+**Two identical milestone alerts arrived four minutes apart, and could not be told
+apart.** They were not duplicates -- one was production and one was staging -- but
+establishing that took reading both live databases, which is exactly the work the alert
+existed to save. Owner alerts now name their deployment. The milestone also stopped
+claiming that sandbox payments were "usable": what had actually been checked was that five
+secrets were present and one key had a plausible shape, and on the day it fired the
+purchase path was still refusing. It now claims exactly what was checked.
+
+**The approved designs were on this machine the whole time.** The owner had commissioned
+nineteen screens, approved them, and asked for them. Two archives sat on this drive with
+the markup, a reference image each and the full token set, and I had built a palette from
+our own tokens file without looking for them. Every screen maps to a route that exists --
+no orphan design, no orphan route -- and thirteen public routes were fetched from
+production and answered 200.
+
+**And the approved designs carry claims this product must not make.** Swept through this
+repository's own claim scanner: 34 findings across nine rule classes, including a
+compliance attestation this business does not hold, four monthly prices that are not the
+plan price, and a trial period that is not offered. So the composition work is translation
+rather than implementation -- build a designed page faithfully and its copy arrives with
+it, and the copy is the half that would put a false claim in front of someone about to
+pay.
+
+**Three rules were written for the gaps, and they matched nothing.** A mangled escape had
+left invisible control characters inside all three patterns. The scanner reported a clean
+sweep over content carrying four wrong prices, and I would have believed it. It was caught
+only by refusing to accept that a new rule works because it did not error.
+
+**The approved appearance was first deployed where almost nobody would see it.** Making it
+the default and letting a light operating-system preference switch away from it is the
+conventional choice, and most machines are set light -- so the deployed page was
+indistinguishable from the one before. An approved redesign implemented so that nobody
+sees it is a change that reports success without producing the outcome. It is now
+unconditional, and the light palette stays complete, measured and reachable.
+
+**The visit counter had nothing behind it.** The launch objective is ten genuine external
+visits; after a full day of real requests to production the visit table held zero rows.
+The counter, its six-rule contract, the classifier and the middleware on every request
+were all complete and correct, with nothing between them and the database -- left that way
+deliberately, above a comment correctly arguing that the in-memory implementation would
+report plausible numbers that were silently wrong. Both halves of that reasoning were
+right. Nobody wrote the real one. Found by querying the live database, because reading the
+code would not have found it.
+
+**Two claims in the unpublished launch posts had gone stale by understating.** One said no
+deployment had produced a verdict from real evidence; staging had since produced one
+confirmed run and two that resolved to "could not check". The other understated the
+payment position. Under-claiming is not the safe direction: the same section calls it
+false modesty, which is still inaccuracy.
+
+**The budget figure I gave the owner was over the limit, and my research was wrong.** The
+daily figure would have exceeded the authorisation once tax was added. And I had ruled the
+advertising platform out partly on a finding that a whole-campaign total does not exist
+for this campaign type; it exists, in plain sight on the budget step. That research was
+done from documentation instead of from the product -- the same mistake this repository
+keeps finding in its own code, except this time it produced a briefing the owner acted on.
+Both errors are left visible beside the original rather than quietly edited, because the
+owner read the original.
+
 ### What is still not true
 
-No money has moved through any purchase control on a deployment. The button exists, the
-route works, the provider is reachable, and nobody has bought anything. Those are
-different claims and this page will not blur them.
+Live payments are disabled and no live charge has been taken. One sandbox payment has
+completed end to end through the deployed service.
 
-Two deployments still cannot take payment at all: both hold a Stripe price id that is not
-a price id. The product says so on its own review page, names the setting, and says the
-fault is ours rather than the customer's -- which is the behaviour being aimed for, and is
-not the same as working.
+The subscription that payment should have activated does not exist. The provider delivered
+six events for it and both deployments answered every one with a signature rejection. The
+path id is right -- a wrong one refuses differently -- so what is missing is a signing
+secret per environment, which is the owner's to supply.
+
+The approved design is live at the shared layer and not at the composition layer. Colour,
+type, elevation, the sticky header and the hero accent reach all nineteen screens because
+every component reads the same custom properties. The individual card arrangements,
+column counts and hero structures are still ours. "Palette applied" is not "design
+implemented", and claiming otherwise would be true of one layer and false of what a person
+sees. The approved logo is still unused, and the two mobile references remain unverified
+visually: the capture tool renders at a fixed viewport whatever the window size, so no
+mobile image is offered here as evidence.
+
+No campaign has served an impression, and the visit count attributable to advertising is
+zero because nothing has run.
 
 ## What is verified, and what is relayed
 
@@ -320,11 +420,17 @@ counts, the absent-status statement, and the four journey verdicts (computed by
 **Relayed — this page's presentation of someone else's claim, each with its source:**
 the problem statement and the four-status table (prose story); the journey step text
 (prose story); the roles table (agent brief, JSON, model-routing document); the system
-pieces (prose story, agent brief); all eleven failures (prose story, commit messages
-`d0e9453`, `3673ea8`, `3c94f8d`, `7a3c0e1`, the coverage module header, the owner router
-comment); the £0.00 / £100 / £30 figures (prose story); the audit figures (the
-independent auditor's public summary, not re-verified); "never run against a live
-account" (prose story and audit summary).
+pieces (prose story, agent brief); all fifteen failures (prose story, commit messages
+`d0e9453`, `3673ea8`, `3c94f8d`, `7a3c0e1`, `b402d38`, `b1956b5`, `b709ac4`, `51f39f7`,
+the coverage module header, the owner router comment); the £0.00 / £100 / £30 figures
+(prose story, and `docs/spend.md` for the assumption the £0.00 rests on); the audit
+figures (the independent auditor's public summary, not re-verified).
+
+The "never run against a live account" line is gone, because it stopped being true. A
+deployment has produced one `VERIFIED` run backed by a provider read-back and two
+`UNVERIFIED` runs backed by provider webhooks. What replaces it is the narrower claim that
+the demonstration page's runs are fixtures, which is still true and is the one a visitor
+would otherwise be misled by.
 
 **Not on the page because no source was found:** nothing the brief asked for was omitted.
 Model attributions for A06, A07, A08, A09 and A12 are shown as not recorded rather than
@@ -333,16 +439,18 @@ inferred.
 ## Test results, as run
 
 - `npx tsc -p tsconfig.json --noEmit` — exit 0.
-- `npx vitest run tests/unit/story` — 1 file, 30 cases, 30 passed.
+- `npx vitest run tests/unit/story` — 2 files, 33 cases, 33 passed.
 - `npx eslint` over my paths with `--max-warnings=0` — exit 0.
 - `npx prettier --check` over my paths — clean after `--write`.
 
 ## Known limits of this page
 
-- Rendered markup for the full page is about 144KB before compression, most of it the
-  twelve decision cards and eleven failures. It is a documentation page served with
-  `public, max-age=0, must-revalidate`; if that matters, the decision cards could move to a
-  second route.
+- Rendered markup for the full page is about 318KB before compression, most of it the
+  forty-two decision cards and fifteen failures. That figure was 144KB when this page was
+  written and has more than doubled since, because the record keeps growing and the page
+  renders all of it. It is a documentation page served with
+  `public, max-age=0, must-revalidate`; if that matters, the decision cards should move to
+  a second route, and at this rate that stops being optional.
 - The SVG text widths were checked by a character-count estimate, not by rendering in a
   browser. The estimate found no overruns; a screenshot on staging is still the right next
   step, for exactly the reason the meter story gives.
