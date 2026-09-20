@@ -1026,3 +1026,143 @@ describe('an event for a workspace this deployment does not hold', () => {
     expect(harness.data.debug.customers()).toHaveLength(0);
   });
 });
+
+/**
+ * BILL-650..653 — the two conditions a 200 must never confuse.
+ *
+ * A 200 tells Stripe to stop retrying. That is right for an event this deployment can
+ * never act on, and catastrophic for a legitimate payment that has simply arrived early:
+ * the receipt is claimed, the retry is deduplicated away, and a real customer has paid
+ * for nothing. So the two are separated here and asserted apart.
+ *
+ * What makes the discriminator safe is a fact about ORDER, not about ids:
+ * `workspaces.createWithOwner` writes the workspace and its owning membership atomically
+ * at SIGNUP, long before a checkout session can exist. A legitimate event's workspace is
+ * therefore always present locally by the time Stripe sends anything. What may legitimately
+ * be missing is the ORDER row or the billing-customer binding — a different condition,
+ * reaching different lines, and one that must still be processed.
+ */
+describe('a 200 must not discard a payment that needs recovery', () => {
+  it('BILL-650 a foreign-environment event is recorded as ignored, not dropped without trace', async () => {
+    // Ignored is a state, not a silence. The receipt must exist afterwards so that
+    // reconciliation and the owner can both see that something arrived and was refused,
+    // and why. "We dropped it" and "we have no idea" are different, and only the first
+    // can be investigated.
+    const harness = createHarness({ knownWorkspaces: [WS] });
+    const event = stripeEvent(
+      'checkout.session.completed',
+      {
+        id: 'cs_foreign',
+        mode: 'subscription',
+        client_reference_id: 'ws_on_the_other_deployment',
+        customer: 'cus_foreign',
+        subscription: 'sub_foreign',
+        payment_status: 'paid',
+      },
+      { id: 'evt_foreign_env' },
+    );
+
+    const response = await deliver(harness, event);
+
+    expect(response.status).toBe(200);
+    const receipts = harness.data.debug.receipts();
+    const receipt = receipts.find((r) => r.eventId === 'evt_foreign_env');
+    expect(receipt, 'the refused event left no receipt at all').toBeDefined();
+    expect(receipt?.status).toBe('ignored');
+    // And it changed nothing.
+    expect(harness.data.debug.customers()).toHaveLength(0);
+    expect(harness.data.debug.allowances()).toHaveLength(0);
+  });
+
+  it('BILL-651 a legitimate subscription arriving BEFORE any local linkage is processed, never ignored', async () => {
+    // The condition the guard must not swallow. The workspace exists — it always does,
+    // from signup — but there is no order, no billing-customer binding and no stored
+    // subscription yet. This is a real payment that has outrun our own bookkeeping, and
+    // ignoring it would take the customer's money and grant nothing.
+    const harness = createHarness({ knownWorkspaces: [WS] });
+    expect(harness.data.debug.orders(), 'precondition: no local linkage').toHaveLength(0);
+    expect(harness.data.debug.customers(), 'precondition: no billing customer').toHaveLength(0);
+
+    const lines: Record<string, string | number | boolean>[] = [];
+    const event = stripeEvent(
+      'customer.subscription.created',
+      subscriptionObject({ id: 'sub_early', workspaceId: WS }),
+      { id: 'evt_early_subscription' },
+    );
+    const { body, headers } = await signedDelivery(event, harness.at(), WEBHOOK_SECRET);
+    const app = createStripeWebhookRoute({
+      ...harness,
+      resolveEndpointSecret: async (opaqueId) => (opaqueId === OPAQUE_ID ? WEBHOOK_SECRET : null),
+      log: (entry) => lines.push(entry),
+    });
+
+    const response = await app.request(PATH, { method: 'POST', headers, body });
+
+    expect(response.status).toBe(200);
+    const handled = lines.find((l) => l['event'] === 'stripe_webhook_handled');
+    // The exact thing that must not happen: refused for want of linkage we had not written.
+    expect(handled?.['effect']).not.toBe('subscription_for_unknown_workspace');
+    expect(handled?.['status']).toBe('processed');
+    // And the customer actually got what they paid for.
+    expect(harness.data.debug.subscriptions()).toHaveLength(1);
+    expect(harness.data.debug.allowances()).toHaveLength(1);
+  });
+
+  it('BILL-652 an early invoice for a workspace we hold is not refused as an unknown customer', async () => {
+    // The sibling condition on the invoice path. `invoice_for_unknown_customer` is correct
+    // for a customer binding we have never made; it must not also swallow an invoice for a
+    // workspace we do hold whose subscription arrived first.
+    const harness = createHarness({ knownWorkspaces: [WS] });
+    await harness.data.rememberBillingCustomer({
+      workspaceId: WS,
+      stripeCustomerId: 'cus_known',
+      environment: 'test',
+      createdAt: harness.at(),
+    });
+    const lines: Record<string, string | number | boolean>[] = [];
+    const event = stripeEvent(
+      'invoice.paid',
+      invoiceObject({ customer: 'cus_known', subscriptionId: 'sub_known' }),
+      { id: 'evt_early_invoice' },
+    );
+    const { body, headers } = await signedDelivery(event, harness.at(), WEBHOOK_SECRET);
+    const app = createStripeWebhookRoute({
+      ...harness,
+      resolveEndpointSecret: async (opaqueId) => (opaqueId === OPAQUE_ID ? WEBHOOK_SECRET : null),
+      log: (entry) => lines.push(entry),
+    });
+
+    const response = await app.request(PATH, { method: 'POST', headers, body });
+    const handled = lines.find((l) => l['event'] === 'stripe_webhook_handled');
+
+    expect(response.status).toBe(200);
+    expect(handled?.['effect']).not.toBe('invoice_for_unknown_customer');
+  });
+
+  it('BILL-653 the guard keys on the workspace being absent HERE, not on any linkage being absent', async () => {
+    // The distinction stated as an assertion, because it is the whole safety argument.
+    // Same deployment, same missing linkage, two workspace ids: one we hold and one we do
+    // not. They must take different paths. If a future change made the guard key on the
+    // order or the customer binding instead, these two would collapse into one answer and
+    // every early legitimate payment would be silently ignored.
+    const harness = createHarness({ knownWorkspaces: [WS] });
+    const ours = stripeEvent(
+      'customer.subscription.created',
+      subscriptionObject({ id: 'sub_ours_early', workspaceId: WS }),
+      { id: 'evt_ours_early' },
+    );
+    const theirs = stripeEvent(
+      'customer.subscription.created',
+      subscriptionObject({ id: 'sub_theirs', workspaceId: 'ws_not_here' }),
+      { id: 'evt_theirs' },
+    );
+
+    await deliver(harness, ours);
+    await deliver(harness, theirs);
+
+    // Ours was acted on; theirs was not. One allowance, one subscription, from two events.
+    expect(harness.data.debug.subscriptions()).toHaveLength(1);
+    expect(harness.data.debug.allowances()).toHaveLength(1);
+    expect(harness.data.debug.allowances()[0]?.workspaceId).toBe(WS);
+  });
+});

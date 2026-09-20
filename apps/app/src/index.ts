@@ -48,6 +48,12 @@ export interface Env {
   readonly ASSETS: Fetcher;
   readonly DB: D1Database;
   readonly ENVIRONMENT: string;
+  /**
+   * The commit this Worker was built from, injected at deploy time by
+   * `scripts/release.mjs`. Optional, and absent is reported as `null` rather than guessed:
+   * a build that does not know what it is cannot be allowed to claim one.
+   */
+  readonly COMMIT_SHA?: string;
   readonly PUBLIC_BASE_URL: string;
   readonly STRIPE_MODE?: string;
   readonly CREDENTIAL_KEY_V1?: string;
@@ -424,6 +430,18 @@ app.get('/health', async (c) => {
       service: 'itisyou-verify',
       environment: c.env.ENVIRONMENT,
       database,
+      // Which commit is actually serving this request.
+      //
+      // Until 20 September 2026 there was no way to answer that from outside. The gap
+      // register carried it as an open item -- "the deployed commit cannot be proven from
+      // outside" -- and it stopped being academic the moment a fix existed that production
+      // did and did not have depending on who you asked. The Cloudflare deployment record
+      // is no better: it lists version ids with no tag and no message.
+      //
+      // `null` when unset rather than a guess or a zero. A deployment that cannot say what
+      // it is running must say that, not invent an answer -- which is the rule this whole
+      // product exists to apply to other people's systems.
+      commit: c.env.COMMIT_SHA ?? null,
       checked_at: new Date().toISOString(),
     },
     database === 'reachable' ? 200 : 503,

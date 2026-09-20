@@ -246,7 +246,27 @@ try {
       console.log(`  would run: wrangler deploy --env ${env}`);
       return;
     }
-    run('npx', ['wrangler', 'deploy', '--env', env], { cwd: APP });
+    // The commit is injected as a binding AND written onto the Cloudflare version as a
+    // message. Two records because they fail differently: the binding answers "what is
+    // serving this request" from outside, over HTTP, to anyone; the version message
+    // answers "what did we deploy" in the account's own audit trail even if the Worker
+    // will not boot. Before this, neither existed -- `/health` reported no commit and
+    // `wrangler deployments list` showed version ids with no tag and no message, so the
+    // question "does production have this fix" had no answer that did not rest on my word.
+    run(
+      'npx',
+      [
+        'wrangler',
+        'deploy',
+        '--env',
+        env,
+        '--var',
+        `COMMIT_SHA:${candidateSha}`,
+        '--message',
+        `release ${candidateSha.slice(0, 12)}`,
+      ],
+      { cwd: APP },
+    );
     deployed = true;
   });
 
@@ -318,7 +338,9 @@ try {
         'and release again, or roll back deliberately — but do not read this as "no change".',
     );
   } else {
-    console.error('Nothing was deployed.' + (failed ? '' : ' Fix the failure above and run again.'));
+    console.error(
+      'Nothing was deployed.' + (failed ? '' : ' Fix the failure above and run again.'),
+    );
   }
   process.exit(1);
 }
