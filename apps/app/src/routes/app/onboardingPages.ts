@@ -87,7 +87,10 @@ function stepShell(options: StepShellOptions): Html {
 /* ------------------------------------------------------------- 1. compatibility */
 
 /** The badge each provider card wears, so the tally beside the head can wear the same one. */
-function compatibilityBadge(entry: ConnectorCompatibility): { readonly status: StatusKey; readonly label: string } {
+function compatibilityBadge(entry: ConnectorCompatibility): {
+  readonly status: StatusKey;
+  readonly label: string;
+} {
   return entry.supported
     ? { status: 'VERIFIED', label: 'Supported' }
     : { status: 'FAILED', label: 'Not supported' };
@@ -351,17 +354,30 @@ function connectCard(connection: ConnectionView, options: ConnectPageOptions): H
     ${credentialForm(guide, options, errors)}
 
     ${
-      guide.provider === 'resend'
-        ? Callout({
-            tone: 'limit',
-            title: 'The webhook address is not published yet',
-            body: html`<p>
-            Step 3 asks you to point a Resend webhook at an address on this page. That endpoint does
-            not exist in this deployment yet, so that step cannot be completed today. The key on its
-            own still validates; the connection stays unfinished until a signed callback arrives.
-          </p>`,
-          })
-        : null
+      guide.provider !== 'resend'
+        ? null
+        : connection.webhookUrl === null
+          ? Callout({
+              tone: 'limit',
+              title: 'The webhook address appears once your key has been checked',
+              body: html`<p>
+              When the key validates, this card shows the address that is unique to this connection.
+              Point a Resend webhook at it, subscribed to the six events listed below, and paste its
+              signing secret above. The connection stays unfinished until a correctly signed message
+              actually arrives.
+            </p>`,
+            })
+          : Callout({
+              tone: 'note',
+              title: 'Your webhook address',
+              body: html`<p>
+                In Resend, add an endpoint pointing at
+                <code class="mono" data-webhook-url>${connection.webhookUrl}</code>, subscribed to
+                email.sent, email.delivered, email.delivery_delayed, email.bounced, email.complained and
+                email.failed, then paste its signing secret above. It is unique to this connection: do
+                not share it or retype it from memory.
+              </p>`,
+            })
     }
 
     <div class="stack">

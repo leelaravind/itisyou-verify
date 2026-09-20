@@ -24,10 +24,12 @@ export interface ConnectionRow {
   readonly last_error_code: string | null;
   readonly created_at: string;
   readonly revoked_at: string | null;
+  /** The opaque inbound id Resend calls; null for HubSpot and until a Resend key is checked. */
+  readonly webhook_path_id: string | null;
 }
 
 const CONNECTION_COLUMNS =
-  'id, workspace_id, provider, external_account_id, status, scopes, last_check_at, last_error_code, created_at, revoked_at';
+  'id, workspace_id, provider, external_account_id, status, scopes, last_check_at, last_error_code, created_at, revoked_at, webhook_path_id';
 
 export const connections = {
   /**

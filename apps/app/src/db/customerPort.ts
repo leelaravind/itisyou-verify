@@ -405,6 +405,7 @@ export class D1CustomerDataPort implements CustomerDataPort {
     if (scope === null) return [];
     const rows = await connections.list(this.#db, scope.workspaceId);
     const byProvider = new Map(rows.map((row) => [row.provider, row]));
+    const base = this.#env.PUBLIC_BASE_URL.replace(/\/+$/, '');
 
     return (['hubspot', 'resend'] as const).map((provider) => {
       const row = byProvider.get(provider);
@@ -423,6 +424,10 @@ export class D1CustomerDataPort implements CustomerDataPort {
         lastCheckedAt: row?.last_check_at ?? null,
         problem,
         nextStep,
+        webhookUrl:
+          provider === 'resend' && typeof row?.webhook_path_id === 'string'
+            ? `${base}/api/v1/webhooks/resend/${row.webhook_path_id}`
+            : null,
       };
     });
   }

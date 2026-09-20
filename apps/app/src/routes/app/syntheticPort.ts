@@ -384,6 +384,8 @@ export class SyntheticCustomerDataPort implements CustomerDataPort {
             ? maskToken(`${entry.provider}-account-000042`)
             : null,
         lastCheckedAt: status === 'not_connected' ? null : T_AFTER_DEADLINE.toISOString(),
+        // Synthetic: never a real-looking address a reader might register with Resend.
+        webhookUrl: null,
         problem,
         nextStep:
           problem === null

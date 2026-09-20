@@ -29,6 +29,8 @@ import {
 
 /** Assembled at runtime: a credential-shaped literal is rejected by the secret scanner. */
 const HUBSPOT_TOKEN = ['pat', 'eu1', '00000000-0000-4000-8000-000000000003'].join('-');
+/** Same reason: assembled, so no credential-shaped literal sits in the file. */
+const RESEND_KEY = ['re', '0000000000000000000000000000000000'].join('_');
 const WRAPPING_KEY = toBase64(new Uint8Array(32).fill(5));
 const SEALED_ENV = { CREDENTIAL_KEY_V1: WRAPPING_KEY } as const;
 
@@ -130,6 +132,37 @@ describe('pasting a provider credential through the customer router', () => {
     const text = visibleText(after.html);
     expect(text).toContain('HubSpot Status: Ready');
     expect(text).toContain('Resend Status: Not connected');
+  });
+
+  it("CUST-482 after a Resend key is checked, the page shows this connection's real webhook address and never says the endpoint does not exist", async () => {
+    // Until 20 September the Resend card told every customer "that endpoint does not exist
+    // in this deployment yet" -- unconditionally, on every deployment -- while the route was
+    // mounted and `webhook_path_id` was assigned on submit. Staging's connections only
+    // reached ready because an operator read the id out of the table. A customer could not.
+    const session = await workspace();
+    const stub = stubHubSpot({ data: [] }); // Resend's GET /domains answers 200 with a list
+
+    const served = await postSignedIn(
+      session,
+      '/app/onboarding/connect',
+      { provider: 'resend', intent: 'credentials', access_token: RESEND_KEY },
+      { env: SEALED_ENV },
+    );
+    expect(served.status).toBe(200);
+    expect(stub.calls).toHaveLength(1);
+    expect(stub.calls[0]).toContain('api.resend.com');
+    expect(served.html).not.toContain(RESEND_KEY);
+
+    const connection = rows(session, 'SELECT * FROM connections');
+    expect(connection).toHaveLength(1);
+    const pathId = String(connection[0]!['webhook_path_id'] ?? '');
+    expect(pathId.length, 'no webhook_path_id was assigned on submit').toBeGreaterThan(8);
+
+    const after = await getSignedIn(session, '/app/onboarding/connect');
+    expect(after.html).toContain(`data-webhook-url>`);
+    expect(after.html).toContain(`/api/v1/webhooks/resend/${pathId}`);
+    expect(after.html).not.toContain('does not exist in this deployment yet');
+    expect(after.html).not.toContain('is not published yet');
   });
 
   it('CUST-476 a credential the provider rejects is refused with 422 and stores nothing', async () => {
