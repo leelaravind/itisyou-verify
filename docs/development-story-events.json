@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "project": "itisyou-verify",
-  "generated_at": "2026-09-20T01:49:07.149Z",
+  "generated_at": "2026-09-20T03:49:14.614Z",
   "note": "Structured record of what was decided, built and verified. Observable facts and short decision rationales only — never reasoning traces, private prompts, credentials or customer data. Unknown values stay null rather than being guessed.",
   "events": [
     {
@@ -1023,6 +1023,249 @@
       ],
       "limitations": "The closed-gap and outstanding-gap lists are maintained by hand, so closing a fourth gap needs an edit here too.",
       "next_step": "Keep the lists beside the notice they describe when the next gap closes."
+    },
+    {
+      "event_id": "EVT-0036",
+      "timestamp": "2026-09-20T02:07:14Z",
+      "milestone_id": "M-BILLING",
+      "task_id": "T-POST-PAYMENT-404",
+      "agent_role": "lead",
+      "model_id": "claude-opus-5[1m]",
+      "status": "deployed",
+      "goal": "Follow the paying customer all the way home, instead of stopping at the provider.",
+      "inputs": ["the first real sandbox payment completed on a deployment"],
+      "changed_artifacts": [
+        "apps/app/src/routes/app/billingPages.ts",
+        "apps/app/src/db/customerPort.ts",
+        "apps/app/src/scheduler/tick.ts",
+        "docs/test-cases.json"
+      ],
+      "commit_sha": "b402d38",
+      "decision_summary": "A real payment of the plan price went through on a deployment, and the provider redirected the browser to a return path that answered 404. The billing configuration had named that path, and a second one for a cancelled checkout, since the day it was written; neither route existed. The return page now states that the provider accepted the payment and shows the real subscription state, and deliberately does not say the subscription is active.",
+      "alternatives_considered": [
+        "Have the return page congratulate the customer on an active subscription, as most products do.",
+        "Point the provider at the account page and add nothing new."
+      ],
+      "decision_reason": "The return page is reached the instant the provider redirects, which can be before any webhook has arrived — and on that day the webhook was failing signature verification, so a congratulation would have been false for hours. A redirect is not evidence that anything was confirmed, which is the rule this service applies to other people’s automations. The dominant defect of this codebase — correct code reached by nothing — landed at the worst moment available: immediately after somebody paid.",
+      "test_evidence_refs": [
+        "BILL-625 reads the return paths out of the billing configuration rather than retyping them, so a test cannot pass while the configuration points somewhere else",
+        "the payment itself: a checkout session created by the deployed service and paid with a provider test card"
+      ],
+      "limitations": "The provider delivered six events for that payment and both deployments refused all six with an invalid-signature error, so no subscription was activated. The per-environment signing secret is the owner’s to supply and is still outstanding.",
+      "next_step": "Obtain a signing secret per environment and replay the six events."
+    },
+    {
+      "event_id": "EVT-0037",
+      "timestamp": "2026-09-20T02:17:41Z",
+      "milestone_id": "M-DESIGN",
+      "task_id": "T-APPROVED-PALETTE",
+      "agent_role": "design",
+      "model_id": "claude-opus-5[1m]",
+      "status": "deployed",
+      "goal": "Put the owner’s approved colour system in front of a visitor, rather than near it.",
+      "inputs": ["the owner’s approved design archives, already on this machine"],
+      "changed_artifacts": ["packages/ui/src/tokens.ts", "packages/ui/src/styles.ts"],
+      "commit_sha": "48c5287 and 51f39f7",
+      "decision_summary": "The approved system was implemented at the token layer, so every component picked it up at once without a line of page markup changing. One value is not the design’s: its resting status colour reads 6.7:1 on a tint dark enough for this palette, against this file’s own floor of 7.8:1, so it was lightened one shade to 8.18:1 rather than lowering the floor. The first attempt then let a light operating-system preference opt out of the whole thing; the approved appearance is now unconditional, and the light palette stays complete and reachable through the explicit toggle.",
+      "alternatives_considered": [
+        "Rewrite nineteen pages of markup to match the references directly.",
+        "Accept the design’s resting status colour as drawn and lower the contrast floor to fit it.",
+        "Keep the operating-system preference as the switch, which is the conventional choice."
+      ],
+      "decision_reason": "Changing values that every component already reads cannot break a route, a form or a payment path on the way. Quietly lowering a measured accessibility minimum to fit a palette is the kind of subtraction this project has been caught making before. And most machines are set light, so honouring the preference meant deploying an approved redesign that almost nobody would see — a change that reports success without producing the outcome.",
+      "test_evidence_refs": [
+        "RESIL-181 recomputes every contrast ratio from the hex values and asserts the number is still written beside the colour, so the two cannot drift apart",
+        "RESIL-182 still passes: the four run statuses map one-to-one onto the design’s four status colours, so the evidence vocabulary survived untouched",
+        "CUST-005 asserts neither palette may quietly become unreachable"
+      ],
+      "limitations": "The named typefaces are not fetched, because requesting them would add a subprocessor this product has not declared on its privacy page. Until the faces are self-hosted, pages render in the system face and the code says so.",
+      "next_step": "Per-screen composition, which is the half a person actually sees."
+    },
+    {
+      "event_id": "EVT-0038",
+      "timestamp": "2026-09-20T02:41:09Z",
+      "milestone_id": "M-DESIGN",
+      "task_id": "T-DESIGN-INVENTORY",
+      "agent_role": "design",
+      "model_id": "claude-opus-5[1m]",
+      "status": "tested",
+      "goal": "Answer which approved designs were used, which were partly used, and which were missed.",
+      "inputs": ["nineteen approved screens, each with its own markup and a reference image"],
+      "changed_artifacts": [
+        "docs/stitch-mapping.md",
+        "scripts/scan-claims.mjs",
+        "docs/test-cases.json"
+      ],
+      "commit_sha": "5627ae7 and b709ac4",
+      "decision_summary": "Every screen maps to a route that exists — no orphan design, no orphan route — and thirteen public routes were fetched from production and answered 200. Running the approved markup through this repository’s own claim scanner returned 34 findings across 9 rule classes: a compliance attestation this business does not hold, four monthly prices that are not the plan price, a trial period the product does not offer, and wording implying several plans and per-person pricing where there is one plan and no such thing. So the composition work is translation, not implementation.",
+      "alternatives_considered": [
+        "Implement each designed page faithfully, copy included, and correct the wording afterwards.",
+        "Report that the approved design is live on the strength of the token layer."
+      ],
+      "decision_reason": "Build a designed page faithfully and its copy arrives with it, and the copy is the half that would put a false claim in front of someone about to pay. Claiming the design is live would be true of one layer and false of what a person sees, which is the exact shape of claim this product exists to refuse. The archives had been on this machine the whole time the palette was being derived from a tokens file; nobody had looked.",
+      "test_evidence_refs": [
+        "DOC-503..DOC-505 read each new scanner rule live, assert it fires on the designs’ own wording, assert it stays silent on our true sentences, and assert the pattern contains no control character",
+        "RESIL-183 pins the six breakpoints the stylesheet relies on, which nothing was watching",
+        "thirteen public routes fetched from production, all 200"
+      ],
+      "limitations": "Three new rules were written and matched nothing at all: invisible control characters had been left inside every pattern, and the scanner reported no findings over content carrying four wrong prices. It was caught only by refusing to believe a new rule works because it did not error. The authenticated screens are marked as behind a login rather than given a status code, and mobile could not be verified visually because the capture tool renders at a fixed viewport whatever the window size — so no mobile image is offered as evidence.",
+      "next_step": "Compose the shared elements first, since all nineteen screens share them."
+    },
+    {
+      "event_id": "EVT-0039",
+      "timestamp": "2026-09-20T03:12:40Z",
+      "milestone_id": "M-GROWTH",
+      "task_id": "T-CAMPAIGN-CEILING",
+      "agent_role": "growth",
+      "model_id": "claude-opus-5[1m]",
+      "status": "implemented",
+      "goal": "Build the advertising campaign inside a ceiling that is actually a ceiling.",
+      "inputs": ["the owner’s spending authorisation", "the advertising platform’s live wizard"],
+      "changed_artifacts": ["docs/advertising.md"],
+      "commit_sha": "decd8aa and ff66299",
+      "decision_summary": "Two corrections to my own advice, both left visible beside the original rather than quietly edited. The daily figure I gave the owner would have exceeded the authorisation once tax was added, so it was reduced. And my research had ruled the platform out partly because a whole-campaign total was said not to exist for this campaign type; it exists, in plain sight on the budget step, which is the control I had reported missing. Search partners, the display network, enhanced conversions and third-party conversion tracking are all off, each with its reason recorded.",
+      "alternatives_considered": [
+        "Edit the superseded budget figure in place.",
+        "Keep the daily-only derivation that the original research implied was the only option.",
+        "Leave the platform’s pre-filled advert text in place."
+      ],
+      "decision_reason": "The owner read the original figure, so replacing it silently would hide that they were told something wrong. The research was done from documentation instead of from the product — the same mistake this repository keeps finding in its own code, reading the source rather than running the thing, except this time it produced a briefing the owner acted on. The platform had also written advert headlines by scraping a page of worked examples, and the result read as an advertisement against the product’s own argument; all of it was replaced with reviewed copy, and automatic rewriting was switched off.",
+      "test_evidence_refs": [
+        "the draft as it stands in the account: never served an impression, spend nil, status not created",
+        "every disabled default read back from the live wizard rather than from documentation"
+      ],
+      "limitations": "Saving the budget triggers the platform’s identity challenge on the owner’s account, which is not mine to answer, so the wizard reports the change as unsaved. Nothing is published and nothing can spend. The recommendation is unchanged: this budget buys a handful of visits, not ten, and the unpaid route reaches the same people but needs a human identity to post.",
+      "next_step": "The owner answers the identity challenge; the total budget is then set once."
+    },
+    {
+      "event_id": "EVT-0040",
+      "timestamp": "2026-09-20T03:29:18Z",
+      "milestone_id": "M-GROWTH",
+      "task_id": "T-COUNTER-WITH-NO-DATABASE",
+      "agent_role": "growth",
+      "model_id": "claude-opus-5[1m]",
+      "status": "deployed",
+      "goal": "Make the number this project is measured by capable of moving.",
+      "inputs": ["a query against the live production database"],
+      "changed_artifacts": [
+        "apps/app/src/db/growthPort.ts",
+        "apps/app/src/index.ts",
+        "tests/integration/growth/d1-growth-port.test.ts",
+        "docs/test-cases.json"
+      ],
+      "commit_sha": "ff9cb30 and b1956b5",
+      "decision_summary": "After a full day of real requests to production, the visit table held zero rows. The counter, its six-rule contract, the classifier and the middleware on every request were all complete and correct, with nothing between them and the database — left that way deliberately, above a comment correctly arguing that mounting the in-memory one would report plausible numbers that were silently wrong. Both halves of that reasoning were right. Nobody wrote the real one.",
+      "alternatives_considered": [
+        "Mount the in-memory implementation, which would have produced numbers.",
+        "Report the objective from server request logs instead."
+      ],
+      "decision_reason": "Ten people could have arrived that day and the figure would still have read zero, with nothing to show for it either way — the dominant defect of this codebase landing squarely on its own success metric. Found by querying the live database, not by reading the code, where every part looked right.",
+      "test_evidence_refs": [
+        "BUDGET-541: a repeat visit is an update and never a second row, and the update leaves the landing path and first-seen time alone so a later page view cannot re-attribute the visit",
+        "BUDGET-542 and BUDGET-543: automated and internal traffic are counted separately, and automated traffic arriving on an advert link is never counted as advert-attributed",
+        "BUDGET-544: the table is dropped and the read returns unknown rather than zero",
+        "deduplication and classification confirmed against real requests on the live deployment"
+      ],
+      "limitations": "This does not produce a visit. It makes one countable. A comment in the same file was also found describing owner access as unbuilt long after it was built — the fourth instance of that shape in one day — and now says what is true, verified against production rather than asserted.",
+      "next_step": "Read the external count out of production once traffic is directed at it."
+    },
+    {
+      "event_id": "EVT-0041",
+      "timestamp": "2026-09-20T03:36:50Z",
+      "milestone_id": "M-GROWTH",
+      "task_id": "T-STALE-BY-UNDERSTATING",
+      "agent_role": "qa",
+      "model_id": "claude-opus-5[1m]",
+      "status": "tested",
+      "goal": "Make sure every sentence in the unpublished launch posts is true on the day it is posted.",
+      "inputs": ["the launch drafts, written the previous day and still unpublished"],
+      "changed_artifacts": ["docs/organic-launch.md"],
+      "commit_sha": "40b59fc",
+      "decision_summary": "Two statements in the evidence section had become false since they were written, both by claiming less than is true — which that same section calls false modesty, and still inaccuracy. One said no deployment had ever produced a verdict from real evidence; a deployment has since produced one confirmed run and two that resolved to \"could not check\", backed by provider read-back and provider webhook rows. The other understated the payment position: a real sandbox payment was taken. What goes beside it, because it is equally true, is that every one of the provider’s six events was rejected and no subscription was activated.",
+      "alternatives_considered": [
+        "Leave understatements alone, on the grounds that under-claiming is the safe direction.",
+        "Record the payment without the rejection that followed it."
+      ],
+      "decision_reason": "A post claiming the payment without the rejection would be the precise half-truth this product exists to catch. The two runs that resolved to \"could not check\" are the more important half of the corrected claim: absence of evidence resolving to unknown rather than to a pass is the entire product.",
+      "test_evidence_refs": [
+        "both statements re-checked against the live databases rather than against the drafts",
+        "claim scan clean"
+      ],
+      "limitations": "Nothing is published. One connector is connected and not proven, the demonstration’s runs are still fixtures, and the counter that measures launch traffic had written nothing at all until that day — all three are confessed in the drafts. Publishing needs a human identity.",
+      "next_step": "The owner posts, or does not; the drafts are correct either way."
+    },
+    {
+      "event_id": "EVT-0042",
+      "timestamp": "2026-09-20T03:39:26Z",
+      "milestone_id": "M-DESIGN",
+      "task_id": "T-SHARED-COMPOSITION",
+      "agent_role": "design",
+      "model_id": "claude-opus-5[1m]",
+      "status": "deployed",
+      "goal": "Implement the parts of the approved composition that every screen shares.",
+      "inputs": ["the nineteen approved screens and their design specifications"],
+      "changed_artifacts": [
+        "packages/ui/src/styles.ts",
+        "packages/ui/src/tokens.ts",
+        "apps/app/src/routes/public/home.ts",
+        "docs/test-cases.json"
+      ],
+      "commit_sha": "d974e64, 092e8d0, d181850, 80d5981 and 84d5782",
+      "decision_summary": "Five shared elements, each done once and inherited by every screen: a header that sticks with a blurred backdrop, the approved type scale, elevation on cards, a gradient accent on the hero headline, and the four run statuses laid four across instead of two by two. The type sizes are clamps solved so that the endpoints are exactly the designed numbers at both reference widths, rather than something near them.",
+      "alternatives_considered": [
+        "A fixed header, which is what the reference technically shows.",
+        "Paint the hero accent in the confirmed-status colour, which is one line.",
+        "Let the four-across grid pass through a three-column step like every other grid here.",
+        "Approximate the type scale, since the difference is a few pixels."
+      ],
+      "decision_reason": "Sticky keeps the header in flow, so nineteen pages do not each need compensating padding. The accent must not be the confirmed-status colour: on this interface a green word carries a verdict, and a reader meeting one in a headline would reasonably read it as one — the approved primary is a deliberate shade away from it precisely so the two can share a page. Three columns of four items leaves an orphan on a second row, under a heading that says there are exactly four. And a clamp can be approximately right and be neither designed number, which is the failure that makes implementing a design and merely resembling one indistinguishable from the code.",
+      "test_evidence_refs": [
+        "RESIL-184 asserts the opaque header background is declared before the translucent one, so a browser that cannot blur keeps a readable header rather than a see-through one",
+        "RESIL-185 evaluates the clamp arithmetic and asserts both designed endpoints",
+        "RESIL-186 asserts elevation and the border together, since shadows are dropped in forced-colours mode and a card whose only edge was a shadow would dissolve for the readers who most need the edge",
+        "RESIL-187 asserts the hero accent can never be painted in the confirmed-status colour",
+        "RESIL-188 asserts the present breakpoints and the absence of the three-column one, because that gap looks like an oversight and the obvious tidy-up would undo it",
+        "the four-across band read back from the live production page after release"
+      ],
+      "limitations": "This is the shared layer. Per-screen composition against the nineteen references is not done, the approved logo is still unused, and the two mobile references remain unverified visually for the reason recorded earlier. A backtick inside an explaining comment closed the stylesheet template and broke every test that imports it — the third time in one day, so the file now warns about it where the next person will be standing.",
+      "next_step": "Compose individual screens, highest-traffic public pages first."
+    },
+    {
+      "event_id": "EVT-0043",
+      "timestamp": "2026-09-20T03:55:00Z",
+      "milestone_id": "M-RELEASE",
+      "task_id": "T-STORIES-CURRENT",
+      "agent_role": "qa",
+      "model_id": "claude-opus-5[1m]",
+      "status": "tested",
+      "goal": "Close the gap between what the project did and what its own two stories say it did.",
+      "inputs": ["fifteen commits made after the record was last brought current"],
+      "changed_artifacts": [
+        "docs/development-story-events.json",
+        "docs/development-story.md",
+        "apps/app/public/development-story.md",
+        "docs/development-story-visual.md",
+        "apps/app/src/routes/public/story/narrative.ts",
+        "apps/app/src/routes/public/story/page.ts",
+        "apps/app/src/routes/public/story/diagrams.ts",
+        "tests/unit/story/visual.test.ts",
+        "docs/test-cases.json"
+      ],
+      "commit_sha": null,
+      "decision_summary": "Seven events were appended and both stories rewritten, and in the course of it the page was found making a claim that had stopped being true. It said the connectors had never run against a live provider account and that no credentials existed. A deployment holds one provider read-back and two signed provider webhooks from a real email-provider account. The claim is now made per provider: what the email provider has produced, that the CRM is connected and has produced nothing, and that the payment provider has taken one sandbox payment with live charges disabled.",
+      "alternatives_considered": [
+        "Append the events and leave the page prose alone, since the page is generated from the record.",
+        "Soften the superseded sentence rather than replacing it."
+      ],
+      "decision_reason": "The page is generated from the record only in its timeline and decision cards; its narrative half is hand-written, and that is the half that went stale. One sentence covering three providers goes stale the moment any one of them moves, which is what happened. The dangerous direction is the other one: the CRM is connected and has produced no evidence, and letting \"connected\" stand in for \"proven\" would be the exact claim this product exists to refuse. The page had also told eleven failures and stopped while the record kept gaining them — the drift this page exists to catch, happening to the page itself.",
+      "test_evidence_refs": [
+        "DOC-122 rewritten: it now asserts the per-provider statements, asserts the superseded blanket claim is absent from the page and the system diagram, and pins the CRM in the negative",
+        "DOC-123 now names all fifteen failure ids, so a failure told in the record cannot be left off the page",
+        "the provider evidence counted directly out of the live staging database rather than taken from a commit message",
+        "node scripts/verify-story.mjs — 43 events, well-formed"
+      ],
+      "limitations": "Two sessions on production are classified as external visitors and both fall inside this session’s own working window on pages it was checking, so the external figure is not yet a count of genuine outside visitors. A browser cannot send the header that marks internal traffic, so the classifier has no way to recognise the operator. The launch objective is measured by that figure, so it is recorded here rather than left to be discovered in a report. The rendered page has also grown past 300KB and the decision cards should move to a second route.",
+      "next_step": "Make operator traffic recognisable to the classifier before any launch figure is reported."
     }
   ]
 }

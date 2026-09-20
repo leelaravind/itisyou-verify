@@ -513,11 +513,16 @@ function standingSection(): Html {
     </div>
     ${Callout({
       tone: 'limit',
-      title: 'The provider integration has never run live',
+      title: 'What has, and has not, run against a live provider account',
       body: html`<p data-never-live>
-        The HubSpot and Resend connectors have never been run against a live HubSpot or Resend
-        account. The credentials do not exist yet. Until they do, the connector path is proven
-        against mocks, and this page will not pretend otherwise.
+        Until 20 September 2026 this panel said the connectors had never been run against a live
+        account and that no credentials existed. Both halves have since stopped being true, and
+        the honest version is per provider rather than one sentence covering three. Resend has
+        run live: a deployment holds one provider read-back and two signed provider webhooks
+        from a real Resend account, and they produced one VERIFIED run and two UNVERIFIED ones.
+        HubSpot is connected and has produced no evidence at all — connected is not proven, and
+        this page will not let the first stand in for the second. Stripe has taken one sandbox
+        payment through the deployed service; live charges are disabled.
       </p>`,
     })}
   </section>`;

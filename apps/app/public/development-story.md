@@ -4,7 +4,7 @@ A factual record of what was decided, what was built, what broke, and what is st
 unfinished. Written as it happened. Where something has not been proven, this page says
 so rather than rounding it up.
 
-Last updated: **19 September 2026**.
+Last updated: **20 September 2026**.
 
 ---
 
@@ -240,6 +240,82 @@ One of the pinned SHAs resolved to no commit at all. It was caught by checking a
 against the GitHub API instead of trusting the list. Pinning without verifying is a
 ritual, not a control.
 
+### A customer paid, and was returned to a 404
+
+The first real payment went through on a deployment: £29.00, a sandbox card, through a
+checkout button that had not existed that morning. Stripe took it and redirected the
+browser to the return path — which answered **404**.
+
+The billing configuration had named that path since the day it was written, along with a
+second one for a cancelled checkout. Neither route existed. Every test drove the checkout
+request and asserted on the redirect it produced, so the journey ended at the provider's
+front door and nothing followed the customer home.
+
+That is this codebase's dominant defect — correct code, thoroughly tested, reached by
+nothing — arriving at the worst moment it had available.
+
+The page that now exists deliberately does **not** say the subscription is active. It is
+reached the instant the provider redirects, which can be before any webhook has arrived;
+on that day the webhook was in fact being rejected for a signature mismatch, so a
+congratulation would have been false for hours. It says the payment was accepted, shows
+the real subscription state, and explains that a redirect is not evidence that anything
+was confirmed. That is the rule this service applies to other people's automations,
+applied to itself.
+
+### A visitor counter with nothing behind it
+
+The launch objective is ten genuine external visits. After a full day of real requests to
+production, the visit table held **zero rows**.
+
+The counter was complete. Its contract was written out in six numbered rules. An in-memory
+implementation satisfied them and the suite ran against it, green. The middleware was
+mounted on every request. And the mount passed nothing where the database should have
+been, above a comment correctly arguing that mounting the in-memory one would report
+plausible numbers that were silently wrong.
+
+Both halves of that reasoning were right. Nobody wrote the real one. Ten people could have
+arrived that day and the figure would still have read zero, with nothing to show for it
+either way.
+
+It was found by querying the live database. Reading the code would not have found it,
+because every part of the code was right.
+
+### Three new rules that matched nothing, invisibly
+
+The owner's approved designs were swept through this repository's own claim scanner, which
+reported 34 findings across nine rule classes — a compliance attestation this business
+does not hold, four monthly prices that are not the plan price, a trial period that is not
+offered. Three new rules were written for gaps the scanner did not already cover.
+
+They matched nothing at all. A mangled escape had left invisible control characters inside
+all three patterns: invisible in an editor, invisible in search output, and enough to stop
+them matching anything. The scanner reported a clean sweep over content carrying four
+wrong prices, and it would have been believed.
+
+It was caught only by refusing to accept that a new rule works because it did not error.
+The cases that guard them now read each pattern live, assert it fires on the designs' own
+wording, assert it stays silent on our own true sentences, and assert the pattern contains
+no control character. The second half matters as much as the first: the real plan price
+must still pass, and a sentence denying that a trial exists must stay sayable.
+
+### An approved design almost nobody would have seen
+
+The owner commissioned a design, approved it, and asked for it. The first implementation
+made the approved appearance the default and let a light operating-system preference
+switch away from it — the conventional, polite choice, and one that meant that on most
+machines the deployed page was indistinguishable from the page before the change.
+
+An approved redesign implemented so that almost nobody would see it is a change that
+reports success without producing the outcome. That is the defect this product exists to
+find, in the form of a media query. The approved appearance is now unconditional. The
+light palette is not deleted: it stays complete, stays measured by the contrast suite, and
+stays reachable through the explicit toggle.
+
+One value in the approved palette was not taken as drawn. Its resting status colour
+measures 6.7:1 on a badge tint dark enough to sit in this palette, against a floor of
+7.8:1 this project set for itself. The choice was to lower a measured accessibility
+minimum to fit a palette, or to lighten the shade until it cleared. It was lightened.
+
 ---
 
 ## How the work was organised
@@ -275,15 +351,43 @@ reliable.
 the connectors, payments, the customer journey, support and privacy handling.
 
 **Live.** `verify.itisyou.app`, serving over TLS, with a health check that actually probes
-the database instead of returning a hard-coded "ok".
+the database instead of returning a hard-coded "ok". The owner's approved colour system,
+type scale, elevation and shared layout, unconditional rather than offered to whoever's
+machine happens to be set dark. A visit counter that now writes to the database the launch
+objective is measured by.
 
-**Not yet true.** Live payments, because that needs the owner's verified business details.
-Provider-backed evidence against real HubSpot and Resend accounts, because those
-credentials do not exist yet — until they do, the connector path is proven against mocks,
-and this page will not pretend otherwise. Advertising, because no campaign has been
-approved and nothing has been spent.
+**Not yet a count of strangers.** That counter currently holds two sessions marked
+external, and both fall inside this project's own working window, on the pages it was
+checking at the time. A browser cannot send the header that marks internal traffic, so the
+classifier has no way to recognise the person building the thing. The objective is ten
+genuine external visits; until the operator is recognisable, the figure is not yet
+measuring that, and this page says so rather than letting the number speak for itself.
 
-**Spent so far: £0.00** of the £100 budget. The £30 contingency is untouched.
+**Real evidence, on a deployment.** Read out of staging: one `VERIFIED` run backed by a
+provider read-back, and two `UNVERIFIED` runs backed by provider webhooks. The two that
+resolved to "could not check" are the more important half — absence of evidence landing on
+unknown rather than on a pass is the entire product.
+
+**Paid once, in sandbox.** A real Checkout Session created by the deployed service and
+paid with a test card, £29.00. No live payment has been taken, and live charges stay
+disabled.
+
+**Not yet true.** The subscription that payment should have activated: the provider
+delivered six events for it and both deployments rejected all six for a signature
+mismatch, which needs a per-environment signing secret only the owner can supply. Live
+payments, because that needs the owner's verified business details. Per-screen layout
+against the nineteen approved references — the shared layer is live, the individual
+compositions are still ours, and "palette applied" is not "design implemented". The
+demonstration page's runs are still fixtures. Advertising: a campaign draft is built,
+has never served an impression, and setting its budget needs the owner to answer an
+identity challenge on their own account.
+
+**Spent so far: £0.00 confirmed** against the £100 budget — no campaign activated, no new
+paid resource, and the £30 contingency untouched and separately gated. That figure rests
+on one assumption the owner has not confirmed: that model usage is a development cost
+rather than a charge against the £100. `docs/spend.md` states the assumption rather than
+burying it, because a budget figure that depends on an unconfirmed reading is not the same
+as a measured one.
 
 ---
 

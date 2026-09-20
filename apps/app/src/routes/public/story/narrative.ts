@@ -276,7 +276,7 @@ export const SYSTEM_PIECES: readonly SystemPiece[] = [
     id: 'connectors',
     name: 'connectors',
     ownedBy: 'A04',
-    body: 'HubSpot, Resend and Stripe adapters behind one interface. Proven against mocks; never run against a live HubSpot or Resend account.',
+    body: 'HubSpot, Resend and Stripe adapters behind one interface. Resend has run against a live account and produced evidence on a deployment. HubSpot is connected and has produced none. Stripe has taken one sandbox payment.',
     source: 'docs/agent-brief.md § Repository layout; docs/development-story.md § Where it stands',
   },
   {
@@ -444,6 +444,51 @@ export const FAILURES: readonly Failure[] = [
     whatChanged:
       'The paragraph was corrected. Underselling a fix is a smaller sin than the reverse, but it is the same class of drift — which is why this page reads the structured record at build time rather than keeping its own copy.',
     source: 'docs/development-story.md § 33% that displayed as 100% (closing note); commit 7a3c0e1',
+  },
+  {
+    id: 'return',
+    title: 'A customer paid, and was returned to a 404',
+    wentWrong:
+      'The first real payment completed on a deployment — the plan price, a sandbox card, through a checkout button that had not existed that morning. The provider took it and redirected the browser to the return path, which answered 404. The billing configuration had named that path, and a second one for a cancelled checkout, since the day it was written. Neither route existed.',
+    whyMissed:
+      'Every case drove the checkout request and asserted on the redirect it produced, so the journey ended at the provider’s front door and nothing followed the customer home. Correct code, thoroughly tested, reached by nothing — this codebase’s dominant defect, arriving at the worst moment it had available.',
+    whatChanged:
+      'The return route exists, and it deliberately does NOT say the subscription is active: it is reached the instant the provider redirects, which can be before any webhook has arrived, and on that day the webhook was being rejected for a signature mismatch. It says the payment was accepted, shows the real subscription state, and explains that a redirect is not evidence that anything was confirmed. The guarding case reads the return paths out of the billing configuration rather than retyping them, so it cannot pass while the configuration points somewhere else.',
+    source: 'docs/development-story.md § A customer paid, and was returned to a 404; EVT-0036',
+  },
+  {
+    id: 'counter',
+    title: 'The visitor counter that could never have moved off zero',
+    wentWrong:
+      'The launch objective is ten genuine external visits. After a full day of real requests to production, the visit table held zero rows. The counter, its six-rule contract, the classifier and the middleware on every request were all complete and correct, with nothing between them and the database.',
+    whyMissed:
+      'The suite ran against a faithful in-memory implementation and passed. The gap was in the mount, above a comment correctly arguing that mounting the in-memory one in production would report plausible numbers that were silently wrong. Both halves of that reasoning were right; nobody wrote the real one. Reading the code could not have found it, because every part of the code was right.',
+    whatChanged:
+      'A real implementation of the same contract, found by querying the live database rather than by review. The cases that cost something are the ones written: a repeat visit is an update and never a second row; a read that failed returns unknown rather than zero, because zero would turn a broken database into the confident business fact that nobody visited; and automated traffic is never countable as an external visitor, because that would fabricate the exact number the objective asks for.',
+    source: 'docs/development-story.md § A visitor counter with nothing behind it; EVT-0040',
+  },
+  {
+    id: 'invisible',
+    title: 'Three new scanner rules that matched nothing, invisibly',
+    wentWrong:
+      'Three rules were added to this repository’s claim scanner to cover business claims the approved designs carry. A mangled escape had left invisible control characters inside all three patterns, so none of them could match anything. The scanner reported a clean sweep over content carrying four prices that are not the plan price.',
+    whyMissed:
+      'Nothing errored. A scanner that reports no findings looks exactly like a scanner that found nothing, and the control characters are invisible in an editor and in search output alike.',
+    whatChanged:
+      'Each rule is now read live out of the scanner by a case that asserts it fires on the designs’ own wording, asserts it stays silent on our own true sentences, and asserts the pattern contains no control character. The second half matters as much as the first: the real plan price must still pass, and a sentence denying that a trial exists must stay sayable.',
+    source: 'docs/development-story.md § Three new rules that matched nothing, invisibly; EVT-0038',
+  },
+  {
+    id: 'preference',
+    title: 'An approved design almost nobody would have seen',
+    wentWrong:
+      'The owner commissioned a design, approved it, and asked for it. The first implementation made the approved appearance the default and let a light operating-system preference switch away from it. Most machines are set light, so the deployed page was very nearly indistinguishable from the page before the change.',
+    whyMissed:
+      'Every case passed, because the palette was correct and reachable. Honouring the reader’s preference is the conventional and usually the right choice; what no case asserted was the outcome the change existed to produce.',
+    whatChanged:
+      'The approved appearance is unconditional. The light palette is not deleted — it stays complete, stays measured by the contrast suite, and stays reachable through the explicit toggle — and the case now asserts the property it was written for, that neither palette may quietly become unreachable, rather than the mechanism it happened to use.',
+    source:
+      'docs/development-story.md § An approved design almost nobody would have seen; EVT-0037',
   },
 ];
 
