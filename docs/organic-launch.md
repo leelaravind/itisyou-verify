@@ -218,17 +218,17 @@ describes.
 
 ### What the databases say right now
 
-| Fact                                                         | Staging (`verify-itisyou-db-staging`)                                                                                                      | Production (`verify-itisyou-db-production`)                                                          |
-| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
-| Runs by status                                               | **VERIFIED 2, FAILED 1, UNVERIFIED 7, PENDING 1** (11 runs, all in the project's own test workspace)                                       | 0                                                                                                    |
-| Evidence rows by origin                                      | **3 `provider_readback`, 4 `provider_webhook` — all Resend. Zero HubSpot rows.**                                                           | 0                                                                                                    |
-| Connections                                                  | HubSpot `ready` (portal validated); Resend `ready`, webhook verified 2026-09-19T20:51:16Z                                                  | 0                                                                                                    |
-| Stripe webhook receipts                                      | **3, all `processed`**, 06:08–06:10 UTC today                                                                                              | 1 — an event for a workspace production has never held; nothing activated                            |
-| Subscriptions                                                | **1, `active`, environment `test`**, on price `price_1UHUL01v0rNNhRrq801EczJM`                                                             | 0                                                                                                    |
-| Entitlements                                                 | **One row with `run_limit` 500** for the new billing period (plus the earlier 10-run test slice)                                           | 0                                                                                                    |
-| Price on that subscription                                   | Stripe test dashboard, read today: **£29.00 / month, GBP, flat rate**                                                                      | —                                                                                                    |
-| Live payments                                                | `STRIPE_MODE: "test"` in every environment's `wrangler.jsonc` vars; `subscriptions.environment` is `test`; checkout asserts the mode       | Same config                                                                                          |
-| Visit sessions                                               | —                                                                                                                                          | 13 rows since 03:33 UTC: 5 `external`, 7 `bot_suspected`, 1 `internal_test`. **Genuine external: 0** |
+| Fact                       | Staging (`verify-itisyou-db-staging`)                                                                                                | Production (`verify-itisyou-db-production`)                                                          |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| Runs by status             | **VERIFIED 2, FAILED 1, UNVERIFIED 7, PENDING 1** (11 runs, all in the project's own test workspace)                                 | 0                                                                                                    |
+| Evidence rows by origin    | **3 `provider_readback`, 4 `provider_webhook` — all Resend. Zero HubSpot rows.**                                                     | 0                                                                                                    |
+| Connections                | HubSpot `ready` (portal validated); Resend `ready`, webhook verified 2026-09-19T20:51:16Z                                            | 0                                                                                                    |
+| Stripe webhook receipts    | **3, all `processed`**, 06:08–06:10 UTC today                                                                                        | 1 — an event for a workspace production has never held; nothing activated                            |
+| Subscriptions              | **1, `active`, environment `test`**, on price `price_1UHUL01v0rNNhRrq801EczJM`                                                       | 0                                                                                                    |
+| Entitlements               | **One row with `run_limit` 500** for the new billing period (plus the earlier 10-run test slice)                                     | 0                                                                                                    |
+| Price on that subscription | Stripe test dashboard, read today: **£29.00 / month, GBP, flat rate**                                                                | —                                                                                                    |
+| Live payments              | `STRIPE_MODE: "test"` in every environment's `wrangler.jsonc` vars; `subscriptions.environment` is `test`; checkout asserts the mode | Same config                                                                                          |
+| Visit sessions             | —                                                                                                                                    | 13 rows since 03:33 UTC: 5 `external`, 7 `bot_suspected`, 1 `internal_test`. **Genuine external: 0** |
 
 Attribution of the five external-classified rows is worked through in
 `docs/campaign-packet.md` §8. None is attributable; one is a WordPress-endpoint probe.
@@ -401,88 +401,47 @@ https://verify.itisyou.app/demo?utm_source=hn&utm_medium=organic&utm_campaign=or
 
 **First comment from the author, posted immediately after submitting:**
 
-> I build small automations, and the failure mode that kept catching me out is the one that
-> does not throw. The workflow runs top to bottom, the platform's execution log is green,
-> and the CRM record was never created — or it went to the wrong record, or the
-> acknowledgement email went to the wrong address. You find out when the client rings to
-> ask why nobody replied to their enquiry.
+> Automations fail quietly. The run is green, and the CRM record was never created, or the
+> acknowledgement email went to the wrong address. This checks the outcome instead of the
+> run: you tell it what an enquiry should have produced, it reads the record back from
+> HubSpot and the message event back from Resend, checks them against rules you wrote, and
+> reports one of four things — verified, failed, unverified, pending. "Unverified" means not
+> enough evidence to say. It is never a pass and never a failure.
 >
-> So this checks the outcome instead of the run. You tell it what a given enquiry should
-> have produced; it is built to query HubSpot and Resend directly for the record and the
-> message event, check what comes back against rules you wrote, and report one of four
-> things: verified, failed, unverified, or still pending. "Unverified" is a first-class
-> answer — not enough evidence to say — and it is deliberately not a pass and not a failure.
+> **What has actually been run**, against my own accounts and my own synthetic records:
+> both providers read back on a staging deployment — 3 runs VERIFIED, 3 FAILED, 8
+> UNVERIFIED. One FAILED came from a HubSpot record that existed but belonged to a different
+> enquiry: contradicted on the correlation reference, not reported as merely missing. That
+> proves the providers answer me correctly. It proves nothing about your portal.
 >
-> **Straight about what I have and have not actually run.** Resend is real: a dedicated
-> key, a registered webhook, genuinely signed delivery events arriving and being stored as
-> evidence, and the service reading message outcomes back from Resend's API itself. The
-> connection only reaches "ready" when a correctly signed callback actually arrives, and
-> getting that working found a bug where it could never reach ready at all — the promotion
-> code was correct and tested, and nothing could reach it. On the staging deployment that
-> has so far produced three runs VERIFIED, three FAILED and eight UNVERIFIED, from five
-> read-backs (two HubSpot, three Resend) and four signed Resend webhooks. The FAILED and UNVERIFIED ones matter more to me
-> than the VERIFIED ones: they are the evidence that missing or contradicting evidence
-> resolves to "wrong" or "could not check", never to a pass. HubSpot is real too, as of this
-> morning: a contact was read back from a live portal and supported a verified run, and a
-> second run whose retrieved record belonged to a different enquiry was contradicted on the
-> correlation reference rather than reported as merely missing. Both against my own portal
-> and my own synthetic records, so it proves the provider answers me correctly, not anything
-> about your portal.
+> **How a verdict is produced today: by reading back from the provider's API.** Signed
+> Resend webhooks are received, verified and stored, but they do not feed a verdict yet —
+> a stored webhook on its own leaves a run UNVERIFIED. I would rather say that here than
+> let the word "webhook" imply more than it does.
 >
-> What has **not** happened: no real customer traffic, and nothing on production. Every one
-> of those runs is in my own test workspace, triggered by me. Billing is Stripe in test
-> mode only — one sandbox payment of £29 has gone end to end and activated a subscription on
-> staging, live payments are switched off, and no real money has been taken from anyone.
-> The four runs on the demo page are seeded fixtures, not real traffic.
+> **Not done:** no customer traffic, nothing on production. Stripe is in test mode only —
+> one sandbox £29 payment activated a subscription on staging, live payments are off, nobody
+> has been charged. The demo's four runs are seeded fixtures.
 >
-> I am spelling this out because the distinction between "the code is written to do this"
-> and "I have watched it do this" is the entire product, and fudging it here of all places
-> would be a poor look.
+> **Deliberately cannot:** one workflow shape only (enquiry → CRM record → acknowledgement
+> email); HubSpot and Resend only; it never looks inside n8n/Make/Zapier, so it cannot say
+> _why_; it writes nothing and fixes nothing; by default it cannot detect a run that never
+> started; it is not real-time — a result can take up to an hour to settle.
 >
-> The link is a demo with four seeded runs, no signup. What I would most like feedback on
-> is the fourth one, where the honest answer is "I don't know".
+> One bug worth confessing: the demo's "33%" health bar rendered full and green. The markup
+> was right; a strict Content-Security-Policy I had added blocked inline `style`, so the
+> fill fell back to 100%. The exact failure this product exists to prevent, on the page
+> arguing against it. Fixed by moving the width to a class and keeping
+> `style-src-attr 'none'`, not by loosening the header.
 >
-> Things it deliberately cannot do, because I would rather say this up front than have
-> someone find out:
->
-> - One workflow shape only: an enquiry that should create a CRM record and send an
->   acknowledgement email. Not quotes, invoices or tickets.
-> - HubSpot and Resend only. Different CRM or different email provider, it cannot help.
-> - It never looks inside n8n/Make/Zapier. It has no idea _why_ a step failed, only whether
->   the outcome exists downstream.
-> - It does not fix anything. No writes to your CRM, no resent emails.
-> - By default it cannot detect a run that never started, because by default your
->   automation is the thing that tells it a run was expected. Silence is shown as silence,
->   not as a perfect score.
-> - Results are not real-time. Evidence is checked on a schedule and a result can take up
->   to an hour to settle.
->
-> One bug worth confessing, because it is the exact thing this is supposed to prevent. The
-> demo has a health card showing "33%" with a progress bar under it. The bar was rendering
-> full width and solid green. The markup was right the whole time — `style="width:33%"` —
-> and what was wrong was a Content-Security-Policy I had added an hour earlier. A strict
-> policy with no `unsafe-inline` blocks inline `style` attributes too, so the fill fell back
-> to its default width, which is all of it. Of every bug I could have shipped, that is the
-> one that most directly contradicts the product: a partial result displayed as a pass, on
-> the page written to argue that a partial result must never look like a pass. No code
-> review would have caught it. The template was correct, the test asserted the template was
-> correct, and the CSP was correct in isolation. It took deploying it and looking at a
-> screenshot.
->
-> The fix I'd defend: the inline style came out entirely and the width became a CSS class,
-> so the policy stayed at `style-src-attr 'none'` rather than being loosened to let the
-> page work. Weakening a security header to fix a rendering bug is how you end up with a
-> policy that permits everything and protects nothing.
->
-> No customers yet, nothing is launched, and I am here for the rest of the day if anyone
-> wants to tell me it is a bad idea.
+> No customers, nothing launched. The feedback I most want is on the fourth demo run, where
+> the honest answer is "I don't know".
 
-**Ready to copy.** Re-verified 20 Sept 07:45 UTC (HubSpot proven 07:20): run counts and evidence origins read from
-the staging `runs` and `evidence` tables; HubSpot "zero evidence rows" and both connections
-`ready` from `connections`; the £29 sandbox payment from the staging `subscriptions` and
-`entitlements` tables plus the Stripe test-mode price page; live payments off from
-`STRIPE_MODE: "test"` in `wrangler.jsonc`; production `runs` = 0; the demo's seeded runs
-from `apps/app/src/routes/public/demo.ts`; the CSP fix from the served header recorded in §0.
+**Ready to copy.** Shortened 20 Sept 09:15 UTC on the owner's instruction: client anecdotes
+removed; read-back stated as the only current verdict source; stored signed webhooks stated
+as not yet supporting a verdict. Figures unchanged from the 07:45 UTC read of the staging
+`runs`, `evidence`, `connections`, `subscriptions` and `entitlements` tables; production
+`runs` = 0; `STRIPE_MODE: "test"`.
 
 ### 4.4 Expected outcome
 
@@ -530,101 +489,61 @@ future paid campaign on Reddit.
 
 **Title:**
 
-> I kept finding out an automation had silently failed from the client, so I built
-> something that checks the outcome. Here is what it can't do.
+> I built a check that reads the outcome back from HubSpot and Resend instead of trusting
+> the green run. Here is what it can't do.
 
 **Body:**
 
 > The failure that got me was never the one that throws. The workflow runs, the execution
-> log is green, and the contact was never created in the CRM — or it was created against
-> the wrong record, or the acknowledgement email went to an address with a typo in it.
-> Nothing errors. You find out days later when the client asks why nobody replied.
+> log is green, and the contact was never created in the CRM — or it went against the
+> wrong record, or the acknowledgement went to an address with a typo. Nothing errors.
 >
-> The usual answer is to build a second workflow that queries the CRM and checks. I did
-> that for a couple of clients and it was the same work every time, and it still trusted
-> the same platform's own read of its own actions.
->
-> So I built the check as a separate thing. Your automation sends it a signed event saying
+> So I built the check as a separate thing. Your workflow sends it a signed event saying
 > "enquiry X should now have a CRM record with correlation id Y and an acknowledgement to
-> Z". It is built to go to HubSpot and Resend directly for the record and the message event
-> and check them against rules you wrote. You get one of four answers: verified, failed,
-> unverified, or pending. Your workflow's own "success" is a trigger to go and look, never
-> proof on its own.
+> Z". It reads the record back from HubSpot and the message event back from Resend, checks
+> them against rules you wrote, and gives one of four answers: verified, failed, unverified,
+> pending. Your workflow's own "success" is a trigger to go and look, never proof.
 >
-> **Where it actually is, honestly:** Resend is connected for real — a dedicated key, a
-> registered webhook, genuinely signed delivery events arriving and being stored as
-> evidence, and the service reading message outcomes back from Resend's API itself. On my
-> staging deployment that has produced three runs verified, three failed and eight
-> unverified so far, from five read-backs (two HubSpot, three Resend) and four signed Resend
-> webhooks. The failed and unverified ones are the ones I care about: they show missing or
-> contradicting evidence resolving to "wrong" or "could not check", never to a pass. HubSpot
-> is real too, as of this morning: a contact was read back from a live portal and supported
-> a verified run, and a second run whose retrieved record belonged to a different enquiry
-> was contradicted on the correlation reference rather than reported as merely missing.
-> Every one of those runs is in my own test workspace against my own portal and my own
-> synthetic records, triggered by me — it proves the providers answer me correctly, not
-> anything about your portal. No customer traffic, nothing on production.
-> Billing is Stripe in test mode only: one sandbox payment has gone end to end and activated
-> a subscription on staging, live payments are switched off, and nobody has been charged
-> real money.
+> **Where it actually is:** both providers have been read back for real on my staging
+> deployment, against my own portal and my own synthetic records — 3 runs verified, 3
+> failed, 8 unverified. One failed run had a HubSpot record that existed but belonged to a
+> different enquiry, and it was contradicted on the correlation reference rather than
+> reported as missing. That proves the providers answer me correctly, not anything about
+> your portal. No customer traffic, nothing on production. Stripe is test mode only; live
+> payments are off; nobody has been charged.
 >
-> I would rather spell that out than let "reads it back from HubSpot" imply more than I
-> have watched happen, because the thing this is supposed to catch is software reporting on
-> its own success with no independent evidence. Doing that in the post introducing it would
-> be quite the own goal.
+> **How a verdict is produced today: by reading back from the provider's API.** Signed
+> Resend webhooks are received, verified and stored, but they do not feed a verdict yet — a
+> stored webhook on its own leaves a run unverified. I'd rather say that up front than let
+> "webhook" imply more than it does.
 >
-> The part I care about most is "unverified". The design is that missing or ambiguous
-> evidence — connection down, correlation value absent, two candidate records — is reported
-> as exactly that, never rounded up to a pass or down to a failure. Absence of evidence is
-> not evidence of either.
+> **What it genuinely cannot do:**
 >
-> **What it genuinely cannot do**, because this is the bit people find out later and get
-> annoyed about:
+> - One workflow shape: enquiry → CRM record → acknowledgement email. Not quotes, invoices
+>   or tickets.
+> - HubSpot and Resend only.
+> - It never looks inside n8n. It cannot tell you _why_ something failed, only whether the
+>   outcome exists downstream.
+> - It fixes nothing. No writes to your CRM, no resent emails.
+> - Setup is real work: a stable correlation value written into a named HubSpot property on
+>   every enquiry, a signing key, and one extra HTTP node in your flow.
+> - By default it can't tell you a run never started, because your own workflow is what
+>   tells it a run was expected. That shows as "no runs received", never as a clean sheet.
+> - Not real-time. A result can take up to an hour to settle.
 >
-> - One workflow shape only: enquiry → CRM record → acknowledgement email. Not quotes, not
->   invoices, not tickets.
-> - HubSpot and Resend only. Another CRM or another email provider, it can't help yet.
-> - It never looks inside n8n. It has no visibility into your executions and cannot tell
->   you _why_ something failed — only whether the outcome exists downstream.
-> - It doesn't fix anything. No writes to your CRM, no resent emails. It reads.
-> - Setup is real work, not "connect and go": you need a stable correlation value written
->   into a named HubSpot property on every enquiry, a signing key, and one extra HTTP node
->   in your existing flow. If you didn't build the original automation you'll need whoever
->   did.
-> - By default it can't tell you a run never started, because your own automation is what
->   tells it a run was expected. That case shows as "no runs received", never as a clean
->   sheet.
-> - Not real-time. Checks run on a schedule; a result can take up to an hour to settle.
+> Most embarrassing bug so far: the demo's "33%" health bar rendered full green. The
+> markup was fine; a strict CSP I'd added blocked inline `style`, so the fill fell back to
+> 100% — a partial result displayed as a pass, on the page built to argue against exactly
+> that. I deleted the inline style and kept `style-src-attr 'none'` rather than loosen the
+> header to fix a bar.
 >
-> Best bug so far, which is also the most embarrassing: the demo page shows a health card
-> reading "33%" with a progress bar under it, and the bar was rendering full width and
-> solid green. The markup was fine — `style="width:33%"`. The problem was a
-> Content-Security-Policy I'd added an hour before: a strict policy with no `unsafe-inline`
-> blocks inline `style` attributes as well as inline stylesheets, so the fill fell back to
-> its default width, which is 100%. The entire point of the product is that a partial
-> result must never display as a pass, and I shipped a bar inflating 33% to 100% on the
-> page written to demonstrate exactly that. Nothing in review would have found it — the
-> template was right, the test asserted the template was right, and the CSP was right in
-> isolation. It took looking at a screenshot of the deployed page.
+> Demo with four seeded runs, no signup: [link]
 >
-> The fix that I think is the right one: I deleted the inline style rather than loosening
-> the policy. The width is a CSS class now and the header still says
-> `style-src-attr 'none'`. The tempting fix was to allow inline style attributes, which
-> would have made the bar work and quietly widened the XSS surface of every page on the
-> site to fix one progress bar.
->
-> There's a demo with four seeded runs if you want to see the four outcomes, no signup:
-> [link]
->
-> No customers yet, nothing launched. Mostly I want to know whether the "unverified"
-> distinction is useful to you or just pedantry, and whether the setup cost is too high for
-> what it gives you.
+> No customers yet, nothing launched. I want to know whether the "unverified" distinction is
+> useful to you or just pedantry, and whether the setup cost is too high.
 
-**Ready to copy.** Re-verified 20 Sept 07:45 UTC, same reads as §4.3: staging `runs`,
-`evidence`, `connections`, `subscriptions`, `entitlements`; Stripe test-mode price page;
-`STRIPE_MODE: "test"`; production `runs` = 0. The onboarding-cost bullets were checked
-against `docs/product-scope.md` §5 and the limitation bullets are true by absence of any
-code path.
+**Ready to copy.** Shortened 20 Sept 09:15 UTC on the owner's instruction; same corrections
+and the same 07:45 UTC reads as §4.3.
 
 **Link, placed where the rules allow** (in the body if link posts are fine, otherwise in
 the founder's own first comment):
@@ -866,19 +785,19 @@ we do not have.
 Every sentence in all four posts has been sorted into one of two buckets, and anything in
 the second is worded as design, not as something we have watched happen.
 
-| Claim in the posts                                                                  | Status                     | What backs it                                                                                                                                                                                              |
-| ----------------------------------------------------------------------------------- | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Four outcomes: verified / failed / unverified / pending, and never a fifth          | **Observed**               | `RUN_STATUS` is a closed tuple; the evaluator and decision table are exercised across `tests/unit/domain/`                                                                                                 |
-| Missing or ambiguous evidence resolves to UNVERIFIED, never to a pass               | **Observed**               | Evaluator tests over synthetic evidence                                                                                                                                                                    |
-| A blown deadline only counts as FAILED when evidence access was working             | **Observed**               | Same                                                                                                                                                                                                       |
-| The customer's own "success" signal is a trigger, not proof                         | **Observed**               | `EvidenceOrigin: 'customer_claim'` is the weakest tier by construction; no path lets it satisfy a mandatory assertion                                                                                      |
-| The demo shows four seeded runs and needs no account, email or JavaScript           | **Observed**               | `apps/app/src/routes/public/demo.ts`, server-rendered                                                                                                                                                      |
-| The CSP bug that rendered 33% as a full green bar                                   | **Observed**               | It happened; the fix is in the policy with a comment saying why                                                                                                                                            |
-| Setup cost: correlation property, signing key, an extra call in the customer's flow | **Observed**               | It is the documented onboarding in `docs/product-scope.md` §5                                                                                                                                              |
-| Every limitation in the "what it cannot do" lists                                   | **Observed**               | True by absence — there is no code path that could do those things                                                                                                                                         |
+| Claim in the posts                                                                  | Status                     | What backs it                                                                                                                                                                                                       |
+| ----------------------------------------------------------------------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Four outcomes: verified / failed / unverified / pending, and never a fifth          | **Observed**               | `RUN_STATUS` is a closed tuple; the evaluator and decision table are exercised across `tests/unit/domain/`                                                                                                          |
+| Missing or ambiguous evidence resolves to UNVERIFIED, never to a pass               | **Observed**               | Evaluator tests over synthetic evidence                                                                                                                                                                             |
+| A blown deadline only counts as FAILED when evidence access was working             | **Observed**               | Same                                                                                                                                                                                                                |
+| The customer's own "success" signal is a trigger, not proof                         | **Observed**               | `EvidenceOrigin: 'customer_claim'` is the weakest tier by construction; no path lets it satisfy a mandatory assertion                                                                                               |
+| The demo shows four seeded runs and needs no account, email or JavaScript           | **Observed**               | `apps/app/src/routes/public/demo.ts`, server-rendered                                                                                                                                                               |
+| The CSP bug that rendered 33% as a full green bar                                   | **Observed**               | It happened; the fix is in the policy with a comment saying why                                                                                                                                                     |
+| Setup cost: correlation property, signing key, an extra call in the customer's flow | **Observed**               | It is the documented onboarding in `docs/product-scope.md` §5                                                                                                                                                       |
+| Every limitation in the "what it cannot do" lists                                   | **Observed**               | True by absence — there is no code path that could do those things                                                                                                                                                  |
 | **Querying Resend for the message event**                                           | **Observed (staging)**     | Staging `evidence` table, 20 Sept 06:50 UTC: 3 `provider_readback` and 4 `provider_webhook` rows, all Resend; runs VERIFIED 2 / FAILED 1 / UNVERIFIED 7 decided from them. All in the project's own test workspace. |
-| **Querying HubSpot for the record**                                                 | **DESIGNED, NOT OBSERVED** | Connection `ready` against a real portal; **zero** HubSpot rows in `evidence` on either database. The posts say "connected, not proven" in those words.                                                    |
-| Sandbox payment activates a subscription and grants a 500-run allowance             | **Observed (staging)**     | `subscriptions` 1 `active` (`test`), `entitlements` one row `run_limit` 500, three Stripe receipts `processed`; price £29.00/month on the Stripe test dashboard. No live mode anywhere.                   |
+| **Querying HubSpot for the record**                                                 | **DESIGNED, NOT OBSERVED** | Connection `ready` against a real portal; **zero** HubSpot rows in `evidence` on either database. The posts say "connected, not proven" in those words.                                                             |
+| Sandbox payment activates a subscription and grants a 500-run allowance             | **Observed (staging)**     | `subscriptions` 1 `active` (`test`), `entitlements` one row `run_limit` 500, three Stripe receipts `processed`; price £29.00/month on the Stripe test dashboard. No live mode anywhere.                             |
 
 **The claim was softened in all four posts, on the lead's instruction, and then revised
 again on 19 September when part of it stopped being true.** A reader in r/n8n hears "reads

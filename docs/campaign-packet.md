@@ -1,8 +1,15 @@
 # Campaign readiness packet — Google Ads Search, September 2026
 
 **Prepared by:** Growth lane, 20 September 2026, 06:57 UTC.
-**Campaign state today: DRAFTED.** Not submitted. Not approved. Not delivering.
-**Spent to date: GBP 0.00.** The draft has never served an impression.
+**Campaign state at 09:20 UTC, 20 September: SUBMITTED by the owner (07:55 UTC), found EMPTY, being completed.**
+The published campaign carried no keywords and no ads. Since then the lead has saved the five
+exact-match keywords (§3.2) and the eight negatives; the responsive search ad (§3.3) is being
+entered. Google's status: **"Not eligible — low search volume, under review."** Not approved.
+Not delivering. **Spent to date: GBP 0.00.**
+
+**Budget corrected 08:40 UTC: GBP 12.46 → GBP 12.25.** See the fee note below the billing
+table: Google adds a 2% UK Digital Services Tax fee on top of media spend and VAT applies
+to it, which the 12.46 figure had not allowed for.
 
 This is the one page the owner reads and approves in a sitting. Everything below is either
 read from the live Google Ads wizard, the live databases, or the build record in
@@ -40,6 +47,16 @@ GBP 15.00 all-in authorisation with 5p to spare. A campaign total budget is a ha
 on net spend for the campaign's lifetime (unlike a daily budget, which Google may exceed
 on a given day), and the end date of 30 September stops delivery regardless.
 
+**Added 08:40 UTC — the fee the table above could not show.** Google's own help page
+(support.google.com/google-ads/answer/9750227, read in the owner's session) states that for
+ads served in the United Kingdom a **2% Digital Services Tax fee is added on top of** the
+campaign's spend, appears as a separate line on the invoice, and that **VAT applies to the
+fee as well**. So GBP 12.46 net would have billed 12.46 × 1.02 × 1.20 = **GBP 15.25**, over
+the cap. The campaign total was therefore lowered to **GBP 12.25**: 12.25 × 1.02 = 12.495,
+× 1.20 = **GBP 14.99**. Saved and verified across a reload; the Overview header reads
+"Budget: £12.25/campaign". The campaign _name_ still says "capped GBP 12.46 net"; the
+budget control, not the name, is what caps spend.
+
 What this does NOT establish: whether the VAT rate the invoice actually applies is exactly
 20% and not a different figure. That can only be read from the first invoice, and there is
 no invoice yet because nothing has been spent. If the first document shows a different
@@ -47,17 +64,22 @@ rate, the campaign is paused before the second.
 
 ## 1. The spending authorisation, restated
 
-**GBP 15.00 all-in, including UK VAT at 20%.** Not GBP 15 of media plus tax. The campaign
-is built to **GBP 12.46 net**, which is **GBP 14.95 gross**. Nothing in this packet
-proposes more, and nothing in this packet may be read as a request for more.
+**GBP 15.00 all-in, including the UK DST fee and UK VAT at 20%.** Not GBP 15 of media
+plus tax. The campaign is built to **GBP 12.25 net**, which is **GBP 14.99 gross**. Nothing
+in this packet proposes more, and nothing in this packet may be read as a request for more.
 
 ```
-media (campaign total budget)      12.46
-VAT at 20%      12.46 x 0.20   =    2.492  ->  2.49 to the penny
-gross           12.46 + 2.49   =   14.95
-                                   (14.952 exactly; 14.96 if the invoice rounds VAT up)
-headroom under GBP 15.00            0.05   (0.04 in the round-up case)
+media (campaign total budget)      12.25
+UK DST fee 2%   12.25 x 0.02   =    0.245  ->  0.25 to the penny
+subtotal                           12.50
+VAT at 20%      12.50 x 0.20   =    2.499  ->  2.50 to the penny
+gross                              14.99   (14.994 exactly)
+headroom under GBP 15.00            0.01
 ```
+
+(Superseded 08:40 UTC: the packet previously carried 12.46 net / 14.95 gross, which omitted
+the DST fee. A daily budget was never used and is never to be used in place of the
+campaign total.)
 
 The earlier daily-budget derivation (GBP 0.41 x 30.4 = 12.46 net, 14.96 gross) is
 recorded in `docs/advertising.md` §11 and is superseded: with a campaign **total** budget
