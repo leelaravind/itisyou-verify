@@ -524,18 +524,18 @@ All read 2026-09-19.
 Recorded from the live account before any funding, per the brief's A01. Facts read from
 the account, not from documentation or estimates.
 
-| | |
-| --- | --- |
-| Account | `129-611-7160` |
-| Status | Was **cancelled** 26 Sep 2022; reactivated by the owner on 19 Sep 2026 |
-| Currency | **₹ INR** — set at account creation and **not changeable** |
-| Time zone | **(GMT-07:00) Pacific** — also not changeable |
-| Payment setting | **Prepay** (manual funding) |
-| Balance | **₹0.00** |
-| Google Payments profile | `8261-0504-5922-3242`, payer "Usshaa" |
-| Payment methods | **Not visible** — signed-in user lacks permission on the payments profile |
-| Campaigns | **0** (three legacy campaigns removed, below) |
-| Account daily total | **₹0.00/day** |
+|                         |                                                                           |
+| ----------------------- | ------------------------------------------------------------------------- |
+| Account                 | `129-611-7160`                                                            |
+| Status                  | Was **cancelled** 26 Sep 2022; reactivated by the owner on 19 Sep 2026    |
+| Currency                | **₹ INR** — set at account creation and **not changeable**                |
+| Time zone               | **(GMT-07:00) Pacific** — also not changeable                             |
+| Payment setting         | **Prepay** (manual funding)                                               |
+| Balance                 | **₹0.00**                                                                 |
+| Google Payments profile | `8261-0504-5922-3242`, payer "Usshaa"                                     |
+| Payment methods         | **Not visible** — signed-in user lacks permission on the payments profile |
+| Campaigns               | **0** (three legacy campaigns removed, below)                             |
+| Account daily total     | **₹0.00/day**                                                             |
 
 ### Why prepay matters more than any campaign cap
 
@@ -550,11 +550,11 @@ by trusting a setting.
 Removed on the owner's explicit instruction. All three were dormant with ₹0.00 lifetime
 cost. Removal is irreversible in Google Ads; the owner asked for it directly.
 
-| Campaign | Budget | State when removed |
-| --- | --- | --- |
-| Best Numerologist | **₹300.00/day (₹9,120.00/month)**, no end date | Paused |
-| credit | ₹380.00 total, 25–26 Jun 2021 | Paused, no ads |
-| First Yt ADD | ₹450.00 total, 5–9 Jan 2021 | **Enabled**, ended by date |
+| Campaign          | Budget                                         | State when removed         |
+| ----------------- | ---------------------------------------------- | -------------------------- |
+| Best Numerologist | **₹300.00/day (₹9,120.00/month)**, no end date | Paused                     |
+| credit            | ₹380.00 total, 25–26 Jun 2021                  | Paused, no ads             |
+| First Yt ADD      | ₹450.00 total, 5–9 Jan 2021                    | **Enabled**, ended by date |
 
 "Best Numerologist" was the reason to act rather than leave them paused: a daily budget
 with no end date, on a reactivated account, is roughly **£85/month** of exposure sitting
@@ -602,7 +602,7 @@ and end date. Google's documentation states billed spend will not exceed a campa
 budget, and both removed legacy campaigns in this account used that setting, so it is
 demonstrably available here rather than merely documented.
 
-The residual risk is honest and small: a campaign total budget bounds *that campaign*. It
+The residual risk is honest and small: a campaign total budget bounds _that campaign_. It
 does not stop a second campaign being created later. The account will hold exactly one.
 
 ### Decision two — VAT, and why the media budget is not £15
@@ -610,11 +610,11 @@ does not stop a second campaign being created later. The account will hold exact
 The payments profile is an **Individual** UK profile, so UK VAT at 20% is expected on top
 of media spend. The authorisation is £15 **all in**.
 
-| | |
-| --- | --- |
+|                               |            |
+| ----------------------------- | ---------- |
 | Media budget (campaign total) | **£12.50** |
-| VAT at 20% | £2.50 |
-| **Total** | **£15.00** |
+| VAT at 20%                    | £2.50      |
+| **Total**                     | **£15.00** |
 
 If VAT turns out not to apply, the campaign spends £12.50 and the remainder is unused —
 the safe direction to be wrong in. Setting £15 of media and discovering VAT on top would
@@ -622,18 +622,18 @@ bill £18.00 and breach the authorisation by £3.
 
 ### The campaign
 
-| Setting | Value | Why |
-| --- | --- | --- |
-| Type | Search only | No Display or Partners: they spend a small budget on impressions that will not read a technical page. |
-| Networks | Google Search, **Search Partners off**, **Display off** | |
-| Budget | **Campaign total £12.50**, not a daily budget | A daily budget limits a rate, not a total, and cannot cap £15. |
-| Dates | 7 consecutive days, fixed start and end | Google requires at least three days for a total budget; seven gives weekday coverage. |
-| Bidding | Manual CPC, max **£0.60** | Not Maximise Clicks: it spends to the budget by design. Manual keeps the worst case predictable. |
-| Locations | United Kingdom, **"Presence: people in"** | The default includes people merely *interested in* a location and wastes budget abroad. |
-| Languages | English | |
-| Audience | None | Nothing that could profile a visitor. |
-| Landing page | `https://verify.itisyou.app/demo` | Needs no account, no email, no JavaScript. |
-| Tracking | UTM parameters only, no pixel, no remarketing tag | |
+| Setting      | Value                                                   | Why                                                                                                   |
+| ------------ | ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Type         | Search only                                             | No Display or Partners: they spend a small budget on impressions that will not read a technical page. |
+| Networks     | Google Search, **Search Partners off**, **Display off** |                                                                                                       |
+| Budget       | **Campaign total £12.50**, not a daily budget           | A daily budget limits a rate, not a total, and cannot cap £15.                                        |
+| Dates        | 7 consecutive days, fixed start and end                 | Google requires at least three days for a total budget; seven gives weekday coverage.                 |
+| Bidding      | Manual CPC, max **£0.60**                               | Not Maximise Clicks: it spends to the budget by design. Manual keeps the worst case predictable.      |
+| Locations    | United Kingdom, **"Presence: people in"**               | The default includes people merely _interested in_ a location and wastes budget abroad.               |
+| Languages    | English                                                 |                                                                                                       |
+| Audience     | None                                                    | Nothing that could profile a visitor.                                                                 |
+| Landing page | `https://verify.itisyou.app/demo`                       | Needs no account, no email, no JavaScript.                                                            |
+| Tracking     | UTM parameters only, no pixel, no remarketing tag       |                                                                                                       |
 
 At £0.60 maximum CPC, £12.50 buys **at most ~20 clicks**. Ten genuine visits is a
 plausible outcome and is not a forecast.
@@ -659,11 +659,13 @@ Negative keywords: `free`, `tutorial`, `course`, `jobs`, `salary`, `what is auto
 Every line has to survive the claim scanner and be true of the deployed service today.
 
 **Headlines**
+
 1. `Did the automation actually do it?`
 2. `Check the outcome, not the run log`
 3. `Reads the email outcome back from Resend`
 
 **Descriptions**
+
 1. `Your workflow says success. We check whether the acknowledgement actually reached the recipient, by reading the outcome back from Resend ourselves.`
 2. `Four answers: verified, failed, unverified, pending. Missing evidence is never reported as a pass. One workflow shape, HubSpot and Resend only.`
 
@@ -691,3 +693,70 @@ added later. The copy now claims only the half that has been observed.
 Visits, signups and customers will be reported as three separate numbers, never summed.
 Spend will be reported as billed, accrued and committed separately; an unknown charge will
 be reported as unknown rather than as zero.
+
+---
+
+## 11. The campaign as actually built — 20 September 2026
+
+**Status: DRAFT in the Google Ads account. It has never served an impression and has spent
+GBP 0.00.** A draft cannot spend. What follows is what is configured, what is deliberately
+NOT configured, and what remains.
+
+Account `227-475-1523 ITISYOU Verify`, campaign id `281499240660433`, draft `10214870512`.
+
+### The arithmetic that set the daily budget
+
+§2 of this document said GBP 0.49/day keeps a single-calendar-month run at or below
+GBP 15.00, using Google's documented guarantee of `30.4 x average daily budget per
+calendar month`. **That figure was wrong and would have breached the authorisation.** The
+owner authorised "no more than GBP 15 in total, **including applicable charges**", and UK
+VAT at 20% applies on top of media spend:
+
+    0.49 x 30.4 = 14.90 net  ->  17.88 inc VAT   EXCEEDS the authorisation
+    0.41 x 30.4 = 12.46 net  ->  14.96 inc VAT   within it
+
+So the daily budget is **GBP 0.41**, and the ceiling claimed anywhere in this repository is
+GBP 12.46 net / GBP 14.96 gross. The earlier figure is left in §2 rather than silently
+corrected, because it was cited in a plan the owner read.
+
+### Configured
+
+| Setting      | Value                                 | Why                                                                                                                                                            |
+| ------------ | ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Objective    | Website traffic                       | The requirement is ten genuine visits, not conversions.                                                                                                        |
+| Type         | Search                                | The only case §5 costed.                                                                                                                                       |
+| Landing page | `https://verify.itisyou.app/demo`     | No account needed, a worked example, and the notice that separates observed from designed. The auditor reviewed this page specifically.                        |
+| Bidding      | Maximise clicks, **max CPC GBP 1.20** | With no conversion tracking, "maximise conversions" would bid blind. At GBP 12.46 a GBP 1.20 cap is up to ~10 clicks, which is the target.                     |
+| Dates        | 20 Sept – **30 Sept 2026**            | One calendar month. Without an end date Google states plainly that "your ads will continue to run", and the monthly guarantee is the only ceiling that exists. |
+| Locations    | United Kingdom                        | The buyer in `product-scope.md` §1, and our terms and VAT are UK.                                                                                              |
+| Languages    | English                               |                                                                                                                                                                |
+
+### Deliberately NOT configured, each for a stated reason
+
+- **Google search partners network: OFF.** On by default. Parked domains and non-Google
+  sites are not where the buyer is, and GBP 12.46 cannot afford the dilution.
+- **Google Display Network: OFF.** On by default. Display clicks are cheap and low-intent;
+  on this budget they would consume the whole allowance without producing a visit from
+  anyone who was looking for this.
+- **Enhanced conversions: OFF.** On by default, and it sends customer-provided data
+  including email addresses to Google. That is flatly incompatible with the privacy page
+  and with the owner's instruction on customer data.
+- **Conversion tracking: NOT SET UP.** It requires a Google tag on the site, which is a
+  third-party script and an undeclared subprocessor, and would need consent handling under
+  UK GDPR. Visits are measured by the deployment's own first-party counter instead.
+
+### Remaining before it could run
+
+Keywords, the ad text, and entering the GBP 0.41 daily budget on the Budget step. None of
+those has been done, so the draft is not publishable as it stands.
+
+### The recommendation in §7 has not changed
+
+This campaign is expected to produce **one to four visits**, not ten. §7's organic route
+reaches the same people for GBP 0.00 and is still the better first move; it needs the owner
+because the posts go out under a human identity on Reddit, Hacker News or Indie Hackers,
+and `docs/organic-launch.md` is written and awaiting approval. Nothing has been published.
+
+Pointing paid traffic at the site is also worth more once the Stripe webhook is fixed: as
+of this entry the site correctly tells visitors it is not taking payment, so a click buys a
+reader, not a customer.
