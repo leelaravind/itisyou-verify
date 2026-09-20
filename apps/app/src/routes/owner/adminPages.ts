@@ -252,3 +252,167 @@ export function bootstrapDocument(options: BootstrapPageOptions): Html {
     body: BootstrapPage(options),
   });
 }
+
+// ---------------------------------------------------------------------------
+// Authenticator enrolment
+// ---------------------------------------------------------------------------
+
+export interface AuthenticatorPageOptions {
+  readonly csrfToken: string | null;
+  /** Whether this owner already has an authenticator; null when the deployment cannot say. */
+  readonly enrolled: boolean | null;
+  /** Whether the Enrol button is offered on this render. */
+  readonly canEnrol: boolean;
+  /** The freshly minted seed and codes. Rendered on exactly one response, then gone. */
+  readonly issued: {
+    readonly provisioningUri: string;
+    readonly secretBase32: string;
+    readonly recoveryCodes: readonly string[];
+  } | null;
+  readonly refusal: string | null;
+}
+
+/**
+ * Enrol the platform owner's authenticator.
+ *
+ * This page did not exist until 20 September 2026. `enrolTotp` had been written and tested
+ * and had no caller, so on production no owner could ever pass the two-factor gate in
+ * front of every consequential action -- the gate was correct and unreachable. The seed and
+ * the recovery codes appear once, in the response to the Enrol post, and there is no route
+ * that can show them again: losing them means enrolling again.
+ */
+export function AuthenticatorPage(options: AuthenticatorPageOptions): Html {
+  const verifyForm = html`<form method="post" action="/admin/verify" class="stack">
+    ${CsrfField(options.csrfToken)}
+    <input type="hidden" name="return_to" value="/owner" />
+    <div class="field">
+      <label class="field__label" for="f-totp"
+        >Six-digit code from your authenticator <span class="field__req">required</span></label
+      >
+      <input
+        class="input input--mono"
+        id="f-totp"
+        name="totp"
+        inputmode="numeric"
+        autocomplete="one-time-code"
+        pattern="[0-9]{6}"
+        maxlength="6"
+        required
+      />
+    </div>
+    ${Button({ label: 'Confirm', variant: 'primary', type: 'submit' })}
+  </form>`;
+
+  return html`<div class="wrap section stack">
+    <div class="stack-sm">
+      <p class="eyebrow">Administration</p>
+      <h1>Authenticator</h1>
+      <p class="lede measure">
+        Anything that changes money, access or what the public sees needs a six-digit code from the last fifteen
+        minutes. This is where the code comes from.
+      </p>
+    </div>
+
+    ${
+      options.refusal === null
+        ? null
+        : Callout({
+            tone: 'warn',
+            title: 'Nothing was changed',
+            body: html`<p data-enrolment-refusal="true">${options.refusal}</p>`,
+          })
+    }
+
+    ${
+      options.issued === null
+        ? null
+        : html`${Callout({
+            tone: 'warn',
+            title: 'Shown once. It will not be shown again.',
+            body: html`<p class="measure">
+              Add the secret to your authenticator app now, and store the recovery codes somewhere that is not
+              this browser. If you lose both, you enrol again and these stop working.
+            </p>`,
+          })}
+          ${Card({
+            title: 'Secret for your authenticator app',
+            headingLevel: 2,
+            body: html`<p class="mono" data-totp-secret="true" style="word-break:break-all">${options.issued.secretBase32}</p>
+              <p class="small muted measure">
+                Or add it by address (most apps accept this when pasted):
+              </p>
+              <p class="mono small" style="word-break:break-all">${options.issued.provisioningUri}</p>`,
+          })}
+          ${Card({
+            title: 'Recovery codes',
+            headingLevel: 2,
+            body: html`<p class="measure">Each works once, in place of a six-digit code.</p>
+              <ul class="mono" data-recovery-codes="true">
+                ${options.issued.recoveryCodes.map((code) => html`<li>${code}</li>`)}
+              </ul>`,
+          })}
+          ${Card({
+            title: 'Now confirm a code from the app',
+            headingLevel: 2,
+            body: verifyForm,
+          })}`
+    }
+
+    ${
+      options.issued !== null
+        ? null
+        : Callout({
+            tone: options.enrolled === true ? 'note' : 'warn',
+            title:
+              options.enrolled === true
+                ? 'An authenticator is enrolled'
+                : options.enrolled === false
+                  ? 'No authenticator is enrolled'
+                  : 'Enrolment state unknown',
+            body: html`<p class="measure" data-enrolment-state="${
+              options.enrolled === null ? 'unknown' : options.enrolled ? 'enrolled' : 'none'
+            }">
+              ${
+                options.enrolled === true
+                  ? 'Replacing it retires the current seed and every unused recovery code, and needs a code from the current app first.'
+                  : options.enrolled === false
+                    ? 'Until one is, every consequential action in this panel is refused. Enrolling takes a minute.'
+                    : 'This deployment cannot report whether an authenticator exists.'
+              }
+            </p>`,
+          })
+    }
+
+    ${
+      options.issued !== null || !options.canEnrol
+        ? null
+        : Card({
+            title:
+              options.enrolled === true ? 'Replace the authenticator' : 'Enrol an authenticator',
+            headingLevel: 2,
+            body: html`<form method="post" action="/admin/authenticator/enrol" class="stack">
+              ${CsrfField(options.csrfToken)}
+              <p class="measure">
+                A new secret and ten recovery codes are minted and shown on the next page, once.
+              </p>
+              ${Button({ label: 'Enrol', variant: 'primary', type: 'submit' })}
+            </form>`,
+          })
+    }
+
+    ${
+      options.issued === null && options.enrolled === true
+        ? Card({ title: 'Confirm a code now', headingLevel: 2, body: verifyForm })
+        : null
+    }
+  </div>`;
+}
+
+export function authenticatorDocument(options: AuthenticatorPageOptions): Html {
+  return OwnerLayout({
+    title: 'Authenticator',
+    path: '/admin/authenticator',
+    body: AuthenticatorPage(options),
+    ...(options.csrfToken === null ? {} : { csrfToken: options.csrfToken }),
+  });
+}

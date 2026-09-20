@@ -178,6 +178,23 @@ export interface RefundRequestInput {
   readonly approvalId: string;
 }
 
+/**
+ * What the owner supplies to create a customer workspace. The address becomes the auth
+ * subject of the workspace's admin; if a user with that subject already exists (because
+ * they redeemed a sign-in link before any workspace existed), the membership attaches to
+ * that user and no second user is created.
+ */
+export interface CreateWorkspaceInput {
+  readonly email: string;
+  readonly name: string;
+  /**
+   * Marks the workspace `is_synthetic`, which keeps it out of every launch figure and lets
+   * the cleanup path remove it. The owner's own isolated test workspace is synthetic; a
+   * paying stranger's is not.
+   */
+  readonly synthetic: boolean;
+}
+
 /* ------------------------------------------------------------------- verification */
 
 export interface ComponentEvidenceView {
@@ -331,6 +348,15 @@ export interface OwnerDataPort {
     reason: string,
   ): Promise<OwnerWriteResult>;
   issueRefund(ctx: ActionContext, input: RefundRequestInput): Promise<OwnerWriteResult>;
+  /**
+   * Create a workspace and bind its admin, atomically, from the owner panel. The only
+   * supported way to create a workspace on a deployment where signup is closed. Sends
+   * nothing: the new admin requests their own sign-in link at `/app/sign-in`.
+   */
+  createCustomerWorkspace(
+    ctx: ActionContext,
+    input: CreateWorkspaceInput,
+  ): Promise<OwnerWriteResult>;
 
   /* verification */
   recentRuns(limit: number): Promise<readonly OwnerRunView[]>;

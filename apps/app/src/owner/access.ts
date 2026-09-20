@@ -101,6 +101,14 @@ export const OWNER_CAPABILITIES = [
   'maintenance.dispatch',
   'customer.reject',
   'verification.retry',
+  /**
+   * Create a customer workspace from the owner panel. Added 20 September 2026 because the
+   * product had no supported way to do it on production: signup is closed, the seed script
+   * refuses production by design, and the owner's own sign-in resolved to a user with no
+   * membership and a page that said "no workspace". Consequential, so it needs recent MFA,
+   * and structurally absent from the automation identity's set.
+   */
+  'workspace.create',
 ] as const;
 
 export type OwnerCapability = (typeof OWNER_CAPABILITIES)[number];

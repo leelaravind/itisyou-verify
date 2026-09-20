@@ -35,6 +35,8 @@ import {
   describeAccessMode,
   type OwnerCapability,
   type OwnerPrincipal,
+  hasRecentMfa,
+  isSessionLive,
 } from '../../owner/access.js';
 import { bootstrapOwner, type BootstrapResult } from '../../owner/bootstrap.js';
 import { isControlKey } from '../../owner/controls.js';
@@ -91,7 +93,7 @@ import {
   readForm,
   type OwnerForm,
 } from './chrome.js';
-import { adminLoginDocument, bootstrapDocument } from './adminPages.js';
+import { adminLoginDocument, authenticatorDocument, bootstrapDocument } from './adminPages.js';
 import {
   ConnectionsPage,
   CustomersPage,
@@ -115,6 +117,15 @@ export interface TotpResult {
   readonly dependency: string | null;
 }
 
+export type EnrolmentOutcome =
+  | {
+      readonly ok: true;
+      readonly provisioningUri: string;
+      readonly secretBase32: string;
+      readonly recoveryCodes: readonly string[];
+    }
+  | { readonly ok: false; readonly dependency: string };
+
 /**
  * Authentication actions the panel triggers but does not own. A02 owns magic links,
  * sessions and TOTP; the bootstrap decision is `owner/bootstrap.ts`'s, and this port only
@@ -125,7 +136,26 @@ export interface OwnerAuthPort {
   requestSignInLink(
     email: string,
   ): Promise<{ readonly delivery: 'sent' | 'no_transport' | 'send_failed' }>;
-  verifyTotp(principal: OwnerPrincipal, code: string, now: Date): Promise<TotpResult>;
+  /**
+   * Check a six-digit code (or a recovery code). `sessionId` is the hash of THIS session's
+   * cookie; a success stamps `mfa_verified_at` on that row and on no other. Without it the
+   * arithmetic can pass and nothing changes, which is exactly what happened on production
+   * until 20 September 2026: every correct code still left every consequential action
+   * refused with "Confirm it is you".
+   */
+  verifyTotp(
+    principal: OwnerPrincipal,
+    code: string,
+    now: Date,
+    sessionId: string | null,
+  ): Promise<TotpResult>;
+  /**
+   * Mint a fresh authenticator seed and recovery codes for the platform owner. Returned
+   * once; nothing anywhere can re-read them. Re-enrolling retires the previous seed.
+   */
+  enrolAuthenticator(principal: OwnerPrincipal, now: Date): Promise<EnrolmentOutcome>;
+  /** True when this user has an authenticator enrolled; null when the port cannot tell. */
+  authenticatorEnrolled(principal: OwnerPrincipal): Promise<boolean | null>;
   bootstrap(
     input: { readonly presentedToken: string; readonly verifiedAuthSubject: string | null },
     now: Date,
@@ -155,6 +185,18 @@ export class UnwiredOwnerAuth implements OwnerAuthPort {
         'Two-factor checking is not wired to this deployment yet, so this code cannot be verified. Nothing has been ' +
         'accepted — you have not been let through on a guess.',
     };
+  }
+
+  async enrolAuthenticator(): Promise<EnrolmentOutcome> {
+    return {
+      ok: false,
+      dependency:
+        'Authenticator enrolment is not wired to this deployment, so no seed was minted and nothing has changed.',
+    };
+  }
+
+  async authenticatorEnrolled(): Promise<boolean | null> {
+    return null;
   }
 
   async bootstrap(): Promise<BootstrapResult> {
@@ -630,7 +672,28 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
   routes.post('/admin/verify', async (c) => {
     const { port, principal } = await principalOf(c);
     const form = await readForm(c);
-    const result = await auth.verifyTotp(principal, form.single['totp'] ?? '', clock());
+    const problem = csrfProblem(c, form);
+    if (problem !== null) {
+      return respondToWrite(
+        c,
+        port,
+        principal,
+        { ok: false, message: problem, redirectTo: null, dependency: null },
+        'Confirm it is you',
+      );
+    }
+    // The hash of THIS session's cookie, resolved exactly as `/admin/login/complete` does.
+    // It is what makes a correct code count: `verifyTotpForUser` stamps `mfa_verified_at`
+    // only on the session it is given, and this route used to give it none.
+    const { isSecureRequest, readCookie, sessionCookieName, sessionIdFor } =
+      await import('../../lib/session.js');
+    const base = (c.env as unknown as { PUBLIC_BASE_URL: string }).PUBLIC_BASE_URL;
+    const presented = readCookie(
+      c.req.raw.headers.get('cookie'),
+      sessionCookieName(isSecureRequest(c.req.raw, base)),
+    );
+    const sessionId = presented === null ? null : await sessionIdFor(presented);
+    const result = await auth.verifyTotp(principal, form.single['totp'] ?? '', clock(), sessionId);
     const returnTo = form.single['return_to'] ?? '/owner';
     if (result.ok) return c.redirect(returnTo.startsWith('/owner') ? returnTo : '/owner', 303);
     return respondToWrite(
@@ -645,6 +708,107 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
         dependency: result.dependency,
       },
       'Confirm it is you',
+    );
+  });
+
+  /* ------------------------------------------------------- /admin/authenticator */
+
+  /**
+   * Who may see or use the enrolment page: a live platform-owner session, and nobody else.
+   * Not `authorise()`, because that gate would demand recent MFA for anything consequential
+   * and enrolment is how MFA comes to exist. The refusal is the same 404 as every other.
+   */
+  function ownerForEnrolment(principal: OwnerPrincipal): boolean {
+    return (
+      principal.kind !== 'anonymous' &&
+      principal.isPlatformOwner &&
+      !principal.isAutomation &&
+      isSessionLive(principal, clock())
+    );
+  }
+
+  routes.get('/admin/authenticator', async (c) => {
+    const { principal } = await principalOf(c);
+    if (!ownerForEnrolment(principal)) return refuseNotFound(c);
+    const secure = new URL(c.req.url).protocol === 'https:';
+    if (principal.csrfToken.length > 0) {
+      setCookie(c, csrfCookieName(secure), principal.csrfToken, {
+        path: '/',
+        sameSite: 'Lax',
+        maxAge: 43200,
+        secure,
+      });
+    }
+    const enrolled = await auth.authenticatorEnrolled(principal);
+    return ownerPage(
+      c,
+      authenticatorDocument({
+        csrfToken: principal.csrfToken,
+        enrolled,
+        // A first enrolment needs no code (there is nothing to check it against). Replacing
+        // an existing seed does, or a stolen signed-in laptop could swap the owner's authenticator.
+        canEnrol: enrolled !== true || hasRecentMfa(principal, clock()),
+        issued: null,
+        refusal: null,
+      }),
+    );
+  });
+
+  routes.post('/admin/authenticator/enrol', async (c) => {
+    const { principal } = await principalOf(c);
+    if (!ownerForEnrolment(principal)) return refuseNotFound(c);
+    const form = await readForm(c);
+    const problem = csrfProblem(c, form);
+    const enrolled = await auth.authenticatorEnrolled(principal);
+    if (problem !== null) {
+      return ownerPage(
+        c,
+        authenticatorDocument({
+          csrfToken: principal.csrfToken,
+          enrolled,
+          canEnrol: false,
+          issued: null,
+          refusal: problem,
+        }),
+        403,
+      );
+    }
+    if (enrolled === true && !hasRecentMfa(principal, clock())) {
+      return ownerPage(
+        c,
+        mfaRequiredPage({
+          path: '/admin/authenticator',
+          detail:
+            'Replacing an enrolled authenticator retires the old one and every unused recovery code, so it needs a code from the current one first.',
+          csrfToken: principal.csrfToken,
+          returnTo: '/owner',
+        }),
+        403,
+      );
+    }
+    const outcome = await auth.enrolAuthenticator(principal, clock());
+    if (!outcome.ok) {
+      return ownerPage(
+        c,
+        authenticatorDocument({
+          csrfToken: principal.csrfToken,
+          enrolled,
+          canEnrol: false,
+          issued: null,
+          refusal: outcome.dependency,
+        }),
+        422,
+      );
+    }
+    return ownerPage(
+      c,
+      authenticatorDocument({
+        csrfToken: principal.csrfToken,
+        enrolled: true,
+        canEnrol: false,
+        issued: outcome,
+        refusal: null,
+      }),
     );
   });
 
@@ -711,6 +875,22 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
           c.req.param('workspaceId'),
         ),
         'Cancel subscription',
+      ),
+    ),
+  );
+
+  routes.post('/owner/customers/create', async (c) =>
+    withAction(c, 'workspace.create', async (port, principal, form) =>
+      respondToWrite(
+        c,
+        port,
+        principal,
+        await port.createCustomerWorkspace(actionContext(principal, 'workspace.create', c), {
+          email: form.single['email'] ?? '',
+          name: form.single['name'] ?? '',
+          synthetic: (form.single['synthetic'] ?? '') === 'yes',
+        }),
+        'Create a customer workspace',
       ),
     ),
   );

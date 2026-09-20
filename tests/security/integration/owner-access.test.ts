@@ -123,6 +123,7 @@ describe('the scoped automation test identity', () => {
       'customer.reject',
       'verification.retry',
       'controls.toggle',
+      'workspace.create',
     ];
     for (const capability of forbidden) {
       expect(automation.has(capability), `automation must NOT hold ${capability}`).toBe(false);

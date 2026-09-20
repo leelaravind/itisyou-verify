@@ -6,7 +6,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { AppError } from '@verify/contracts';
-import { hashToken, randomBytes, toBase64 } from '@verify/security';
+import { generateTotpCode, hashToken, randomBytes, toBase64 } from '@verify/security';
 import { D1OwnerAuth, D1OwnerDataPort } from '@app/db';
 import { ANONYMOUS_PRINCIPAL, authorise } from '@app/owner/access';
 import {
@@ -541,6 +541,114 @@ describe('owner auth port', () => {
     expect(dump).not.toContain(BOOTSTRAP_TOKEN);
   });
 
+  /**
+   * AUTH-437..AUTH-439 — the supported way a workspace comes to exist on production.
+   *
+   * On 20 September 2026 production had zero workspaces. Signup is closed, the automation
+   * seed refuses production by design, and the owner's own sign-in created a user with no
+   * membership, so `/app` showed the sign-in page again. These cases prove the owner-panel
+   * action writes exactly the rows `resolveSession` needs, attaches to a user who signed in
+   * first rather than duplicating them, and is refused to the automation identity.
+   */
+  function ownerCtx(principal: Awaited<ReturnType<D1OwnerDataPort['principal']>>) {
+    return {
+      principal: { ...principal, mfaVerifiedAt: NOW.toISOString() },
+      capability: 'workspace.create' as const,
+      now: NOW,
+      requestId: 'req_ws_create',
+    };
+  }
+
+  it('AUTH-437 creating a workspace writes the workspace, the admin membership and an audit row, and nothing else', async () => {
+    const cookie = await signedInCookie(h, OWNER_EMAIL);
+    await promoteToPlatformOwner(h.db, OWNER_EMAIL);
+    const port = new D1OwnerDataPort({ db: h.db, env: env(), request: request(cookie), now: NOW });
+    const before = { users: countRows(h, 'users'), workspaces: countRows(h, 'workspaces') };
+
+    const result = await port.createCustomerWorkspace(ownerCtx(await port.principal()), {
+      email: 'Customer+verify-test@Example.com',
+      name: 'Customer test workspace',
+      synthetic: true,
+    });
+
+    expect(result.ok, result.message ?? '').toBe(true);
+    expect(result.redirectTo).toBe('/owner/customers');
+    expect(countRows(h, 'users')).toBe(before.users + 1);
+    expect(countRows(h, 'workspaces')).toBe(before.workspaces + 1);
+    const ws = h.raw
+      .prepare(
+        "SELECT id, name, status, is_synthetic FROM workspaces WHERE name = 'Customer test workspace'",
+      )
+      .get() as { id: string; name: string; status: string; is_synthetic: number };
+    expect(ws.status).toBe('active');
+    expect(ws.is_synthetic).toBe(1);
+    const member = h.raw
+      .prepare(
+        `SELECT m.role, u.auth_subject FROM memberships m JOIN users u ON u.id = m.user_id WHERE m.workspace_id = ?`,
+      )
+      .get(ws.id) as { role: string; auth_subject: string };
+    expect(member.role).toBe('workspace_admin');
+    // Normalised exactly as redeemSignInToken normalises, so the sign-in that follows lands on this user.
+    expect(member.auth_subject).toBe('customer+verify-test@example.com');
+    expect(
+      countRows(h, 'audit_events', "action = 'owner.workspace.created' AND target = ?", ws.id),
+    ).toBe(1);
+    // The message never carries the full address.
+    expect(result.message).not.toContain('customer+verify-test@example.com');
+  });
+
+  it('AUTH-438 an admin who signed in before any workspace existed gets the membership on their existing user', async () => {
+    // The production state on 20 September: the owner redeemed a sign-in link, a user row
+    // existed, no membership did, and /app said "no workspace".
+    const firstSignIn = await redeemSignInToken(h.db, {
+      token: (await issueSignInToken(h.db, { email: 'early@example.com', now: NOW })).token,
+      now: NOW,
+    });
+    expect(firstSignIn.ok).toBe(true);
+
+    const cookie = await signedInCookie(h, OWNER_EMAIL);
+    await promoteToPlatformOwner(h.db, OWNER_EMAIL);
+    const port = new D1OwnerDataPort({ db: h.db, env: env(), request: request(cookie), now: NOW });
+    // Counted after the owner's own sign-in, so the only change measured is the one this action makes.
+    const usersBefore = countRows(h, 'users');
+    const result = await port.createCustomerWorkspace(ownerCtx(await port.principal()), {
+      email: 'EARLY@example.com',
+      name: 'Early workspace',
+      synthetic: false,
+    });
+    expect(result.ok, result.message ?? '').toBe(true);
+    // No second user for the same address.
+    expect(countRows(h, 'users')).toBe(usersBefore);
+    const memberships = h.raw
+      .prepare(
+        `SELECT m.workspace_id FROM memberships m JOIN users u ON u.id = m.user_id WHERE u.auth_subject = 'early@example.com'`,
+      )
+      .all() as { workspace_id: string }[];
+    expect(memberships).toHaveLength(1);
+    // And the workspace is a real one, listed without the synthetic badge.
+    const listed = (await port.customers()).find((row) => row.name === 'Early workspace');
+    expect(listed?.isSynthetic).toBe(false);
+  });
+
+  it('AUTH-439 the automation identity cannot create a workspace even if a route forgot to authorise', async () => {
+    const cookie = await signedInCookie(h, OWNER_EMAIL);
+    await promoteToPlatformOwner(h.db, OWNER_EMAIL);
+    const port = new D1OwnerDataPort({ db: h.db, env: env(), request: request(cookie), now: NOW });
+    const owner = await port.principal();
+    const before = countRows(h, 'workspaces');
+    const result = await port.createCustomerWorkspace(
+      {
+        ...ownerCtx(owner),
+        principal: { ...owner, isAutomation: true, mfaVerifiedAt: NOW.toISOString() },
+      },
+      { email: 'auto@example.com', name: 'Automation-made', synthetic: true },
+    );
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain('cannot workspace.create');
+    expect(countRows(h, 'workspaces')).toBe(before);
+    expect(countRows(h, 'audit_events', "action = 'owner.workspace.create_refused'")).toBe(1);
+  });
+
   it('AUTH-429 signing out revokes every session for that user', async () => {
     const cookie = await signedInCookie(h, OWNER_EMAIL);
     await promoteToPlatformOwner(h.db, OWNER_EMAIL);
@@ -556,9 +664,115 @@ describe('owner auth port', () => {
     await promoteToPlatformOwner(h.db, OWNER_EMAIL);
     const port = new D1OwnerDataPort({ db: h.db, env: env(), request: request(cookie), now: NOW });
     const auth = new D1OwnerAuth({ db: h.db, env: env() });
-    const result = await auth.verifyTotp(await port.principal(), '123456', NOW);
+    const result = await auth.verifyTotp(await port.principal(), '123456', NOW, null);
     expect(result.ok).toBe(false);
     expect(result.dependency).toContain('no authenticator enrolled');
+  });
+
+  /**
+   * AUTH-451..AUTH-453 — the two-factor gate can actually be passed.
+   *
+   * Until 20 September 2026 it could not, on any deployment: `enrolTotp` had no caller, and
+   * `D1OwnerAuth.verifyTotp` called `verifyTotpForUser` without a session id, so a correct
+   * code was accepted and audited and stamped nothing. `authorise()` then refused every
+   * consequential action with "Confirm it is you", forever. AUTH-430 above passed the whole
+   * time, because it only asserted the not-enrolled dependency.
+   */
+  it('AUTH-451 enrol, then a correct code stamps THIS session, and the consequential gate opens', async () => {
+    const cookie = await signedInCookie(h, OWNER_EMAIL);
+    await promoteToPlatformOwner(h.db, OWNER_EMAIL);
+    const port = new D1OwnerDataPort({ db: h.db, env: env(), request: request(cookie), now: NOW });
+    const auth = new D1OwnerAuth({ db: h.db, env: env() });
+    const owner = await port.principal();
+
+    expect(await auth.authenticatorEnrolled(owner)).toBe(false);
+    expect(authorise(owner, 'workspace.create', NOW).ok).toBe(false);
+
+    const issued = await auth.enrolAuthenticator(owner, NOW);
+    expect(issued.ok).toBe(true);
+    if (!issued.ok) return;
+    expect(issued.secretBase32.length).toBeGreaterThanOrEqual(16);
+    expect(issued.provisioningUri.startsWith('otpauth://totp/')).toBe(true);
+    expect(issued.recoveryCodes).toHaveLength(10);
+    expect(await auth.authenticatorEnrolled(owner)).toBe(true);
+    // Neither the seed nor a recovery code is stored in the clear anywhere.
+    const dump = JSON.stringify([
+      h.raw.prepare('SELECT * FROM users').all(),
+      h.raw.prepare('SELECT * FROM credential_versions').all(),
+      h.raw.prepare('SELECT * FROM audit_events').all(),
+    ]);
+    expect(dump).not.toContain(issued.secretBase32);
+    for (const code of issued.recoveryCodes) expect(dump).not.toContain(code);
+
+    const later = new Date(NOW.getTime() + 60_000);
+    const sessionId = await hashToken(cookie.split('=')[1] ?? '', 'session');
+    const code = generateTotpCode(issued.secretBase32, later);
+    const verified = await auth.verifyTotp(owner, code, later, sessionId);
+    expect(verified.ok, verified.dependency ?? '').toBe(true);
+
+    // The row this session reads is stamped, and the gate that refused now permits.
+    const stamped = new D1OwnerDataPort({
+      db: h.db,
+      env: env(),
+      request: request(cookie),
+      now: later,
+    });
+    const principal = await stamped.principal();
+    expect(principal.mfaVerifiedAt).toBe(later.toISOString());
+    expect(authorise(principal, 'workspace.create', later).ok).toBe(true);
+  });
+
+  it('AUTH-452 a correct code with no session id stamps nothing — the exact production defect, kept as a tripwire', async () => {
+    const cookie = await signedInCookie(h, OWNER_EMAIL);
+    await promoteToPlatformOwner(h.db, OWNER_EMAIL);
+    const port = new D1OwnerDataPort({ db: h.db, env: env(), request: request(cookie), now: NOW });
+    const auth = new D1OwnerAuth({ db: h.db, env: env() });
+    const owner = await port.principal();
+    const issued = await auth.enrolAuthenticator(owner, NOW);
+    if (!issued.ok) throw new Error('enrolment failed in fixture');
+    const later = new Date(NOW.getTime() + 60_000);
+    const verified = await auth.verifyTotp(
+      owner,
+      generateTotpCode(issued.secretBase32, later),
+      later,
+      null,
+    );
+    expect(verified.ok).toBe(true);
+    const again = await new D1OwnerDataPort({
+      db: h.db,
+      env: env(),
+      request: request(cookie),
+      now: later,
+    }).principal();
+    expect(again.mfaVerifiedAt).toBeNull();
+    expect(authorise(again, 'workspace.create', later).ok).toBe(false);
+  });
+
+  it('AUTH-453 a code that is right for a different session does not stamp this one', async () => {
+    const cookie = await signedInCookie(h, OWNER_EMAIL);
+    await promoteToPlatformOwner(h.db, OWNER_EMAIL);
+    const port = new D1OwnerDataPort({ db: h.db, env: env(), request: request(cookie), now: NOW });
+    const auth = new D1OwnerAuth({ db: h.db, env: env() });
+    const owner = await port.principal();
+    const issued = await auth.enrolAuthenticator(owner, NOW);
+    if (!issued.ok) throw new Error('enrolment failed in fixture');
+    const later = new Date(NOW.getTime() + 60_000);
+    const otherSession = await hashToken('not-the-cookie-this-browser-holds', 'session');
+    const verified = await auth.verifyTotp(
+      owner,
+      generateTotpCode(issued.secretBase32, later),
+      later,
+      otherSession,
+    );
+    // The code is consumed either way (it was correct), but this browser's row is untouched.
+    expect(verified.ok).toBe(true);
+    const again = await new D1OwnerDataPort({
+      db: h.db,
+      env: env(),
+      request: request(cookie),
+      now: later,
+    }).principal();
+    expect(again.mfaVerifiedAt).toBeNull();
   });
 
   it('AUTH-431 accessMode is read from settings and defaults safely', async () => {

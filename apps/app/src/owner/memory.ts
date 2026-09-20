@@ -20,6 +20,7 @@ import { explainAssertion, explainRunStatus } from '@verify/domain';
 import type { AssertionResult } from '@verify/domain';
 import type { JobState } from '@verify/contracts';
 import { ANONYMOUS_PRINCIPAL, capabilitiesFor, type OwnerPrincipal } from './access.js';
+import { maskAddress, validateWorkspaceInput, workspaceCreatedMessage } from './workspaceCreate.js';
 import {
   approvalStanding,
   claimApproval,
@@ -74,6 +75,7 @@ import {
   type AlertView,
   type AuditRow,
   type CampaignView,
+  type CreateWorkspaceInput,
   type CustomerRow,
   type DeploymentView,
   type ExceptionRow,
@@ -180,6 +182,8 @@ export class MemoryOwnerDataPort implements OwnerDataPort {
   #idCounter = 0;
   /** Resources the synthetic cleanup scan will find. Mutated by a successful run. */
   #cleanupResources: InventoryItem[];
+  /** Workspaces created through {@link createCustomerWorkspace}; listed after the demo row. */
+  #createdCustomers: CustomerRow[] = [];
 
   constructor(options: MemoryOwnerPortOptions = {}) {
     this.#now = options.now ?? (() => new Date());
@@ -374,6 +378,7 @@ export class MemoryOwnerDataPort implements OwnerDataPort {
         createdAt: new Date(this.#now().getTime() - 3 * 86_400_000).toISOString(),
         isSynthetic: true,
       },
+      ...this.#createdCustomers,
     ];
   }
 
@@ -414,6 +419,35 @@ export class MemoryOwnerDataPort implements OwnerDataPort {
       '/owner/customers',
       'Recorded. The order is rejected and the reason is on the record.',
     );
+  }
+
+  async createCustomerWorkspace(
+    ctx: ActionContext,
+    input: CreateWorkspaceInput,
+  ): Promise<OwnerWriteResult> {
+    const denied = this.#denied(ctx);
+    if (denied !== null) return denied;
+    const checked = validateWorkspaceInput(input);
+    if (!checked.ok) return writeFailed(checked.message, checked.fieldErrors);
+    const workspaceId = this.#id('ws');
+    this.#createdCustomers.push({
+      workspaceId,
+      name: checked.name,
+      contactMask: maskAddress(checked.email),
+      eligible: false,
+      ineligibleReason: 'no connections yet',
+      subscriptionStatus: null,
+      connectionsReady: 0,
+      connectionsTotal: 0,
+      runsThisPeriod: null,
+      createdAt: ctx.now.toISOString(),
+      isSynthetic: input.synthetic,
+    });
+    this.#record(ctx, 'owner.workspace.created', workspaceId, {
+      workspace_id: workspaceId,
+      synthetic: input.synthetic,
+    });
+    return writeOk('/owner/customers', workspaceCreatedMessage(checked.name, checked.email));
   }
 
   async issueRefund(ctx: ActionContext, input: RefundRequestInput): Promise<OwnerWriteResult> {
