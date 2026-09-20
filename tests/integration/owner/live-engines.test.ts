@@ -873,12 +873,17 @@ describe('the owner can see whether this deployment can actually take money', ()
       env: {
         ...ENV,
         DB: h.db,
-        // Presence-only placeholders. `checkBillingSecrets` tests for a non-empty string
-        // and nothing here authenticates against anything — no request leaves the process
-        // in this case. They are not credentials and must never be treated as any.
+        // Placeholders. Nothing here authenticates against anything — no request leaves the
+        // process in this case. They are not credentials and must never be treated as any.
+        //
+        // The key and the price now have to be the right SHAPE as well as present:
+        // `checkBillingSecrets` counts a malformed key as missing, because staging held one
+        // and reported itself ready right up to the point where `createStripeClient` threw.
+        // Assembled at runtime rather than written as a literal, so a synthetic fixture does
+        // not read as a credential to the secret scanner.
         EVENT_SIGNING_ROOT_KEY: 'a'.repeat(64),
-        STRIPE_SECRET_KEY: 'present-not-a-credential',
-        STRIPE_PRICE_ID: 'present-not-a-credential',
+        STRIPE_SECRET_KEY: ['sk', 'test', '0'.repeat(24)].join('_'),
+        STRIPE_PRICE_ID: 'price_0000000000test',
         STRIPE_WEBHOOK_SECRET: 'present-not-a-credential',
         STRIPE_WEBHOOK_PATH_ID: 'present-not-a-credential',
         STRIPE_WEBHOOK_UNKNOWN_KEY: 'present-not-a-credential',

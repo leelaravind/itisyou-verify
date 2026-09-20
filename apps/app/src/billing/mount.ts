@@ -29,6 +29,7 @@
  * secrets, not to move it into the database. See `docs/billing.md` §9.
  */
 import { timingSafeEqual } from '@verify/security';
+import { secretKeyIsUsable } from '@verify/connectors/stripe';
 import { buildBillingConfig, type BillingConfig, type BillingEnvironment } from './config';
 import type { BillingGatewayPort } from './gateway';
 import type { BillingDataPort } from './port';
@@ -120,6 +121,15 @@ export function checkBillingSecrets(env: BillingEnv): {
   for (const name of Object.values(BILLING_SECRET_NAMES)) {
     const value = present[name];
     if (typeof value !== 'string' || value.trim().length === 0) missing.push(name);
+  }
+  // Present is not the same as usable. This function gates the scheduler's money pass,
+  // which then calls `createStripeClient` -- and that throws on a key which is neither test
+  // nor live. Staging held exactly such a key, so every tick reported the pass ready and
+  // then failed inside it. Counting a malformed key as missing is the honest answer to the
+  // question this function is actually asked: can this deployment take money.
+  const secretKey = env.STRIPE_SECRET_KEY ?? '';
+  if (secretKey.trim().length > 0 && !secretKeyIsUsable(secretKey)) {
+    missing.push(BILLING_SECRET_NAMES.secretKey);
   }
   return { ready: missing.length === 0, missing };
 }
