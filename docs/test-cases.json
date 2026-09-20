@@ -38794,6 +38794,23 @@
       "countable": true
     },
     {
+      "id": "RESIL-184",
+      "category": "accessibility_resilience",
+      "level": "unit",
+      "requirement": "the sticky header rule survives and keeps an opaque background fallback",
+      "risk": "The first piece of Stitch composition rather than palette, and it is one rule carrying a design decision across all nineteen screens. The translucent colour must never be the only background declared: a browser without colour mixing would render a see-through header over scrolling text, which is unreadable rather than merely unstyled.",
+      "risk_source": "case",
+      "setup": "The generated stylesheet, checked for position:sticky on the header, an opaque background declared before the translucent one, and the unsupported-browser guard around the blur.",
+      "expected": "All three are present.",
+      "owner_agent": "A11",
+      "implementation_ref": "tests/unit/ui/tokens.test.ts:95",
+      "provider_backed": false,
+      "status": "passing",
+      "runner": "vitest",
+      "area": "tests/unit/ui/tokens.test.ts",
+      "countable": true
+    },
+    {
       "id": "RESIL-300",
       "category": "accessibility_resilience",
       "level": "integration",

@@ -114,6 +114,23 @@ describe('design tokens', () => {
     }
   });
 
+  it('RESIL-184 the sticky header survives, and keeps an opaque fallback', () => {
+    /*
+     * The first piece of Stitch composition rather than palette: the approved header is
+     * fixed with a blurred backdrop, and that is the one element all nineteen screens
+     * share. Asserted because it is a single rule carrying a design decision, and because
+     * the translucent colour must never be the ONLY background declared -- a browser
+     * without colour mixing would then render a see-through header over scrolling text.
+     */
+    expect(CSS, 'the header is no longer sticky').toMatch(/\.site\{[^}]*position:sticky/);
+    expect(CSS, 'no opaque fallback before the translucent value').toMatch(
+      /\.site\{[^}]*background:var\(--c-surface\)[^}]*background:color-mix/,
+    );
+    expect(CSS, 'the blur has no unsupported-browser guard').toContain(
+      '@supports not (backdrop-filter:blur(1px))',
+    );
+  });
+
   it('CUST-006 reduced motion is respected and focus is always visible', () => {
     expect(CSS).toContain('@media (prefers-reduced-motion:reduce)');
     expect(CSS).toContain(':focus-visible{outline:2px solid var(--c-focus)');
