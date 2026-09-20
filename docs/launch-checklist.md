@@ -3,7 +3,7 @@
 Supersedes `docs/launch-plan.md`. One owner, one status, one next action, one closing
 evidence per item. Updated in place; no second copy anywhere.
 
-**Now:** 10:00 UTC · **Allowance resets:** 13:45 UTC · **Remaining:** ~3h45m
+**Now:** 10:15 UTC · **Allowance resets:** 13:45 UTC · **Remaining:** ~3h30m
 
 Status: `done` · `active` · `blocked` · `queued`
 
@@ -55,12 +55,12 @@ Status: `done` · `active` · `blocked` · `queued`
 
 ## D5 — Handover
 
-| #   | Item                             | Owner | Status                        | Next action             | Evidence to close                                                   |
-| --- | -------------------------------- | ----- | ----------------------------- | ----------------------- | ------------------------------------------------------------------- |
-| 5.1 | One evidence report              | lead  | queued                        | Replaces scattered docs | single file, every claim sourced                                    |
-| 5.2 | Both development stories current | lead  | queued                        | End                     | events carry commit SHAs                                            |
-| 5.3 | Correct public claims            | lead  | **done, production verified** | —                       | five live pages: 0 stale strings, corrected notice present (07:43Z) |
-| 5.4 | Cleanup: worktree, temp files    | lead  | queued                        | End                     | `git worktree list` clean                                           |
+| #   | Item                             | Owner | Status                        | Next action             | Evidence to close                                                                       |
+| --- | -------------------------------- | ----- | ----------------------------- | ----------------------- | --------------------------------------------------------------------------------------- |
+| 5.1 | One evidence report              | lead  | queued                        | Replaces scattered docs | single file, every claim sourced                                                        |
+| 5.2 | Both development stories current | lead  | queued                        | End                     | events carry commit SHAs                                                                |
+| 5.3 | Correct public claims            | lead  | **done, production verified** | —                       | five live pages: 0 stale strings, corrected notice present (07:43Z)                     |
+| 5.4 | Cleanup: worktree, temp files    | lead  | **done 10:15Z**               | —                       | `git worktree list` shows only the main tree; releases now run from the clean main tree |
 
 ---
 
@@ -85,6 +85,7 @@ Status: `done` · `active` · `blocked` · `queued`
 | M4b `/admin/verify` stamps THIS session, checks CSRF | `569e8e3` | yes | yes | AUTH-452 keeps the old defect as a tripwire; not yet exercised on production (no authenticator exists) |
 | Unknown-workspace guard, exercised on production | `47873e9` | yes | `cff4749` | 09:22Z and 09:34Z: two foreign events resent from Stripe answered 200; `webhook_receipts` rows `ignored`, `workspace_id` null |
 | Release Telegram milestone (one per deployed commit) | `7a4e026` | `35502933948` | production 09:43Z (`/health` commit `7a4e026`), staging 09:45Z | proven: `notification_deliveries` row `milestone_reached:release_deployed:production:7a4e0267d7f2`, state `sent`, 09:44:39Z — the owner received the deploy message on Telegram |
+| Public notice reworded (owner can now create a workspace; none exists) | `3154a87` | `35503195409` | production + staging 09:55Z at `601da25` (`eba071c5`) | served pages: new sentence present on `/`, `/pricing`, `/app/sign-in`; old sentence 0 occurrences; DOC-130 caught the published-story drift at the local gate and `601da25` synced it |
 
 ## Live figures (read from the databases at 07:47 UTC)
 
