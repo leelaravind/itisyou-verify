@@ -714,6 +714,51 @@ a:hover{text-decoration-thickness:2px}
 .summary dt{color:var(--c-muted)}
 .summary dd{margin:0;font-family:var(--f-mono);font-variant-numeric:tabular-nums;text-align:right}
 
+/* ---- composition: the authenticated screens ------------------------------ */
+/* Layout translated from the approved customer dashboard, connections, run detail,
+   reports and billing screens, as utilities. Only arrangement lives here: every figure
+   in these boxes is computed from the port and every sentence comes from an existing
+   route or the content module, because the reference markup carries claims this
+   business does not make.
+   (No backticks in this comment. It sits inside the CSS template literal.) */
+
+/* Count cards: one per run status, the figure in tabular mono. The phone reference
+   draws these two abreast even at the narrowest width, so the grid starts at two and
+   climbs to four at desktop rather than passing through one. */
+.count-grid{display:grid;gap:var(--s3);grid-template-columns:repeat(2,minmax(0,1fr))}
+.count-grid>*{min-width:0}
+@media (min-width:64rem){.count-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.count{font-family:var(--f-mono);font-size:2rem;font-weight:600;line-height:1;letter-spacing:-0.02em;font-variant-numeric:tabular-nums;margin:0}
+.count__noun{font-family:var(--f-sans);font-size:var(--t-small);font-weight:400;color:var(--c-muted);letter-spacing:0;margin-left:var(--s2)}
+/* A metric whose value is a sentence rather than a figure (a setting that has not been
+   made yet) is set at body weight, so the tile reads as a note and not as a number. */
+.metrics dd .small{font-weight:400;letter-spacing:0}
+
+/* A status band: the status card used as a section, with a head row inside it that
+   carries the verdict on the left and the check tally on the right. The colour rule
+   along the top is the badge's colour and nothing else. */
+.status-card .section-head{align-items:flex-start}
+.status-card .section-head .tally{padding-top:var(--s1)}
+
+/* An empty state inside a results frame loses the frame it would otherwise double. */
+.results>.state{border:0;border-radius:0;box-shadow:none}
+.results__bar>p{margin:0}
+
+/* A table that stacks into records below phone-landscape width, the way the phone
+   dashboard reference draws its run feed: one block per row, each cell led by its own
+   column head from data-label. The heads are hidden visually and kept for assistive
+   technology, and the row header stays a header. Above that width it is the ordinary
+   table, scrolling inside its own region. */
+@media (max-width:39.99rem){
+  .table--stack,.table--stack caption,.table--stack tbody,.table--stack tr{display:block}
+  .table--stack thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  .table--stack tr{border-bottom:1px solid var(--c-rule);padding:var(--s3) var(--s4)}
+  .table--stack tbody tr:last-child{border-bottom:0}
+  .table--stack th,.table--stack td{display:block;border-bottom:0;padding:var(--s1) 0;white-space:normal;text-align:left}
+  .table--stack td.num,.table--stack th.num{white-space:normal}
+  .table--stack td::before,.table--stack tbody th::before{content:attr(data-label);display:block;font-family:var(--f-mono);font-size:var(--t-micro);text-transform:uppercase;letter-spacing:0.08em;color:var(--c-muted);margin-bottom:0.15rem}
+}
+
 /* ---- the pre-checkout disclosure ----------------------------------------- */
 .disclosure{border:1px solid var(--c-rule);border-radius:var(--r-container);background:var(--c-surface);padding:var(--s4)}
 @media (min-width:46rem){.disclosure{padding:var(--s6)}}

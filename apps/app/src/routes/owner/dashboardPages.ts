@@ -13,7 +13,7 @@
  *     not codes, and the port is what calls `explainAssertion`.
  */
 import { Button, Callout, Card, KeyValues, StatusBadge, Table, html, type Html } from '@verify/ui';
-import { summariseFinance, freshness, NET_RECEIPTS_CAVEAT } from '../../owner/finance.js';
+import { displayMinor, summariseFinance, freshness, NET_RECEIPTS_CAVEAT } from '../../owner/finance.js';
 import { ActionForm, Instant, PageHead, UnknownAware } from './chrome.js';
 import type {
   CustomerRow,
@@ -52,41 +52,199 @@ export function healthRow(item: ServiceHealthView): Html {
 }
 
 /**
- * One launch figure. Never renders a zero for something unmeasured: a `null` value shows
- * `unknown`, in the muted style, with `data-unknown` for a test to assert on.
+ * One figure on the launch strip. Never renders a zero for something unmeasured: a
+ * `null` value shows `unknown`, in the muted style, with `data-unknown` for a test to
+ * assert on, and the value span carries no numeral at all in that state.
+ *
+ * `data-launch-metric` is the label, as it always was — the dependency suite and the
+ * browser suite both locate the four launch numbers by it. `data-launch-figure` is a
+ * stable key for the four figures added on 20 September 2026.
  */
-function LaunchStat(options: {
+interface LaunchFigure {
+  readonly key: string;
   readonly label: string;
-  readonly metric: LaunchMetric;
+  /** Already formatted for display. `null` means the port could not say. */
+  readonly value: string | null;
+  readonly observedAt: string | null;
   readonly note: string;
-  readonly now: Date;
-}): Html {
-  const observed = freshness(options.metric.observedAt, options.now);
-  return html`<div class="stack-sm" data-launch-metric="${options.label}">
-    <p class="eyebrow">${options.label}</p>
-    <p class="score ${options.metric.value === null ? 'score--none' : ''}">
-      ${
-        options.metric.value === null
-          ? html`<span data-unknown="true">unknown</span>`
-          : String(options.metric.value)
-      }
+}
+
+function LaunchFigureTile(figure: LaunchFigure, now: Date): Html {
+  const observed = freshness(figure.observedAt, now);
+  return html`<div class="card stack-sm" data-launch-metric="${figure.label}" data-launch-figure="${figure.key}">
+    <p class="eyebrow">${figure.label}</p>
+    <p class="score ${figure.value === null ? 'score--none' : ''}">
+      <span data-figure-value="${figure.key}">${
+        figure.value === null ? html`<span data-unknown="true">unknown</span>` : figure.value
+      }</span>
     </p>
     <p class="micro muted">${observed.label}</p>
-    <p class="small">${options.note}</p>
+    <p class="small">${figure.note}</p>
   </div>`;
 }
 
-export function OverviewPage(options: { readonly view: OverviewView; readonly now: Date }): Html {
-  const finance = summariseFinance(options.view.finance);
-  const refreshed = freshness(options.view.finance.lastRefreshAt, options.now);
-  const launch = options.view.launch;
+function launchMetricValue(metric: LaunchMetric): string | null {
+  return metric.value === null ? null : String(metric.value);
+}
+
+function countValue(value: number | null): string | null {
+  return value === null ? null : String(value);
+}
+
+/** Order statuses under which money has moved. Counted, never summed, on the overview. */
+export const PAID_ORDER_STATUSES: ReadonlySet<string> = new Set(['active', 'refunded']);
+
+/**
+ * The view rendered when `overview()` itself failed: every figure unknown, no health rows,
+ * and the assembly time is the only fact on it. It exists so a broken read renders as
+ * "unknown" on every tile rather than as a 500 that hides the tiles the port could still
+ * have answered. `pendingApprovals` is typed as a plain number by the port, so the page
+ * takes the failure as a separate flag rather than inventing a zero here.
+ */
+function unknownOverview(now: Date): OverviewView {
+  const unknownMetric: LaunchMetric = { value: null, observedAt: null };
+  return {
+    finance: {
+      currency: 'GBP',
+      cashRevenueMinor: null,
+      refundsMinor: null,
+      variableCostsMinor: null,
+      outstandingCommitmentsMinor: null,
+      startupCashRemainingMinor: null,
+      lastRefreshAt: null,
+      estimatedFields: [],
+    },
+    health: [],
+    customersActive: null,
+    customersTotal: null,
+    launch: {
+      totalVisits: unknownMetric,
+      adAttributedVisits: unknownMetric,
+      qualifiedSignups: unknownMetric,
+      payingCustomers: unknownMetric,
+    },
+    pendingApprovals: 0,
+    openSupportCases: null,
+    runsLast24h: null,
+    assembledAt: now.toISOString(),
+  };
+}
+
+const HEALTH_STATES: readonly ServiceHealthView['state'][] = ['ok', 'degraded', 'down', 'unknown'];
+
+export interface OverviewPageOptions {
+  /** `null` when the overview read failed. Every figure then renders as unknown. */
+  readonly view: OverviewView | null;
+  readonly now: Date;
+  /**
+   * Orders whose status is in {@link PAID_ORDER_STATUSES}, counted from the port's order
+   * list. `null` when that read failed. The order ledger does not record whether a
+   * payment was live or sandbox, so this page does not say either.
+   */
+  readonly paidOrders: number | null;
+}
+
+/**
+ * The overview, composed to the approved owner screen's arrangement and none of its words:
+ * the head beside a mono bar of the page's own facts; the launch figures as one strip of
+ * tiles; the money table in the wider column with customers and approvals beside it; the
+ * service health as a framed table with a tally under it. Every figure is the port's, or
+ * it is the word "unknown".
+ */
+export function OverviewPage(options: OverviewPageOptions): Html {
+  const overviewKnown = options.view !== null;
+  const view = options.view ?? unknownOverview(options.now);
+  const finance = summariseFinance(view.finance);
+  const refreshed = freshness(view.finance.lastRefreshAt, options.now);
+  const launch = view.launch;
+  const assembledAt = view.assembledAt;
+
+  const figures: readonly LaunchFigure[] = [
+    {
+      key: 'external-visits',
+      label: 'People who visited',
+      value: launchMetricValue(launch.totalVisits),
+      observedAt: launch.totalVisits.observedAt,
+      note: 'Our own traffic and suspected bots are excluded, so this is smaller than a raw hit count and is the one worth looking at.',
+    },
+    {
+      key: 'ad-attributed-visits',
+      label: 'Of those, arrived from an advert',
+      value: launchMetricValue(launch.adAttributedVisits),
+      observedAt: launch.adAttributedVisits.observedAt,
+      note: 'A subset of the figure above, not a separate total. It is what the advertising actually bought.',
+    },
+    {
+      key: 'qualified-signups',
+      label: 'Created a workspace and connected something',
+      value: launchMetricValue(launch.qualifiedSignups),
+      observedAt: launch.qualifiedSignups.observedAt,
+      note: 'Interest, not revenue. Somebody got far enough to try it.',
+    },
+    {
+      key: 'paying-customers',
+      label: 'Paying customers',
+      value: launchMetricValue(launch.payingCustomers),
+      observedAt: launch.payingCustomers.observedAt,
+      note: 'Workspaces with an active subscription. The only one of the four that is income.',
+    },
+    {
+      key: 'customers-total',
+      label: 'Customers, total ever',
+      value: countValue(view.customersTotal),
+      observedAt: overviewKnown ? assembledAt : null,
+      note: 'Every workspace ever created, including ones that are no longer paying.',
+    },
+    {
+      key: 'paid-orders',
+      label: 'Paid orders',
+      value: countValue(options.paidOrders),
+      observedAt: options.paidOrders === null ? null : assembledAt,
+      note: 'Orders the ledger records as paid, including any later refunded. The ledger does not record whether a payment was live or sandbox, so this page cannot separate the two.',
+    },
+    {
+      key: 'cash-received',
+      label: 'Cash received',
+      value:
+        view.finance.cashRevenueMinor === null
+          ? null
+          : displayMinor(view.finance.cashRevenueMinor, view.finance.currency),
+      observedAt: view.finance.lastRefreshAt,
+      note: 'As the order ledger records it. A sandbox payment is recorded the same way, so this is not by itself evidence of income.',
+    },
+    {
+      key: 'runs-24h',
+      label: 'Runs in the last 24 hours',
+      value: countValue(view.runsLast24h),
+      observedAt: overviewKnown ? assembledAt : null,
+      note: 'Verification runs received across every workspace, whatever their result.',
+    },
+  ];
+
+  const healthCounts = HEALTH_STATES.map(
+    (state) => [state, view.health.filter((item) => item.state === state).length] as const,
+  );
 
   return html`<div class="wrap section stack-lg">
-    ${PageHead({
-      eyebrow: 'Overview',
-      title: 'How the business is doing',
-      lede: 'Everything on this page is either measured or marked unknown. Where it is an estimate, it says so beside the figure.',
-    })}
+    <div class="section-head">
+      <div class="section-head__text stack-sm">
+        <p class="eyebrow">Overview</p>
+        <h1>How the business is doing</h1>
+        <p class="lede measure">
+          Everything on this page is either measured or marked unknown. Where it is an estimate, it says so
+          beside the figure.
+        </p>
+      </div>
+      <ul class="meta-bar" aria-label="About this page">
+        <li>Assembled <b>${Instant(assembledAt)}</b></li>
+        <li>Figures <b>${refreshed.label}</b></li>
+        <li>Approvals waiting <b>${
+          overviewKnown
+            ? String(view.pendingApprovals)
+            : html`<span data-unknown="true">unknown</span>`
+        }</b></li>
+      </ul>
+    </div>
 
     ${Callout({
       tone: finance.anyUnknown ? 'warn' : 'note',
@@ -100,110 +258,129 @@ export function OverviewPage(options: { readonly view: OverviewView; readonly no
         <p class="small">${NET_RECEIPTS_CAVEAT}</p>`,
     })}
 
-    ${Card({
-      title: 'Money',
-      headingLevel: 2,
-      aside: html`<span class="micro muted">${refreshed.label}</span>`,
-      body: Table({
-        caption: 'Money received, refunded, spent and committed',
-        columns: [
-          { key: 'label', header: 'Figure', rowHeader: true, cell: (line) => line.label },
-          {
-            key: 'value',
-            header: 'Amount',
-            numeric: true,
-            cell: (line) =>
-              line.minor === null
-                ? html`<span class="muted" data-unknown="true">unknown</span>`
-                : html`<span class="mono">${line.display}</span>`,
-          },
-          {
-            key: 'basis',
-            header: 'Basis',
-            cell: (line) =>
-              html`${
-                line.estimated
-                  ? html`<span class="badge badge--unverified" data-estimate="true">estimate</span> `
-                  : html`<span class="micro">measured</span> `
-              }${
-                line.caveat === null ? null : html`<span class="micro muted">${line.caveat}</span>`
-              }`,
-          },
-        ],
-        rows: finance.lines,
-      }),
-    })}
+    <section class="panel" aria-labelledby="launch-figures-heading">
+      <div class="panel__intro">
+        <p class="eyebrow">Since launch</p>
+        <h2 id="launch-figures-heading">Launch figures</h2>
+        <p class="measure small">
+          Kept apart on purpose. <strong>A visit is not interest, and interest is not a customer.</strong>
+          Adding them together, or quoting the largest of them on its own, would tell you the business is
+          doing better than it is.
+        </p>
+      </div>
+      <div class="count-grid" data-launch-figures>
+        ${figures.map((figure) => LaunchFigureTile(figure, options.now))}
+      </div>
+    </section>
 
-    <div class="grid grid-2">
+    <div class="grid grid-7-5">
       ${Card({
-        title: 'Customers',
+        title: 'Money',
         headingLevel: 2,
-        body: KeyValues([
-          ['Active', UnknownAware(options.view.customersActive)],
-          ['Total ever', UnknownAware(options.view.customersTotal)],
-          ['Runs in the last 24 hours', UnknownAware(options.view.runsLast24h)],
-          ['Open support cases', UnknownAware(options.view.openSupportCases)],
-        ]),
+        aside: html`<span class="micro muted">${refreshed.label}</span>`,
+        body: Table({
+          caption: 'Money received, refunded, spent and committed',
+          columns: [
+            { key: 'label', header: 'Figure', rowHeader: true, cell: (line) => line.label },
+            {
+              key: 'value',
+              header: 'Amount',
+              numeric: true,
+              cell: (line) =>
+                line.minor === null
+                  ? html`<span class="muted" data-unknown="true">unknown</span>`
+                  : html`<span class="mono">${line.display}</span>`,
+            },
+            {
+              key: 'basis',
+              header: 'Basis',
+              cell: (line) =>
+                html`${
+                  line.estimated
+                    ? html`<span class="badge badge--unverified" data-estimate="true">estimate</span> `
+                    : html`<span class="micro">measured</span> `
+                }${
+                  line.caveat === null ? null : html`<span class="micro muted">${line.caveat}</span>`
+                }`,
+            },
+          ],
+          rows: finance.lines,
+        }),
       })}
+      <div class="stack">
+        ${Card({
+          title: 'Customers',
+          headingLevel: 2,
+          body: KeyValues([
+            ['Active', UnknownAware(view.customersActive)],
+            ['Total ever', UnknownAware(view.customersTotal)],
+            ['Runs in the last 24 hours', UnknownAware(view.runsLast24h)],
+            ['Open support cases', UnknownAware(view.openSupportCases)],
+          ]),
+        })}
+        ${Card({
+          title: 'Waiting for you',
+          headingLevel: 2,
+          body: html`<p class="score ${!overviewKnown || view.pendingApprovals === 0 ? 'score--none' : ''}">
+              ${
+                !overviewKnown
+                  ? html`<span data-unknown="true">unknown</span>`
+                  : view.pendingApprovals === 0
+                    ? 'Nothing'
+                    : String(view.pendingApprovals)
+              }
+            </p>
+            <p class="small">
+              Approvals that are still standing and could be used.
+              <a href="/owner/approvals">Open approvals</a>.
+            </p>`,
+        })}
+      </div>
     </div>
 
-    ${Card({
-      title: 'Since launch',
-      headingLevel: 2,
-      body: html`<div class="stack">
-        <p class="measure small">
-          Four numbers, kept apart on purpose. <strong>A visit is not interest, and interest is not a
-          customer.</strong> Adding them together, or quoting the largest of them on its own, would tell you
-          the business is doing better than it is.
-        </p>
-        <div class="grid grid-2">
-          ${LaunchStat({
-            label: 'People who visited',
-            metric: launch.totalVisits,
-            note: 'Our own traffic and suspected bots are excluded, so this is smaller than a raw hit count and is the one worth looking at.',
-            now: options.now,
-          })}
-          ${LaunchStat({
-            label: 'Of those, arrived from an advert',
-            metric: launch.adAttributedVisits,
-            note: 'A subset of the figure above, not a separate total. It is what the advertising actually bought.',
-            now: options.now,
-          })}
-          ${LaunchStat({
-            label: 'Created a workspace and connected something',
-            metric: launch.qualifiedSignups,
-            note: 'Interest, not revenue. Somebody got far enough to try it.',
-            now: options.now,
-          })}
-          ${LaunchStat({
-            label: 'Paying customers',
-            metric: launch.payingCustomers,
-            note: 'The only one of the four that is income.',
-            now: options.now,
-          })}
+    <section class="stack" aria-labelledby="service-health-heading">
+      <h2 id="service-health-heading">Service health</h2>
+      <div class="results">
+        ${Table({
+          caption: 'Every component, its state and when it was observed',
+          captionHidden: true,
+          columns: [
+            { key: 'component', header: 'Component', rowHeader: true, cell: (item) => item.component },
+            {
+              key: 'state',
+              header: 'State',
+              cell: (item) =>
+                item.state === 'unknown'
+                  ? html`<span class="muted" data-unknown="true" data-health-state="unknown">not known</span>`
+                  : html`<span class="mono" data-health-state="${item.state}">${item.state}</span>`,
+            },
+            { key: 'detail', header: 'Detail', cell: (item) => item.detail },
+            { key: 'observed', header: 'Observed', cell: (item) => Instant(item.observedAt) },
+          ],
+          rows: view.health,
+          empty: html`<p class="muted state" data-unknown="true">
+            ${
+              overviewKnown
+                ? 'No component reports its health on this deployment.'
+                : 'The overview could not be read, so no component health is known.'
+            }
+          </p>`,
+        })}
+        <div class="results__bar">
+          <ul class="tally" aria-label="Components by state">
+            ${healthCounts.map(
+              ([state, n]) => html`<li data-health-tally="${state}">
+                <span class="tally__count">${String(n)}</span>
+                ${state === 'unknown' ? 'not known' : state}
+              </li>`,
+            )}
+          </ul>
+          <p class="micro muted">${String(view.health.length)} components</p>
         </div>
-      </div>`,
-    })}
+      </div>
+    </section>
 
-    ${Card({
-      title: 'Waiting for you',
-      headingLevel: 2,
-      body: html`<p class="score ${options.view.pendingApprovals === 0 ? 'score--none' : ''}">
-          ${options.view.pendingApprovals === 0 ? 'Nothing' : String(options.view.pendingApprovals)}
-        </p>
-        <p class="small">
-          Approvals that are still standing and could be used.
-          <a href="/owner/approvals">Open approvals</a>.
-        </p>`,
-    })}
-
-    ${Card({
-      title: 'Service health',
-      headingLevel: 2,
-      body: html`<div class="stack-sm">${options.view.health.map(healthRow)}</div>`,
-    })}
-
-    <p class="micro muted">Page assembled ${Instant(options.view.assembledAt)}.</p>
+    <p class="micro muted">Page assembled ${Instant(assembledAt)}.</p>
   </div>`;
 }
 

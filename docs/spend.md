@@ -81,6 +81,38 @@ needs restating.
 
 ---
 
+## Update — 20 September 2026, 06:57 UTC
+
+The 19 September position above is left as written. What changed:
+
+### Advertising — still **£0.00 confirmed**, and the shape of the guarantee has changed
+
+| Item | 19 Sept | 20 Sept |
+| --- | --- | --- |
+| Advertising account | none | **Google Ads `227-475-1523 "ITISYOU Verify"`**, postpay, GBP, Individual UK payments profile |
+| Campaign | none | **One draft**, state **drafted** (campaign `281499240699016`, draft `10214818128`, read from the live wizard URL today). Budget step **not saved** — Google's identity challenge blocks it |
+| Impressions served | 0 | **0** — a draft cannot serve |
+| Spend | £0.00 | **£0.00** |
+| Payment method on advertising account | none requested | **Unknown** to this lane. Not visible without the owner's billing screen |
+| Ceiling mechanism | structural: nothing existed | **Campaign total budget GBP 12.46 + VAT 20% = GBP 14.95**, once saved. There is **no account-level ceiling** on a UK postpay account |
+| £30 contingency | untouched, separately gated | **untouched, separately gated, not referenced as available** |
+
+The full control table, arithmetic and owner steps are in `docs/campaign-packet.md`. The
+one sentence that matters for this file: the £0.00 is confirmed because the draft has never
+been published, not because any account setting would stop it spending.
+
+### Infrastructure — unchanged, one addition
+
+No new paid resource. One Stripe **sandbox** subscription now exists on staging at
+£29.00/month in test mode; no money moved. `STRIPE_MODE` is `test` in every environment.
+
+### Claude usage — unchanged
+
+Still real, still unquantifiable from inside a session, still the owner's decision whether
+it counts against the £100.
+
+---
+
 ## Summary
 
 | Category | Figure | Confidence |

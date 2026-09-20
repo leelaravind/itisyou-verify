@@ -29,6 +29,31 @@ import { ActionForm, Instant, PageHead, UnknownAware } from './chrome.js';
 // Quality
 // ---------------------------------------------------------------------------
 
+/** Every job state, verdicts first, so a tally under the run table has a fixed order. */
+const JOB_STATE_ORDER: readonly QualityRun['state'][] = [
+  'passed',
+  'failed',
+  'running',
+  'queued',
+  'awaiting_runner',
+  'cancelled',
+  'timed_out',
+  'infrastructure_error',
+];
+
+/**
+ * The badge for a job state. Only a verdict wears green or red. Everything else — waiting,
+ * running, stopped, timed out, broken machinery — wears the amber UNVERIFIED dash, so a run
+ * that proved nothing is never dressed as a pass and never as a failure.
+ */
+export function jobStateBadgeClass(state: QualityRun['state']): string {
+  return state === 'passed'
+    ? 'badge--verified'
+    : state === 'failed'
+      ? 'badge--failed'
+      : 'badge--unverified';
+}
+
 export function QualityPage(options: {
   readonly runs: readonly QualityRun[];
   readonly csrfToken: string | null;
@@ -36,12 +61,43 @@ export function QualityPage(options: {
   readonly formMessage: string | null;
   readonly formDependency: string | null;
 }): Html {
+  const tally = JOB_STATE_ORDER.map(
+    (state) => [state, options.runs.filter((run) => run.state === state).length] as const,
+  ).filter(([, n]) => n > 0);
+
   return html`<div class="wrap section stack-lg">
-    ${PageHead({
-      eyebrow: 'Tests',
-      title: 'Test centre',
-      lede: 'Run a suite, see what it proved, and download the evidence. Nothing here reports a result it did not get.',
-    })}
+    <div class="section-head">
+      <div class="section-head__text stack-sm">
+        <p class="eyebrow">Tests</p>
+        <h1>Test centre</h1>
+        <p class="lede measure">
+          Run a suite, see what it proved, and download the evidence. Nothing here reports a result it did
+          not get.
+        </p>
+      </div>
+      <ul class="meta-bar" aria-label="About this centre">
+        <li>Suites <b>${String(QUALITY_SUITES.length)}</b></li>
+        <li>Runs <b>${String(options.runs.length)}</b></li>
+        <li>Evidence pack <b>${
+          options.artifactsUnavailableReason === null
+            ? `${String(QUALITY_ARTIFACTS.length)} files`
+            : 'nothing to download'
+        }</b></li>
+      </ul>
+    </div>
+
+    ${
+      tally.length === 0
+        ? null
+        : html`<dl class="metrics" aria-label="Runs by state">
+            ${tally.map(
+              ([state, n]) => html`<div data-job-metric="${state}">
+                <dt>${JOB_STATE_TEXT[state].label}</dt>
+                <dd>${String(n)}</dd>
+              </div>`,
+            )}
+          </dl>`
+    }
 
     ${
       options.formDependency === null
@@ -58,136 +114,145 @@ export function QualityPage(options: {
         : Callout({ tone: 'note', title: 'Done', body: html`<p>${options.formMessage}</p>` })
     }
 
-    ${Card({
-      title: 'Run a suite',
-      headingLevel: 2,
-      body: ActionForm({
-        action: '/owner/quality/run',
-        csrfToken: options.csrfToken,
-        body: html`<fieldset class="fieldset">
-            <legend>Which suite</legend>
-            <p class="fieldset__hint">
-              These are the only suites that exist. You choose one of them; nothing you type is ever run.
-            </p>
-            ${QUALITY_SUITES.map(
-              (suite) => html`<div class="check">
-                <input type="radio" id="suite-${suite.id}" name="suite_id" value="${suite.id}" required />
-                <label for="suite-${suite.id}">
-                  <strong>${suite.label}</strong>
-                  <span class="micro muted"> — about ${suite.typicalMinutes} minutes</span><br />
-                  <span class="small">Proves: ${suite.proves}</span><br />
-                  <span class="small muted">Does not prove: ${suite.doesNotProve}</span>
-                </label>
-              </div>`,
-            )}
-          </fieldset>
-          ${Button({ label: 'Run this suite', variant: 'primary', type: 'submit' })}`,
-      }),
-    })}
-
-    ${Card({
-      title: 'Runs',
-      headingLevel: 2,
-      body: Table({
-        caption: 'Test runs, their state and what each one proved',
-        columns: [
-          {
-            key: 'suite',
-            header: 'Suite',
-            rowHeader: true,
-            cell: (run) => html`<span class="mono">${run.suiteId}</span>`,
-          },
-          {
-            key: 'state',
-            header: 'State',
-            cell: (run) => html`<span
-                class="badge ${
-                  run.state === 'passed'
-                    ? 'badge--verified'
-                    : run.state === 'failed'
-                      ? 'badge--failed'
-                      : 'badge--unverified'
-                }"
-                data-job-state="${run.state}"
-                >${JOB_STATE_TEXT[run.state].label}</span
-              ><br /><span class="micro muted">${JOB_STATE_TEXT[run.state].meaning}</span>`,
-          },
-          {
-            key: 'commit',
-            header: 'Commit',
-            cell: (run) =>
-              run.commitSha === null
-                ? html`<span class="muted" data-unknown="true">unknown</span>`
-                : html`<span class="mono micro">${run.commitSha.slice(0, 12)}</span>`,
-          },
-          {
-            key: 'env',
-            header: 'Environment',
-            cell: (run) => html`<span class="mono micro">${run.environment}</span>`,
-          },
-          {
-            key: 'executor',
-            header: 'Executor',
-            cell: (run) => html`<span class="mono micro">${run.executor}</span>`,
-          },
-          { key: 'started', header: 'Started', cell: (run) => Instant(run.startedAt) },
-          { key: 'ended', header: 'Ended', cell: (run) => Instant(run.endedAt) },
-          {
-            key: 'counts',
-            header: 'Cases',
-            numeric: true,
-            cell: (run) =>
-              stateIsVerdict(run.state)
-                ? html`<span class="mono"
-                    >${run.passed ?? 0}/${run.totalCases ?? 0} passed, ${run.failed ?? 0} failed</span
-                  >`
-                : html`<span class="muted" data-unknown="true">no result</span>`,
-          },
-          {
-            key: 'limits',
-            header: 'Limitations',
-            cell: (run) => html`<span class="small">${run.limitations}</span>`,
-          },
-          {
-            key: 'blocked',
-            header: 'Waiting on',
-            cell: (run) =>
-              run.blockedReason === null
-                ? html`<span class="muted">—</span>`
-                : html`<span class="small" data-dependency="true">${run.blockedReason}</span>`,
-          },
-        ],
-        rows: options.runs,
-        empty: html`<p class="muted">No suite has been run from here yet.</p>`,
-      }),
-    })}
-
-    ${Card({
-      title: 'Evidence pack',
-      headingLevel: 2,
-      body:
-        options.artifactsUnavailableReason === null
-          ? html`<div class="stack-sm">
-              <p class="small">
-                These are the files the report script produces from a real run. They are behind your session —
-                nothing here is public.
+    <div class="grid grid-7-5">
+      ${Card({
+        title: 'Run a suite',
+        headingLevel: 2,
+        body: ActionForm({
+          action: '/owner/quality/run',
+          csrfToken: options.csrfToken,
+          body: html`<fieldset class="fieldset">
+              <legend>Which suite</legend>
+              <p class="fieldset__hint">
+                These are the only suites that exist. You choose one of them; nothing you type is ever run.
               </p>
-              <ul class="stack-sm">
-                ${QUALITY_ARTIFACTS.map(
-                  (artifact) => html`<li>
-                    <a href="/owner/quality/report/${artifact.id}"><strong>${artifact.label}</strong></a>
-                    <span class="mono micro">(${artifact.id})</span><br />
-                    <span class="small muted">${artifact.description}</span>
-                  </li>`,
-                )}
-              </ul>
-            </div>`
-          : Callout({
-              tone: 'warn',
-              title: 'There is nothing to download',
-              body: html`<p data-dependency="true">${options.artifactsUnavailableReason}</p>`,
-            }),
-    })}
+              ${QUALITY_SUITES.map(
+                (suite) => html`<div class="check">
+                  <input type="radio" id="suite-${suite.id}" name="suite_id" value="${suite.id}" required />
+                  <label for="suite-${suite.id}">
+                    <strong>${suite.label}</strong>
+                    <span class="micro muted"> — about ${suite.typicalMinutes} minutes</span><br />
+                    <span class="small">Proves: ${suite.proves}</span><br />
+                    <span class="small muted">Does not prove: ${suite.doesNotProve}</span>
+                  </label>
+                </div>`,
+              )}
+            </fieldset>
+            ${Button({ label: 'Run this suite', variant: 'primary', type: 'submit' })}`,
+        }),
+      })}
+
+      ${Card({
+        title: 'Evidence pack',
+        headingLevel: 2,
+        body:
+          options.artifactsUnavailableReason === null
+            ? html`<div class="stack-sm">
+                <p class="small">
+                  These are the files the report script produces from a real run. They are behind your session —
+                  nothing here is public.
+                </p>
+                <ul class="stack-sm">
+                  ${QUALITY_ARTIFACTS.map(
+                    (artifact) => html`<li>
+                      <a href="/owner/quality/report/${artifact.id}"><strong>${artifact.label}</strong></a>
+                      <span class="mono micro">(${artifact.id})</span><br />
+                      <span class="small muted">${artifact.description}</span>
+                    </li>`,
+                  )}
+                </ul>
+              </div>`
+            : Callout({
+                tone: 'warn',
+                title: 'There is nothing to download',
+                body: html`<p data-dependency="true">${options.artifactsUnavailableReason}</p>`,
+              }),
+      })}
+    </div>
+
+    <section class="stack" aria-labelledby="quality-runs-heading">
+      <h2 id="quality-runs-heading">Runs</h2>
+      <div class="results">
+        ${Table({
+          caption: 'Test runs, their state and what each one proved',
+          captionHidden: true,
+          columns: [
+            {
+              key: 'suite',
+              header: 'Suite',
+              rowHeader: true,
+              cell: (run) => html`<span class="mono">${run.suiteId}</span>`,
+            },
+            {
+              key: 'state',
+              header: 'State',
+              cell: (run) => html`<span
+                  class="badge ${jobStateBadgeClass(run.state)}"
+                  data-job-state="${run.state}"
+                  >${JOB_STATE_TEXT[run.state].label}</span
+                ><br /><span class="micro muted">${JOB_STATE_TEXT[run.state].meaning}</span>`,
+            },
+            {
+              key: 'commit',
+              header: 'Commit',
+              cell: (run) =>
+                run.commitSha === null
+                  ? html`<span class="muted" data-unknown="true">unknown</span>`
+                  : html`<span class="mono micro">${run.commitSha.slice(0, 12)}</span>`,
+            },
+            {
+              key: 'env',
+              header: 'Environment',
+              cell: (run) => html`<span class="mono micro">${run.environment}</span>`,
+            },
+            {
+              key: 'executor',
+              header: 'Executor',
+              cell: (run) => html`<span class="mono micro">${run.executor}</span>`,
+            },
+            { key: 'started', header: 'Started', cell: (run) => Instant(run.startedAt) },
+            { key: 'ended', header: 'Ended', cell: (run) => Instant(run.endedAt) },
+            {
+              key: 'counts',
+              header: 'Cases',
+              numeric: true,
+              cell: (run) =>
+                stateIsVerdict(run.state)
+                  ? html`<span class="mono"
+                      >${run.passed ?? 0}/${run.totalCases ?? 0} passed, ${run.failed ?? 0} failed</span
+                    >`
+                  : html`<span class="muted" data-unknown="true">no result</span>`,
+            },
+            {
+              key: 'limits',
+              header: 'Limitations',
+              cell: (run) => html`<span class="small">${run.limitations}</span>`,
+            },
+            {
+              key: 'blocked',
+              header: 'Waiting on',
+              cell: (run) =>
+                run.blockedReason === null
+                  ? html`<span class="muted">—</span>`
+                  : html`<span class="small" data-dependency="true">${run.blockedReason}</span>`,
+            },
+          ],
+          rows: options.runs,
+          empty: html`<p class="muted state">No suite has been run from here yet.</p>`,
+        })}
+        <div class="results__bar">
+          <ul class="tally" aria-label="Runs by state">
+            ${tally.map(
+              ([state, n]) => html`<li data-job-tally="${state}">
+                <span class="tally__count">${String(n)}</span>
+                <span class="badge ${jobStateBadgeClass(state)}">${JOB_STATE_TEXT[state].label}</span>
+              </li>`,
+            )}
+          </ul>
+          <p class="micro muted">${String(options.runs.length)} runs shown</p>
+        </div>
+      </div>
+    </section>
   </div>`;
 }
 
