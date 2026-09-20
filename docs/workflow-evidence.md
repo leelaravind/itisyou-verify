@@ -593,3 +593,9 @@ table saying otherwise; the settled figure is appended below once read.
 
 Not claimed: anything about production — it has no workspace yet — and nothing about the
 verdict of this run, which had not been decided when this was written.
+
+**Settled, read at 10:45 UTC:** `run_01M2Z46X56869883441D8E4F11` completed 10:05:39Z with
+status **UNVERIFIED** (as predicted: no `email_message_id`, so no email evidence could bind);
+the entitlement row now reads `consumed 12, reserved 0`, `updated_at 10:05:39Z`. The
+reservation became consumption at the moment the run settled, and the customer page's
+12 / 500 was right throughout.
