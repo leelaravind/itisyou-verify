@@ -346,6 +346,23 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
     } catch {
       principal = ANONYMOUS_PRINCIPAL;
     }
+    // The double-submit pair is minted PER REQUEST by the live port (`generateCsrfToken()`),
+    // so any response that renders a form must also set the cookie for the token it
+    // rendered. Until 20 September only the authenticated GET path did. The enrolment
+    // POST rendered "confirm a code" with a fresh token and no cookie, and the owner's
+    // first code on production was refused as a CSRF mismatch -- the refusal that says
+    // "reload the page and try again", which is the one instruction a page showing a
+    // one-time secret must never give. Set here, once, for every route that resolves a
+    // principal; redirects carry the header harmlessly.
+    if (principal.csrfToken.length > 0) {
+      const secure = new URL(c.req.url).protocol === 'https:';
+      setCookie(c, csrfCookieName(secure), principal.csrfToken, {
+        path: '/',
+        sameSite: 'Lax',
+        maxAge: 43200,
+        secure,
+      });
+    }
     return { port, principal };
   }
 
@@ -423,17 +440,8 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
         403,
       );
     }
-    // The double-submit cookie is set on every authenticated GET so the forms on the page
-    // have a matching half. A02 owns the session cookie; this one is only the CSRF pair.
-    const secure = new URL(c.req.url).protocol === 'https:';
-    if (principal.csrfToken.length > 0) {
-      setCookie(c, csrfCookieName(secure), principal.csrfToken, {
-        path: '/',
-        sameSite: 'Lax',
-        maxAge: 43200,
-        secure,
-      });
-    }
+    // The double-submit cookie is set in `principalOf`, for every response that renders a
+    // form, not only this one. A02 owns the session cookie; that one is only the CSRF pair.
     return render(port, principal);
   }
 
@@ -730,15 +738,6 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
   routes.get('/admin/authenticator', async (c) => {
     const { principal } = await principalOf(c);
     if (!ownerForEnrolment(principal)) return refuseNotFound(c);
-    const secure = new URL(c.req.url).protocol === 'https:';
-    if (principal.csrfToken.length > 0) {
-      setCookie(c, csrfCookieName(secure), principal.csrfToken, {
-        path: '/',
-        sameSite: 'Lax',
-        maxAge: 43200,
-        secure,
-      });
-    }
     const enrolled = await auth.authenticatorEnrolled(principal);
     return ownerPage(
       c,
