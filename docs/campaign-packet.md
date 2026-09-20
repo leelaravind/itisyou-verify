@@ -1,11 +1,14 @@
 # Campaign readiness packet — Google Ads Search, September 2026
 
 **Prepared by:** Growth lane, 20 September 2026, 06:57 UTC.
-**Campaign state at 09:20 UTC, 20 September: SUBMITTED by the owner (07:55 UTC), found EMPTY, being completed.**
-The published campaign carried no keywords and no ads. Since then the lead has saved the five
-exact-match keywords (§3.2) and the eight negatives; the responsive search ad (§3.3) is being
-entered. Google's status: **"Not eligible — low search volume, under review."** Not approved.
-Not delivering. **Spent to date: GBP 0.00.**
+**Campaign state at 10:20 UTC, 20 September: SUBMITTED by the owner; keywords, negatives and
+the ad now in place; ad UNDER REVIEW.** The owner published at 07:55 UTC; the published
+campaign carried no keywords and no ads. The lead saved the five exact-match keywords (§3.2),
+the eight negatives, and the responsive search ad from §3.3 (saved 10:15 UTC after the owner
+cleared Google's identity check). Ads table: one responsive search ad, **Pending — Under
+review**, 0 impressions. Campaign status: **Not eligible** (keywords "low search volume", ad
+under review). States: drafted ✓, submitted ✓, approved ✗, delivering ✗. **Spent to date:
+GBP 0.00.**
 
 **Budget corrected 08:40 UTC: GBP 12.46 → GBP 12.25.** See the fee note below the billing
 table: Google adds a 2% UK Digital Services Tax fee on top of media spend and VAT applies
