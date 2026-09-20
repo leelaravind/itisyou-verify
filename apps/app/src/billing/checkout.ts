@@ -93,6 +93,7 @@ export async function startCheckout(
     amountMinor: plan.amountMinor,
     currency: plan.currency,
     checkoutSessionId: null,
+    paymentIntentId: null,
     idempotencyKey,
     createdAt: at,
     updatedAt: at,

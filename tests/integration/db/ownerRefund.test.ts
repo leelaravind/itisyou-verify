@@ -15,7 +15,11 @@
  * makes this file possible, and the asymmetry with `customerPort` -- which always had one
  * -- is what let the two diverge unnoticed.
  *
- * Case ids `BILL-400..BILL-403`, `AUTH-480`.
+ * Case ids `BILL-400`, `BILL-401`, `BILL-402`, `BILL-404`, `BILL-405`, `AUTH-480`.
+ *
+ * Written out rather than given as a range. The first version of this header said
+ * `BILL-400..BILL-403` and BILL-403 does not exist -- a fabricated citation, in the commit
+ * that fixed a fabricated citation. A range is a claim about ids you have not checked.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { D1OwnerDataPort } from '@app/db';
@@ -76,14 +80,18 @@ function port(h: TestDb, fetchImpl?: typeof fetch): D1OwnerDataPort {
   });
 }
 
-/** A paid order and a subscription, with or without a recorded payment target. */
+/**
+ * An order and a subscription. `paymentIntentId` is set on the ORDER, because that is the
+ * exact link a refund aims at -- the subscription's most recent payment is not evidence
+ * about this order.
+ */
 function seedPaidOrder(h: TestDb, ws: SeededWorkspace, paymentIntentId: string | null): void {
   h.raw
     .prepare(
-      `INSERT INTO orders (id, workspace_id, status, price_id, amount_minor, currency, idempotency_key, created_at, updated_at)
-       VALUES ('ord_1', ?, 'active', 'price_0000000000test', 4900, 'GBP', 'k1', ?, ?)`,
+      `INSERT INTO orders (id, workspace_id, status, price_id, amount_minor, currency, idempotency_key, created_at, updated_at, payment_intent_id)
+       VALUES ('ord_1', ?, 'active', 'price_0000000000test', 4900, 'GBP', 'k1', ?, ?, ?)`,
     )
-    .run(ws.workspaceId, T0, T0);
+    .run(ws.workspaceId, T0, T0, paymentIntentId);
   h.raw
     .prepare(
       `INSERT INTO subscriptions (id, workspace_id, provider_subscription_id, environment, status, price_id, current_period_end, cancel_at_period_end, provider_event_created, updated_at, latest_payment_intent_id, latest_payment_period_end)
@@ -134,7 +142,7 @@ afterEach(() => {
 });
 
 describe('the owner refund control reaches the provider', () => {
-  it('BILL-400 with no recorded payment target it refuses, spends nothing and creates no refund row', async () => {
+  it('BILL-400 with no payment recorded against the order it refuses, spends nothing and creates no refund row', async () => {
     seedPaidOrder(h, ws, null);
     // A granted approval, so the refusal cannot come from authorisation. Without this the
     // case stops at the approval lookup and never reaches the target check at all -- which
@@ -152,7 +160,7 @@ describe('the owner refund control reaches the provider', () => {
     });
 
     expect(result.ok).toBe(false);
-    expect(result.message).toMatch(/payment to refund against/i);
+    expect(result.message).toMatch(/which payment paid for that order/i);
     // The orphan row is the part that made the old behaviour worse than a plain refusal.
     expect((h.raw.prepare('SELECT COUNT(*) AS n FROM refunds').get() as { n: number }).n).toBe(0);
     expect(captured).toEqual([]);
@@ -175,6 +183,64 @@ describe('the owner refund control reaches the provider', () => {
     expect(captured, 'nothing may be sent to Stripe when we cannot complete the refund').toEqual(
       [],
     );
+  });
+
+  it('BILL-404 a refund aims at the payment for THAT order, never the workspace latest', async () => {
+    // The auditor's exact case: an old order, and a newer payment recorded against the
+    // subscription for a later period. Migration 0007 claimed a period guard prevented
+    // this. There was no guard, and Stripe was called.
+    seedPaidOrder(h, ws, null);
+    h.raw
+      .prepare("UPDATE orders SET created_at = '2026-07-01T00:00:00.000Z' WHERE id = 'ord_1'")
+      .run();
+    h.raw
+      .prepare(
+        "UPDATE subscriptions SET latest_payment_intent_id = 'pi_october', latest_payment_period_end = ? WHERE id = 'sub_1'",
+      )
+      .run(PERIOD_END);
+    seedApproval(h, ws);
+    const captured: Captured[] = [];
+
+    const result = await port(h, stripeStub(captured)).issueRefund(CTX, {
+      workspaceId: ws.workspaceId,
+      orderId: 'ord_1',
+      amountMinor: 4900,
+      policyRule: 'goodwill_owner_discretion',
+      reason: 'x',
+      approvalId: 'apr_1',
+    });
+
+    expect(result.ok).toBe(false);
+    // The subscription has a payment. The ORDER does not, and that is what decides.
+    expect(captured, 'October payment must not be reachable from a July order').toEqual([]);
+    expect((h.raw.prepare('SELECT COUNT(*) AS n FROM refunds').get() as { n: number }).n).toBe(0);
+  });
+
+  it('BILL-405 an approval that does not match this payload leaves no queued refund row', async () => {
+    // The orphan-row half of the finding, still true after the first fix: only the
+    // no-target refusal had moved ahead of `requestRefund`, so a hash mismatch still
+    // created a `queued_for_owner` row the owner could not action.
+    seedPaidOrder(h, ws, 'pi_test_1');
+    seedApproval(h, ws); // hash is deliberately not the real one
+    const captured: Captured[] = [];
+
+    const result = await port(h, stripeStub(captured)).issueRefund(CTX, {
+      workspaceId: ws.workspaceId,
+      orderId: 'ord_1',
+      amountMinor: 4900,
+      policyRule: 'goodwill_owner_discretion',
+      reason: 'x',
+      approvalId: 'apr_1',
+    });
+
+    expect(result.ok).toBe(false);
+    expect((h.raw.prepare('SELECT COUNT(*) AS n FROM refunds').get() as { n: number }).n).toBe(0);
+    expect(captured).toEqual([]);
+    // And the approval is untouched, so the owner can still use it once corrected.
+    expect(
+      (h.raw.prepare("SELECT status FROM approvals WHERE id = 'apr_1'").get() as { status: string })
+        .status,
+    ).toBe('granted');
   });
 
   it('BILL-402 an unpublished policy rule is refused rather than hashed into an approval', async () => {

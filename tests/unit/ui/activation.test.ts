@@ -97,9 +97,14 @@ describe('the service activation notice', () => {
 
   it('CUST-124 the notice names each gap rather than apologising in general terms', async () => {
     const body = text(await render(PricingPage()));
-    expect(body).toContain('signed events is not live yet');
-    expect(body).toContain('cannot yet reach "ready"');
-    expect(body).toContain('do not yet run automatically');
+    // The property is that the notice NAMES its gaps rather than apologising in general
+    // terms. The gaps themselves changed when three of them were closed, so the specific
+    // sentences moved; asserting the old ones would have pinned the notice to claiming
+    // less than was true.
+    expect(body).toContain('no purchase has been completed end to end');
+    expect(body).toContain('never been read back from a real portal');
+    // And it still says what it will take to come down, rather than "soon".
+    expect(body).toContain('when that last part is done');
     expect(body).toContain('not taking payment or activating new workspaces');
   });
 });

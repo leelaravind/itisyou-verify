@@ -47,6 +47,13 @@ export interface OrderRecord {
   readonly amountMinor: number | null;
   readonly currency: string | null;
   readonly checkoutSessionId: string | null;
+  /**
+   * The payment that paid for this order, learned from `invoice.paid`.
+   *
+   * A refund aims at this and nothing else. Stripe refunds a specific payment, and
+   * matching an order to a payment by date would be a heuristic on a money path.
+   */
+  readonly paymentIntentId: string | null;
   readonly idempotencyKey: string | null;
   readonly createdAt: string;
   readonly updatedAt: string;
@@ -182,6 +189,16 @@ export interface BillingDataPort {
     workspaceId: string,
     environment: BillingEnvironment,
   ): Promise<SubscriptionRecord | null>;
+
+  /**
+   * Bind a payment to the order it paid for. Written once: a later invoice for a renewal
+   * must not repoint an earlier order at a newer payment.
+   */
+  recordOrderPayment(params: {
+    readonly workspaceId: string;
+    readonly orderId: string;
+    readonly paymentIntentId: string;
+  }): Promise<void>;
 
   /** Record the payment that just succeeded, so a refund has something to aim at. */
   recordPaymentTarget(params: {

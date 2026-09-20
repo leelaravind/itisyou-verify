@@ -158,11 +158,19 @@ describe('CUST-333 pages that claim we read HubSpot and Resend say how that has 
    * home page, how it works, security — said nothing, so a visitor reading "we read the
    * record back from HubSpot" had no way to learn it had never been done.
    */
-  it('CUST-333 the mock-only proof state is stated on every page that makes the claim', async () => {
-    for (const path of ['/', '/how-it-works', '/security']) {
+  it('CUST-333 every page making the claim states which provider is proven and which is not', async () => {
+    // `/demo` is in this list deliberately. It was the one public page that omitted the
+    // notice, and it is the page a paid advert would land on -- a disclosure missing from
+    // the page the traffic reaches is not a disclosure.
+    for (const path of ['/', '/how-it-works', '/security', '/demo']) {
       const body = text((await get(path)).html);
-      expect(body, path).toContain('never been run against a real HubSpot or Resend account');
-      expect(body, path).toContain('stubs built from published provider documentation');
+      // Asserted by substance rather than by sentence. The wording changed when Resend
+      // became proven; the property is that each provider's state is stated, and the
+      // earlier version of this case would have kept a notice saying LESS than was true.
+      expect(body, path).toMatch(/HubSpot has not|not[^.]*read back[^.]*HubSpot/i);
+      expect(body, path).toContain('designed and tested rather than observed');
+      // A stub proving nothing about the provider is the reason the qualification exists.
+      expect(body, path).toContain('it cannot prove the provider sends it');
     }
   });
 });

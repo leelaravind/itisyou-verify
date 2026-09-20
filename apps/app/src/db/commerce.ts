@@ -104,13 +104,14 @@ export interface OrderRow {
   readonly amount_minor: number | null;
   readonly currency: string | null;
   readonly checkout_session_id: string | null;
+  readonly payment_intent_id: string | null;
   readonly idempotency_key: string | null;
   readonly created_at: string;
   readonly updated_at: string;
 }
 
 const ORDER_COLUMNS =
-  'id, workspace_id, status, rejection_reason, price_id, amount_minor, currency, checkout_session_id, idempotency_key, created_at, updated_at';
+  'id, workspace_id, status, rejection_reason, price_id, amount_minor, currency, checkout_session_id, payment_intent_id, idempotency_key, created_at, updated_at';
 
 export const orders = {
   /**
@@ -253,6 +254,28 @@ export interface SubscriptionRow {
 
 const SUBSCRIPTION_COLUMNS =
   'id, workspace_id, provider_subscription_id, environment, status, price_id, current_period_end, cancel_at_period_end, reconciled_at, provider_event_created, updated_at, latest_payment_intent_id, latest_payment_period_end';
+
+export const orderPayments = {
+  /**
+   * Bind a payment to an order, once.
+   *
+   * `WHERE payment_intent_id IS NULL` is the guarantee: a renewal invoice arriving later
+   * cannot repoint an earlier order at a newer payment, which would silently change what
+   * a refund for that order would hit.
+   */
+  async record(
+    db: Db,
+    params: { workspaceId: string; orderId: string; paymentIntentId: string },
+  ): Promise<void> {
+    await db
+      .prepare(
+        `UPDATE orders SET payment_intent_id = ?
+          WHERE workspace_id = ? AND id = ? AND payment_intent_id IS NULL`,
+      )
+      .bind(params.paymentIntentId, params.workspaceId, params.orderId)
+      .run();
+  },
+};
 
 export const subscriptions = {
   /**

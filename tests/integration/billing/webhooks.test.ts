@@ -70,6 +70,7 @@ async function seedWorkspace(harness: BillingHarness): Promise<void> {
     amountMinor: 2900,
     currency: 'GBP',
     checkoutSessionId: 'cs_stub_1',
+    paymentIntentId: null,
     idempotencyKey: 'checkout:v1:ws_customer_1',
     createdAt: harness.at(),
     updatedAt: harness.at(),

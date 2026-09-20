@@ -35,6 +35,7 @@ import type {
 import {
   billingCustomers,
   orders,
+  orderPayments,
   refunds,
   subscriptions,
   type BillingCustomerRow,
@@ -62,6 +63,7 @@ const toOrder = (row: OrderRow): OrderRecord => ({
   amountMinor: row.amount_minor,
   currency: row.currency,
   checkoutSessionId: row.checkout_session_id,
+  paymentIntentId: row.payment_intent_id,
   idempotencyKey: row.idempotency_key,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
@@ -76,6 +78,7 @@ const fromOrder = (record: OrderRecord): OrderRow => ({
   amount_minor: record.amountMinor,
   currency: record.currency,
   checkout_session_id: record.checkoutSessionId,
+  payment_intent_id: record.paymentIntentId,
   idempotency_key: record.idempotencyKey,
   created_at: record.createdAt,
   updated_at: record.updatedAt,
@@ -191,6 +194,14 @@ export class D1BillingDataPort implements BillingDataPort {
   }
 
   // -- orders ---------------------------------------------------------------
+
+  async recordOrderPayment(params: {
+    workspaceId: string;
+    orderId: string;
+    paymentIntentId: string;
+  }): Promise<void> {
+    await orderPayments.record(this.db, params);
+  }
 
   async recordPaymentTarget(params: {
     workspaceId: string;

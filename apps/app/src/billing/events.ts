@@ -348,9 +348,20 @@ async function handleInvoicePaid(
     await data.openAllowancePeriod(record);
   }
 
+  const paidBy = readId(invoice, 'payment_intent');
+
   if (stored !== null) {
     const order = await latestOrder(deps, workspaceId);
     if (order !== null) {
+      // The exact link a refund needs. Matching an order to a payment by date would be a
+      // heuristic, and a heuristic on a money path is the guessing this product refuses.
+      if (paidBy !== null && order.paymentIntentId === null) {
+        await data.recordOrderPayment({
+          workspaceId,
+          orderId: order.id,
+          paymentIntentId: paidBy,
+        });
+      }
       const transition = orderTransition(order.status, { kind: 'payment_succeeded' });
       if (transition.allowed) {
         await data.recordOrderStatus({
@@ -370,13 +381,12 @@ async function handleInvoicePaid(
   //
   // Recorded with the period it covered, so a later refund can check it is aiming at the
   // payment for the period it was asked about rather than whichever is most recent.
-  const paymentIntentId = readId(invoice, 'payment_intent');
-  if (paymentIntentId !== null && workspaceId !== null && subscriptionId !== null) {
+  if (paidBy !== null && workspaceId !== null && subscriptionId !== null) {
     await data.recordPaymentTarget({
       workspaceId,
       providerSubscriptionId: subscriptionId,
       environment: config.environment,
-      paymentIntentId,
+      paymentIntentId: paidBy,
       periodEnd: invoicePeriodEnd(invoice),
     });
   }

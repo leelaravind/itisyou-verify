@@ -20,6 +20,7 @@ import {
   ClaimRule,
   Comparator,
   CoverageNotice,
+  ProviderProofNotice,
   HealthReadout,
   KeyValues,
   RunVerdict,
@@ -235,6 +236,13 @@ function ruleTable(): Html {
 
 export function DemoPage(): Html {
   return html`<div class="wrap section stack-lg">
+    ${
+      // This page omitted it while `/` and `/how-it-works` both carried it, which made the
+      // demo the single public page where the provider-proof qualification disappeared --
+      // and the one a paid advert would send people to. A disclosure that is absent from
+      // the page traffic lands on is not a disclosure.
+      ProviderProofNotice()
+    }
     <div class="stack">
       <div class="synthetic">
         <p class="synthetic__tag">Synthetic workspace</p>

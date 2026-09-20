@@ -184,6 +184,12 @@ export function createMemoryBillingStore(): MemoryBillingStore {
       return newest;
     },
 
+    async recordOrderPayment(params) {
+      const existing = orders.get(params.orderId);
+      if (existing === undefined || existing.paymentIntentId !== null) return;
+      orders.set(params.orderId, { ...existing, paymentIntentId: params.paymentIntentId });
+    },
+
     async recordPaymentTarget(params) {
       for (const [key, row] of subscriptions) {
         if (

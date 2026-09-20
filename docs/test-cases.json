@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-20T00:12:48.332Z",
+  "generated_at": "2026-09-20T00:23:33.837Z",
   "generated_by": "A11 — QA and Release",
-  "snapshot_commit": "e79e91b",
+  "snapshot_commit": "PENDING",
   "basis": "Rebased onto the implemented suite. requirement = the test title; setup and expected = the test's own statements; status = the recorded run. risk is an area statement written per test file and labelled risk_source: \"area\".",
   "cases": [
     {
@@ -45295,6 +45295,40 @@
       "status": "implemented",
       "runner": "vitest",
       "area": "H:/itisyou-verify/tests/integration/customer/sign-in-complete.test.ts",
+      "countable": false
+    },
+    {
+      "id": "BILL-404",
+      "category": "commerce",
+      "level": "integration",
+      "requirement": "a refund aims at the payment for THAT order, never the workspace latest",
+      "risk": "Behaviour covered by H:/itisyou-verify/tests/integration/db/ownerRefund.test.ts. Registered so the citable count measures the suite that exists rather than a subset of it.",
+      "risk_source": "area",
+      "setup": "See the referenced test; it seeds its own fixtures.",
+      "expected": "a refund aims at the payment for THAT order, never the workspace latest",
+      "owner_agent": "A11",
+      "implementation_ref": "H:/itisyou-verify/tests/integration/db/ownerRefund.test.ts:18",
+      "provider_backed": false,
+      "status": "implemented",
+      "runner": "vitest",
+      "area": "H:/itisyou-verify/tests/integration/db/ownerRefund.test.ts",
+      "countable": false
+    },
+    {
+      "id": "BILL-405",
+      "category": "commerce",
+      "level": "integration",
+      "requirement": "an approval that does not match this payload leaves no queued refund row",
+      "risk": "Behaviour covered by H:/itisyou-verify/tests/integration/db/ownerRefund.test.ts. Registered so the citable count measures the suite that exists rather than a subset of it.",
+      "risk_source": "area",
+      "setup": "See the referenced test; it seeds its own fixtures.",
+      "expected": "an approval that does not match this payload leaves no queued refund row",
+      "owner_agent": "A11",
+      "implementation_ref": "H:/itisyou-verify/tests/integration/db/ownerRefund.test.ts:18",
+      "provider_backed": false,
+      "status": "implemented",
+      "runner": "vitest",
+      "area": "H:/itisyou-verify/tests/integration/db/ownerRefund.test.ts",
       "countable": false
     }
   ]
