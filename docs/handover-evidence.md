@@ -5,10 +5,10 @@ rests on a database read, the table and the time are named; where it rests on a 
 case id; where it rests on a third party, what that party showed. Anything not listed here
 as proven is not proven.
 
-Deployed commits at 10:15 UTC: production and staging `601da25` (Cloudflare version
-`eba071c5`, `/health` commit matches at 09:55Z). The release Telegram milestone was delivered at
-09:44:39Z (`notification_deliveries` row `milestone_reached:release_deployed:production:7a4e0267d7f2`,
-state `sent`). The reworded activation notice is what is served.
+Deployed commits at 11:50 UTC: production and staging `f2b7d18` (Cloudflare version
+`2a0ae6f4`, `/health` commit matches). Owner path on production: platform owner claimed 10:59:25Z,
+authenticator enrolled 11:09:28Z, code confirmation pending after a CSRF defect in the enrolment
+response (fixed `b553e71`).
 
 ## 1. Payments (sandbox only; live payments are off)
 
