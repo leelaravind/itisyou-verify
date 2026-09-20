@@ -71,20 +71,21 @@ describe('design tokens', () => {
     expect(compressed).toBeLessThan(10_000);
   });
 
-  it('CUST-005 both palettes are reachable by preference and by an explicit override, in both directions', () => {
-    // The default inverted when the owner-approved Stitch system arrived: the bare `:root`
-    // is now dark and a light PREFERENCE opts out of it, where it used to be the reverse.
-    // The property this case exists for is unchanged and is still the thing asserted --
-    // neither palette may become unreachable, whichever one is the default.
-    expect(CSS, 'the bare root must carry the default palette').toContain(
+  it('CUST-005 both palettes stay reachable, and the approved one is what a visitor meets', () => {
+    // This case used to assert that a dark PREFERENCE reached the dark palette. The
+    // owner-approved Stitch system is dark, so that is now what the bare `:root` carries
+    // and an OS preference no longer overrules it -- the first attempt let
+    // `prefers-color-scheme: light` switch away, which meant most machines still met the
+    // old look and the deployed page was indistinguishable from the one before the change.
+    //
+    // The property the case exists for is unchanged: neither palette may quietly become
+    // unreachable. The light one is still emitted and still reachable by explicit choice.
+    expect(CSS, 'the bare root must carry the approved palette').toContain(
       ':root{color-scheme:dark',
     );
-    expect(CSS, 'a light preference must be honoured').toContain(
-      '@media (prefers-color-scheme:light)',
-    );
-    expect(CSS).toContain(':root:not([data-theme="dark"])');
     expect(CSS, 'an explicit dark override must exist').toContain(':root[data-theme="dark"]');
     expect(CSS, 'an explicit light override must exist').toContain(':root[data-theme="light"]');
+    expect(CSS, 'the light palette must still be emitted').toContain(LIGHT.paper);
   });
 
   it('CUST-006 reduced motion is respected and focus is always visible', () => {

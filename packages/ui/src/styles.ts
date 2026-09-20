@@ -47,14 +47,22 @@ function vars(p: Palette): string {
 }
 
 /*
- * Dark by default, because the approved design is a dark design.
+ * Dark, because the approved design is a dark design, and an OS preference does not
+ * overrule it.
  *
- * `:root` previously carried the light palette and dark was reached only through
- * `prefers-color-scheme`. The owner-approved Stitch system is dark-first, so the bare root
- * is now dark and a light preference -- or an explicit `data-theme="light"` -- opts out of
- * it. Both palettes are still complete and both are still measured by the contrast suite;
- * this changes which one a visitor meets with no preference set, not whether the other
- * exists.
+ * The first attempt made dark the default and let a light OS preference switch away from
+ * it, which meant a machine set to light -- most of them -- still met the old look, and
+ * the deployed page was indistinguishable from the one before the change. A design the
+ * owner approved is what the product looks like, in the same way its wording is what the
+ * product says.
+ *
+ * The light palette is NOT deleted. It stays complete, stays measured by the contrast
+ * suite, and stays reachable through the explicit `data-theme="light"` toggle. What it no
+ * longer does is claim the page automatically.
+ *
+ * (No backticks below this line inside the template: one closed it and broke every test
+ * that imports the stylesheet. That has now happened twice.)
+ *
  */
 const BASE = `
 :root{
@@ -77,9 +85,7 @@ const BASE = `
   --w-margin:${LAYOUT.margin};
   --w-step:${LAYOUT.stepMargin};
 }
-@media (prefers-color-scheme:light){
-  :root:not([data-theme="dark"]){color-scheme:light;${vars(LIGHT)}}
-}
+
 :root[data-theme="dark"]{color-scheme:dark;${vars(DARK)}}
 :root[data-theme="light"]{color-scheme:light;${vars(LIGHT)}}
 
