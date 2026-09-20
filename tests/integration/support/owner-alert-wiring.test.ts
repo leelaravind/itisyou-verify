@@ -154,3 +154,98 @@ describe('a cron tick pings the owner when only the owner can act', () => {
     expect(report.error).toBeNull();
   });
 });
+
+/**
+ * A standing condition gets another chance; a delivered message does not.
+ *
+ * `dispatchNotification` claims the notification key BEFORE sending and settles the
+ * outcome onto that same row, so a send that failed left the key permanently taken. Every
+ * later tick answered `duplicate` and nothing was ever sent again. For a one-off customer
+ * event that is correct and conservative. For "this deployment cannot take payment" — which
+ * stays true until a person acts — it meant one transient failure silenced the channel
+ * for good.
+ *
+ * It was not hypothetical. The auditor read both live databases and found production and
+ * staging each holding exactly one `failed` row for this alert, from the first tick after
+ * it was wired, with no path back. The cause was a `fetch` passed unbound, which no test
+ * could reproduce because every test injects a plain function.
+ *
+ * Case ids `OWNER-500..OWNER-502`.
+ */
+describe('a failed owner alert can be sent again; a delivered one cannot', () => {
+  it('OWNER-500 a tick whose send fails is retried by the next tick', async () => {
+    const h = createTestDb();
+    dbs.push(h);
+    seedWorkspace(h, 'retry');
+    const calls: Call[] = [];
+    let failNext = true;
+
+    const flaky = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      calls.push({ url, body: String(init?.body ?? '') });
+      if (failNext) return new Response('upstream down', { status: 503 });
+      return new Response(JSON.stringify({ ok: true, result: { message_id: 1 } }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    }) as typeof fetch;
+
+    const run = (): Promise<Awaited<ReturnType<typeof handleScheduled>>> =>
+      handleScheduled(env(h, { STRIPE_SECRET_KEY: 'not-a-stripe-key' }) as never, {
+        now: TICK_AT,
+        ownerAlertFetch: flaky,
+      });
+
+    const first = await run();
+    expect(first.ownerAlert?.outcome, 'the failing send should be recorded as failed').toBe(
+      'failed',
+    );
+
+    failNext = false;
+    const second = await run();
+
+    // The assertion that was missing. Before `releaseUndelivered` this was `duplicate`
+    // and the owner was never told, on a deployment that genuinely could not take money.
+    expect(second.ownerAlert?.outcome, 'the retry was refused as a duplicate').toBe('sent');
+  });
+
+  it('OWNER-501 a delivered alert is never sent a second time', async () => {
+    const s = scene({ STRIPE_SECRET_KEY: 'not-a-stripe-key' });
+
+    const first = await s.tick();
+    const second = await s.tick();
+
+    // The other half, and the one that matters for a phone. `releaseUndelivered` refuses
+    // to touch a `sent` row in SQL rather than by the caller remembering to check.
+    expect(first.ownerAlert?.outcome).toBe('sent');
+    expect(second.ownerAlert?.outcome).toBe('duplicate');
+    expect(s.calls.length, 'the owner was messaged twice about one thing').toBe(1);
+  });
+
+  it('OWNER-502 an alert suppressed for want of a channel sends once the channel exists', async () => {
+    const h = createTestDb();
+    dbs.push(h);
+    seedWorkspace(h, 'late');
+    const calls: Call[] = [];
+
+    const withoutChannel = await handleScheduled(
+      env(h, {
+        STRIPE_SECRET_KEY: 'not-a-stripe-key',
+        TELEGRAM_BOT_TOKEN: undefined,
+        TELEGRAM_OWNER_CHAT_ID: undefined,
+      }) as never,
+      { now: TICK_AT, ownerAlertFetch: telegramStub(calls) },
+    );
+    expect(withoutChannel.ownerAlert?.outcome).toBe('suppressed');
+
+    // Configuring Telegram after the first tick is the ordinary order of events for an
+    // operator. A suppressed row must not have burned the key on the way past.
+    const withChannel = await handleScheduled(
+      env(h, { STRIPE_SECRET_KEY: 'not-a-stripe-key' }) as never,
+      { now: TICK_AT, ownerAlertFetch: telegramStub(calls) },
+    );
+
+    expect(withChannel.ownerAlert?.outcome).toBe('sent');
+    expect(calls.length).toBe(1);
+  });
+});

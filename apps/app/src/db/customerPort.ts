@@ -974,6 +974,7 @@ export class D1CustomerDataPort implements CustomerDataPort {
     const summary = await this.orderSummary();
     if (!summary.ready) {
       return refuse(
+        // True as written: this refusal happens before any call to Stripe is made at all.
         `No checkout session was created and no card was charged. ${summary.blockers.join(' ')}`,
       );
     }
@@ -1035,7 +1036,7 @@ export class D1CustomerDataPort implements CustomerDataPort {
         message: scrubSecret(caught instanceof Error ? caught.message : String(caught)),
       });
       return refuse(
-        'No checkout session was created and no card was charged. Our payment provider did not ' +
+        'No card was charged and your subscription has not started. Our payment provider did not ' +
           'complete the request. Nothing about your workspace has changed; try again in a moment, ' +
           'and if it keeps happening please contact support before trying a different card.',
       );
@@ -1049,7 +1050,22 @@ export class D1CustomerDataPort implements CustomerDataPort {
       return ok('/app/onboarding/activation', 'This workspace is already subscribed.');
     }
     return refuse(
-      `No checkout session was created and no card was charged. ${result.detail ?? result.reason}`,
+      /*
+       * What this sentence may claim, and what it may not.
+       *
+       * It used to open "No checkout session was created", and on four of the paths that
+       * reach here that is false: `assertMode`, the null-URL guard, a refused status
+       * transition and a failing `recordOrderStatus` all run AFTER Stripe has created a
+       * session. The auditor drove two of them and watched the product tell a customer
+       * nothing had been created while a session existed in the account -- this product's
+       * own thesis, pointed at itself, on the money path.
+       *
+       * "No card was charged" survives on every path, because a card is entered on
+       * Stripe's page after this request has returned, and an abandoned Checkout Session
+       * expires without ever becoming a charge. That is the fact the customer needs and
+       * the only one we can state.
+       */
+      `No card was charged and your subscription has not started. ${result.detail ?? result.reason}`,
     );
   }
 

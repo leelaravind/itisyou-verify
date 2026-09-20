@@ -268,6 +268,35 @@ export const notifications = {
       .first<NotificationRow>();
   },
 
+  /**
+   * Let an undelivered key be claimed again. Never a delivered one.
+   *
+   * `claim` takes the key BEFORE the send and `settle` writes the outcome onto the same
+   * row, so a send that failed leaves the key permanently taken: every later attempt at the
+   * same situation answers `duplicate` and nothing is ever sent. For a one-off customer
+   * event that is the correct and conservative behaviour. For a STANDING CONDITION -- "this
+   * deployment cannot take payment", which stays true until someone acts -- it means the
+   * first transient failure silences the channel for good. The owner-alert pass was 0 for 2
+   * and could never have fired again; the independent auditor proved it by probing both
+   * live databases.
+   *
+   * So the guard lives in the SQL rather than in the caller. `state IN ('failed',
+   * 'suppressed')` is in the WHERE clause, which makes it impossible for this to remove a
+   * row recording a message that actually went out, whatever a future caller believes. A
+   * `sent` row stays, so at-most-once-delivered survives exactly as it was.
+   */
+  // tenant-scope:exempt notification_key is globally unique; see getByKey above.
+  async releaseUndelivered(db: Db, notificationKey: string): Promise<boolean> {
+    const result = await db
+      .prepare(
+        `DELETE FROM notification_deliveries
+          WHERE notification_key = ? AND state IN ('failed', 'suppressed')`,
+      )
+      .bind(notificationKey)
+      .run();
+    return result.meta.changes === 1;
+  },
+
   /** Record what the sending service said. Never a delivery claim. */
   // tenant-scope:exempt notification_key is globally unique; see getByKey above.
   async settle(
