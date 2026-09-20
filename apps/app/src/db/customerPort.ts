@@ -62,6 +62,7 @@ import { sourceEvents } from './sourceEvents';
 import { resolveAllowancePeriodKey, type SubscriptionPeriodSource } from '../billing/period';
 import { subscriptions } from './commerce';
 import { createCase } from '../support/cases';
+import { hashToken } from '@verify/security';
 import { D1SupportDataPort } from './supportPort';
 import { workflows, workflowVersions, type WorkflowRow } from './workflows';
 import {
@@ -311,7 +312,6 @@ export class D1CustomerDataPort implements CustomerDataPort {
     // Rate limited on a hash of the address, never the address itself. A different answer
     // when limited would tell someone probing that their probing is working.
     const { consume } = await import('../lib/ratelimit');
-    const { hashToken } = await import('@verify/security');
     const decision = await consume(
       this.#db,
       `signin:customer:${await hashToken(address, 'ratelimit')}`,
@@ -326,19 +326,40 @@ export class D1CustomerDataPort implements CustomerDataPort {
 
     const base = this.#env.PUBLIC_BASE_URL.replace(/\/+$/, '');
     const { createNotificationDelivery } = await import('../notifications/delivery');
+    // The request in the shape `deliver()` actually reads. The previous version passed
+    // `{ template, to, variables }` behind an `as never` cast; `sendNotification` reads
+    // `recipientEmail` and `vars`, so `recipient` was undefined, `.trim()` threw inside
+    // the claim, `deliver()` swallowed it as `failed`, no row was written, no log was
+    // passed, and the page told the owner "we tried and the attempt failed". Every sign-in
+    // on production failed this way while minting a token each time. Found by tracing the
+    // owner's own attempt: token in `login_tokens`, nothing in `notification_deliveries`,
+    // nothing in the tail. The key is derived from the token's hash, never the token: the
+    // key is stored in the clear and the token is a credential.
+    const notificationKey = `sign_in_link:${await hashToken(issued.token, 'notification-key')}`;
+    const expiresInMinutes = Math.max(
+      1,
+      Math.round((Date.parse(issued.expiresAt) - this.#now.getTime()) / 60_000),
+    );
     const report = await createNotificationDelivery(
       this.#env as never,
       new D1SupportDataPort(this.#db),
-    ).deliver([
-      {
-        template: 'sign_in_link',
-        to: address,
-        variables: {
-          link: `${base}/app/sign-in/complete?token=${encodeURIComponent(issued.token)}`,
-          expires_at: issued.expiresAt,
+      this.#fetchImpl === undefined ? {} : { fetchImpl: this.#fetchImpl },
+    ).deliver(
+      [
+        {
+          notificationKey,
+          workspaceId: null,
+          recipientEmail: address,
+          template: 'sign_in_link',
+          vars: {
+            signInUrl: `${base}/app/sign-in/complete?token=${encodeURIComponent(issued.token)}`,
+            expiresInMinutes,
+          },
         },
-      },
-    ] as never);
+      ],
+      // A refusal here must have somewhere to go. Keys and statuses only; never a body.
+      (entry) => console.warn('sign_in_delivery', entry),
+    );
 
     if (report.sent > 0) return ok(null, SIGN_IN_SENT);
 

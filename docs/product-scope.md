@@ -413,8 +413,8 @@ checking logic are not yet live.
 > your automation's signed events is live and refuses an unsigned request, a Resend
 > connection reaches "ready" only once a correctly signed callback has actually arrived,
 > and the plan allowance is enforced on the live request path. What is not finished is the
-> part that matters most before anyone pays: no purchase has been completed end to end on
-> a deployment, and a HubSpot record has never been read back from a real portal. So we
+> part that matters most before anyone pays: live payments are switched off until the owner
+> turns them on separately, and this deployment cannot yet create a new customer workspace. So we
 > are not taking payment or activating new workspaces yet. This notice comes down when
 > that last part is done, and not before.
 

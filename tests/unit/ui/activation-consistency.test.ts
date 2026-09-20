@@ -45,11 +45,8 @@ const COPIES: readonly (readonly [string, string])[] = [
  * sentences, so each copy may word its own sentence however suits its surface.
  */
 const OUTSTANDING: readonly (readonly [string, RegExp])[] = [
-  [
-    'no purchase completed end to end',
-    /purchase has (?:been|never been) completed end to end|no purchase has been completed end to end/i,
-  ],
-  ['no HubSpot record read back', /read back from a real portal/i],
+  ['live payments are switched off', /live payments are switched off/i],
+  ['no new customer workspace can be created here', /cannot yet create a new customer workspace/i],
 ];
 
 /**
@@ -60,6 +57,10 @@ const CLOSED: readonly (readonly [string, RegExp])[] = [
   ['the signed-event endpoint is live', /signed events is not live/i],
   ['a Resend connection can reach ready', /cannot yet (?:finish )?reach(?:ing)? "ready"/i],
   ['the allowance is enforced on the request path', /do not yet run automatically/i],
+  // Closed 20 September 2026. Both were still being claimed on the production sign-in
+  // page that evening -- the page the owner met when their own sign-in failed.
+  ['no purchase completed end to end', /no purchase has been completed end to end/i],
+  ['no HubSpot record read back', /never been read back from a real portal/i],
 ];
 
 describe('every copy of the activation reason says the same thing', () => {

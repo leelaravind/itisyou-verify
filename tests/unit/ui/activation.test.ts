@@ -101,10 +101,14 @@ describe('the service activation notice', () => {
     // terms. The gaps themselves changed when three of them were closed, so the specific
     // sentences moved; asserting the old ones would have pinned the notice to claiming
     // less than was true.
-    expect(body).toContain('no purchase has been completed end to end');
-    expect(body).toContain('never been read back from a real portal');
-    // And it still says what it will take to come down, rather than "soon".
-    expect(body).toContain('when that last part is done');
+    // 20 September 2026: both earlier gaps closed on a deployment (a sandbox purchase
+    // activated a subscription; a HubSpot contact was read back and supported a verdict)
+    // while this page kept naming them -- on the sign-in route the owner met when their
+    // own sign-in failed. The gaps it names now are the two that are actually open.
+    expect(body).toContain('live payments are switched off');
+    expect(body).toContain('cannot yet create a new customer workspace');
+    // And it still says what it will take to change, rather than "soon".
+    expect(body).toContain('when either of those changes');
     expect(body).toContain('not taking payment or activating new workspaces');
   });
 });
