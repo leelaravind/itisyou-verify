@@ -167,7 +167,36 @@ a:hover{text-decoration-thickness:2px}
   padding:var(--s2) var(--s4);text-decoration:none;
 }
 .skip:focus{top:var(--s2)}
-.site{border-bottom:1px solid var(--c-rule);background:var(--c-surface)}
+/* The header sticks, and is translucent over what scrolls beneath it.
+ *
+ * This is the first piece of Stitch COMPOSITION rather than palette, taken from the
+ * approved header treatment (fixed, a blurred backdrop, a hairline shadow) and applied to
+ * the one element every screen shares. Nineteen designs, one rule, and no page markup
+ * touched -- the same reason the colours were done at the token layer.
+ *
+ * Sticky rather than fixed: fixed removes the header from flow and every page would need
+ * compensating top padding, which is nineteen chances to get a scroll position wrong.
+ * Sticky keeps the document height honest.
+ *
+ * The blur is progressive. Where it is unsupported the background stays the flat surface
+ * colour, which is exactly what this rule replaced, so nothing depends on it. The colour is
+ * given BOTH as an opaque fallback and as a translucent value, in that order, so a browser
+ * without colour mixing keeps a readable header rather than a see-through one.
+ *
+ * (No backticks in this comment. It sits inside the CSS template literal, and one has now
+ * closed that template three times in a single day.)
+ */
+.site{
+  position:sticky;top:0;z-index:30;
+  border-bottom:1px solid var(--c-rule);
+  background:var(--c-surface);
+  background:color-mix(in srgb, var(--c-surface) 82%, transparent);
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+}
+@supports not (backdrop-filter:blur(1px)){
+  .site{background:var(--c-surface)}
+}
 .site__inner{display:flex;flex-wrap:wrap;gap:var(--s3) var(--s6);align-items:center;justify-content:space-between;padding-block:var(--s3)}
 .brand{display:inline-flex;align-items:baseline;gap:0.45em;text-decoration:none;font-weight:600}
 .brand:hover{text-decoration:none}
