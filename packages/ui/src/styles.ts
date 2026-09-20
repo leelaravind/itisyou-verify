@@ -559,11 +559,160 @@ a:hover{text-decoration-thickness:2px}
 .price__amount{font-family:var(--f-mono);font-size:2.5rem;font-weight:600;letter-spacing:-0.03em;line-height:1}
 .price__period{color:var(--c-muted);font-size:var(--t-small)}
 
+/* ---- screen composition: how it works, demo, security --------------------- */
+/* The composition layer for the three public explainer screens, translated from the
+   approved how-it-works / demonstration reference: a framed hero panel with an ambient
+   accent and a two-pane split inside it, a section head with a mono meta bar on the right,
+   a framed results panel with a bar above the table and a tally below it, tiles inside a
+   panel for the four statuses, a ruled reading column for the exclusions, and a closing
+   band for the calls to action. Layout only. Every word inside these boxes comes from the
+   content module or an existing route, never from the reference markup, which carries
+   claims this business does not make.
+   (No backticks in this comment. It sits inside the CSS template literal.) */
+.panel{position:relative;overflow:hidden;background:var(--c-surface);border:1px solid var(--c-rule);border-radius:var(--r-container);padding:var(--s4);box-shadow:var(--e-rest)}
+@media (min-width:46rem){.panel{padding:var(--s8)}}
+.panel>*{position:relative;z-index:1}
+.panel>*+*{margin-top:var(--s6)}
+/* The ambient accent is decorative, sits behind the content, and is lifted out of the
+   way by the z-index on the children above rather than by trusting paint order. It is
+   removed under forced colours, where a translucent blob is noise. */
+.panel--hero::before{content:"";position:absolute;z-index:0;right:-6rem;top:-6rem;width:22rem;height:22rem;border-radius:50%;background:var(--brand-1);opacity:.07;filter:blur(56px);pointer-events:none}
+@media (forced-colors:active){.panel--hero::before{display:none}}
+.panel__intro{max-width:48rem}
+.panel__intro>*+*{margin-top:var(--s2)}
+/* Two panes side by side from the desktop breakpoint, stacked below it. */
+.split{display:grid;gap:var(--s6)}
+.split>*{min-width:0}
+@media (min-width:64rem){.split{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.pane{display:flex;flex-direction:column;gap:var(--s3);background:var(--c-sunken);border:1px solid var(--c-rule);border-radius:var(--r-control);padding:var(--s4)}
+@media (min-width:46rem){.pane{padding:var(--s6)}}
+.pane>*{margin:0}
+.pane h3{font-size:var(--t-h3)}
+.pane p{font-size:var(--t-small);color:var(--c-muted)}
+/* A section head: the text block on the left, a mono meta bar on the right, and both
+   stacked below tablet width. The meta bar carries computed facts, never prose. */
+.section-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:var(--s4)}
+.section-head__text{max-width:42rem}
+.section-head__text>*+*{margin-top:var(--s2)}
+.meta-bar{display:flex;flex-wrap:wrap;gap:var(--s1) var(--s4);align-items:center;margin:0;padding:var(--s2) var(--s4);list-style:none;font-family:var(--f-mono);font-size:var(--t-micro);letter-spacing:0.02em;color:var(--c-muted);background:var(--c-surface);border:1px solid var(--c-rule);border-radius:var(--r-control)}
+.meta-bar>*{margin:0;white-space:nowrap}
+.meta-bar b{font-weight:500;color:var(--c-ink)}
+/* The framed results panel: a callout above the table, the table, a bar below it. The
+   table keeps its own scroll region and loses only the frame it would otherwise double. */
+.results{background:var(--c-surface);border:1px solid var(--c-rule);border-radius:var(--r-container);overflow:hidden;box-shadow:var(--e-raised)}
+.results>*+*{margin-top:0}
+.results>.callout{border-radius:0;border-top:0;border-right:0;border-bottom:1px solid var(--c-rule)}
+.results>.tablewrap{border:0;border-radius:0}
+.results__bar{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:var(--s2) var(--s4);padding:var(--s3) var(--s4);background:var(--c-sunken);border-top:1px solid var(--c-rule)}
+/* The tally: one count per status, all four always present, so a reader counts them and
+   sees there is no fifth. Colour comes only from the badge, which is measured. */
+.tally{display:flex;flex-wrap:wrap;gap:var(--s2) var(--s4);align-items:center;margin:0;padding:0;list-style:none;font-family:var(--f-mono);font-size:var(--t-micro);letter-spacing:0.04em;color:var(--c-muted)}
+.tally li{margin:0;display:inline-flex;align-items:center;gap:var(--s2)}
+.tally__count{font-weight:600;color:var(--c-ink);font-variant-numeric:tabular-nums}
+/* Tiles inside a panel, for the four statuses. */
+.tile{display:flex;flex-direction:column;gap:var(--s2);background:var(--c-sunken);border:1px solid var(--c-rule);border-radius:var(--r-control);padding:var(--s4)}
+.tile>*{margin:0}
+.tile .badge{align-self:flex-start}
+/* A ruled list of heading-and-paragraph items in one reading column, for the exclusions. */
+.rule-list{max-width:48rem}
+.rule-list>*+*{margin-top:var(--s4);padding-top:var(--s4);border-top:1px solid var(--c-rule)}
+.rule-list h3{margin:0 0 var(--s2)}
+.rule-list p{margin:0;font-size:var(--t-small);color:var(--c-muted)}
+/* The closing band for the calls to action. */
+.cta-band{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:var(--s4);padding-block:var(--s6);border-top:1px solid var(--c-rule)}
+.cta-band>*{margin:0}
+/* Numbered cards for a real sequence: an ordered list whose items are cards, one column
+   on a phone, two on a tablet, three at desktop. The number is the same leading-zero
+   counter the steps list uses, so the two devices read as one. */
+.step-cards{list-style:none;padding:0;margin:0;counter-reset:stepcard}
+.step-cards>li{margin:0}
+@media (min-width:46rem){.step-cards.grid-3{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (min-width:60rem){.step-cards.grid-3{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.step-card{counter-increment:stepcard;display:flex;flex-direction:column;gap:var(--s2)}
+.step-card>*{margin:0}
+.step-card::before{content:counter(stepcard,decimal-leading-zero);display:block;font-family:var(--f-mono);font-size:var(--t-micro);letter-spacing:0.12em;color:var(--c-faint)}
+.step-card p{font-size:var(--t-small);color:var(--c-muted)}
+
 /* ---- faq ----------------------------------------------------------------- */
 .faq{border-top:1px solid var(--c-rule)}
 .faq>div{border-bottom:1px solid var(--c-rule);padding-block:var(--s4)}
 .faq h3{margin:0 0 var(--s2)}
 .faq p{margin:0;color:var(--c-muted);font-size:var(--t-small)}
+/* The pricing screen lays its questions out two abreast at tablet width and above. The
+   list keeps its own class so the single-column FAQ page is untouched. */
+.faq-grid .faq{border-top:0;display:grid;gap:var(--s4)}
+.faq-grid .faq>div{border:1px solid var(--c-rule);border-radius:var(--r-container);background:var(--c-surface);padding:var(--s4);margin:0}
+@media (min-width:46rem){.faq-grid .faq{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* ---- composition: the landing and pricing screens ------------------------ */
+/* Per-screen COMPOSITION from the approved designs, as utilities rather than page
+   styles, so a route never has to reach for a style attribute (style-src-attr is
+   'none' and a dropped attribute falls back to the browser default, which is how a
+   third of a bar once drew as all of it). Only layout lives here: the copy on both
+   screens is unchanged and comes from the content modules.
+   (No backticks in this comment; it sits inside the CSS template literal.) */
+
+/* The qualifying sentence on the right of a section head (defined above, shared with
+   the how-it-works screen): it takes what width is left, wraps under the heading when
+   there is none, and never grows past a comfortable measure. */
+.section-head>p{flex:1 1 20rem;max-width:28rem;margin:0}
+
+/* The centred hero. The landing stacks its hero in one column, centred, and sets the
+   evidence card full width beneath the calls to action rather than beside the copy.
+   Text inside the card and inside any callout stays left-aligned: a verdict is read,
+   not admired. */
+.center{text-align:center}
+.center .measure,.center .hero-copy,.center .btn-row{margin-inline:auto}
+.center .btn-row{justify-content:center}
+.hero-copy{max-width:52rem}
+.hero-card{max-width:64rem;margin-inline:auto;text-align:left}
+/* Below phone-landscape width the two calls to action stack full width, as drawn. */
+@media (max-width:39.99rem){
+  .btn-row--stack{flex-direction:column;align-items:stretch}
+  .btn-row--stack .btn{width:100%}
+}
+
+/* Status cards: one card per verdict, each with a rule along its top in that
+   verdict's colour. The rule is a second signal beside the badge, never the only
+   one; UNVERIFIED takes the same dash its badge carries, so the four stay separable
+   in greyscale. No modifier below touches size, weight, padding or opacity. */
+.status-card{
+  border:1px solid var(--c-rule);border-top:2px solid var(--c-rule-strong);
+  border-radius:var(--r-container);background:var(--c-surface);padding:var(--s4);
+  display:grid;gap:var(--s3);align-content:start;
+}
+.band .status-card{background:var(--c-paper)}
+.status-card--verified{border-top-color:var(--c-verified)}
+.status-card--failed{border-top-color:var(--c-failed)}
+.status-card--unverified{border-top-color:var(--c-unverified);border-top-style:dashed}
+.status-card--pending{border-top-color:var(--c-pending)}
+
+/* The three steps as a card row reuse .step-cards / .step-card from the how-it-works
+   screen above, so both screens draw the same step the same way. */
+
+/* The pricing screen's main grid: plan and policy in the wider left column, the
+   purchase summary in the narrower right one, seven parts to five of the twelve-column
+   grid the design is drawn on. One column until desktop width; the summary follows
+   the plan there, so the reason the control is unavailable is read after the plan. */
+@media (min-width:60rem){.grid-7-5{grid-template-columns:minmax(0,7fr) minmax(0,5fr);align-items:start}}
+
+/* The allowance as a bar of metrics inside a sunken panel: a small label over a
+   large value. auto-fit lets five tiles fall from a row to pairs to a stack without
+   a breakpoint of their own. */
+.metrics{
+  display:grid;gap:var(--s4);grid-template-columns:repeat(auto-fit,minmax(9rem,1fr));
+  background:var(--c-sunken);border-radius:var(--r-container);padding:var(--s4);margin:0;
+}
+.metrics>div{min-width:0}
+.metrics dt{font-family:var(--f-mono);font-size:var(--t-micro);text-transform:uppercase;letter-spacing:0.08em;color:var(--c-muted)}
+.metrics dd{margin:var(--s1) 0 0;font-size:var(--t-h3);font-weight:600;letter-spacing:-0.01em;line-height:1.3}
+
+/* Purchase summary rows: label left, value right in tabular mono, a hairline between. */
+.summary{margin:0;font-size:var(--t-small)}
+.summary>div{display:flex;justify-content:space-between;gap:var(--s4);padding-block:var(--s2);border-bottom:1px solid var(--c-rule)}
+.summary>div:last-child{border-bottom:0}
+.summary dt{color:var(--c-muted)}
+.summary dd{margin:0;font-family:var(--f-mono);font-variant-numeric:tabular-nums;text-align:right}
 
 /* ---- the pre-checkout disclosure ----------------------------------------- */
 .disclosure{border:1px solid var(--c-rule);border-radius:var(--r-container);background:var(--c-surface);padding:var(--s4)}

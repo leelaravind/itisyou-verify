@@ -300,8 +300,9 @@ function scanText(label, text) {
       continue;
     }
     // Rendered output carries no comments, so pinned sentences are the only exemption
-    // available there. Tags are stripped before matching so that markup changes — a new
-    // wrapper element, a different class — do not silently revoke a reviewed exemption.
+    // available there. Tags are stripped so that markup changes — a new wrapper element, a
+    // different class — do not silently revoke a reviewed exemption, and so that the rule
+    // loop below can see a claim split across two elements.
     const plain = line.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
     let pinned = false;
     for (const [sentence, reason] of ALLOWED_RENDERED_SENTENCES) {
@@ -314,8 +315,27 @@ function scanText(label, text) {
     }
     if (pinned) continue;
 
+    // Matched against BOTH the raw line and the tag-stripped text.
+    //
+    // This loop used to test `line` only, while the comment four lines above it said tags
+    // were stripped before matching. They were stripped into `plain`, which was then used
+    // for the exemption check and nowhere else. So any banned claim split across an
+    // element boundary was invisible to this gate -- and that is the ordinary shape of a
+    // price on a designed page: the figure in one element, the period in its sibling.
+    //
+    //   <span class="price">GBP 149</span><span class="per">/ month</span>
+    //
+    // is a claim a visitor reads in full and the scanner could not see at all. An
+    // independent audit found the reference designs carry eighteen non-plan monthly
+    // prices in their rendered text; this scanner reported two.
+    //
+    // Both forms are checked because each catches what the other cannot: `line` sees an
+    // install command or an attribute value, `plain` sees the sentence a person reads.
+    // Stripping tags joins neighbouring text with a space, so `plain` can in principle
+    // manufacture a phrase that is never visually adjacent. That is the safe direction for
+    // a gate -- a false finding is reviewed and pinned, a missed one ships.
     for (const rule of RULES) {
-      const m = rule.re.exec(line);
+      const m = rule.re.exec(line) ?? rule.re.exec(plain);
       if (m) {
         findings.push({ label, line: i + 1, rule: rule.id, why: rule.why, excerpt: m[0] });
       }
