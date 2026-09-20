@@ -103,6 +103,17 @@ const ALLOWED_HISTORY_BLOBS = new Map([
     '59ef934ef13e8d1ee7fb610a9d87bf179825ddbe',
     'telegram.test.ts — a key-shaped fixture proving the content guard REFUSES that shape',
   ],
+  // Mine, and worth recording as such. The auditor's pass-6 report quotes the four probe
+  // strings it sent to `/app/sign-in/complete` to prove the route is not an oracle: an
+  // empty token, `no-such-token`, a hex-shaped string and an expired-looking one. None was
+  // ever issued by anything and none would be accepted by anything. I swept the report into
+  // a commit with `git add -A` without reading it for shapes, which is how a documentation
+  // file came to trip a credential scanner. The tree copy now carries the allow marker on
+  // both lines; only this blob still holds them unmarked.
+  [
+    'f8445a7d66481484018d02249f7660b6f3618de1',
+    'audit-pass-6.md — four synthetic sign-in probe tokens quoted in an audit transcript',
+  ],
 ]);
 
 const SKIP_DIRS = new Set([

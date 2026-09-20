@@ -187,6 +187,15 @@ export interface OrderSummaryView {
   /** Everything that must be true before checkout is offered. */
   readonly blockers: readonly string[];
   readonly ready: boolean;
+  /**
+   * Which Stripe the customer is about to be handed to.
+   *
+   * Carried into the view because the review page must say it. In `test` no card is
+   * charged and no service is owed, and a person about to type a card number is entitled
+   * to know that before they type it rather than after, when Stripe's own banner tells
+   * them. Resolved from the environment, never from the request.
+   */
+  readonly paymentsMode: 'test' | 'live';
 }
 
 /** Whether the signed-in person can obtain a signing key here and, if not, why not. */
@@ -265,7 +274,8 @@ export type SigningKeyIssueResult =
     }
   | {
       readonly outcome: 'refused';
-      readonly reason: 'not_signed_in' | 'not_permitted' | 'no_workflow' | 'cross_site' | 'unavailable';
+      readonly reason:
+        'not_signed_in' | 'not_permitted' | 'no_workflow' | 'cross_site' | 'unavailable';
       readonly message: string;
     }
   /** No `EVENT_SIGNING_ROOT_KEY` on this deployment. A configuration error, said as one; nothing was written. */

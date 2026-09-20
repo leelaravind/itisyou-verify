@@ -912,6 +912,7 @@ export class D1CustomerDataPort implements CustomerDataPort {
       runsIncluded: LIMITS.PLAN_RUNS_PER_PERIOD,
       blockers,
       ready: blockers.length === 0,
+      paymentsMode: this.#env.STRIPE_MODE === 'live' ? 'live' : 'test',
     };
   }
 
