@@ -229,6 +229,28 @@ describe('design tokens', () => {
     }
   });
 
+  it('RESIL-188 the four-across grid exists and never passes through three columns', () => {
+    /*
+     * The four run statuses are the product's whole vocabulary, and the section claiming
+     * there are exactly four is only convincing if a reader can count them at a glance.
+     * The approved design lays them in one row; a 2x2 reads as two pairs.
+     *
+     * The ladder deliberately skips three. Three columns of four items leaves one orphan
+     * on a second row, which reads as "three and a straggler" -- the opposite of the
+     * section's claim. Asserted because the skip looks like an oversight and would be
+     * "tidied" by someone adding grid-4 to the existing 60rem rule.
+     */
+    expect(CSS, 'there is no four-across grid').toContain(
+      '@media (min-width:64rem){.grid-4{grid-template-columns:repeat(4,minmax(0,1fr))}}',
+    );
+    expect(CSS, 'the four-across grid has no two-column step').toContain(
+      '@media (min-width:46rem){.grid-4{grid-template-columns:repeat(2,minmax(0,1fr))}}',
+    );
+    expect(CSS, 'grid-4 passes through three columns').not.toMatch(
+      /\.grid-4\{grid-template-columns:repeat\(3,/,
+    );
+  });
+
   it('CUST-006 reduced motion is respected and focus is always visible', () => {
     expect(CSS).toContain('@media (prefers-reduced-motion:reduce)');
     expect(CSS).toContain(':focus-visible{outline:2px solid var(--c-focus)');

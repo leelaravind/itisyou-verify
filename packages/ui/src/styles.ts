@@ -151,6 +151,13 @@ a:hover{text-decoration-thickness:2px}
 .grid>*{min-width:0}
 @media (min-width:46rem){.grid-2{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (min-width:60rem){.grid-3{grid-template-columns:repeat(3,minmax(0,1fr))}}
+/* Four across, and only at a width where four columns are still readable. The approved
+   design lays the four run statuses out in one row: "four results, never a fifth" is the
+   product's whole vocabulary, and a reader sees that it is four by counting them at a
+   glance. A 2x2 reads as two pairs. It climbs 1 -> 2 -> 4 rather than passing through 3,
+   because three columns of four items leaves an orphan on the second row. */
+@media (min-width:46rem){.grid-4{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (min-width:64rem){.grid-4{grid-template-columns:repeat(4,minmax(0,1fr))}}
 /* Utilities, so no component has to reach for an inline style attribute. */
 .grid-center{align-items:center}
 .grid-wide-gap{gap:var(--s12)}
