@@ -442,15 +442,22 @@ app.route(
 // privileged action behind it, and an unauthorised request to an owner route returns
 // an ordinary 404 rather than a 403 that would confirm the route exists.
 //
-// The principal is pinned to ANONYMOUS here, and that is load bearing. The in-memory
-// port's own default is a fully authenticated platform owner with recent MFA — a
-// development convenience that fails OPEN. Mounting it unconfigured served the entire
-// owner dashboard to anonymous visitors on staging, which is how this was found: by
-// deploying and fetching `/owner`, not by reading the code, where it looks correct.
+// The principal comes from the SESSION, resolved in `createOwnerApp` below through
+// `createOwnerDataPort` and `createOwnerAuth`. It is never defaulted here, and that is
+// load bearing: the in-memory port's own default is a fully authenticated platform owner
+// with recent MFA — a development convenience that fails OPEN. Mounting it unconfigured
+// once served the entire owner dashboard to anonymous visitors on staging, which is how
+// that was found: by deploying and fetching `/owner`, not by reading the code, where it
+// looked correct.
 //
-// Until A02's session and TOTP wiring lands, every owner route must 404 for everyone.
-// When it does, this becomes `resolvePort: async (c) => new D1OwnerDataPort(c)` and the
-// principal comes from the session instead.
+// This comment used to end "until A02's session and TOTP wiring lands, every owner route
+// must 404 for everyone", and described the port as pinned to ANONYMOUS. That wiring
+// landed; the sentence did not. A comment that describes a state the code has left is the
+// defect this repository has now been caught on four times in one day — in a migration, in
+// a token file, in a design note, and here — and it is worse than no comment, because the
+// next reader believes it. What is true today: `/admin/login` and `/admin/bootstrap` are
+// public, `/admin` redirects an anonymous visitor to the login, and every `/owner` route
+// answers 404 until a session says otherwise.
 // Device-signed runner endpoints. Mounted BEFORE the owner router so /api/v1/runner/*
 // is never swallowed by it. /pair, /lease, /heartbeat and /jobs/:id/result authenticate
 // with an Ed25519 device signature rather than a session, which is the whole point: the
