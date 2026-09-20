@@ -8,7 +8,12 @@
  */
 import { Hono } from 'hono';
 import { describe, expect, it } from 'vitest';
-import { createOwnerRoutes, UnconfiguredOwnerRouterError } from '@app/routes/owner/index';
+import {
+  createOwnerRoutes,
+  UnconfiguredOwnerRouterError,
+  type EnrolmentOutcome,
+  type OwnerAuthPort,
+} from '@app/routes/owner/index';
 import { publicRoutes } from '@app/routes/public/index';
 import { appRoutes } from '@app/routes/app/index';
 import { ANONYMOUS_PRINCIPAL, type OwnerPrincipal } from '@app/owner/access';
@@ -55,6 +60,7 @@ function harness(
     principal?: OwnerPrincipal;
     artifacts?: StaticQualityArtifactStore;
     port?: MemoryOwnerDataPort;
+    auth?: OwnerAuthPort;
   } = {},
 ): Harness {
   const port =
@@ -67,6 +73,7 @@ function harness(
       resolvePort: async () => port,
       now: () => NOW,
       ...(options.artifacts === undefined ? {} : { artifacts: options.artifacts }),
+      ...(options.auth === undefined ? {} : { auth: options.auth }),
     }),
   );
   app.route('/', publicRoutes);
@@ -184,6 +191,127 @@ describe('owner routes — access', () => {
   });
 });
 
+/**
+ * A recording auth port for the enrolment routes. It mints a fixed, obviously synthetic
+ * seed so the tests can assert exactly what the page shows and, more importantly, what a
+ * later page does not.
+ */
+function recordingAuth(initialEnrolled: boolean): OwnerAuthPort & {
+  readonly enrolCalls: number;
+  enrolled: boolean;
+} {
+  const state = {
+    enrolCalls: 0,
+    enrolled: initialEnrolled,
+    async requestSignInLink() {
+      return { delivery: 'no_transport' as const };
+    },
+    async verifyTotp() {
+      return { ok: false, dependency: null };
+    },
+    async enrolAuthenticator(): Promise<EnrolmentOutcome> {
+      state.enrolCalls += 1;
+      state.enrolled = true;
+      return {
+        ok: true,
+        provisioningUri:
+          'otpauth://totp/ITISYOU%20Verify:owner?secret=SYNTHETICSEED234567&issuer=ITISYOU%20Verify',
+        secretBase32: 'SYNTHETICSEED234567',
+        recoveryCodes: ['aaaa-bbbb-0001', 'aaaa-bbbb-0002'],
+      };
+    },
+    async authenticatorEnrolled() {
+      return state.enrolled;
+    },
+    async bootstrap() {
+      return { ok: false as const, refusal: 'not_configured' as const, message: 'n/a' };
+    },
+    async signOut() {},
+    async accessMode() {
+      return 'PUBLIC_LOGIN' as const;
+    },
+  };
+  return state;
+}
+
+describe('owner routes — authenticator enrolment', () => {
+  it('OWNER-912 the enrolment page is a 404 to anyone who is not the platform owner', async () => {
+    const auth = recordingAuth(false);
+    for (const principal of [
+      ANONYMOUS_PRINCIPAL,
+      customerPrincipal(),
+      { ...syntheticAutomationPrincipal(NOW), csrfToken: CSRF },
+    ]) {
+      const h = harness({ principal, auth });
+      expect((await h.get('/admin/authenticator')).status).toBe(404);
+      expect((await h.post('/admin/authenticator/enrol')).status).toBe(404);
+    }
+    expect(auth.enrolCalls).toBe(0);
+  });
+
+  it('OWNER-913 a first enrolment needs no code, shows the seed once, and never shows it again', async () => {
+    const auth = recordingAuth(false);
+    const h = harness({ principal: ownerPrincipal({ mfaVerifiedAt: null }), auth });
+    const page = await h.get('/admin/authenticator');
+    expect(page.status).toBe(200);
+    const before = await page.text();
+    expect(before).toContain('data-enrolment-state="none"');
+    expect(before).toContain('action="/admin/authenticator/enrol"');
+
+    const enrolled = await h.post('/admin/authenticator/enrol');
+    expect(enrolled.status).toBe(200);
+    const shown = await enrolled.text();
+    expect(shown).toContain('SYNTHETICSEED234567');
+    expect(shown).toContain('aaaa-bbbb-0001');
+    expect(shown).toContain('action="/admin/verify"');
+    expect(enrolled.headers.get('cache-control')).toContain('no-store');
+    expect(auth.enrolCalls).toBe(1);
+
+    const after = await (await h.get('/admin/authenticator')).text();
+    expect(after).not.toContain('SYNTHETICSEED234567');
+    expect(after).not.toContain('aaaa-bbbb-0001');
+    expect(after).toContain('data-enrolment-state="enrolled"');
+  });
+
+  it('OWNER-914 enrolment without a CSRF token mints nothing', async () => {
+    const auth = recordingAuth(false);
+    const h = harness({ principal: ownerPrincipal({ mfaVerifiedAt: null }), auth });
+    const response = await h.post('/admin/authenticator/enrol', {}, { omitCsrf: true });
+    expect(response.status).toBe(403);
+    expect(await response.text()).toContain('data-enrolment-refusal="true"');
+    expect(auth.enrolCalls).toBe(0);
+  });
+
+  it('OWNER-915 replacing an enrolled authenticator needs a recent code; a stale session is refused and nothing is minted', async () => {
+    const auth = recordingAuth(true);
+    const stale = harness({
+      principal: ownerPrincipal({
+        mfaVerifiedAt: new Date(NOW.getTime() - 3_600_000).toISOString(),
+      }),
+      auth,
+    });
+    const refused = await stale.post('/admin/authenticator/enrol');
+    expect(refused.status).toBe(403);
+    expect(await refused.text()).toContain('Confirm it is you');
+    expect(auth.enrolCalls).toBe(0);
+    // The GET does not even offer the button to a stale session.
+    expect(await (await stale.get('/admin/authenticator')).text()).not.toContain(
+      'action="/admin/authenticator/enrol"',
+    );
+
+    const fresh = harness({ principal: ownerPrincipal(), auth });
+    expect((await fresh.post('/admin/authenticator/enrol')).status).toBe(200);
+    expect(auth.enrolCalls).toBe(1);
+  });
+
+  it('OWNER-916 /admin/verify refuses a post without a CSRF token before it checks any code', async () => {
+    const h = harness({ principal: ownerPrincipal({ mfaVerifiedAt: null }) });
+    const response = await h.post('/admin/verify', { totp: '123456' }, { omitCsrf: true });
+    expect(response.status).toBe(422);
+    expect(await response.text()).toContain('without a valid token');
+  });
+});
+
 describe('owner routes — strong authentication', () => {
   it('OWNER-170 a consequential action without recent MFA is refused', async () => {
     const h = harness({
@@ -208,6 +336,69 @@ describe('owner routes — strong authentication', () => {
     const response = await h.post('/owner/controls/ads', { paused: 'yes' });
     expect(response.status).toBe(303);
     expect((await h.port.controls()).ads.paused).toBe(true);
+  });
+
+  it('OWNER-908 creating a customer workspace is consequential: stale MFA is refused and nothing is created', async () => {
+    const h = harness({
+      principal: ownerPrincipal({
+        mfaVerifiedAt: new Date(NOW.getTime() - 3_600_000).toISOString(),
+      }),
+    });
+    const response = await h.post('/owner/customers/create', {
+      email: 'first@example.com',
+      name: 'First customer',
+    });
+    expect(response.status).toBe(403);
+    expect(await response.text()).toContain('Confirm it is you');
+    expect((await h.port.customers()).map((row) => row.name)).not.toContain('First customer');
+  });
+
+  it('OWNER-909 with recent MFA the workspace is created, listed, audited, and the address is masked', async () => {
+    const h = harness();
+    const response = await h.post('/owner/customers/create', {
+      email: 'First+verify-test@Example.com',
+      name: '  First   customer ',
+      synthetic: 'yes',
+    });
+    expect(response.status).toBe(303);
+    expect(response.headers.get('location')).toBe('/owner/customers');
+
+    const rows = await h.port.customers();
+    const created = rows.find((row) => row.name === 'First customer');
+    expect(created, 'the created workspace is not listed').toBeDefined();
+    expect(created?.isSynthetic).toBe(true);
+    expect(created?.contactMask).toBe('f****@example.com');
+    // The page never renders the full address back.
+    const page = await (await h.get('/owner/customers')).text();
+    expect(page).toContain('First customer');
+    expect(page).not.toContain('first+verify-test@example.com');
+    expect(page).not.toContain('First+verify-test@Example.com');
+
+    const audit = await h.port.auditTrail(10);
+    expect(audit.some((row) => row.action === 'owner.workspace.created')).toBe(true);
+  });
+
+  it('OWNER-910 a bad address or a bad name creates nothing and names the field', async () => {
+    const h = harness();
+    const response = await h.post('/owner/customers/create', {
+      email: 'not-an-address',
+      name: 'X',
+    });
+    expect(response.status).toBe(422);
+    const body = await response.text();
+    expect(body).toContain('Nothing was created');
+    expect((await h.port.customers()).map((row) => row.name)).not.toContain('X');
+  });
+
+  it('OWNER-911 the automation identity is refused by capability, not by MFA, and creates nothing', async () => {
+    const h = harness({ principal: { ...syntheticAutomationPrincipal(NOW), csrfToken: CSRF } });
+    const response = await h.post('/owner/customers/create', {
+      email: 'auto@example.com',
+      name: 'Automation-made',
+    });
+    expect(response.status).toBe(403);
+    expect(await response.text()).toContain('data-refusal="capability_denied"');
+    expect((await h.port.customers()).map((row) => row.name)).not.toContain('Automation-made');
   });
 
   it('OWNER-172 viewing still works without recent MFA, because viewing changes nothing', async () => {

@@ -24,7 +24,9 @@ import {
   type SubscriptionStatus,
 } from '@verify/contracts';
 import { maskEmail, maskToken } from '@verify/security';
-import { ANONYMOUS_PRINCIPAL, type OwnerPrincipal } from '../owner/access';
+import { ANONYMOUS_PRINCIPAL, capabilitiesFor, type OwnerPrincipal } from '../owner/access';
+import { validateWorkspaceInput, workspaceCreatedMessage } from '../owner/workspaceCreate';
+import { users, workspaces } from './identity';
 import {
   APPROVAL_LIFETIME_SECONDS,
   checkCampaignApproval,
@@ -98,9 +100,10 @@ import {
   type OwnerWriteResult,
   type RefundRequestInput,
   type ServiceHealthView,
+  type CreateWorkspaceInput,
 } from '../owner/port';
 import type { BootstrapResult } from '../owner/bootstrap';
-import type { OwnerAuthPort, TotpResult } from '../routes/owner/index';
+import type { EnrolmentOutcome, OwnerAuthPort, TotpResult } from '../routes/owner/index';
 import { bootstrapHandler } from '../routes/owner/index';
 import type { Env } from '../lib/context';
 import { ID_PREFIX, newId } from '../lib/ids';
@@ -109,6 +112,7 @@ import {
   platformOwnerExists,
   promoteToPlatformOwner,
   verifyTotpForUser,
+  enrolTotp,
 } from '../lib/auth';
 import { consume } from '../lib/ratelimit';
 import { resolveIdentity } from '../lib/session';
@@ -738,6 +742,53 @@ export class D1OwnerDataPort implements OwnerDataPort {
     }
     await this.#audit(ctx, 'owner.order.rejected', orderId);
     return writeOk('/owner/customers', 'The order is rejected and the customer can see why.');
+  }
+
+  /**
+   * Create a customer workspace and bind its admin, from the owner panel.
+   *
+   * Three facts make this the safe place to do it. `users.createOrGet` is an upsert on the
+   * normalised address, so an admin who already redeemed a sign-in link (and so already
+   * has a user row with no membership -- the exact state the owner was in on production)
+   * gets the membership on that row, not a second account. `workspaces.createWithOwner`
+   * writes the workspace and the membership in one batch, so the unknown-workspace guard
+   * on the webhook path never sees a workspace without an owner. And the capability is
+   * re-checked here from the principal on the context, so a route that forgot to
+   * authorise would still not create anything.
+   */
+  async createCustomerWorkspace(
+    ctx: ActionContext,
+    input: CreateWorkspaceInput,
+  ): Promise<OwnerWriteResult> {
+    if (!capabilitiesFor(ctx.principal).has('workspace.create')) {
+      await this.#audit(ctx, 'owner.workspace.create_refused', null);
+      return writeFailed('This identity cannot workspace.create. Nothing was changed.');
+    }
+    const checked = validateWorkspaceInput(input);
+    if (!checked.ok) return writeFailed(checked.message, checked.fieldErrors);
+
+    const at = nowIso(ctx.now);
+    const user = await users.createOrGet(this.#db, {
+      id: newId(ID_PREFIX.user, ctx.now.getTime()),
+      authSubject: checked.email,
+      createdAt: at,
+    });
+    if (user.disabled_at !== null) {
+      await this.#audit(ctx, 'owner.workspace.create_refused', user.id);
+      return writeFailed('That account is disabled. Nothing was created.', {
+        email: 'This address belongs to a disabled account.',
+      });
+    }
+    const workspaceId = newId(ID_PREFIX.workspace, ctx.now.getTime());
+    await workspaces.createWithOwner(this.#db, {
+      workspaceId,
+      name: checked.name,
+      userId: user.id,
+      createdAt: at,
+      isSynthetic: input.synthetic,
+    });
+    await this.#audit(ctx, 'owner.workspace.created', workspaceId);
+    return writeOk('/owner/customers', workspaceCreatedMessage(checked.name, checked.email));
   }
 
   /**
@@ -2792,19 +2843,59 @@ export class D1OwnerAuth implements OwnerAuthPort {
     return `${base}/admin/login/complete?token=${encodeURIComponent(issued.token)}`;
   }
 
-  async verifyTotp(principal: OwnerPrincipal, code: string, now: Date): Promise<TotpResult> {
+  async verifyTotp(
+    principal: OwnerPrincipal,
+    code: string,
+    now: Date,
+    sessionId: string | null,
+  ): Promise<TotpResult> {
     if (principal.userId === null) {
       return { ok: false, dependency: null };
     }
+    // `sessionId` is what turns a correct code into a stamped session. The previous version
+    // never passed one (a no-op spread sat where it should have been), so on production every
+    // correct code was accepted, audited as accepted, and changed nothing the gate could see.
     const outcome = await verifyTotpForUser(this.#db, this.#env, {
       userId: principal.userId,
       code,
       now,
-      ...(principal.kind === 'anonymous' ? {} : {}),
+      sessionId,
       accountName: principal.email ?? 'owner',
     });
     if (outcome.ok) return { ok: true, dependency: null };
     return { ok: false, dependency: outcome.dependency };
+  }
+
+  async enrolAuthenticator(principal: OwnerPrincipal, now: Date): Promise<EnrolmentOutcome> {
+    if (principal.userId === null) {
+      return { ok: false, dependency: 'No signed-in user to enrol. Sign in first.' };
+    }
+    try {
+      const issued = await enrolTotp(this.#db, this.#env, {
+        userId: principal.userId,
+        accountName: principal.email ?? 'owner',
+        now,
+      });
+      return {
+        ok: true,
+        provisioningUri: issued.provisioningUri,
+        secretBase32: issued.secretBase32,
+        recoveryCodes: issued.recoveryCodes,
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        dependency: `The seed could not be sealed on this deployment, so nothing was enrolled. ${
+          error instanceof Error ? error.message : 'The credential key is not usable.'
+        }`,
+      };
+    }
+  }
+
+  async authenticatorEnrolled(principal: OwnerPrincipal): Promise<boolean | null> {
+    if (principal.userId === null) return null;
+    const row = await users.findById(this.#db, principal.userId);
+    return row === null ? null : row.totp_enrolled_at !== null;
   }
 
   /**

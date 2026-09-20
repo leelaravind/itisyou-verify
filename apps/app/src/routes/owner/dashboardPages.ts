@@ -12,8 +12,23 @@
  *     no path in this file that prints a raw reason code — the view model carries sentences,
  *     not codes, and the port is what calls `explainAssertion`.
  */
-import { Button, Callout, Card, KeyValues, StatusBadge, Table, html, type Html } from '@verify/ui';
-import { displayMinor, summariseFinance, freshness, NET_RECEIPTS_CAVEAT } from '../../owner/finance.js';
+import {
+  Button,
+  Callout,
+  Card,
+  Field,
+  KeyValues,
+  StatusBadge,
+  Table,
+  html,
+  type Html,
+} from '@verify/ui';
+import {
+  displayMinor,
+  summariseFinance,
+  freshness,
+  NET_RECEIPTS_CAVEAT,
+} from '../../owner/finance.js';
 import { ActionForm, Instant, PageHead, UnknownAware } from './chrome.js';
 import type {
   CustomerRow,
@@ -300,7 +315,9 @@ export function OverviewPage(options: OverviewPageOptions): Html {
                     ? html`<span class="badge badge--unverified" data-estimate="true">estimate</span> `
                     : html`<span class="micro">measured</span> `
                 }${
-                  line.caveat === null ? null : html`<span class="micro muted">${line.caveat}</span>`
+                  line.caveat === null
+                    ? null
+                    : html`<span class="micro muted">${line.caveat}</span>`
                 }`,
             },
           ],
@@ -345,7 +362,12 @@ export function OverviewPage(options: OverviewPageOptions): Html {
           caption: 'Every component, its state and when it was observed',
           captionHidden: true,
           columns: [
-            { key: 'component', header: 'Component', rowHeader: true, cell: (item) => item.component },
+            {
+              key: 'component',
+              header: 'Component',
+              rowHeader: true,
+              cell: (item) => item.component,
+            },
             {
               key: 'state',
               header: 'State',
@@ -487,6 +509,44 @@ export function CustomersPage(options: {
         rows: options.customers,
         empty: html`<p class="muted">No workspaces yet.</p>`,
       }),
+    })}
+
+    ${Card({
+      title: 'Create a customer workspace',
+      headingLevel: 2,
+      body: html`<p class="muted">
+          Public signup is closed, so this is the only way a workspace comes to exist on this
+          deployment. The address becomes the workspace admin; nothing is emailed from here, and
+          they request their own sign-in link at <span class="mono">/app/sign-in</span>. If that
+          person already signed in before the workspace existed, their session now resolves to it.
+          This needs a two-factor check within the last fifteen minutes.
+        </p>
+        ${ActionForm({
+          action: '/owner/customers/create',
+          csrfToken: options.csrfToken,
+          body: html`${Field({
+            name: 'email',
+            label: 'Admin sign-in address',
+            control: 'email',
+            required: true,
+            autocomplete: 'off',
+            hint: 'Exactly the address they will type on the sign-in page. Plus-tags are kept, so name+test@ is a separate account.',
+          })}
+            ${Field({
+              name: 'name',
+              label: 'Workspace name',
+              required: true,
+              maxlength: 80,
+              hint: 'Shown to the admin and in this table.',
+            })}
+            <div class="field">
+              <label class="field__label" for="f-synthetic">
+                <input type="checkbox" id="f-synthetic" name="synthetic" value="yes" />
+                Test workspace: exclude it from every launch figure and let cleanup remove it
+              </label>
+            </div>
+            ${Button({ label: 'Create workspace', type: 'submit' })}`,
+        })}`,
     })}
 
     ${Callout({
