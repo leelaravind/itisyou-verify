@@ -16,6 +16,7 @@
  * control and a log line nobody reads; a tick that returns a report produces a number we
  * can look at.
  */
+import { designProgress } from '@verify/ui';
 import { sha256Hex } from '@verify/security';
 import { getConnector, type ProviderId } from '@verify/connectors';
 import { runs, type DueRun } from '../db/runs';
@@ -793,6 +794,41 @@ export async function handleScheduled(
             });
       const supportPort = new D1SupportDataPort(db);
       await supportPort.releaseUndeliveredNotification(alert.notificationKey);
+      const result = await sendOwnerAlert(
+        { port: supportPort, transport: ownerTransport(), now: () => now },
+        alert,
+      );
+      ownerAlert = { attempted: true, outcome: result.outcome };
+    } catch (caught) {
+      (options.logger ?? SILENT_LOGGER).warn('scheduler.owner_alert.failed', {
+        message: caught instanceof Error ? caught.message : String(caught),
+      });
+      ownerAlert = { attempted: true, outcome: 'failed' };
+    }
+  }
+
+  /*
+   * The design figure, because the owner asked for it on the channel they read.
+   *
+   * Only from production, and only when nothing more urgent claimed the pass. A progress
+   * number is the least important thing this channel carries: if a deployment cannot take
+   * payment, that alert is the one that should arrive, and two messages about different
+   * things in one tick is how a channel stops being read.
+   *
+   * The milestone id carries the count, so each new figure sends exactly once and a tick
+   * that changes nothing sends nothing. `designProgress` counts a screen as composed only
+   * when its own layout was built against its reference -- the palette reaching all
+   * nineteen is the token layer, not the design.
+   */
+  if (!ownerAlert.attempted && env.ENVIRONMENT === 'production') {
+    try {
+      const progress = designProgress();
+      const alert = milestoneAlert({
+        milestoneId: `stitch_composition:${progress.composed}_of_${progress.total}`,
+        measure: 'Approved design, screens composed against their reference',
+        value: `${progress.composed} of ${progress.total} (${progress.percent}%) - shared palette, type, elevation and header are on all ${progress.total}`,
+      });
+      const supportPort = new D1SupportDataPort(db);
       const result = await sendOwnerAlert(
         { port: supportPort, transport: ownerTransport(), now: () => now },
         alert,

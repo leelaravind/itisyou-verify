@@ -68,3 +68,4 @@ export { CSS, CSS_BYTES, THEME_SCRIPT } from './styles.js';
 /* Components and layouts. */
 export * from './components/index.js';
 export * from './layout/index.js';
+export { STITCH_SCREENS, designProgress, type DesignProgress } from './designProgress.js';
