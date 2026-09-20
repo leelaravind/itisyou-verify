@@ -235,11 +235,41 @@ export const SPACE = {
   x24: '6rem',
 } as const;
 
+/**
+ * Corner radii. These already matched the approved scale and are now labelled with it:
+ * Stitch's `rounded.DEFAULT` is 0.25rem and `rounded.lg` is 0.5rem, which is what these
+ * two were. Nothing changed; the comment stops the next person re-deriving it.
+ */
 export const RADIUS = {
-  /** Controls: inputs, buttons, badges. */
+  /** Controls: inputs, buttons, badges. Stitch `rounded.DEFAULT`. */
   control: '4px',
-  /** Containers: cards, callouts, tables. */
+  /** Containers: cards, callouts, tables. Stitch `rounded.lg`. */
   container: '8px',
+} as const;
+
+/**
+ * Elevation — the piece of the approved design this interface did not have at all.
+ *
+ * The Stitch screens put `shadow-sm` on cards and `shadow-lg` on the surfaces that sit
+ * above them, and the header carries `0 1px 8px rgba(0,0,0,0.04)`. Our interface was
+ * entirely flat: a card was a 1px rule and nothing else. On the light palette that read as
+ * deliberate restraint; on the approved dark palette, where `surface` (#1c2029) sits only
+ * a shade above `paper` (#0f131c), a hairline is doing all the work of separating a card
+ * from the page and it is not enough.
+ *
+ * Both values are pure black at low alpha rather than a tinted shadow, because the palette
+ * is dark and a coloured shadow on a dark ground reads as a glow — which the designs do use
+ * deliberately, on the primary call to action only, and which would be wrong on every card.
+ *
+ * The border stays. Shadow is the secondary signal here, not the primary one: it disappears
+ * in forced-colors mode and under some high-contrast settings, and a card must still have
+ * an edge when it does.
+ */
+export const ELEVATION = {
+  /** Cards and other resting surfaces. Stitch `shadow-sm`. */
+  rest: '0 1px 2px rgba(0,0,0,0.28), 0 1px 8px rgba(0,0,0,0.16)',
+  /** Surfaces that sit above the page: the sticky header. */
+  raised: '0 1px 8px rgba(0,0,0,0.24)',
 } as const;
 
 export const LAYOUT = {

@@ -38828,6 +38828,23 @@
       "countable": true
     },
     {
+      "id": "RESIL-186",
+      "category": "accessibility_resilience",
+      "level": "unit",
+      "requirement": "cards carry elevation and keep a border, and the shadows stay neutral",
+      "risk": "The approved design puts a shadow on every card and this interface had none. On the approved dark palette, where surface sits one shade above paper, a 1px hairline was doing all the work of separating a card from the page. The risk in adding elevation is replacing the border with it: shadows are dropped entirely in forced-colors mode and under some high-contrast settings, so a card whose only edge was a shadow would dissolve into the page for exactly the readers who need the edge most.",
+      "risk_source": "case",
+      "setup": "The generated stylesheet and the ELEVATION token, checked for a card shadow, a surviving card border, a header shadow, and shadow values that are pure black at low alpha.",
+      "expected": "All four hold. Checked by deleting the card border, which fails the case.",
+      "owner_agent": "A11",
+      "implementation_ref": "tests/unit/ui/tokens.test.ts:170",
+      "provider_backed": false,
+      "status": "passing",
+      "runner": "vitest",
+      "area": "tests/unit/ui/tokens.test.ts",
+      "countable": true
+    },
+    {
       "id": "RESIL-300",
       "category": "accessibility_resilience",
       "level": "integration",

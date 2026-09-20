@@ -7,7 +7,16 @@
  */
 import { gzipSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
-import { CSS, CSS_BYTES, DARK, LIGHT, STATUS_PRESENTATION, THEME_SCRIPT, TYPE } from '@verify/ui';
+import {
+  CSS,
+  CSS_BYTES,
+  DARK,
+  ELEVATION,
+  LIGHT,
+  STATUS_PRESENTATION,
+  THEME_SCRIPT,
+  TYPE,
+} from '@verify/ui';
 
 /** WCAG 2.1 relative luminance. */
 function luminance(hex: string): number {
@@ -161,6 +170,32 @@ describe('design tokens', () => {
     // The two fixed sizes, straight from the spec.
     expect(TYPE.h2, 'headline-lg is 24px').toBe('1.5rem');
     expect(TYPE.h3, 'headline-sm is 18px').toBe('1.125rem');
+  });
+
+  it('RESIL-186 cards carry elevation AND keep a border, so the edge survives without shadows', () => {
+    /*
+     * The approved design puts a shadow on every card; this interface had none at all. On
+     * the light palette that read as restraint. On the approved dark palette, where surface
+     * sits one shade above paper, a 1px hairline was doing all the work of separating a
+     * card from the page.
+     *
+     * The border is NOT replaced by the shadow, and that is the property worth asserting.
+     * Shadows are dropped entirely in forced-colors mode and under some high-contrast
+     * settings; a card whose only edge was a shadow would dissolve into the page for
+     * exactly the readers who need the edge most.
+     */
+    expect(CSS, 'cards have no elevation').toMatch(/\.card\{[^}]*box-shadow:var\(--e-rest\)/);
+    expect(CSS, 'cards lost their border').toMatch(/\.card\{[^}]*border:1px solid var\(--c-rule\)/);
+    expect(CSS, 'the sticky header has no elevation').toMatch(
+      /\.site\{[^}]*box-shadow:var\(--e-raised\)/,
+    );
+    // A dark palette makes a tinted shadow read as a glow. The designs use a glow
+    // deliberately and only on the primary call to action; on a card it would be wrong.
+    for (const value of [ELEVATION.rest, ELEVATION.raised]) {
+      expect(value, `${value} is not a neutral shadow`).toMatch(
+        /^(?:[^,]*rgba\(0,0,0,[\d.]+\),?\s*)+$/,
+      );
+    }
   });
 
   it('CUST-006 reduced motion is respected and focus is always visible', () => {
