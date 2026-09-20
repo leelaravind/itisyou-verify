@@ -544,3 +544,84 @@ describe('CUST-346..347 published figures match the implementation', () => {
     }
   });
 });
+
+/**
+ * The claim rules added for the approved designs actually fire.
+ *
+ * ## Why this exists, and it is not theoretical
+ *
+ * The owner approved nineteen Stitch screens as a VISUAL reference and asked that invented
+ * prices, providers, guarantees and tax statements be replaced with the real configuration.
+ * Sweeping those files found the scale: a £85 monthly price where the plan is £29, a
+ * "14-Day Agency Trial" where no trial exists, per-seat and volume-tier language where
+ * there is one plan, and — caught by a rule that already existed — a claim of **SOC2 Type
+ * II**, a certification this business does not hold.
+ *
+ * Three rules were added for the gaps. When first written they matched **nothing**: a
+ * mangled escape had left literal backspace characters (`\u0008`) inside the patterns,
+ * invisible in every editor and in `grep` output, and the rules were decoration. The
+ * scanner reported "clean" over content containing four wrong prices.
+ *
+ * So this file asserts the rules FIRE, on the exact strings the designs use. A claim guard
+ * that cannot be shown to catch anything is the same defect as correct code nothing
+ * reaches, and this project has now shipped that shape often enough to test for it.
+ *
+ * Case ids `DOC-503..DOC-505`.
+ */
+describe('the claim rules for the approved designs are not decoration', () => {
+  /** Read the live rule out of the scanner, so a drifted copy cannot pass this. */
+  function ruleFor(id: string): RegExp {
+    const source = readFileSync('scripts/scan-claims.mjs', 'utf8');
+    const at = source.indexOf(`id: '${id}'`);
+    expect(at, `rule ${id} is not in the scanner`).toBeGreaterThan(-1);
+    const line = source
+      .slice(at)
+      .split('\n')
+      .find((candidate) => candidate.trim().startsWith('re: '));
+    expect(line, `rule ${id} has no regex`).toBeDefined();
+    const literal = (line ?? '').trim().slice(4).replace(/,$/, '');
+    const end = literal.lastIndexOf('/');
+    const pattern = new RegExp(literal.slice(1, end), literal.slice(end + 1));
+    // The bug that made all three dead. Nothing in a rule may be a control character.
+    expect(
+      /[\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(pattern.source),
+      `rule ${id} contains a control character, which silently breaks matching`,
+    ).toBe(false);
+    return pattern;
+  }
+
+  it('DOC-503 a monthly price that is not the plan price is caught, and the real one is not', () => {
+    const rule = ruleFor('wrong-plan-price');
+    // Verbatim from the designs.
+    for (const invented of ['£85 / month', '£120.00 / month', '£340.00/month', '£49 / month']) {
+      expect(rule.test(invented), `${invented} was not caught`).toBe(true);
+    }
+    // And the paired half, which is the one that matters: our own true sentence must pass.
+    for (const truthful of ['£29.00 a month', '£29 per month', '£29.00 a month for 500 runs']) {
+      expect(rule.test(truthful), `${truthful} was wrongly flagged`).toBe(false);
+    }
+  });
+
+  it('DOC-504 a trial this product does not offer is caught, and saying so is still allowed', () => {
+    const rule = ruleFor('unoffered-trial');
+    for (const invented of ['14-Day Agency Trial', 'No CC Required', '14-Day Trial']) {
+      expect(rule.test(invented), `${invented} was not caught`).toBe(true);
+    }
+    // The site must stay able to state the truth plainly.
+    expect(rule.test('There is no free trial.')).toBe(false);
+  });
+
+  it('DOC-505 plan tiers and seat pricing are caught', () => {
+    const rule = ruleFor('invented-plan-tier');
+    for (const invented of [
+      'Starter Agency',
+      'High-Scale Partner',
+      'per-seat',
+      'seat limits',
+      'VOLUME TIER',
+    ]) {
+      expect(rule.test(invented), `${invented} was not caught`).toBe(true);
+    }
+    expect(rule.test('One plan. One workflow. 500 runs a month.')).toBe(false);
+  });
+});

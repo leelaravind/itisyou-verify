@@ -88,3 +88,40 @@ colours rather than trusting the comment.
 
 Composition work is the next block, and it is the part that should be done screen by screen
 with the suite run between each.
+
+## The designs cannot be implemented as drawn
+
+Sweeping all nineteen `code.html` files for business facts found that the approved
+compositions carry a great deal of invented content. Run through this repository's own claim
+scanner, the nineteen screens produce **34 findings across 9 rule classes**:
+
+| Rule                          | Hits | Example from the designs                                          |
+| ----------------------------- | ---- | ----------------------------------------------------------------- |
+| `generated-status-vocabulary` | 7    | "PHANTOM 200", "GROUND TRUTH PROTOCOL"                            |
+| `false-certification`         | 6    | **"SOC2 Type II"** — a certification this business does not hold  |
+| `wrong-plan-price`            | 4    | "£85 / month", "£120.00 / month", "£340.00/month", "£49 / month"  |
+| `named-competitor`            | 4    | "Zapier"                                                          |
+| `unoffered-trial`             | 3    | "14-Day Agency Trial", "No CC Required"                           |
+| `remediation-claim`           | 3    | language implying the service acts on a customer system           |
+| `invented-plan-tier`          | 3    | "Starter Agency", "High-Scale Partner", "VOLUME TIER", "per-seat" |
+| `unclaimed-package`           | 2    | an install command for a registry name nobody has claimed         |
+| `absolutist-claim`            | 2    | "100% of", "ZERO-TRUST: STRICT"                                   |
+
+Beyond what the scanner catches, the designs also name QuickBooks, Airtable, Salesforce,
+Python and Make as evidence sources; invent revenue figures (£45,000, £39,000, £28,340); and
+describe a "Verified Automation SLA" retainer product. The real configuration is **£29.00 a
+month, 500 runs, one workflow, HubSpot and Resend only, no trial, and no certification of any
+kind**.
+
+This is why the composition work has to be done as _translation_ rather than
+implementation. Building a designed page faithfully means its copy arrives with it, and the
+copy is the part that would put a false claim in front of a paying visitor — the precise
+defect this product exists to detect in other people's systems.
+
+**Three rules were added to the scanner** for the gaps it did not already cover:
+`wrong-plan-price`, `unoffered-trial` and `invented-plan-tier`. When first written they
+matched nothing at all: a mangled escape had left literal backspace characters inside the
+patterns, invisible in an editor and in `grep`, and the scanner reported "clean" over content
+containing four wrong prices. `DOC-503..DOC-505` now assert each rule fires on the designs'
+exact strings and does not fire on our own true sentences, because a guard that cannot be
+shown to catch anything is the same defect as correct code that nothing reaches.
