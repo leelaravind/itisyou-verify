@@ -632,19 +632,77 @@ export async function handleScheduled(
     try {
       const names = [...billingSecrets.missing].sort();
       const environment = env.STRIPE_MODE === 'live' ? 'live' : 'test';
+      // The names, not the values. A secret name is a variable name.
+      const notificationKey = `authentication_required:billing_secrets:${environment}:${names.join(',')}`;
+      /*
+       * Why a send failed has to reach somebody.
+       *
+       * `recordedStatusFor` deliberately discards the provider's own word -- it is right
+       * that `notification_deliveries` records `sending_service_unavailable` rather than a
+       * provider string, and the table has no column for a cause. But that left the
+       * operator with a channel that is silent and a row that cannot say why, which is the
+       * shrug this product exists to refuse. The first real failure on this path recorded
+       * three attempts and nothing about the reason.
+       *
+       * So the tick observes the transport it owns rather than changing what is stored.
+       * `redactTelegramToken` has already been applied by the transport to both the error
+       * and the status, because a fetch failure commonly carries the request URL and the
+       * request URL carries the token.
+       */
+      /*
+       * `fetch` is BOUND, and that is not a style preference.
+       *
+       * Passing the bare global into a class that later calls `this.fetchImpl(...)` gives
+       * Workers "Illegal invocation: function called with incorrect `this` reference", and
+       * the send fails every attempt. No test could have caught it: every test injects a
+       * plain function, which has no `this` requirement at all, so the stub passes exactly
+       * where the real global fails. It was found by deploying, reading the transport's own
+       * words out of a live tick, and only because the previous commit added that log line.
+       */
+      const inner = telegramTransportFromEnv(
+        env as unknown as Readonly<Record<string, unknown>>,
+        options.ownerAlertFetch ?? globalThis.fetch.bind(globalThis),
+      );
+      const observed =
+        inner === undefined
+          ? undefined
+          : {
+              send: async (message: Parameters<typeof inner.send>[0]) => {
+                const outcome = await inner.send(message);
+                if (!outcome.accepted) {
+                  // eslint-disable-next-line no-console -- the operator's only view of this channel
+                  console.log('owner_alert', {
+                    event: 'telegram_attempt_failed',
+                    provider_status: outcome.providerStatus,
+                    retryable: outcome.retryable,
+                  });
+                }
+                return outcome;
+              },
+            };
+
+      /*
+       * A standing condition gets another chance; a delivered message does not.
+       *
+       * `dispatchNotification` claims the key before sending and settles the outcome onto
+       * the same row, so one transient failure would take this key forever -- and it did:
+       * production and staging each hold one `failed` row for this alert and neither could
+       * ever fire again. The condition it describes is still true, which is exactly why the
+       * key must be releasable. `releaseUndelivered` refuses to touch a `sent` row in SQL,
+       * so this cannot become a way to buzz a phone twice about one thing.
+       */
+      const supportPort = new D1SupportDataPort(db);
+      await supportPort.releaseUndeliveredNotification(notificationKey);
+
       const result = await sendOwnerAlert(
         {
-          port: new D1SupportDataPort(db),
-          transport: telegramTransportFromEnv(
-            env as unknown as Readonly<Record<string, unknown>>,
-            options.ownerAlertFetch ?? fetch,
-          ),
+          port: supportPort,
+          transport: observed,
           now: () => now,
         },
         {
           kind: 'authentication_required',
-          // The names, not the values. A secret name is a variable name.
-          notificationKey: `authentication_required:billing_secrets:${environment}:${names.join(',')}`,
+          notificationKey,
           headline: 'Payments are not configured on a deployment',
           detail:
             `The ${environment} deployment cannot take payment. ` +

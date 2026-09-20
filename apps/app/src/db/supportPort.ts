@@ -208,6 +208,11 @@ export class D1SupportDataPort implements SupportDataPort {
     });
   }
 
+  /** See `notifications.releaseUndelivered`. Cannot release a delivered key. */
+  async releaseUndeliveredNotification(notificationKey: string): Promise<boolean> {
+    return notifications.releaseUndelivered(this.db, notificationKey);
+  }
+
   async getNotification(notificationKey: string): Promise<NotificationDeliveryRecord | null> {
     const row = await notifications.getByKey(this.db, notificationKey);
     return row === null ? null : toNotification(row);

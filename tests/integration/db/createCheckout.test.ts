@@ -253,7 +253,12 @@ describe('a provider failure refuses honestly instead of 500ing', () => {
     const result = await port.createCheckout();
 
     expect(result.ok, 'a provider failure must not read as success').toBe(false);
-    expect(result.message).toContain('no card was charged');
+    // Case-insensitive on purpose: the property is that the customer is told no card was
+    // charged, not where the sentence happens to place that clause. It leads the sentence
+    // now that "No checkout session was created" has been dropped — that clause was false
+    // on four paths, because `assertMode`, the null-URL guard, a refused status transition
+    // and a failing `recordOrderStatus` all run after Stripe has created one.
+    expect(result.message).toMatch(/no card was charged/i);
     expect(result.redirectTo).toBeNull();
   }
 
