@@ -139,6 +139,67 @@ the same day is worse than a post that confesses neither.
 
 ---
 
+## 0.6 Reconciliation, second pass — 20 September 2026
+
+Re-checked before the posts go out, because a post is only as good as the day its claims
+were true. **Two of the statements in §0.5 have since become false, both by understating.**
+§0.5 itself says leaving a false-modest claim in place "is still inaccuracy", so they are
+corrected here rather than left to be discovered by a reader.
+
+### Corrected: a verdict HAS been produced from real evidence
+
+§0.5 says "the scheduled verdict step has never run on any deployed environment" and "no
+VERIFIED/FAILED verdict has ever been produced by a deployment from real evidence". Both
+were true when written. Read out of the staging database today:
+
+| Run status | Count |
+| ---------- | ----- |
+| VERIFIED   | 1     |
+| UNVERIFIED | 2     |
+
+and the evidence backing them: one row with `origin: provider_readback`, two with
+`origin: provider_webhook`. The scheduler runs on both deployments on its cron and its
+per-tick log line has been read live.
+
+So the honest claim today is: **a deployment has produced a VERIFIED verdict from evidence
+it read back from a real provider**, and it has also produced two UNVERIFIED ones — which
+is the more important half, because it shows absence of evidence resolving to "could not
+check" rather than to a pass.
+
+### Corrected: a sandbox payment HAS completed end to end
+
+§0.5 says "Stripe. Sandbox only. No live payment has been taken and live mode is not
+enabled." The second half is still exactly true and must stay. The first half now
+understates: on 20 September a **real Stripe Checkout Session was created by the deployed
+service and paid with a test card**, £29.00, through a button on the review page that did
+not exist that morning.
+
+What must be said alongside it, because it is still true: **the webhook that would activate
+the subscription is rejecting every delivery.** Stripe sent six events for that payment —
+`checkout.session.completed`, `customer.subscription.created`, `invoice.paid` — and the
+endpoint answered `400 INVALID_SIGNATURE` to all six. The signing secret does not match.
+So: a payment completed, and no subscription activated. A post claiming the first without
+the second would be exactly the kind of half-truth this product exists to catch.
+
+### Newly true, and worth a line because it is embarrassing
+
+The visit counter wrote **nothing at all** until today. The middleware was mounted on every
+request, the contract was specified in six numbered rules, an in-memory implementation
+satisfied it and the suite ran against that — and the mount passed `port: () => null`,
+because the database implementation was never written. After a full day of real traffic the
+table held zero rows.
+
+It is the same shape as the correlation defect §0.5 already confesses and the CSP one §4.3
+confesses: complete, correct, well-tested code reached by nothing. If a post mentions
+measuring launch traffic at all, this belongs in it, for the same reason the other two do.
+
+### Unchanged
+
+Everything else in §0.5 stands. HubSpot is still connected and **not** proven — no record
+has been read back from a live portal — and the demo's runs are still seeded fixtures.
+
+---
+
 ## 1. What is being promised, and what is not
 
 **Organic reach is not promised.** Ten external visits is a **target, not a forecast**. A
