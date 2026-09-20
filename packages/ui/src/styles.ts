@@ -20,7 +20,17 @@
  * Nothing here needs JavaScript. There is no client framework, and the only script the
  * site ships is a nine-line theme toggle that is purely additive.
  */
-import { DARK, FONT, LAYOUT, LIGHT, RADIUS, SPACE, TYPE, type Palette } from './tokens.js';
+import {
+  DARK,
+  ELEVATION,
+  FONT,
+  LAYOUT,
+  LIGHT,
+  RADIUS,
+  SPACE,
+  TYPE,
+  type Palette,
+} from './tokens.js';
 import { STORY_BASE } from './story/styles.js';
 
 function vars(p: Palette): string {
@@ -78,6 +88,8 @@ const BASE = `
   --t-micro:${TYPE.micro};
   --s1:${SPACE.x1};--s2:${SPACE.x2};--s3:${SPACE.x3};--s4:${SPACE.x4};
   --s6:${SPACE.x6};--s8:${SPACE.x8};--s12:${SPACE.x12};--s16:${SPACE.x16};--s24:${SPACE.x24};
+  --e-rest:${ELEVATION.rest};
+  --e-raised:${ELEVATION.raised};
   --r-control:${RADIUS.control};
   --r-container:${RADIUS.container};
   --w-measure:${LAYOUT.measure};
@@ -191,6 +203,7 @@ a:hover{text-decoration-thickness:2px}
   border-bottom:1px solid var(--c-rule);
   background:var(--c-surface);
   background:color-mix(in srgb, var(--c-surface) 82%, transparent);
+  box-shadow:var(--e-raised);
   backdrop-filter:blur(12px);
   -webkit-backdrop-filter:blur(12px);
 }
@@ -301,7 +314,7 @@ a:hover{text-decoration-thickness:2px}
 .btn-row{display:flex;flex-wrap:wrap;gap:var(--s3);align-items:center}
 
 /* ---- cards --------------------------------------------------------------- */
-.card{border:1px solid var(--c-rule);border-radius:var(--r-container);background:var(--c-surface);padding:var(--s4)}
+.card{border:1px solid var(--c-rule);border-radius:var(--r-container);background:var(--c-surface);padding:var(--s4);box-shadow:var(--e-rest)}
 @media (min-width:46rem){.card{padding:var(--s6)}}
 .card__head{display:flex;flex-wrap:wrap;gap:var(--s2) var(--s4);align-items:baseline;justify-content:space-between;margin-bottom:var(--s3)}
 .card__title{font-size:var(--t-h3);margin:0}
