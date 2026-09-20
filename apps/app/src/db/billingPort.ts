@@ -163,6 +163,22 @@ const PROVIDER = 'stripe';
 export class D1BillingDataPort implements BillingDataPort {
   constructor(private readonly db: Db) {}
 
+  // -- deployment scope -----------------------------------------------------
+
+  /**
+   * `SELECT 1`, not a row read. The caller asks one question and gets one bit; there is
+   * nothing here a tenant-scoped query could leak, because the id being asked about came
+   * out of a signature-verified provider event and the answer is only ever used to decide
+   * whether to ignore it.
+   */
+  async workspaceExists(workspaceId: string): Promise<boolean> {
+    const row = await this.db
+      .prepare('SELECT 1 AS present FROM workspaces WHERE id = ?')
+      .bind(workspaceId)
+      .first<{ present: number }>();
+    return row !== null;
+  }
+
   // -- billing customer -----------------------------------------------------
 
   async findBillingCustomer(

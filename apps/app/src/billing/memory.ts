@@ -54,7 +54,15 @@ export interface MemoryBillingStore extends BillingDataPort {
   };
 }
 
-export function createMemoryBillingStore(): MemoryBillingStore {
+export interface MemoryBillingOptions {
+  /**
+   * Workspace ids this simulated deployment holds. Omitted, every id is known, which keeps
+   * every pre-existing case describing what it was written to describe.
+   */
+  readonly knownWorkspaces?: readonly string[];
+}
+
+export function createMemoryBillingStore(options: MemoryBillingOptions = {}): MemoryBillingStore {
   const customers = new Map<string, BillingCustomerRecord>(); // workspaceId|env
   const orders = new Map<string, OrderRecord>(); // order id
   const orderKeys = new Map<string, string>(); // idempotency key -> order id
@@ -96,6 +104,24 @@ export function createMemoryBillingStore(): MemoryBillingStore {
       refunds: () => [...refunds.values()],
       receipts: () => [...receipts.values()],
       customers: () => [...customers.values()],
+    },
+
+    // -- deployment scope ---------------------------------------------------
+
+    /**
+     * The in-memory store has no workspace table, so it answers "yes" unless a test has
+     * deliberately said otherwise through `knownWorkspaces`.
+     *
+     * Defaulting to true is the right default HERE and would be the wrong default in D1.
+     * Every existing case in this suite describes a deployment acting on its own
+     * customer's event; making them all declare a workspace first would be ceremony that
+     * tests nothing. The cases that matter are the ones that set `knownWorkspaces` to
+     * exclude an id and assert the event is ignored rather than failed.
+     */
+    async workspaceExists(workspaceId) {
+      return options.knownWorkspaces === undefined
+        ? true
+        : options.knownWorkspaces.includes(workspaceId);
     },
 
     // -- billing customer ---------------------------------------------------
