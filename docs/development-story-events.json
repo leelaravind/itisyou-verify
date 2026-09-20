@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "project": "itisyou-verify",
-  "generated_at": "2026-09-20T03:49:14.614Z",
+  "generated_at": "2026-09-20T09:40:00Z",
   "note": "Structured record of what was decided, built and verified. Observable facts and short decision rationales only — never reasoning traces, private prompts, credentials or customer data. Unknown values stay null rather than being guessed.",
   "events": [
     {
@@ -1285,7 +1285,7 @@
         "scripts/scan-claims.mjs",
         "docs/test-cases.json"
       ],
-      "commit_sha": null,
+      "commit_sha": "cff4749ccc11e32013a53bbed9aae1f119119a99",
       "decision_summary": "The signing secret was present in both environments the whole time; `wrangler secret list` says so. Two defects, either sufficient on its own. The endpoint resolver trimmed neither the path id nor the secret, and a secret set by piping into `wrangler secret put` carries the trailing newline the generating command printed — on the path id that fails a constant-time comparison on LENGTH, so the route refuses on the lookup before the signature is considered. And the route’s rejection reason, written specifically because the response tells the caller nothing, was discarded at the mount: the route falls back to a no-op log and nothing supplied one.",
       "alternatives_considered": [
         "Ask the owner to set the secret again, which is what had been asked three times already.",
@@ -1302,6 +1302,80 @@
       ],
       "limitations": "An independent audit of the design work found this repository’s claim scanner matched each rule against the raw markup line while its own comment said tags were stripped first, so any claim split across two elements was invisible. It reported two wrong monthly prices where the rendered text carries eighteen. Fixed here, and the published finding count was corrected from 34 to 109.",
       "next_step": "Prove authenticated access against the activated subscription, and repeat on production."
+    },
+    {
+      "event_id": "EVT-0045",
+      "timestamp": "2026-09-20T09:31:00Z",
+      "milestone_id": "M3",
+      "task_id": "T-OWNER-PATH",
+      "agent_role": "lead",
+      "model_id": "claude-fable-5-1",
+      "status": "deployed",
+      "goal": "Trace the owner's failed production sign-in to its causes and open a supported path to a first customer workspace.",
+      "inputs": [
+        "the owner's screenshot of a failed production sign-in",
+        "the instruction to reclassify the login as an application blocker and trace it through the real route, not to ask for retries"
+      ],
+      "changed_artifacts": [
+        "apps/app/src/db/customerPort.ts",
+        "apps/app/src/db/ownerPort.ts",
+        "apps/app/src/owner/access.ts",
+        "apps/app/src/owner/port.ts",
+        "apps/app/src/owner/memory.ts",
+        "apps/app/src/owner/workspaceCreate.ts",
+        "apps/app/src/routes/owner/index.ts",
+        "apps/app/src/routes/owner/adminPages.ts",
+        "apps/app/src/routes/owner/dashboardPages.ts",
+        "docs/owner-actions.md",
+        "docs/test-cases.json"
+      ],
+      "commit_sha": "569e8e3bfaf3f9e4038235bad0db81680f256f27",
+      "decision_summary": "Four defects, found in sequence by reading the production database rather than the page. First, every sign-in request failed silently: the port passed the wrong request shape to the notification sender behind a type cast, the recipient was undefined, the throw was swallowed as failed and no row was written (fixed in 8dd1a5f; a real delivery to the owner's address followed). Then, with delivery proven, production still held 0 users, 0 platform owners, 0 workspaces and 0 redeemed links out of 11 issued, and three further absences were structural: signup is closed and the seed script refuses production by design, so no path created a workspace; no page existed to enrol an authenticator, so the two-factor gate in front of every consequential owner action could never be passed; and the verify route called the TOTP check without a session id, so a correct code was accepted, audited as accepted, and stamped nothing the gate could see. Added an owner-panel workspace.create action (consequential, MFA-fresh, audited, structurally absent from the automation identity), an /admin/authenticator page that shows the seed and recovery codes on one no-store response, and a verify route that resolves this session's id the way the login-complete route does and checks CSRF, which it did not.",
+      "alternatives_considered": [
+        "Ask the owner to keep retrying the sign-in, which the owner had explicitly ruled out.",
+        "Seed the owner's workspace by hand in the production database, which bypasses every safeguard the product has and was ruled out for that reason.",
+        "Loosen the two-factor gate for the first owner action, which would have removed the control instead of making it reachable."
+      ],
+      "decision_reason": "Each control was correct and unreachable: the enrolment function was tested and uncalled, the gate demanded a stamp no route could write, and the workspace guard on the webhook path presumed a creation path that did not exist on this deployment. A page that returns 200 and a mocked email test would have shown none of this; the production tables did. Every fix keeps the control and adds the missing road to it.",
+      "test_evidence_refs": [
+        "production database at 08:58Z: users 0, owners 0, authenticators 0, workspaces 0, memberships 0, live sessions 0, sign-in links 11 issued / 0 redeemed",
+        "AUTH-451: enrol, correct code with this session's id, mfa_verified_at stamped, authorise(workspace.create) permits",
+        "AUTH-452: the same correct code with no session id stamps nothing - the production defect kept as a tripwire",
+        "AUTH-437/438: workspace, admin membership and audit row written; an admin who signed in before any workspace existed gets the membership on their existing user",
+        "OWNER-908..916: stale MFA refused, automation refused by capability, seed shown once and never again, CSRF on enrol and verify",
+        "CI 35502274339 success; production /health commit 569e8e3 at 09:31:33Z; anonymous /admin/authenticator and /owner/customers answer 404"
+      ],
+      "limitations": "Nothing here has yet been exercised by the owner on production: the bootstrap address is not configured on the deployment, the bootstrap token's value is not known to be held by the owner, and no authenticator exists. docs/owner-actions.md lists those steps in order. The secret and recovery codes are shown as text, not a QR code.",
+      "next_step": "Owner sets OWNER_BOOTSTRAP_EMAIL and a token, claims the owner account, enrols, creates the isolated test workspace, signs in as it; then the production-origin sandbox checkout."
+    },
+    {
+      "event_id": "EVT-0046",
+      "timestamp": "2026-09-20T09:20:00Z",
+      "milestone_id": "M-GROWTH",
+      "task_id": "T-CAMPAIGN-SUBMITTED",
+      "agent_role": "lead",
+      "model_id": "claude-fable-5-1",
+      "status": "externally_confirmed",
+      "goal": "Submit the Google Ads campaign within the authorised GBP 15.00 all-in cap on the account's actual fee and tax treatment.",
+      "inputs": [
+        "the owner's instruction to recheck Google's actual billing treatment and any applicable fees, and never to substitute a daily budget for the approved campaign total"
+      ],
+      "changed_artifacts": ["docs/campaign-packet.md", "docs/launch-checklist.md"],
+      "commit_sha": "91649e8",
+      "decision_summary": "The owner published the campaign after clearing an ad blocker. Reading the campaign back afterwards showed it had been published with no keywords and no ads - Google's diagnostics said so - and Google's own help page states a 2% UK Digital Services Tax fee is added on top of spend with VAT applied to the fee, which the GBP 12.46 figure had not allowed for (12.46 x 1.02 x 1.20 = 15.25, over the cap). The campaign total was lowered to GBP 12.25 (14.99 gross) and verified across a reload; the five exact-match keywords and eight negatives from the packet were saved; the responsive search ad was entered verbatim from the packet with the utm_campaign final URL. Saving the ad raised Google's identity challenge, which is the owner's to complete.",
+      "alternatives_considered": [
+        "Leave the budget at 12.46 and describe 14.95 as the expected bill, which a calculated VAT figure would have supported and the account's fee treatment does not.",
+        "Enter a daily budget, which the owner had forbidden."
+      ],
+      "decision_reason": "A calculated VAT figure is not account-level evidence; the fee is on Google's own page and the account is a UK postpay individual with no VAT number, so it applies. The campaign the owner published was not the campaign in the packet, and saying 'submitted' about an empty ad group would have been the flattering claim this product exists to refuse.",
+      "test_evidence_refs": [
+        "Google Ads Overview header reads Budget: GBP 12.25/campaign after a full reload",
+        "Keywords table: five rows, all Exact match; Negative keywords table: eight rows, campaign level",
+        "Google diagnostics before the fix: 'Campaign has no keywords', 'Campaign has no ads'; status 'Not eligible - low search volume, under review' after",
+        "Spend GBP 0.00; no impression has been served"
+      ],
+      "limitations": "The ad is filled in but not saved: Google's identity challenge stands between the Save button and the account, and only the owner may complete it. Low search volume on exact-match keywords means zero impressions is a possible outcome for the whole run. The campaign name still says 'capped GBP 12.46 net'; the budget control, not the name, caps spend.",
+      "next_step": "Owner completes the identity challenge and saves the ad; read the campaign status back and report drafted / submitted / approved / delivering as separate states."
     }
   ]
 }
