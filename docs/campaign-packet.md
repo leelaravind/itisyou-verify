@@ -1,387 +1,354 @@
-# Campaign packet — first advertising experiment
+# Campaign readiness packet — Google Ads Search, September 2026
 
-**Prepared by:** A12 (Growth and Launch), 2026-09-19.
-**Status: NOT APPROVED. NOT SUBMITTED. NOTHING HAS BEEN SPENT.**
-No advertising account exists. No campaign has been created. No ad platform API has been
-called.
+**Prepared by:** Growth lane, 20 September 2026, 06:57 UTC.
+**Campaign state today: DRAFTED.** Not submitted. Not approved. Not delivering.
+**Spent to date: GBP 0.00.** The draft has never served an impression.
 
-This is the document the owner reads and approves. Approving it binds a hash over
-`{ budget_minor, audience, creative, destination, duration }`
-(`apps/app/src/growth/approval.ts`). After that, changing any of those five invalidates the
-approval automatically — including changing the budget by one penny.
+This is the one page the owner reads and approves in a sitting. Everything below is either
+read from the live Google Ads wizard, the live databases, or the build record in
+`docs/advertising.md` sections 11–12, and each fact says which. Where a value could not be
+read today it says **unknown** or **read back on screen**, never a guess.
 
----
-
-## 0. Read this before approving
-
-`docs/advertising.md` is the feasibility answer and it says, plainly:
-
-> No paid platform we can reach will reliably deliver ten genuine external human visits for
-> £15. The best paid option (Reddit) buys about **four to eight clicks**, and about **three
-> to seven observed landing sessions**.
-
-**The recommendation is to not spend this money yet**, and to get the first ten visits from
-one honest post in r/n8n / r/msp / Indie Hackers instead, at £0. This packet exists so that
-_if_ the owner decides to run the paid experiment anyway, it runs under a real ceiling with
-honest copy and an automatic stop — not so that it gets run.
-
-**Two blocking checks. Both must pass before this packet can be approved:**
-
-| #      | Check                                                                                                                  | Why it blocks                                                                                                                                                                    |
-| ------ | ---------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **B1** | Open Reddit's campaign creation flow and **read the minimum total (lifetime) budget on screen**.                       | Our figure is **$25** and is *secondary and unverified*. $25 is more than the whole £15 allocation. If $25 is correct, this campaign cannot be created and the packet is void.   |
-| **B2** | Confirm **which currency** Reddit will bill this account in, and the card's non-sterling transaction fee if it is USD. | The cap in this repository is integer pence. If billing is USD, the gross GBP exposure moves with the exchange rate and §5's arithmetic has to be redone at the rate on the day. |
+It supersedes the 19 September Reddit packet that previously lived in this file. That
+packet was never approved; the platform decision moved to Google Ads on 20 September once
+the live wizard showed a campaign total budget exists for Search
+(`docs/advertising.md` §12).
 
 ---
 
-## 1. Platform and account
+## Read from the billing account on 20 September 2026, not assumed
 
-| Field                 | Value                                                                                                                                                               |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Platform              | **Reddit Ads** (self-serve, `ads.reddit.com`)                                                                                                                       |
-| Account               | **Does not exist.** The owner creates it. No agent creates accounts.                                                                                                |
-| Account owner         | The founder, personally                                                                                                                                             |
-| MFA                   | **Must be enrolled before a payment method is added.** Non-negotiable.                                                                                              |
-| Business verification | Unknown — Reddit's requirement and timeline were not established. Budget time for it.                                                                               |
-| API access            | **None.** Campaign is operated by hand through the Reddit UI; we record what the owner did and what the platform said. See `packages/connectors/src/ads/manual.ts`. |
-| Why one platform      | The £15 is not split. Splitting it across two platforms halves an already-insufficient budget and doubles the number of things that can silently overspend.         |
+Opened `Billing > Settings` and `Billing > Summary` on account 227-475-1523 in the owner's
+authenticated session. What the account itself says:
 
----
+| Setting                               | Value on screen                              | What it means for the cap                                                                       |
+| ------------------------------------- | -------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Payer account type                    | **Individual**                               | Not a VAT-registered business                                                                   |
+| Country/region                        | United Kingdom (GB)                          | UK VAT applies                                                                                  |
+| United Kingdom tax info               | **blank** (no VAT number entered)            | Google adds UK VAT at the standard rate to the net spend                                        |
+| How you pay                           | **Postpay**, billed on the 1st of each month | Charges follow activity; nothing is prepaid                                                     |
+| Payment threshold                     | **GBP 7.50**                                 | A billing _trigger_, not a spending limit: when the balance reaches it, a charge is taken early |
+| Primary payment method                | Mastercard, last four 9563                   | The card that will be charged                                                                   |
+| Backup payment method                 | none                                         | Irrelevant to the cap                                                                           |
+| Balance / net cost / payments to date | GBP 0.00 / GBP 0.00 / none                   | Nothing has ever been spent                                                                     |
+| Account-level spending limit          | **none exists** on any billing page          | The only ceilings are the campaign's total budget and end date                                  |
 
-## 2. Objective and conversion definition
+**So the arithmetic is now anchored to the account, not to a guess:** the campaign total
+budget is a _net_ figure; Google adds UK VAT for a UK individual payer with no VAT
+registration. GBP 12.46 net at the 20% standard rate is GBP 14.95 gross (14.952), inside the
+GBP 15.00 all-in authorisation with 5p to spare. A campaign total budget is a hard ceiling
+on net spend for the campaign's lifetime (unlike a daily budget, which Google may exceed
+on a given day), and the end date of 30 September stops delivery regardless.
 
-| Field                        | Value                                                                                                                                                       |
-| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Platform objective           | **Traffic** (clicks to the site). Not Conversions — we have nothing like the volume an optimiser needs, and a conversion objective on four clicks is noise. |
-| Optimisation goal            | Clicks                                                                                                                                                      |
-| **What we count as success** | See below. Three separate numbers. None is derived from another.                                                                                            |
+What this does NOT establish: whether the VAT rate the invoice actually applies is exactly
+20% and not a different figure. That can only be read from the first invoice, and there is
+no invoice yet because nothing has been spent. If the first document shows a different
+rate, the campaign is paused before the second.
 
-**The conversion definition, precisely:**
+## 1. The spending authorisation, restated
 
-> A **workspace is created** and its **HubSpot connection reaches `ready`**
-> (`ConnectionStatus`, `packages/contracts/src/status.ts`).
-
-That is the only thing we call a conversion, because it is the first point at which someone
-has done real work rather than looked at a page.
-
-Three figures are reported separately and are **never reconciled with each other**
-(`apps/app/src/growth/analytics.ts`):
-
-1. **Platform clicks** — what Reddit says it charged us for.
-2. **Observed landing sessions** — what actually reached our Worker, classified `external`,
-   deduplicated by a daily-rotating salted hash. An estimate of visits, **never** described
-   as unique people.
-3. **Qualified signups** and **paid customers** — from our own records.
-
-They will not agree. That gap is information (mis-taps, immediate back-outs, clicks that
-were not clicks) and it is reported, not averaged away.
-
-**The ten-visit target is measured on figure 2 only**, and excludes anything classified
-`internal_test`, `bot_suspected` or `unknown`. Our own testing never counts toward the ten.
-
----
-
-## 3. Creative — the exact text that will run
-
-Adapted from the approved copy. No new claim has been introduced. Reddit's headline field
-accepts up to 300 characters, so nothing needed cutting; the call-to-action is a fixed
-platform button, so the CTA sentence moves into the body.
-
-### Ad A — primary
-
-**Headline (35 characters):**
-
-> Did your automation finish the job?
-
-**Body (186 characters):**
-
-> Check CRM records and email outcomes against your rules. See evidence when a run passes,
-> fails or cannot be verified. HubSpot and Resend only, one workflow shape. Explore ITISYOU
-> Verify.
-
-**Call-to-action button:** `Learn More` (Reddit's fixed list; "Explore ITISYOU Verify"
-cannot be a button, so it is the last line of the body).
-
-**Display/brand name:** ITISYOU Verify
-
-### Ad B — variant, same claim, narrower hook
-
-**Headline (45 characters):**
-
-> Your workflow said it worked. Did it, though?
-
-**Body (179 characters):**
-
-> We read the CRM record and the email event back ourselves and check them against your
-> rules. Pass, fail, or not enough evidence to say. HubSpot and Resend. Explore ITISYOU
-> Verify.
-
-**Call-to-action button:** `Learn More`
-
-### Why the copy says what it says
-
-| Line                                                          | What makes it true                                                                                                                 |
-| ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| "Check CRM records and email outcomes against your rules"     | `assertionSpecSchema` operators against `CRM_FIELD` / `EMAIL_FIELD` (`packages/contracts/src/rules.ts`)                            |
-| "See evidence when a run passes, fails or cannot be verified" | `RUN_STATUS` is exactly `PENDING`/`VERIFIED`/`FAILED`/`UNVERIFIED` — the three named outcomes, no fifth state                      |
-| "We read the CRM record and the email event back ourselves"   | `EvidenceOrigin: 'provider_readback'`; the HubSpot and Resend connectors exist (`packages/connectors/src/hubspot.ts`, `resend.ts`) |
-| "HubSpot and Resend only, one workflow shape"                 | `docs/product-scope.md` §4 — stated in the ad rather than hidden on the landing page, because it qualifies the click               |
-
-### Forbidden in this or any ad
-
-Checked mechanically by `forbiddenClaimsIn()` in `apps/app/src/growth/approval.ts`, and
-asserted in `tests/unit/growth/campaign-packet.test.ts`:
-
-`guaranteed accuracy` · `certified secure` · `works with every AI` / `works with any AI` ·
-`never lose a lead` · `never miss a lead` · `100% uptime` · `real-time verification` ·
-`instant results` · any income or revenue guarantee · any invented testimonial ·
-any customer count · `trusted by thousands` / `join thousands of`
-
-Also forbidden by judgement rather than by string match: any implication that we fix the
-automation, that we work with CRMs other than HubSpot, that results are instant (a run can
-take up to an hour to settle), or that we can detect a run that never started (only true in
-`coverage_mode: 'independently_sourced'`).
-
-**Platform auto-enhancement must be off.** If Reddit offers to rewrite, translate, shorten
-or generate creative variants, it is declined. An auto-generated headline is an unapproved
-claim, and it would invalidate the approval hash the moment it changed the creative.
-
----
-
-## 4. Audience, geography and language
-
-| Field                                                      | Value                                                                                                                                                                                                      |
-| ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Audience description                                       | People who build and maintain automations for their own clients — small agencies and freelance automation builders                                                                                         |
-| **Targets (communities)**                                  | `r/n8n`, `r/Zapier`, `r/automate`, `r/msp`                                                                                                                                                                 |
-| Reserve communities (NOT approved; would need re-approval) | `r/sysadmin`, `r/nocode`, `r/smallbusiness`                                                                                                                                                                |
-| Interest targeting                                         | **Off.** Community targeting only — it is the one signal on this platform that means what it says.                                                                                                         |
-| **Negative / exclusion keywords**                          | `job`, `jobs`, `hiring`, `career`, `salary`, `course`, `tutorial`, `certification`, `free`, `crack`, `download`, `student`, `homework`, `giveaway`                                                         |
-| Geography                                                  | **United Kingdom (`GB`) only.** Not because the product is UK-only, but because the budget cannot survive a global auction and UK traffic is the only traffic we can follow up on in the owner's timezone. |
-| Language                                                   | English (`en`)                                                                                                                                                                                             |
-| Device                                                     | All. No exclusion — excluding mobile would shrink an already thin delivery.                                                                                                                                |
-| Frequency cap                                              | 1 impression per user per day, if the platform offers it. Ten impressions to one person is a waste of a four-click budget.                                                                                 |
-
-**Honest note on the audience:** these communities dislike advertising. The ad will be
-downvoted and may be reported. That is a cost of this channel, not a surprise, and it is
-another reason §7 of `docs/advertising.md` recommends the organic route first.
-
----
-
-## 5. Budget, bidding and the gross ceiling
-
-Every figure is an integer number of minor units. Nothing here is computed as a float.
-
-| Field                                         | Value                                                                                                                                                                                   |
-| --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Allocation (`BUDGET.ALLOC_ADVERTISING_PENCE`) | **1500 pence (£15.00)** — treated as a **gross** ceiling, the maximum that may leave the founder's account                                                                              |
-| Budget type                                   | **Total / lifetime budget.** Not a daily budget. If Reddit will not accept a total budget at this level (check **B1**), the packet is void.                                             |
-| Proposed total budget                         | **$13.00 USD** (or **1150 pence** if Reddit bills in GBP)                                                                                                                               |
-| VAT                                           | **20%**, assumed charged — the founder is assumed **not** VAT-registered. If registered, the reverse charge applies, 20% disappears, and this packet must be re-costed and re-approved. |
-| Card non-sterling fee                         | **~3%**, assumed, if billed in USD. Confirm with the issuer (check **B2**).                                                                                                             |
-
-**Gross maximum exposure, including VAT:**
+**GBP 15.00 all-in, including UK VAT at 20%.** Not GBP 15 of media plus tax. The campaign
+is built to **GBP 12.46 net**, which is **GBP 14.95 gross**. Nothing in this packet
+proposes more, and nothing in this packet may be read as a request for more.
 
 ```
-net ad spend                       1150 pence   (£11.50)
-+ VAT at 20%                        230 pence
-= subtotal                         1380 pence
-+ non-sterling card fee ~3%          42 pence
-= GROSS MAXIMUM EXPOSURE           1422 pence   (£14.22)
-headroom against the allocation      78 pence
+media (campaign total budget)      12.46
+VAT at 20%      12.46 x 0.20   =    2.492  ->  2.49 to the penny
+gross           12.46 + 2.49   =   14.95
+                                   (14.952 exactly; 14.96 if the invoice rounds VAT up)
+headroom under GBP 15.00            0.05   (0.04 in the round-up case)
 ```
 
-**£14.22 is the number the owner is approving.** The `maximum_amount_minor` on the approval
-record is set to **1422**, and `publishApproved` refuses outright if the packet budget
-exceeds it (`packages/connectors/src/ads/manual.ts`, asserted by `ADS-016`).
+The earlier daily-budget derivation (GBP 0.41 x 30.4 = 12.46 net, 14.96 gross) is
+recorded in `docs/advertising.md` §11 and is superseded: with a campaign **total** budget
+there is no monthly multiplier and no reliance on Google's overdelivery guarantee.
 
-The gated £30 contingency (`BUDGET.CONTINGENCY_GATED_PENCE = 3000`) is **not** available to
-this campaign and is not assumed anywhere in this packet.
-
-### Bidding constraints
-
-| Field                                     | Value                                                                                                                                                                                                                                                   |
-| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Bid strategy                              | **Manual CPC** — an automatic strategy on a four-click budget optimises nothing and removes our only control                                                                                                                                            |
-| Maximum CPC                               | **$2.00**. Above this the budget buys fewer than seven clicks and the experiment stops being informative.                                                                                                                                               |
-| Bid changes permitted without re-approval | **Reducing** the max CPC, and pausing. Both shrink exposure.                                                                                                                                                                                            |
-| Bid changes requiring fresh approval      | **Raising** the max CPC, raising the budget, adding a community, widening geography, extending the end date, or changing a word of the creative. Enforced by `classifyChange()` in `apps/app/src/growth/approval.ts` (`ADS-037`, `ADS-038`, `ADS-039`). |
+VAT is assumed to apply because the payments profile is an **Individual** UK profile
+(`docs/advertising.md`, "Decision two"). If the owner is VAT-registered and enters the VAT
+number, the reverse charge removes the 20% and the campaign simply spends GBP 12.46 — the
+safe direction to be wrong in. The media budget is **not** raised to fill that gap.
 
 ---
 
-## 6. Destination URL
+## 2. The four states, and which one this is
+
+| State          | Meaning — exactly                                                                                  | Today |
+| -------------- | -------------------------------------------------------------------------------------------------- | ----- |
+| **drafted**    | Exists only as a Google Ads draft. Cannot serve. Cannot spend. Google has not reviewed it.         | **X** |
+| **submitted**  | The owner has pressed Publish; Google's policy review is running. Still cannot serve.              |       |
+| **approved**   | Google's review returned "Eligible". Can serve as soon as it is enabled and the start date passes. |       |
+| **delivering** | Has served at least one impression. Money can now be accruing.                                     |       |
+
+These four words are used in these four senses only, here and in every report. A draft is
+not "live". A submitted campaign is not "approved". An approved campaign that has served
+nothing is not "delivering". The line between **approved** and **delivering** is the line
+between GBP 0.00 and a bill.
+
+Today the campaign is **drafted**, and the draft is not even complete: the budget step has
+not been saved (section 5).
+
+---
+
+## 3. The campaign as built
+
+Read today from the URL of the open Google Ads wizard tab, unless marked otherwise.
+
+| Field              | Value                                                | How known                                                                               |
+| ------------------ | ---------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| Google Ads account | **227-475-1523 "ITISYOU Verify"**                    | Account chooser, read on screen today (the older account 129-611-7160 is also listed)   |
+| Campaign name      | **Verify search - Sept 2026 - capped GBP 12.46 net** | Wizard URL, today                                                                       |
+| Campaign id        | **281499240699016**                                  | Wizard URL, today                                                                       |
+| Draft id           | **10214818128**                                      | Wizard URL, today                                                                       |
+| Objective          | Website traffic                                      | Build record §11                                                                        |
+| Campaign type      | Search                                               | Build record §11–12                                                                     |
+| Bidding            | Maximise clicks, **max CPC GBP 1.20**                | Build record §11; **read back on screen** — the §12 rebuild did not restate the figure  |
+| Dates              | **20 Sept 2026 – 30 Sept 2026**                      | Build record §11; **read back on screen** — same reason                                 |
+| Locations          | United Kingdom                                       | Build record §11                                                                        |
+| Languages          | English                                              | Build record §11                                                                        |
+| Landing page       | `https://verify.itisyou.app/demo`                    | Build record §11 — see section 3.3 on the missing UTM                                   |
+| Budget             | **Campaign total budget GBP 12.46 — NOT YET SAVED**  | §12: saving it raised Google's identity challenge; footer read "Changes failed to save" |
+
+The ids recorded in `docs/advertising.md` §11 (campaign `281499240660433`, draft
+`10214870512`) belong to the first attempt, which did not persist ("Drafts in progress: 0",
+§12). The ids above are the rebuild's. **Whether this draft has persisted is unknown until
+the owner sees it in the Drafts list** — the first thing to check in section 6.
+
+### 3.1 Networks and settings — on / off
+
+| Setting                         | State          | Why                                                                                        |
+| ------------------------------- | -------------- | ------------------------------------------------------------------------------------------ |
+| Google Search                   | **ON**         | The only network with search intent                                                        |
+| Google search partners          | **OFF**        | On by default. Parked domains dilute a GBP 12.46 budget                                    |
+| Google Display Network          | **OFF**        | On by default. Cheap, low-intent clicks would consume the whole allowance                  |
+| Enhanced conversions            | **OFF**        | On by default. Sends customer-provided data to Google — incompatible with the privacy page |
+| Conversion tracking             | **NOT SET UP** | Needs a Google tag on the site — a third-party script and an undeclared subprocessor       |
+| AI Max                          | **OFF**        | Google may not rewrite the copy                                                            |
+| Text customisation              | **OFF**        | Confirmed on screen today: "Text customisation and Final URL expansion turned off"         |
+| Final URL expansion             | **OFF**        | Same line                                                                                  |
+| Audience segments / remarketing | **NONE**       | Nothing that could profile a visitor                                                       |
+
+Visits are measured by the deployment's own first-party counter (`visit_sessions` table),
+not by Google.
+
+### 3.2 Keywords — exact match only, and negatives
 
 ```
-https://verify.itisyou.app/?utm_source=reddit&utm_medium=cpc&utm_campaign=verify_first_test&utm_content=ad_a
+[did my zapier automation actually run]
+[check if automation created crm record]
+[verify n8n workflow completed]
+[automation silently failed no error]
+[how to know if workflow actually worked]
 ```
 
-(Ad B uses `utm_content=ad_b`. This is the **real production host**, confirmed live by the
-lead on 2026-09-19 — it is not a placeholder, so the URL above is the URL that will be
-pasted into the platform. Changing it later changes `destination` and therefore requires a
-fresh approval; it cannot be slipped in after signing.)
+Negatives: `free`, `tutorial`, `course`, `jobs`, `salary`, `what is automation`,
+`zapier login`, `make.com login`.
 
-| Field          | Value                                                                                                                                                                                  |
-| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `utm_source`   | `reddit`                                                                                                                                                                               |
-| `utm_medium`   | `cpc`                                                                                                                                                                                  |
-| `utm_campaign` | `verify_first_test`                                                                                                                                                                    |
-| `utm_content`  | `ad_a` / `ad_b`                                                                                                                                                                        |
-| Landing page   | The public marketing page. It must state the exclusions from `docs/product-scope.md` §4 above the fold. Paying to send someone to a page that oversells is worse than not advertising. |
-| Redirects      | **None.** The URL pasted into the platform is the URL that serves. A redirect chain loses UTMs and breaks attribution.                                                                 |
-| Scheme         | HTTPS only                                                                                                                                                                             |
+Exact match only. Broad match on GBP 12.46 is how the money leaves in an hour.
 
-UTM values arriving back at the Worker are attacker-controlled and are validated against
-`/^[A-Za-z0-9_.\-]{1,64}$/`; anything else is dropped rather than stored (`ADS-012`). A
-session arriving with no UTM at all still counts as a visit, but is reported as
-_unattributed_, never as ad-attributed (`ADS-104`).
+### 3.3 The ad — verbatim, as entered in the rebuild (§12)
 
----
+| Slot          | Text                                                                                 | Chars |
+| ------------- | ------------------------------------------------------------------------------------ | ----- |
+| Headline 1    | Did the automation do it?                                                            | 25    |
+| Headline 2    | Check the outcome, not logs                                                          | 27    |
+| Headline 3    | We read Resend back ourselves                                                        | 29    |
+| Headline 4    | Four answers, never a fifth                                                          | 27    |
+| Headline 5    | Evidence, not a green tick                                                           | 26    |
+| Description 1 | Your workflow says success. We read the outcome back from Resend ourselves.          | 75    |
+| Description 2 | Verified, failed, unverified, pending. Missing evidence is never reported as a pass. | 84    |
+| Description 3 | One workflow. HubSpot and Resend only. We say plainly what we could not check.       | 78    |
 
-## 7. Schedule
+Every line was checked today against the live staging database: Resend read-back
+evidence exists (three `provider_readback` rows), the four statuses are the only ones the
+schema admits (`CHECK (status IN ('PENDING','VERIFIED','FAILED','UNVERIFIED'))`), and
+"HubSpot and Resend only" names the two providers the `connections` table permits. No
+headline claims HubSpot read-back, because no HubSpot evidence row exists anywhere.
 
-| Field          | Value                                                                                                                                                                                                                                                         |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Start          | **2026-10-05, 09:00**                                                                                                                                                                                                                                         |
-| End            | **2026-10-11, 23:59**                                                                                                                                                                                                                                         |
-| Timezone       | **Europe/London**, set explicitly in the platform's schedule field                                                                                                                                                                                            |
-| Duration       | 7 days                                                                                                                                                                                                                                                        |
-| Calendar month | Entirely within October. **Deliberate.** A campaign that crosses a month boundary gets a fresh monthly allowance on platforms whose only ceiling is monthly; keeping inside one month is a standing discipline even here, where a total budget makes it moot. |
-| Dayparting     | None. The budget is too small for dayparting to mean anything.                                                                                                                                                                                                |
+Google's own pre-filled copy — including the headline "Verification Of Fake Facts" — was
+discarded in full (§12). The three "off" settings above are what stop it coming back.
 
-The dates move if Reddit's account verification takes longer than expected. **Moving them
-changes `duration` and invalidates the approval** — that is intended, and re-approving a
-date change costs the owner thirty seconds.
+**Final URL — one correction needed on screen.** The landing page as built carries no UTM
+parameters. The first-party counter attributes a session to a campaign only when
+`utm_campaign` is present (`apps/app/src/growth/analytics.ts`, `attributeSignup` refuses
+with `no_campaign_utm`), and the packet validator in `approval.ts` rejects a destination
+without one. Before enabling, set the final URL to:
 
----
+```
+https://verify.itisyou.app/demo?utm_source=google&utm_medium=cpc&utm_campaign=verify_search_2026_09
+```
 
-## 8. The platform's cap behaviour, in its own terms
-
-Recorded verbatim so that if the platform behaves differently, we can show what we were
-told. Stored in code at `packages/connectors/src/ads/facts.ts`.
-
-> "Your ad group will try to deliver your average daily spend each day until you hit your
-> total budget. After that, your ad will turn off."
-
-Source: Reddit Ads Help Centre, _How much do Reddit Ads cost?_, as indexed on 2026-09-19.
-**`primary_source: false`** — the page is JavaScript-rendered and returned HTTP 401 to an
-unauthenticated fetch, so this wording was not read at the source. **The owner must confirm
-the equivalent sentence on screen** when creating the campaign.
-
-For contrast, the two platforms this packet rejects:
-
-- **Google Ads:** "On a given day, your campaign might spend up to twice your average daily
-  budget... At the end of the month, you will have spent no more than 30.4 times your
-  average daily budget." No total ceiling; prepay unavailable in the UK.
-- **Microsoft Advertising:** "the service calculates the monthly budget limit by multiplying
-  the daily budget by the number of days in the month... the campaign is paused
-  automatically", and overspend is "usually... less than 100% above your daily limit".
+This changes attribution only. It changes nothing about spend.
 
 ---
 
-## 9. Automatic stop rules
+## 4. Every spending control, what it caps, and how it was verified
 
-Implemented in `apps/app/src/growth/stops.ts`. Each returns a typed reason code. Severity
-`halt` means stop now; `warn` means tell the owner.
+Read this table knowing one thing first: **a UK Google Ads account is postpay and has no
+account-level ceiling.** Prepay is not offered in the United Kingdom
+(`docs/advertising.md` §3, Google's payment-settings page read 19 Sept). Google extends
+credit and charges the card at a payment threshold or monthly. There is no balance to run
+out. An "account spending limit" exists only for monthly-invoiced accounts, which this is
+not.
 
-| Reason code                      | Trigger                                                                                     | Severity |
-| -------------------------------- | ------------------------------------------------------------------------------------------- | -------- |
-| `allocated_exposure_reached`     | observed spend ≥ 1150 pence net                                                             | halt     |
-| `allocated_exposure_approaching` | observed spend ≥ 850 pence (allocation minus the 300-pence buffer)                          | warn     |
-| `spend_unknown_too_long`         | we have not known what was spent for more than 24 hours                                     | halt     |
-| `billing_anomaly`                | spend is negative, non-integer, in an unexpected currency, or a charge we did not authorise | halt     |
-| `landing_page_broken`            | the landing page is not serving                                                             | halt     |
-| `checkout_broken`                | checkout is not completing                                                                  | halt     |
-| `approval_revoked`               | the approval is revoked or expired                                                          | halt     |
-| `owner_command`                  | the owner said stop                                                                         | halt     |
-| `critical_incident`              | any critical incident anywhere in the product                                               | halt     |
+**The real ceiling is therefore: the campaign total budget (GBP 12.46) plus VAT, and it
+holds only while (a) that budget is saved with that figure, (b) the campaign has a fixed end
+date, and (c) exactly one campaign exists in the account.** Nothing else in the account
+caps anything.
 
-Two properties that matter more than the list:
+| Control                                                      | What it actually caps                                                                     | What it does NOT cap                                                                                          | Verified how                                                                                                                                                                        | Status                                   |
+| ------------------------------------------------------------ | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| **Campaign total budget GBP 12.46**                          | Media spend for this campaign over its whole run                                          | VAT; any second campaign; a later edit of the figure                                                          | The control was seen in the live budget step (§12); both removed legacy campaigns in the old account used it (baseline entry); Google's help states billed spend will not exceed it | **NOT SAVED** — identity challenge       |
+| **Fixed end date 30 Sept 2026**                              | Duration; the total budget cannot be stretched by an open-ended run                       | Spend within the window (the total budget does that)                                                          | Build record §11; Google requires at least three days for a total budget                                                                                                            | Configured; read back on screen          |
+| **Max CPC GBP 1.20**                                         | The price of any single click                                                             | Total spend — it is a rate, not a sum                                                                         | Build record §11                                                                                                                                                                    | Configured; read back on screen          |
+| **Search partners OFF, Display OFF**                         | Dilution into cheap, wrong-audience inventory                                             | Nothing monetary — a quality control, not a cap                                                               | Build record §11                                                                                                                                                                    | Configured                               |
+| **One campaign in the account**                              | Keeps the total budget the only exposure                                                  | It is a discipline, not a setting. Google will not stop a second campaign                                     | Old account: three legacy campaigns removed (baseline). New account: **campaign count not read today** — read the Campaigns list                                                    | **Read on screen**                       |
+| **Account-level ceiling**                                    | **None exists.** Postpay, UK                                                              | —                                                                                                             | `docs/advertising.md` §3 and "Decision one"                                                                                                                                         | **Not available — do not assume one**    |
+| **Payment method on file**                                   | Whether the campaign can serve at all                                                     | Spend, once one is present                                                                                    | **Unknown** — not visible to this lane; owner reads Billing > Settings                                                                                                              | **Unknown**                              |
+| **Code-side gate** (`campaigns` table, approval consumption) | What _our_ software will record and act on                                                | **Anything the owner clicks inside Google Ads.** Our gate is not between the owner and Google's Enable button | Production `campaigns` table read today: **0 rows**. Activation-consumes-approval is LOCAL-TESTED only (`docs/gap-register.md`)                                                     | Not a spending control for this campaign |
+| **Owner "pause ads" switch**                                 | Nothing yet — the gap register records the switch writes a row that no middleware reads   | Everything                                                                                                    | `docs/gap-register.md`, "Owner pause switches actually suspend — OPEN"                                                                                                              | **Do not rely on it**                    |
+| **The GBP 30 contingency**                                   | Out of scope. Separately gated, untouched, and not referenced by this packet as available | —                                                                                                             | `docs/spend.md`                                                                                                                                                                     | Not part of this campaign                |
 
-- **Unknown spend is not zero spend.** A campaign whose spend we cannot read is halted, not
-  assumed free (`ADS-094`, `ADS-088`).
-- **No floating-point arithmetic touches the cap.** Asserted at source level by `ADS-098`,
-  which strips comments from `stops.ts` and fails if any decimal literal, `parseFloat`,
-  `toFixed`, `Math.round`, `Math.ceil` or any division other than milliseconds-to-seconds
-  appears in the file.
-
----
-
-## 10. How a pause is verified
-
-**A local pause flag is not proof delivery stopped.** Neither is an API call returning 200,
-and neither is spend that happens to look flat.
-
-`verifyPause()` (`apps/app/src/growth/stops.ts`) returns one of three answers:
-
-| Verdict         | When                                                                                                                           |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `paused`        | a **fresh reconciled provider read** shows paused or ended, **or** the owner explicitly confirms they looked and it was paused |
-| `pause_pending` | we asked, and nothing has confirmed it — including the case where the last provider read still shows `active`                  |
-| `unknown`       | we have not even asked, or we have no external campaign id to ask about                                                        |
-
-The owner's verification procedure, which the manual adapter emits as ordered steps
-(`packages/connectors/src/ads/manual.ts`):
-
-1. Set the campaign to paused in the Reddit ads manager.
-2. Reload after at least one minute and confirm it still shows Paused. _One read is a
-   screenshot; two are evidence._
-3. Confirm spend has not moved across the next reporting interval — **two consecutive equal
-   spend readings**.
-4. Record the confirmation here with the time it was actually observed. **Only that recorded
-   observation moves the state from `pause_pending` to `paused`** (`ADS-018`, `ADS-099`).
-
-A campaign with no external id recorded can never be reported as paused — there is nothing
-to have paused — and an `active` observation for such a campaign is refused outright
-(`ADS-075`).
+Residual risk, stated plainly: the campaign total budget bounds this campaign. It does not
+stop a second campaign being created, and it is only as good as the figure saved in it. The
+owner is the control for both.
 
 ---
 
-## 11. Duplicate-campaign guard
+## 5. What blocks the draft from being complete
 
-A create that times out may have succeeded. Retrying it blind is how a £15 budget becomes a
-£30 budget.
+One thing. Saving the budget raised Google's **"Confirm it's you"** identity challenge
+(§12). That is an authentication step on the owner's Google account, and no agent may pass
+it. Until it is passed:
 
-`planCreation()` in `apps/app/src/growth/lifecycle.ts` will not return `create` while a
-previous attempt's outcome is unknown; it returns `reconcile_first`. The reconcile either
-finds the campaign (→ `adopt_existing`), authoritatively finds nothing (→ exactly one
-`create`), or cannot tell (→ `refuse`). Asserted by `ADS-055` through `ADS-058`.
+- the budget figure is not stored, and the wizard footer showed **"Changes failed to save"**;
+- the campaign cannot be published, so it cannot move past **drafted**;
+- **it cannot spend.**
 
-Likewise, **API acceptance is never `active`**. A provider returning 2xx reaches `submitted`
-and stops there; only a reconciled provider read can produce `active` (`ADS-005`,
-`ADS-052`). On the manual adapter, `accepted_by_provider` is always `false`, because we
-submit nothing — a person does (`ADS-071`).
-
----
-
-## 12. Approval block
-
-Approving this packet binds a SHA-256 hash over the canonical form of
-`{ budget_minor, audience, creative, destination, duration }`. Reordering the JSON keys does
-not change it; changing the budget by one penny does (`ADS-032`, `ADS-033`).
-
-| Field                                                  | Value                                                                                                                               |
-| ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `action_type`                                          | `campaign_launch`                                                                                                                   |
-| `platform`                                             | `reddit`                                                                                                                            |
-| `budget_minor`                                         | `1150`                                                                                                                              |
-| `currency`                                             | `GBP`                                                                                                                               |
-| `maximum_amount_minor` (gross, incl. VAT and card fee) | `1422`                                                                                                                              |
-| `expires_at`                                           | 14 days from approval. An approval that outlives the plan is a liability.                                                           |
-| Canonical payload hash                                 | _computed at approval time by `bindApproval()` — not pre-filled here, because a hash written into a document by hand is not a hash_ |
+A second lane was driving the wizard tab at the moment this packet was read (the step
+changed between two reads), so the current footer state was not re-read. That does not
+change the state: nothing can be saved without the challenge.
 
 ---
 
-### Owner sign-off
+## 6. What the owner must personally do, in order, and what the screen will show
 
-- [ ] **B1** — I have read Reddit's minimum total budget on screen and it is at or below the net budget above.
-- [ ] **B2** — I have confirmed the billing currency and, if USD, the card's non-sterling fee.
-- [ ] I have read `docs/advertising.md` and I understand this buys approximately **four to eight clicks**, not ten visits.
-- [ ] I accept a gross maximum exposure of **£14.22**.
-- [ ] I have enrolled MFA on the Reddit account before adding a payment method.
-- [ ] I approve the creative in §3 verbatim, and I will not let the platform rewrite it.
-- [ ] I understand that the gated £30 contingency is not available to this campaign.
+Nothing here has been done. Each step is the owner's.
+
+1. **Open `ads.google.com`.** You will see the account chooser listing two accounts:
+   `129-611-7160` and **`ITISYOU Verify 227-475-1523`**. Choose the second. (The first is
+   the old INR prepay account; it has zero campaigns and must stay that way.)
+2. **Campaigns > Drafts.** You should see **"Verify search - Sept 2026 - capped GBP 12.46
+   net"**. If the list says **"Drafts in progress: 0"**, the rebuild did not persist either
+   — stop, and tell the lead; the campaign must be rebuilt from section 3 of this page
+   before anything else.
+3. **Open the draft.** Walk every step and compare against section 3 and 3.1. Fix anything
+   that differs. Set the final URL from section 3.3. Do not change the budget figure.
+4. **Budget step.** Choose **"Campaign total budget"** (not "Average daily budget") and
+   enter **12.46**. Google will recommend a much larger figure — on 20 Sept it recommended
+   GBP 23.02 for a _day_, nearly twice the entire authorisation. Ignore it.
+5. **The "Confirm it's you" dialog** will appear on saving. Complete it on your own device.
+   Then confirm the footer reads **"All changes saved"** and the budget still reads 12.46.
+6. **Billing > Settings.** Read and record: payment setting (expect "Automatic payments",
+   i.e. postpay), payments profile type (Individual), VAT number field (enter it if you
+   are VAT-registered), and whether a payment method is on file. Without a card the
+   campaign cannot serve; with one, the ceiling in section 4 is the only ceiling.
+7. **Stop here for the day.** Leave the campaign as a **draft**. Do not press Publish in
+   the same sitting as the budget change. Paste the read-back (steps 3–6) into
+   `docs/advertising.md` §13 so the record matches the account.
+8. **Later, if you still want to run it:** Publish moves the state to **submitted**. Google
+   reviews; "Eligible" in the Status column means **approved**. The first non-zero
+   impression in the Campaigns table means **delivering**, and the section 1 arithmetic is
+   now the bill to expect.
+9. **After the end date** (30 Sept): read Cost in the Campaigns table and the invoice under
+   Billing. Report billed, accrued and committed separately. Anything not visible is
+   reported as **unknown**, never as zero.
+
+---
+
+## 7. The honest expected outcome
+
+**This budget buys a handful of visits, not ten.**
+
+- At the max CPC of GBP 1.20, GBP 12.46 is **at most 10 clicks** — that is a ceiling, not
+  a forecast.
+- Published UK B2B SaaS search CPCs run GBP 3–8.72 (`docs/advertising.md` §5, secondary
+  sources). At those rates GBP 12.46 is **one to four clicks**.
+- Landing sessions run at roughly 80–90% of clicks (server-side counting), so **one to
+  three observed sessions** is the realistic range.
+- A campaign of this size on competitive keywords will frequently be "limited by budget"
+  and enter a fraction of the auctions it is eligible for. Zero impressions is a possible
+  outcome.
+
+Visits, signups and customers will be reported as three separate numbers and never summed.
+A visit is not interest, and interest is not a customer. The organic route in
+`docs/organic-launch.md` reaches the same people for GBP 0.00 and remains the recommended
+first move.
+
+---
+
+## 8. Visit attribution — the external sessions on production, read today
+
+Read-only query of the production `visit_sessions` table, 20 Sept 2026 06:50 UTC. The
+counter wrote nothing at all before 03:33 UTC today (the database port did not exist —
+`docs/organic-launch.md` §0.6), so this is the entire history.
+
+**13 rows: 5 `external`, 7 `bot_suspected`, 1 `internal_test`, 0 `unknown`.** No row
+carries any UTM parameter. The row stores no user agent, no referrer and no address (by
+design), so attribution can only come from the path, the timing, and evidence outside the
+table.
+
+| First seen (UTC) | Landing path         | Class         | Views | Verdict                            | Evidence                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| ---------------- | -------------------- | ------------- | ----- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 03:33:37         | `/`                  | bot_suspected | 29    | project tooling                    | First row ever written, 4 min after the counter's deploy commit `b1956b5` (03:29:18 UTC). Ran until 06:20 UTC over the project's own pages. Not a visitor.                                                                                                                                                                                                                                                                                                                                                         |
+| **03:33:40**     | **`/demo`**          | **external**  | 1     | **unattributed**                   | Landed **3 seconds** after the tooling row above, 4 min after the counter went live, with no UTM. The gap register (commit `08786a7`, 04:07 UTC) records this row as landing "inside this project's own working window on a page it was checking". That is the author's account, not proof. Consistent with the operator opening `/demo` in a browser before the `verify_internal` cookie existed (cookie correction landed `a77290d`, 04:01 UTC). **Not a genuine external visitor on the evidence held.**        |
+| 03:42:28         | `/`                  | internal_test | 2     | operator, cookie-marked            | The only cookie-marked session; matches the correction test the gap register describes as confirmed on production.                                                                                                                                                                                                                                                                                                                                                                                                 |
+| 04:17:00         | `/privacy`           | bot_suspected | 1     | crawler or tooling                 | UA carried a crawler marker.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| **04:55:46**     | **`/demo`**          | **external**  | 1     | **unattributed**                   | No UTM. Inside the project's working window (commits at 04:07 and 05:56 UTC either side; a deploy of the Stripe-webhook fix was in progress). A scripted `bot_suspected` fetch of the same `/demo` path followed at 04:59:04. Agent sessions on this machine drive the owner's own Chrome, whose page views are classified `external` unless the internal cookie is present in that profile — **whether it is present is unknown**. **Not a genuine external visitor on the evidence held; not ruled out either.** |
+| 04:59:04         | `/demo`              | bot_suspected | 1     | tooling                            | Crawler-marked UA.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| 05:04:08         | `/how-it-works`      | bot_suspected | 1     | tooling                            | Same.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| 05:36:12         | `/development-story` | bot_suspected | 1     | tooling                            | Same.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| 05:37:42 (x2)    | `/how-it-works`      | bot_suspected | 1+1   | tooling                            | Two hashes 0.3 s apart — two UA or language variants of the same check.                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| 05:53:39         | `/wp-json/batch/v1`  | external      | 2     | **automated probe, not a visitor** | A WordPress REST endpoint this site has never had. Browser-shaped UA, so classified `external`, but nobody types this path. Counted as external by the classifier; not counted as a visitor by anyone reading this.                                                                                                                                                                                                                                                                                                |
+| 05:55:42         | `/`                  | external      | 1     | unattributed                       | No UTM. 63 s before commit `c9267bc`. Two different hashes 11 s apart (below) — two devices, two browsers, or a UA change. Nothing more can be said from the row.                                                                                                                                                                                                                                                                                                                                                  |
+| 05:55:53         | `/`                  | external      | 1     | unattributed                       | As above.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+
+**Verdict on the two `/demo` sessions the lead asked about: both unattributed.** Neither is
+reported as a genuine external visitor. Neither is proven to be internal. **Genuine,
+attributable external visits today: 0.** Sessions classified external: 5, of which one is a
+vulnerability probe by its path and four cannot be attributed from what the table holds.
+
+**What would settle each one**, in order of strength:
+
+1. **Cloudflare Workers Logs** for `verify-itisyou-production` (observability is enabled in
+   `wrangler.jsonc`). The invocation log for `GET /demo` at 03:33:40.752Z and at
+   04:55:46.214Z carries the user agent, referer, country and colo. A UK Chrome UA with no
+   referer during the working window points inward; a non-UK country or a referer from a
+   third-party site points outward. Owner: Workers & Pages > verify-itisyou-production >
+   Logs, filter by time.
+2. **The operator's own Chrome history** for `verify.itisyou.app/demo` at 04:33:40 and
+   05:55:46 **local (BST)**. An attempt to read it from this lane was refused by the
+   permission classifier and was not retried; it is the owner's to look at.
+3. **Whether the `verify_internal=1` cookie is present in the Chrome profile agents use.**
+   If it is, agent page views are already excluded and the two rows are less likely to be
+   ours. If it is not, every agent page view since 03:33 UTC has been counted as external.
+
+Until one of those is read, the number reported anywhere is **0 genuine external visits**,
+with five external-classified sessions listed and qualified as above.
+
+---
+
+## 9. Approval
+
+Approving this packet means: the owner has read sections 1–7, accepts the state as
+**drafted**, will perform section 6 personally, and understands the expected outcome in
+section 7. It does not enable anything. It does not spend anything. Any change to budget,
+dates, destination, audience or creative after approval invalidates it.
+
+- [ ] I have read the arithmetic in section 1 and accept GBP 12.46 net / GBP 14.95 gross as the ceiling, with no request to raise it.
+- [ ] I understand the account is postpay with no account-level ceiling, and that the campaign total budget plus VAT is the only cap.
+- [ ] I understand the campaign is **drafted**, its budget is unsaved, and only I can pass the identity challenge.
+- [ ] I will complete section 6 in order, and will not publish in the same sitting as saving the budget.
+- [ ] I accept that this budget buys a handful of visits, not ten, and possibly none.
+- [ ] I understand genuine external visits today are 0, and that five external-classified sessions exist unattributed.
 
 **Signed:** ______________________ **Date:** ______________
-
-_Until every box above is ticked and this is signed, no campaign is created, submitted or
-funded. Nothing in this repository will do it for you._

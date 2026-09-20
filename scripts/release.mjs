@@ -324,8 +324,12 @@ try {
         env,
         '--var',
         `COMMIT_SHA:${candidateSha}`,
+        // No space in the value. `run()` goes through a shell on Windows, and a quoted
+        // argument containing a space arrived at wrangler as two arguments -- the second a
+        // stray positional it refused. The first attempt to deploy with a version message
+        // failed on exactly this, after every gate had passed.
         '--message',
-        `release ${candidateSha.slice(0, 12)}`,
+        `release-${candidateSha.slice(0, 12)}`,
       ],
       { cwd: APP },
     );
