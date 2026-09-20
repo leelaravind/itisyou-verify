@@ -38,9 +38,25 @@ describe('the design progress figure', () => {
     // screens because every component reads the same custom properties; that is not the
     // design being implemented. If this list is ever flipped wholesale to true because
     // "the palette applies", the figure becomes the exact claim this product refuses.
+    //
+    // Reconciled 20 September 2026: /app and /owner were the two examples here until each
+    // was built against its reference and the served screenshot compared with it. The
+    // routes below are the ones that still only wear the palette — two have no approved
+    // screen at all, so they can never be "composed against" one — and every route in the
+    // list must name an address the Worker actually serves.
     const composed = STITCH_SCREENS.filter((s) => s.composed).map((s) => s.route);
-    expect(composed).not.toContain('/app');
-    expect(composed).not.toContain('/owner');
+    for (const route of [
+      '/security',
+      '/app/onboarding/compatibility',
+      '/app/onboarding/connect',
+      '/admin/login',
+      '/support',
+      '/development-story/visual',
+    ]) {
+      expect(composed, route).not.toContain(route);
+    }
+    expect(STITCH_SCREENS.map((s) => s.route)).not.toContain('/app/onboarding');
+    expect(STITCH_SCREENS.map((s) => s.route)).not.toContain('/app/onboarding/workflow');
     expect(composed.length).toBeLessThan(STITCH_SCREENS.length);
   });
 });

@@ -35,12 +35,22 @@ export interface TableOptions<Row> {
    * a floor, not an answer — a good empty state says what to do next.
    */
   readonly empty?: Html;
+  /**
+   * Below phone-landscape width, stack each row into one record led by its column heads,
+   * the way the approved phone dashboard draws its run feed. Each cell carries its head in
+   * `data-label` so the stylesheet can repeat it; the real `<thead>` stays in the document
+   * for assistive technology. Above that width the table is the ordinary scrolling table.
+   */
+  readonly stack?: boolean;
 }
 
 export function Table<Row>(options: TableOptions<Row>): Html {
   if (options.rows.length === 0 && options.empty !== undefined) {
     return options.empty;
   }
+
+  const stacked = options.stack === true;
+  const labelFor = (column: TableColumn<Row>): string | null => (stacked ? column.header : null);
 
   /*
    * The floor.
@@ -62,7 +72,7 @@ export function Table<Row>(options: TableOptions<Row>): Html {
       : null;
 
   return html`<div class="tablewrap" role="region" tabindex="0" aria-label="${options.caption}">
-    <table class="table">
+    <table ${attrs({ class: stacked ? 'table table--stack' : 'table' })}>
       <caption ${attrs({ class: options.captionHidden === true ? 'sr-only' : null })}>
         ${options.caption}
       </caption>
@@ -82,10 +92,21 @@ export function Table<Row>(options: TableOptions<Row>): Html {
             html`<tr>
               ${options.columns.map((column) =>
                 column.rowHeader === true
-                  ? html`<th ${attrs({ scope: 'row', class: column.numeric === true ? 'num' : null })}>
+                  ? html`<th
+                      ${attrs({
+                        scope: 'row',
+                        class: column.numeric === true ? 'num' : null,
+                        'data-label': labelFor(column),
+                      })}
+                    >
                       ${column.cell(row)}
                     </th>`
-                  : html`<td ${attrs({ class: column.numeric === true ? 'num' : null })}>
+                  : html`<td
+                      ${attrs({
+                        class: column.numeric === true ? 'num' : null,
+                        'data-label': labelFor(column),
+                      })}
+                    >
                       ${column.cell(row)}
                     </td>`,
               )}

@@ -857,8 +857,12 @@ describe('the owner can see whether this deployment can actually take money', ()
     // used by neither. This is the half of that claim the owner panel owns.
     expect(body).toMatch(/money_path/);
     // The state must never read as fine while a secret is absent — the test environment has
-    // no EVENT_SIGNING_ROOT_KEY and no Stripe key, so both capabilities are lost.
-    expect(body).toMatch(/money_path: degraded/i);
+    // no EVENT_SIGNING_ROOT_KEY and no Stripe key, so both capabilities are lost. The health
+    // list is a table now (20 September 2026), so the state is read from the money-path row's
+    // own state cell rather than from a "component: state" title.
+    const row = body.slice(body.lastIndexOf('<tr', body.indexOf('money_path')), body.indexOf('</tr>', body.indexOf('money_path')));
+    expect(row).toContain('data-health-state="degraded"');
+    expect(row).not.toContain('data-health-state="ok"');
     expect(body).toMatch(/EVENT_SIGNING_ROOT_KEY/);
     // And it says what is lost, in the owner's terms, not just which names are missing.
     expect(body).toMatch(/no signed event can be verified/i);

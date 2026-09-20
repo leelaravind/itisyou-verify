@@ -34,10 +34,15 @@ import {
   Callout,
   Card,
   EmptyState,
+  PLAN_BILLING_PERIOD,
+  PLAN_CANCELLATION_WORDING,
+  PLAN_NAME,
+  PLAN_PRICE_DISPLAY,
   StatusBadge,
   html,
   type Html,
 } from '@verify/ui';
+import { LIMITS } from '@verify/contracts';
 import { pageHead } from './chrome.js';
 import type { ActivationView } from './port.js';
 
@@ -135,8 +140,16 @@ export interface BillingPageOptions {
   readonly checkoutCancelled: boolean;
 }
 
+/**
+ * Composition follows the approved billing / cancellation / support screen, translated: the
+ * subscription and the plan in the wider left column, the portal control and the card note
+ * in the narrower right one, then cancellation and support side by side as two panes that
+ * lead to their own pages. The plan facts are the content module's and the contract's — the
+ * reference draws a price, a tax line, an allowance and an invoice history that are not ours,
+ * and none of that is here. Nothing on this page charges, activates or cancels anything.
+ */
 export function BillingPage(options: BillingPageOptions): Html {
-  return html`<div class="wrap section stack-lg measure">
+  return html`<div class="wrap section stack-lg">
     ${Breadcrumb([{ label: 'Workspace', href: '/app' }, { label: 'Billing' }])}
     ${pageHead({
       eyebrow: 'Billing',
@@ -157,38 +170,80 @@ export function BillingPage(options: BillingPageOptions): Html {
         : null
     }
 
-    ${subscriptionSummary(options.activation)}
+    <div class="grid grid-7-5">
+      <div class="stack">
+        ${subscriptionSummary(options.activation)}
+        ${Card({
+          title: PLAN_NAME,
+          headingLevel: 2,
+          aside: html`<p class="price">
+            <span class="price__amount">${PLAN_PRICE_DISPLAY}</span>
+            <span class="price__period">${PLAN_BILLING_PERIOD}</span>
+          </p>`,
+          body: html`<dl class="summary">
+            <div>
+              <dt>Plan</dt>
+              <dd>${PLAN_NAME}</dd>
+            </div>
+            <div>
+              <dt>Price</dt>
+              <dd>${PLAN_PRICE_DISPLAY} ${PLAN_BILLING_PERIOD}</dd>
+            </div>
+            <div>
+              <dt>Runs included</dt>
+              <dd>${String(LIMITS.PLAN_RUNS_PER_PERIOD)} per month</dd>
+            </div>
+            <div>
+              <dt>Evidence retention</dt>
+              <dd>${String(LIMITS.EVIDENCE_RETENTION_DAYS)} days</dd>
+            </div>
+          </dl>`,
+        })}
+      </div>
+      <div class="stack">
+        ${
+          options.portal.href === null
+            ? EmptyState({
+                title: 'There is nothing to manage yet',
+                body:
+                  options.portal.reason ??
+                  'No reason was recorded, which is itself a defect worth reporting.',
+                actions: [
+                  Button({ label: 'See what you would be buying', href: '/app/onboarding/review' }),
+                ],
+              })
+            : ButtonRow([
+                Button({
+                  label: 'Open the billing portal',
+                  href: options.portal.href,
+                  variant: 'primary',
+                  external: true,
+                }),
+              ])
+        }
+        ${Callout({
+          tone: 'note',
+          title: 'Card details',
+          body: html`<p>
+            Your card is held by Stripe and never reaches us. Changing it, or seeing your invoices, happens
+            in Stripe's own billing portal above.
+          </p>`,
+        })}
+      </div>
+    </div>
 
-    ${
-      options.portal.href === null
-        ? EmptyState({
-            title: 'There is nothing to manage yet',
-            body:
-              options.portal.reason ??
-              'No reason was recorded, which is itself a defect worth reporting.',
-            actions: [
-              Button({ label: 'See what you would be buying', href: '/app/onboarding/review' }),
-            ],
-          })
-        : ButtonRow([
-            Button({
-              label: 'Open the billing portal',
-              href: options.portal.href,
-              variant: 'primary',
-              external: true,
-            }),
-            Button({ label: 'Cancel your plan', href: '/app/cancel', variant: 'quiet' }),
-          ])
-    }
-
-    ${Callout({
-      tone: 'note',
-      title: 'Card details',
-      body: html`<p>
-        Your card is held by Stripe and never reaches us. Changing it, or seeing your invoices, happens
-        in Stripe's own billing portal above.
-      </p>`,
-    })}
+    <div class="split">
+      <div class="pane" data-billing-pane="cancel">
+        <h3>Cancel your plan</h3>
+        <p>${PLAN_CANCELLATION_WORDING}</p>
+        <div>${Button({ label: 'Cancel your plan', href: '/app/cancel', variant: 'quiet' })}</div>
+      </div>
+      <div class="pane" data-billing-pane="support">
+        <h3>Ask us something</h3>
+        <p>Tell us what you expected and what you saw. If it is about one run, include its reference.</p>
+        <div>${Button({ label: 'Contact support', href: '/app/support', variant: 'quiet' })}</div>
+      </div>
+    </div>
   </div>`;
 }
 

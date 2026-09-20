@@ -842,3 +842,52 @@ trimmed to Google's 30- and 90-character limits:
 Keywords are the five exact-match phrases from section 8. AI Max, text customisation and
 final-URL expansion are all **off**, so Google cannot rewrite any of the above — which,
 given what it wrote unprompted, is not a theoretical protection.
+
+---
+
+## 13. Readiness packet, and the ids as they actually are — 20 September 2026, 06:57 UTC
+
+The reviewable page is now `docs/campaign-packet.md`. This section records only what was
+read today and what it corrects here.
+
+### Ids
+
+The rebuild in section 12 is the one open in the wizard. Its URL, read today, carries
+**campaign `281499240699016`, draft `10214818128`**, name **"Verify search - Sept 2026 -
+capped GBP 12.46 net"**. The ids in section 11 (`281499240660433` / `10214870512`) belong
+to the first attempt, which section 12 already records as not persisted. Whether _this_
+draft has persisted is **unknown** until the owner sees it in the Drafts list; the packet
+makes that the first on-screen check.
+
+The wizard was being driven by another lane at the moment it was read (its step changed
+between two reads), so the current footer state was not re-read. The account chooser lists
+two accounts — `129-611-7160` and `ITISYOU Verify 227-475-1523` — and the campaign belongs
+to the second.
+
+### State
+
+**Drafted.** Not submitted, not approved, not delivering. The packet defines those four
+words and uses no others. The budget step is unsaved behind the identity challenge, so the
+draft is incomplete as well as unpublished; either way it cannot spend.
+
+### Arithmetic, as the packet shows it
+
+`12.46 x 0.20 = 2.492 -> 2.49`; `12.46 + 2.49 = 14.95` (14.952 exactly; 14.96 if the invoice
+rounds VAT up). Section 11's 14.96 came from 12.464 before rounding the media figure; the
+saved figure is 12.46, so 14.95 is the number to quote.
+
+### Two things the packet asks the owner to fix on screen
+
+1. The final URL as built carries no `utm_campaign`, so nothing arriving from the ad could
+   be attributed by the first-party counter. The packet gives the URL to enter.
+2. The campaign count in the new account has not been read today. One campaign is the
+   whole cap story on a postpay account; the owner confirms it is one.
+
+### Visits
+
+The production `visit_sessions` table was read today: 13 rows since the counter first
+wrote at 03:33 UTC — 5 `external`, 7 `bot_suspected`, 1 `internal_test`. **Genuine
+external visits: 0.** The two `/demo` sessions at 03:33:40 and 04:55:46 UTC are both
+**unattributed**; the evidence held and the evidence that would settle them are in the
+packet's section 8. One further `external` row landed on `/wp-json/batch/v1`, which is a
+WordPress probe, not a visitor.

@@ -881,18 +881,21 @@ export function createAppRoutes(resolve: PortResolver = syntheticResolver): Hono
   );
 
   routes.get('/usage', async (c) =>
-    withSession(c, async (port, session) =>
-      page(
+    withSession(c, async (port, session) => {
+      // The run counts come from the same read the workspace uses, so the four cards on
+      // this page cannot disagree with the four on /app. No workflow means no cards.
+      const workflow = await port.workflow();
+      return page(
         c,
         shell(port, {
           title: 'Usage',
           path: '/app/usage',
           accountLabel: maskedAccountLabel(session.email),
           csrfToken: session.csrfToken,
-          body: UsagePage(await port.usage()),
+          body: UsagePage(await port.usage(), workflow?.counts ?? null),
         }),
-      ),
-    ),
+      );
+    }),
   );
 
   /* -------------------------------------------------------------------- support */

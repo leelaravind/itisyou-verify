@@ -32,18 +32,18 @@ Stitch screen without an implemented route**, and no orphan.
 | 4   | `pricing_policy_itisyou_verify`                       | `/pricing`                                           | 200      | Palette applied; layout is ours                                                      |
 | 5   | `sign_in_welcome_itisyou_verify`                      | `/app/sign-in`                                       | 200      | Palette applied; layout is ours                                                      |
 | 6   | `sign_in_welcome_mobile_itisyou_verify`               | `/app/sign-in` at mobile width                       | 200      | Palette applied; responsive behaviour is ours, not verified against the reference    |
-| 7   | `customer_dashboard_itisyou_verify`                   | `/app`                                               | auth     | Palette applied; layout is ours                                                      |
-| 8   | `customer_dashboard_mobile_itisyou_verify`            | `/app` at mobile width                               | auth     | Palette applied; responsive behaviour not verified against the reference             |
-| 9   | `connections_evidence_sources_itisyou_verify`         | `/app/connections`                                   | auth     | Palette applied; layout is ours                                                      |
-| 10  | `workflow_configuration_itisyou_verify`               | `/app/onboarding/mapping`, `/app/onboarding/outcome` | auth     | Palette applied; layout is ours                                                      |
-| 11  | `compatibility_proof_checkout_review_itisyou_verify`  | `/app/onboarding/compatibility`, `/proof`, `/review` | auth     | Palette applied; the checkout control on `/review` is new today                      |
-| 12  | `run_details_evidence_itisyou_verify`                 | `/app/runs/:id`                                      | auth     | Palette applied; layout is ours                                                      |
-| 13  | `reports_exports_itisyou_verify`                      | `/app/usage`                                         | auth     | Palette applied; layout is ours                                                      |
-| 14  | `billing_cancellation_support_itisyou_verify`         | `/app/billing`, `/app/cancel`, `/app/support`        | auth     | `/app/billing` did not exist until today                                             |
-| 15  | `owner_overview_itisyou_verify`                       | `/owner`                                             | auth     | Palette applied; layout is ours                                                      |
+| 7   | `customer_dashboard_itisyou_verify`                   | `/app`                                               | auth     | Composition translated (see below); copy is ours                                     |
+| 8   | `customer_dashboard_mobile_itisyou_verify`            | `/app` at mobile width                               | auth     | Composition translated: count cards two abreast, run table stacks into records       |
+| 9   | `connections_evidence_sources_itisyou_verify`         | `/app/connections`                                   | auth     | Composition translated; two provider cards, not the reference's four                 |
+| 10  | `workflow_configuration_itisyou_verify`               | `/app/onboarding/mapping`, `/app/onboarding/outcome` | auth     | Composition translated: status tiles, rules beside timing                            |
+| 11  | `compatibility_proof_checkout_review_itisyou_verify`  | `/app/onboarding/compatibility`, `/proof`, `/review` | auth     | Composition translated; the checkout control keeps its `order.ready` gate            |
+| 12  | `run_details_evidence_itisyou_verify`                 | `/app/runs/:id`                                      | auth     | Composition translated: verdict band, check tally, checks beside provenance          |
+| 13  | `reports_exports_itisyou_verify`                      | `/app/usage`                                         | auth     | Composition translated; no export or retention block, because we offer none          |
+| 14  | `billing_cancellation_support_itisyou_verify`         | `/app/billing`, `/app/cancel`, `/app/support`        | auth     | `/app/billing` composed 7/5 with cancel and support as panes; the other two are ours |
+| 15  | `owner_overview_itisyou_verify`                       | `/owner`                                             | auth     | Composition translated (see below); every figure is the port's or the word unknown   |
 | 16  | `owner_approvals_campaigns_and_budget_…`              | `/owner/approvals`, `/owner/ads`                     | auth     | Palette applied; layout is ours                                                      |
 | 17  | `owner_customer_incident_management_itisyou_verify`   | `/owner/customers`                                   | auth     | Palette applied; layout is ours                                                      |
-| 18  | `automated_testing_and_cleanup_centre_itisyou_verify` | `/owner/quality`, `/owner/cleanup`                   | auth     | Palette applied; layout is ours                                                      |
+| 18  | `automated_testing_and_cleanup_centre_itisyou_verify` | `/owner/quality`, `/owner/cleanup`                   | auth     | `/owner/quality` composed (see below); `/owner/cleanup` is ours                      |
 | 19  | `visual_development_story_itisyou_verify`             | `/development-story`                                 | 200      | Palette applied; layout is ours                                                      |
 | —   | `itisyou_verify_logo`                                 | no route — brand asset                               | —        | **Not implemented.** The wordmark in the header is set in type, not the Stitch logo. |
 
@@ -76,6 +76,77 @@ false of the thing a person actually sees.
 4. **Side-by-side screenshots** of reference against running page for each row above. The
    reference PNGs exist in the archive; the running captures do not exist for the
    authenticated rows, because capturing them needs a seeded session per screen.
+
+## The authenticated screens, composed (20 September 2026, later the same day)
+
+Rows 7–14 were recomposed as _translation_: the reference's arrangement, none of its words.
+Every figure on those screens is read from the customer port and every sentence comes from an
+existing route or `packages/ui/src/content/`. Pinned by `CUST-901..CUST-908` in
+`tests/unit/ui/customer-composition.test.ts`, which also asserts that no reference phrase, no
+second price, no trial and no seat term reached any of the ten pages.
+
+| Route                                     | Reference folder                                     | What was taken from the reference                                                                                                                      | What was not, and why                                                                                                                                     |
+| ----------------------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/app`                                    | `customer_dashboard_…` and `…_mobile_…`              | Head beside a mono fact bar; four run-count cards in one row (2×2 on a phone); period figures as a metrics bar; framed run ledger with a tally under it | The payment-paused banner, the £89 renewal, the 1,904/5,000 quota, the "proof chain" and "forensic diff" blocks — none of those facts exist here         |
+| `/app/connections`                        | `connections_evidence_sources_…`                     | Notice above the cards; one card per provider in a row, facts in a sunken pane, state tally beside the head                                            | Four providers (we have two), the encryption architecture panel, the "isolation protocol" copy                                                            |
+| `/app/onboarding/mapping`, `/outcome`     | `workflow_configuration_…`                           | Four status tiles above the rules; the rule in the wider column with its facts beside it; checks beside timing                                         | The operator grammar, the settling-window slider, the per-rule weight column, the £0.14 cost tile                                                         |
+| `/app/onboarding/compatibility`, `/proof`, `/review` | `compatibility_proof_checkout_review_…`   | Provider facts in panes; proof verdict beside its checks; disclosure in the wider column, order summary and control in the narrower one                | The £120 + VAT total, the 10,000-run allowance, the "unconditional refund" copy, the card-on-file block                                                   |
+| `/app/runs/:id`                           | `run_details_evidence_…`                             | Head beside a mono bar; verdict band ruled in the verdict's colour with the check tally beside it and identifiers under it; checks 7 / provenance 5   | The four status tiles (a FAILED tile on an UNVERIFIED run's page would dress it as a failure — CUST-063), the raw-body inspector, the "audit guarantee" |
+| `/app/usage`                              | `reports_exports_…`                                  | Period facts as a mono bar; the meter in the wider column; four count cards under it                                                                    | Export formats, the export ledger, the 365-day retention tiles — we offer none of those                                                                   |
+| `/app/billing`                            | `billing_cancellation_support_…`                     | Subscription and plan 7 / portal control 5; cancellation and support as two panes leading to their own pages                                            | The invoice table, the VAT registration, the card on file, the support form inline (it stays on `/app/support`)                                           |
+
+Screenshots of the served pages at 390, 820 and 1440px are under `docs/screenshots/stitch/`.
+They were made by rendering each screen to static HTML through the real Worker
+(`tests/integration/customer/screens-dump.test.ts`) and loading that file in Playwright's
+bundled Chromium with the viewport set to exactly each width; the script reads
+`window.innerWidth` back and refuses to write a file whose width is not the one asked for.
+
+## The owner screens, composed (20 September 2026, later still)
+
+Rows 15 and 18 were recomposed the same way — the reference's arrangement, none of its
+words. The owner references are an operator console: a fixed side navigation, a strip of
+status tiles, a row of KPI cards, a wide cost breakdown beside a narrow "contingency
+reserve", and an incident table; the test centre has a row of six counts by state, a wide
+matrix beside a narrow integrity card, a reports table and a cleanup section. Pinned by
+`OWNER-901..OWNER-907` in `tests/unit/ui/owner-composition.test.ts` and
+`tests/integration/owner/launch-figures.test.ts`, which also assert that no reference phrase
+and no pound figure other than the finance summary's own reached either page, and that both
+pages are still a byte-identical 404 for an anonymous request.
+
+| Route            | Reference folder                                 | What was taken from the reference                                                                                                                                                                   | What was not, and why                                                                                                                                                                                                        |
+| ---------------- | ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/owner`         | `owner_overview_itisyou_verify`                  | Head beside a mono bar of the page's own facts; the launch figures as one strip of tiles (eight, four across); the money table 7 / customers and approvals 5; service health as a framed table with a four-state tally under it | The side navigation (shared chrome, not this screen's), the "operating cost breakdown" and "contingency reserve", the incident queue, every invented figure (42 accounts, £3,738, £6,500, 14,892 runs) and the "enclave" vocabulary |
+| `/owner/quality` | `automated_testing_and_cleanup_centre_…`         | Head beside a mono bar; a strip of counts by state above the form, one entry per state that occurred; the suite form 7 / evidence pack 5; the runs as a framed table with a tally under it          | The cleanup half (served at `/owner/cleanup`, not recomposed), the pinned-commit "record" bar, the 1,482-case estate, the SHA-256 manifests and the signed exports — none of those facts exist here                             |
+
+Two things on `/owner` are new rather than rearranged, and both are read from the port.
+A **paid orders** tile counts the orders the port's ledger records as `active` or
+`refunded`; the ledger does not record whether a payment was live or sandbox, and the tile
+says so rather than calling itself either. A **cash received** tile renders
+`finance.cashRevenueMinor` through `displayMinor`, so a ledger holding zero pence reads
+`£0.00` and a ledger the port could not read reads `unknown` — the same rule as every other
+figure on the page. The external-visit figure is the D1 port's own query, which counts
+`visit_sessions` rows whose `classification = 'external'` and nothing else. When the
+overview read itself throws, the page renders every figure as `unknown` instead of a 500.
+
+Screenshots: `owner-{390,820,1440}.png` (in-memory port, every launch figure honestly
+unknown), `owner-known-{390,820,1440}.png` (a port answering every read, so the tiles can
+be seen carrying figures) and `owner-quality-{390,820,1440}.png`, made by
+`tests/integration/owner/screens-dump.test.ts` and the same Playwright method as above.
+
+## The design figure, reconciled (20 September 2026)
+
+`packages/ui/src/designProgress.ts` was reconciled by opening each served screenshot at
+1440px beside its reference `screen.png`. The public screens were re-captured for this
+(`home`, `pricing`, `how-it-works`, `demo` under `docs/screenshots/stitch/`), because the
+captures under `docs/screenshots/` predate the public composition pass. The list now reads
+**13 of 19 composed**. Two labels were corrected to routes the Worker serves
+(`/app/onboarding` → `/app/onboarding/compatibility`, `/app/onboarding/workflow` →
+`/app/onboarding/outcome`), and `/security` — previously counted — is no longer, because no
+approved screen exists for that route and a layout cannot be composed against a reference
+that does not exist. The six not composed: `/security`, `/app/onboarding/compatibility`
+(its cards took the reference's panes and nothing else), `/app/onboarding/connect`,
+`/admin/login`, `/support` (no reference for either) and `/development-story/visual`. The
+earlier figure of 5 of 19 was reported to the owner and is left named here.
 
 ## Why the token layer was done first
 

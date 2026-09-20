@@ -22,6 +22,7 @@ import {
   Field,
   Fieldset,
   RunVerdict,
+  STATUS_DEFINITIONS,
   StatusBadge,
   Table,
   gapsFrom,
@@ -100,10 +101,14 @@ export function CompatibilityPage(entries: readonly ConnectorCompatibility[]): H
             }),
             body: html`<div class="stack-sm">
               <p class="small muted">${entry.purpose}</p>
-              <p class="eyebrow">You need</p>
-              <ul class="small">
-                ${entry.requirements.map((requirement) => html`<li>${requirement}</li>`)}
-              </ul>
+              <!-- The requirements sit in a sunken pane inside the card, the way the approved
+                   compatibility screen frames each provider's facts. -->
+              <div class="pane">
+                <p class="eyebrow">You need</p>
+                <ul class="small">
+                  ${entry.requirements.map((requirement) => html`<li>${requirement}</li>`)}
+                </ul>
+              </div>
             </div>`,
           }),
         )}
@@ -380,32 +385,41 @@ export function MappingPage(options: MappingPageOptions): Html {
     body: html`<form method="post" action="/app/onboarding/mapping" class="stack-lg">
       ${CsrfField(options.csrfToken)}
       ${formMessage(options.submitted?.message ?? null)}
-      ${Fieldset({
-        legend: 'Correlation property',
-        hint: 'Every enquiry needs a stable, unique value in this property. If two records share one, we report the run as unverified rather than guessing which record is yours.',
-        body: html`${Field({
-          name: 'correlationProperty',
-          label: 'HubSpot contact property',
-          control: 'text',
-          value: options.value,
-          required: true,
-          mono: true,
-          maxlength: 128,
-          hint: 'Letters, numbers and underscores. Example: verify_correlation_id',
-          error: errors['correlationProperty'] ?? null,
-        })}
+      <!-- The approved workflow-configuration screen sets the rule in the wider column and
+           the facts it is chosen from in a pane beside it. The pane lists what the port can
+           see; it is absent, not empty, when the port can see nothing. -->
+      <div class="grid grid-7-5">
+        <div class="stack">
+          ${Fieldset({
+            legend: 'Correlation property',
+            hint: 'Every enquiry needs a stable, unique value in this property. If two records share one, we report the run as unverified rather than guessing which record is yours.',
+            body: Field({
+              name: 'correlationProperty',
+              label: 'HubSpot contact property',
+              control: 'text',
+              value: options.value,
+              required: true,
+              mono: true,
+              maxlength: 128,
+              hint: 'Letters, numbers and underscores. Example: verify_correlation_id',
+              error: errors['correlationProperty'] ?? null,
+            }),
+          })}
+        </div>
         ${
           options.workflow.mapping.availableProperties.length === 0
             ? null
-            : html`<p class="small muted">
-              Properties we can currently see on your contacts:
-              ${options.workflow.mapping.availableProperties.map(
-                (property, index) =>
-                  html`${index === 0 ? '' : ', '}<span class="mono">${property}</span>`,
-              )}
-            </p>`
-        }`,
-      })}
+            : html`<div class="pane" data-available-properties>
+                <h3>Properties we can currently see on your contacts</h3>
+                <p>
+                  ${options.workflow.mapping.availableProperties.map(
+                    (property, index) =>
+                      html`${index === 0 ? '' : ', '}<span class="mono">${property}</span>`,
+                  )}
+                </p>
+              </div>`
+        }
+      </div>
       ${ButtonRow([
         Button({ label: 'Save and continue', variant: 'primary', type: 'submit' }),
         Button({ label: 'Back to connections', href: '/app/onboarding/connect', variant: 'quiet' }),
@@ -443,10 +457,33 @@ export function OutcomePage(options: OutcomePageOptions): Html {
     eyebrow: 'Step 4 of 7',
     title: 'What has to be true for this to count as done?',
     lede: 'These are the checks we will make against evidence we read back ourselves. At least one must be required — with nothing required, a verified result would not mean anything.',
-    body: html`<form method="post" action="/app/onboarding/outcome" class="stack-lg">
+    body: html`<div class="stack-lg">
+      <!-- The approved workflow-configuration screen opens with the four results as a strip
+           of tiles, each with its meaning, before any rule is written. The words are the
+           content module's definitions, the same four that /how-it-works carries. -->
+      <section class="panel" aria-labelledby="outcome-results-heading">
+        <div class="section-head__text">
+          <p class="eyebrow">Four results, never a fifth</p>
+          <h2 id="outcome-results-heading">What we report</h2>
+        </div>
+        <div class="grid grid-4">
+          ${STATUS_DEFINITIONS.map(
+            (definition) => html`<div class="tile" data-status-tile="${definition.status}">
+              ${StatusBadge({ status: definition.status })}
+              <p>${definition.description}</p>
+            </div>`,
+          )}
+        </div>
+      </section>
+
+      <form method="post" action="/app/onboarding/outcome" class="stack-lg">
       ${CsrfField(options.csrfToken)}
       ${formMessage(options.submitted?.message ?? null)}
 
+      <!-- The checks in the wider column, the timing and the coverage mode stacked in the
+           narrower one, as the reference lays out its rule rows beside its settling window. -->
+      <div class="grid grid-7-5">
+      <div class="stack">
       ${Fieldset({
         legend: 'Required checks',
         hint: 'Each one is evidenced independently from HubSpot or Resend, never from your automation.',
@@ -480,7 +517,8 @@ export function OutcomePage(options: OutcomePageOptions): Html {
           </p>`,
         })}`,
       })}
-
+      </div>
+      <div class="stack">
       ${Fieldset({
         legend: 'Completion window',
         hint: `How long your automation may take before a missing result counts against it. Between ${formatDuration(LIMITS.MIN_DEADLINE_SECONDS)} and ${formatDuration(LIMITS.MAX_DEADLINE_SECONDS)}.`,
@@ -535,6 +573,8 @@ export function OutcomePage(options: OutcomePageOptions): Html {
           reason: COVERAGE_MODE_SUPPORT.independently_sourced.unavailable_reason ?? '',
         })}`,
       })}
+      </div>
+      </div>
 
       ${ButtonRow([
         Button({ label: 'Save and run a proof', variant: 'primary', type: 'submit' }),
@@ -544,7 +584,8 @@ export function OutcomePage(options: OutcomePageOptions): Html {
           variant: 'quiet',
         }),
       ])}
-    </form>`,
+      </form>
+    </div>`,
   });
 }
 
@@ -580,43 +621,50 @@ export function ProofPage(options: ProofPageOptions): Html {
                 title: 'We could not run the proof',
                 body: html`<p>${proof.blockedReason ?? 'No reason was recorded, which is itself a defect.'}</p>`,
               })
-            : html`<div class="stack">
-              ${Card({
-                title: 'Proof result',
-                headingLevel: 2,
-                body: html`<div class="stack">
-                  ${RunVerdict({
-                    status: proof.status as StatusKey,
-                    explanation: explainRunStatus(proof.status),
-                    gaps: gapsFrom(proof.results, (result) => explainAssertion(result).sentence),
-                  })}
-                  ${proof.statusReason === null ? null : html`<p class="small mono">${proof.statusReason}</p>`}
-                </div>`,
-              })}
-              ${Card({
-                title: 'Every check',
-                headingLevel: 2,
-                body: html`<div>
-                  ${proof.results.map((result) => {
-                    const explanation = explainAssertion(result);
-                    return AssertionRow({
-                      status: result.status,
-                      explanation,
-                      origin: 'synthetic evidence',
-                      mandatory: result.mandatory,
-                      reasonCode: result.reason_code,
-                    });
-                  })}
-                </div>`,
-              })}
-              ${Callout({
-                tone: 'limit',
-                title: 'What this proof does not prove',
-                body: html`<p>
-                  It proves your rules are evaluable and shows you what a result looks like. It says nothing
-                  about whether your automation works, because no real record was read.
-                </p>`,
-              })}
+            : html`<div class="grid grid-7-5">
+              <!-- The verdict and its qualification in the wider column, every check in the
+                   narrower one, as the approved proof screen sets its result beside its
+                   probe list. The verdict is read first in the document order. -->
+              <div class="stack">
+                ${Card({
+                  title: 'Proof result',
+                  headingLevel: 2,
+                  body: html`<div class="stack">
+                    ${RunVerdict({
+                      status: proof.status as StatusKey,
+                      explanation: explainRunStatus(proof.status),
+                      gaps: gapsFrom(proof.results, (result) => explainAssertion(result).sentence),
+                    })}
+                    ${proof.statusReason === null ? null : html`<p class="small mono">${proof.statusReason}</p>`}
+                  </div>`,
+                })}
+                ${Callout({
+                  tone: 'limit',
+                  title: 'What this proof does not prove',
+                  body: html`<p>
+                    It proves your rules are evaluable and shows you what a result looks like. It says nothing
+                    about whether your automation works, because no real record was read.
+                  </p>`,
+                })}
+              </div>
+              <div class="stack">
+                ${Card({
+                  title: 'Every check',
+                  headingLevel: 2,
+                  body: html`<div>
+                    ${proof.results.map((result) => {
+                      const explanation = explainAssertion(result);
+                      return AssertionRow({
+                        status: result.status,
+                        explanation,
+                        origin: 'synthetic evidence',
+                        mandatory: result.mandatory,
+                        reasonCode: result.reason_code,
+                      });
+                    })}
+                  </div>`,
+                })}
+              </div>
             </div>`
       }
 
@@ -696,6 +744,12 @@ export function ReviewPage(options: ReviewPageOptions): Html {
     body: html`<div class="stack-lg">
       ${formMessage(options.submitted?.message ?? null)}
 
+      <!-- Composition follows the approved checkout-review screen: what is being bought and
+           the disclosure in the wider left column, the order and its control in the
+           narrower right one. In document order the disclosure still precedes the control,
+           so the recovery policy is read before checkout and not discovered after it. -->
+      <div class="grid grid-7-5">
+      <div class="stack">
       ${Card({
         title: `${order.planName} — ${order.priceDisplay} ${order.billingPeriod}`,
         headingLevel: 2,
@@ -742,6 +796,28 @@ export function ReviewPage(options: ReviewPageOptions): Html {
       }
 
       ${preCheckoutDisclosure()}
+      </div>
+
+      <div class="stack">
+      ${Card({
+        title: 'Your order',
+        headingLevel: 2,
+        body: html`<div class="stack">
+          <!-- Every value here is the port's server-resolved order summary. Nothing is retyped. -->
+          <dl class="summary">
+            <div>
+              <dt>Plan</dt>
+              <dd>${order.planName}</dd>
+            </div>
+            <div>
+              <dt>Price</dt>
+              <dd>${order.priceDisplay} ${order.billingPeriod}</dd>
+            </div>
+            <div>
+              <dt>Runs included</dt>
+              <dd>${String(order.runsIncluded)} per month</dd>
+            </div>
+          </dl>
 
       ${
         order.paymentsMode === 'live'
@@ -785,6 +861,8 @@ export function ReviewPage(options: ReviewPageOptions): Html {
             })
       }
       ${ButtonRow([Button({ label: 'Back to the proof run', href: '/app/onboarding/proof', variant: 'quiet' })])}
+        </div>`,
+      })}
 
       ${Callout({
         tone: 'note',
@@ -795,6 +873,8 @@ export function ReviewPage(options: ReviewPageOptions): Html {
           for the rest of the period you have paid for.
         </p>`,
       })}
+      </div>
+      </div>
     </div>`,
   });
 }

@@ -8,6 +8,7 @@
  * sentence a person can act on.
  */
 import {
+  AssertionBadge,
   AssertionRow,
   Button,
   ButtonRow,
@@ -27,11 +28,17 @@ import {
   gapsFrom,
   html,
   safeHref,
+  type AssertionKey,
   type ComparatorRow,
   type Html,
   type StatusKey,
 } from '@verify/ui';
-import { describeCoverage, explainAssertion, explainRunStatus } from '@verify/domain';
+import {
+  describeCoverage,
+  explainAssertion,
+  explainRunStatus,
+  type AssertionResult,
+} from '@verify/domain';
 import { maskEmail } from '@verify/security';
 import { pageHead } from './chrome.js';
 import { formatInstant } from '../public/shared.js';
@@ -149,6 +156,39 @@ export interface RunDetailPageOptions {
   readonly run: RunDetailView;
 }
 
+/** The four check outcomes in the domain's order. */
+const CHECK_ORDER: readonly AssertionKey[] = ['SUPPORTED', 'CONTRADICTED', 'UNKNOWN', 'PENDING'];
+
+/**
+ * How many checks reached each outcome, beside the verdict — the approved run-detail
+ * screen's head strip.
+ *
+ * Only outcomes that occurred are listed. This is deliberately not "all four, always": an
+ * entry reading "Not as expected 0" would put the red mark on the page of a run in which
+ * nothing was contradicted, and an UNVERIFIED run must never be dressed as a failure
+ * (CUST-063). Each count is the number of results wearing that status, nothing derived.
+ */
+function checkTally(results: readonly AssertionResult[]): Html {
+  const present = CHECK_ORDER.filter((status) => results.some((result) => result.status === status));
+  return html`<ul class="tally" aria-label="Checks by result">
+    ${present.map(
+      (status) => html`<li data-check-tally="${status}">
+        <span class="tally__count">${String(results.filter((result) => result.status === status).length)}</span>
+        ${AssertionBadge({ status })}
+      </li>`,
+    )}
+  </ul>`;
+}
+
+/**
+ * Composition follows the approved run-detail screen, translated: the head beside a mono
+ * bar of the run's own instants; a verdict band ruled in the verdict's colour, carrying the
+ * verdict on the left and the check tally on the right, with the run's identifiers as a bar
+ * of metrics under it; the comparator; then the checks in the wider column and the
+ * provenance and coverage in the narrower one; the standing limitations last. The reference
+ * names providers, endpoints, hashes and a guarantee that are not ours; none of its words
+ * are here.
+ */
 export function RunDetailPage(options: RunDetailPageOptions): Html {
   const run = options.run;
   const explanation = explainRunStatus(run.status);
@@ -182,6 +222,8 @@ export function RunDetailPage(options: RunDetailPageOptions): Html {
         : null,
   }));
 
+  const statusKey = run.status.toLowerCase();
+
   return html`<div class="wrap section stack-lg">
     ${Breadcrumb([
       { label: 'Workspace', href: '/app' },
@@ -189,10 +231,60 @@ export function RunDetailPage(options: RunDetailPageOptions): Html {
       { label: run.id },
     ])}
 
-    <div class="row-between">
+    <div class="section-head">
       ${pageHead({ eyebrow: `Run ${run.id}`, title: maskValues(run.workflowName) ?? run.workflowName })}
-      ${StatusBadge({ status: run.status as StatusKey, large: true })}
+      <ul class="meta-bar" aria-label="About this run">
+        <li>Enquiry received <b>${formatInstant(run.occurredAt)}</b></li>
+        <li>Deadline <b>${formatInstant(run.deadlineAt)}</b></li>
+        <li>Last observed <b>${formatInstant(run.observedAt)}</b></li>
+      </ul>
     </div>
+
+    <!-- The verdict band. The shared status card as a section: the rule along its top is the
+         verdict's colour (dashed for UNVERIFIED, like its badge), and the badge inside
+         RunVerdict is the signal that survives greyscale. Nothing in the band is derived
+         from the results here; the verdict is the domain's decision, passed through. -->
+    <section class="status-card status-card--${statusKey}" data-run-band="${run.status}">
+      <div class="section-head">
+        <div class="section-head__text">
+          ${RunVerdict({
+            status: run.status as StatusKey,
+            explanation,
+            // The follow-up line an UNVERIFIED verdict must carry: which check could not be
+            // completed, and the plain sentence for why. Ignored for the other three.
+            gaps: gapsFrom(run.results, (result) => explainAssertion(result).sentence),
+          })}
+          <p class="small mono">${run.statusReason}</p>
+          ${
+            run.lateCompletion
+              ? html`<p class="small">
+                The evidence arrived after the deadline had passed. The run is recorded as a late completion,
+                which is a different thing from being on time.
+              </p>`
+              : null
+          }
+        </div>
+        ${checkTally(run.results)}
+      </div>
+      <dl class="metrics" aria-label="This run">
+        <div>
+          <dt>Run id</dt>
+          <dd class="mono">${run.id}</dd>
+        </div>
+        <div>
+          <dt>Revision</dt>
+          <dd class="mono">${String(run.revision)}</dd>
+        </div>
+        <div>
+          <dt>Enquiry reference</dt>
+          <dd class="mono">${run.correlationId}</dd>
+        </div>
+        <div>
+          <dt>Recipient</dt>
+          <dd class="mono">${maskEmail(run.recipient)}</dd>
+        </div>
+      </dl>
+    </section>
 
     ${
       run.results.length > 1
@@ -214,77 +306,51 @@ export function RunDetailPage(options: RunDetailPageOptions): Html {
             })
     }
 
-    ${Card({
-      title: 'The verdict',
-      headingLevel: 2,
-      body: html`<div class="stack">
-        ${RunVerdict({
-          status: run.status as StatusKey,
-          explanation,
-          // The follow-up line an UNVERIFIED verdict must carry: which check could not be
-          // completed, and the plain sentence for why. Ignored for the other three.
-          gaps: gapsFrom(run.results, (result) => explainAssertion(result).sentence),
+    <div class="grid grid-7-5">
+      <div class="stack">
+        ${Card({
+          title: 'Expected against observed',
+          headingLevel: 2,
+          body: html`<div>
+            ${run.results.map((result) => {
+              const assertion = explainAssertion(result);
+              return AssertionRow({
+                status: result.status,
+                explanation: {
+                  rule_id: assertion.rule_id,
+                  headline: assertion.headline,
+                  sentence: assertion.sentence,
+                  next_step: assertion.next_step,
+                  detail: maskValues(assertion.detail),
+                },
+                origin: result.evidence_ref === null ? 'no evidence' : 'provider readback',
+                mandatory: result.mandatory,
+                observedAt: result.observed_at === null ? null : formatInstant(result.observed_at),
+                reasonCode: result.reason_code,
+              });
+            })}
+          </div>`,
         })}
-        <p class="small mono">${run.statusReason}</p>
-        ${
-          run.lateCompletion
-            ? html`<p class="small">
-              The evidence arrived after the deadline had passed. The run is recorded as a late completion,
-              which is a different thing from being on time.
-            </p>`
-            : null
-        }
-      </div>`,
-    })}
-
-    ${Card({
-      title: 'Expected against observed',
-      headingLevel: 2,
-      body: html`<div>
-        ${run.results.map((result) => {
-          const assertion = explainAssertion(result);
-          return AssertionRow({
-            status: result.status,
-            explanation: {
-              rule_id: assertion.rule_id,
-              headline: assertion.headline,
-              sentence: assertion.sentence,
-              next_step: assertion.next_step,
-              detail: maskValues(assertion.detail),
-            },
-            origin: result.evidence_ref === null ? 'no evidence' : 'provider readback',
-            mandatory: result.mandatory,
-            observedAt: result.observed_at === null ? null : formatInstant(result.observed_at),
-            reasonCode: result.reason_code,
-          });
+      </div>
+      <div class="stack">
+        ${Card({
+          title: 'Where this result came from',
+          headingLevel: 2,
+          body: KeyValues([
+            ['Source type', html`<span>${run.sourceType}</span>`],
+            [
+              'Rule version',
+              html`<span>${run.rulesRef} · schema v${String(run.rulesSchemaVersion)}</span>`,
+            ],
+            [
+              'Decided at',
+              html`<span>${run.decidedAt === null ? 'not decided yet' : formatInstant(run.decidedAt)}</span>`,
+            ],
+          ]),
         })}
-      </div>`,
-    })}
-
-    ${Card({ title: 'Coverage', headingLevel: 2, body: CoverageNotice(coverage) })}
-
-    ${Card({
-      title: 'Where this result came from',
-      headingLevel: 2,
-      body: KeyValues([
-        ['Run id', html`<span>${run.id}</span>`],
-        ['Revision', html`<span>${String(run.revision)}</span>`],
-        ['Enquiry reference', html`<span>${run.correlationId}</span>`],
-        ['Recipient', html`<span>${maskEmail(run.recipient)}</span>`],
-        ['Source type', html`<span>${run.sourceType}</span>`],
-        [
-          'Rule version',
-          html`<span>${run.rulesRef} · schema v${String(run.rulesSchemaVersion)}</span>`,
-        ],
-        ['Enquiry received', html`<span>${formatInstant(run.occurredAt)}</span>`],
-        ['Deadline', html`<span>${formatInstant(run.deadlineAt)}</span>`],
-        ['Last observed', html`<span>${formatInstant(run.observedAt)}</span>`],
-        [
-          'Decided at',
-          html`<span>${run.decidedAt === null ? 'not decided yet' : formatInstant(run.decidedAt)}</span>`,
-        ],
-      ]),
-    })}
+        ${Card({ title: 'Coverage', headingLevel: 2, body: CoverageNotice(coverage) })}
+      </div>
+    </div>
 
     ${StandingLimitations()}
 

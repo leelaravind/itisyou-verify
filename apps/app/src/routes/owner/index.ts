@@ -96,6 +96,7 @@ import {
   ConnectionsPage,
   CustomersPage,
   OverviewPage,
+  PAID_ORDER_STATUSES,
   VerificationDetailPage,
   VerificationListPage,
 } from './dashboardPages.js';
@@ -658,12 +659,23 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
   routes.get('/owner', async (c) =>
     withView(c, 'owner.view', async (port, principal) => {
       const now = clock();
+      // Each read fails on its own. A port that cannot answer renders "unknown" on the
+      // figures it owns — never a zero, and never a 500 that hides every other figure
+      // behind the one that broke. The order count is a count and not a sum: the ledger
+      // does not say whether a payment was live or sandbox, and the page does not either.
+      const [view, paidOrders] = await Promise.all([
+        port.overview(now).catch(() => null),
+        port.orders(null).then(
+          (orders) => orders.filter((order) => PAID_ORDER_STATUSES.has(order.status)).length,
+          () => null,
+        ),
+      ]);
       return ownerPage(
         c,
         shell(port, principal, {
           title: 'Overview',
           path: '/owner',
-          body: OverviewPage({ view: await port.overview(now), now }),
+          body: OverviewPage({ view, now, paidOrders }),
         }),
       );
     }),

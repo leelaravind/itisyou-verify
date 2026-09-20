@@ -2,8 +2,18 @@
  * Shared chrome for the customer pages: the synthetic-data notice, the onboarding
  * progress trail, and the page heading block.
  */
-import { Callout, attrs, html, safeHref, type Html, type StatusKey } from '@verify/ui';
+import {
+  Callout,
+  STATUS_DEFINITIONS,
+  StatusBadge,
+  attrs,
+  html,
+  safeHref,
+  type Html,
+  type StatusKey,
+} from '@verify/ui';
 import type { ConnectionStatus } from '@verify/contracts';
+import type { RunCountsView } from './port.js';
 
 /**
  * The banner every page carries while it is running on the synthetic port.
@@ -120,4 +130,65 @@ export const CONNECTION_PRESENTATION: Readonly<Record<ConnectionStatus, Connecti
 
 export function connectionPresentation(status: ConnectionStatus): ConnectionPresentation {
   return CONNECTION_PRESENTATION[status];
+}
+
+/* ------------------------------------------------------------- run counts */
+
+/** The four statuses in the contract's order, so a tally always has four entries and never a fifth. */
+export const COUNT_ORDER: readonly StatusKey[] = ['VERIFIED', 'FAILED', 'UNVERIFIED', 'PENDING'];
+
+const COUNT_FIELD: Readonly<Record<StatusKey, keyof RunCountsView>> = {
+  VERIFIED: 'verified',
+  FAILED: 'failed',
+  UNVERIFIED: 'unverified',
+  PENDING: 'pending',
+};
+
+export function countFor(counts: RunCountsView, status: StatusKey): number {
+  return counts[COUNT_FIELD[status]];
+}
+
+export function runTotal(counts: RunCountsView): number {
+  return counts.verified + counts.failed + counts.unverified + counts.pending;
+}
+
+/**
+ * The run counts as four cards in one row — the approved dashboard's opening block.
+ *
+ * One card per status, in the contract's order, each ruled along its top in its own colour
+ * (the shared `.status-card`, so UNVERIFIED keeps its dash) and each carrying the badge, so
+ * the colour is never the only signal. The figure is the port's count and nothing else; the
+ * sentence under it is the content module's definition of that status. Zero is rendered as
+ * 0, never dropped: a missing card would make three results look like the whole vocabulary.
+ */
+export function runCountCards(counts: RunCountsView): Html {
+  return html`<div class="count-grid" data-run-counts>
+    ${STATUS_DEFINITIONS.map((definition) => {
+      const total = countFor(counts, definition.status);
+      return html`<div
+        class="status-card status-card--${definition.status.toLowerCase()}"
+        data-count-card="${definition.status}"
+      >
+        <div>${StatusBadge({ status: definition.status })}</div>
+        <p class="count"><span data-count="${definition.status}">${String(total)}</span><span class="count__noun">${total === 1 ? 'run' : 'runs'}</span></p>
+        <p class="small muted">${definition.description}</p>
+      </div>`;
+    })}
+  </div>`;
+}
+
+/**
+ * One count per status under a run table — all four, always, including any that are zero —
+ * computed from the same counts as the cards above it, so the strip can never disagree with
+ * the table it closes. Colour comes only from the badge.
+ */
+export function runTally(counts: RunCountsView): Html {
+  return html`<ul class="tally" aria-label="Runs by result">
+    ${COUNT_ORDER.map(
+      (status) => html`<li data-tally="${status}">
+        <span class="tally__count">${String(countFor(counts, status))}</span>
+        ${StatusBadge({ status })}
+      </li>`,
+    )}
+  </ul>`;
 }

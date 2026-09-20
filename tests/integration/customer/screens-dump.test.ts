@@ -18,6 +18,7 @@ import {
   getAnonymous,
   getSignedIn,
   getSignedInAgainst,
+  postSignedIn,
   seedAssertionsFor,
   seedRunsFor,
   signedInWorkspace,
@@ -44,12 +45,16 @@ describe('screen dump for the screenshot pass', () => {
       ['app-onboarding-proof', '/app/onboarding/proof'],
       ['app-onboarding-review', '/app/onboarding/review'],
       ['app-onboarding-activation', '/app/onboarding/activation'],
+      ['app-billing', '/app/billing'],
       ['app-run-notfound', '/app/runs/nope'],
       ['app-support', '/app/support'],
       ['app-cancel', '/app/cancel'],
     ] as const) {
       write(name, (await getSignedIn(empty, path)).html);
     }
+    // The proof step with a result on it: the POST that runs the proof answers the page
+    // directly, so this is the served state after pressing "Run the proof".
+    write('app-onboarding-proof-result', (await postSignedIn(empty, '/app/onboarding/proof', {})).html);
     // Sign-in is a signed-out page: with a session it answers 303 and an empty body.
     write('app-signin', (await getAnonymous(empty, '/app/sign-in')).html);
     // The permission-denied state: a signed-out request for a signed-in page.

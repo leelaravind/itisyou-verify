@@ -22,26 +22,59 @@
  * exists to refuse.
  */
 
-/** Every approved screen, and whether its own layout has been built. */
+/**
+ * Every approved screen, and whether its own layout has been built.
+ *
+ * Reconciled on 20 September 2026 by opening each served screenshot under
+ * `docs/screenshots/stitch/<slug>-1440.png` beside the reference `screen.png` under
+ * `design/stitch/screens/` and comparing section order, card arrangement, column counts
+ * and hero structure. A route with no screenshot is `false`. A route with no approved
+ * screen at all cannot be composed against one and is `false` too. Two labels were
+ * corrected to the routes that actually exist: `/app/onboarding` and
+ * `/app/onboarding/workflow` were never served; the reference each stood for is served at
+ * `/app/onboarding/compatibility` and `/app/onboarding/outcome`.
+ */
 export const STITCH_SCREENS: readonly { readonly route: string; readonly composed: boolean }[] = [
+  // home-1440.png against itisyou_verify_ground_truth_automation_verification_for_agencies
   { route: '/', composed: true },
+  // pricing-1440.png against pricing_policy_itisyou_verify
   { route: '/pricing', composed: true },
+  // how-it-works-1440.png against how_it_works_demonstration_itisyou_verify
   { route: '/how-it-works', composed: true },
+  // demo-1440.png against the same reference: framed run table with the tally under it
   { route: '/demo', composed: true },
-  { route: '/security', composed: true },
-  { route: '/app', composed: false },
-  { route: '/app/onboarding', composed: false },
+  // No approved screen exists for this route, so there is nothing to compose against.
+  { route: '/security', composed: false },
+  // app-1440.png against customer_dashboard_itisyou_verify
+  { route: '/app', composed: true },
+  // app-onboarding-compatibility-1440.png: the reference's probe cards lent their sunken
+  // panes, and nothing else — section order and columns here are ours.
+  { route: '/app/onboarding/compatibility', composed: false },
+  // No screenshot under docs/screenshots/stitch/, and not recomposed.
   { route: '/app/onboarding/connect', composed: false },
-  { route: '/app/onboarding/workflow', composed: false },
-  { route: '/app/onboarding/review', composed: false },
-  { route: '/app/connections', composed: false },
-  { route: '/app/runs/:id', composed: false },
-  { route: '/app/usage', composed: false },
-  { route: '/app/billing', composed: false },
-  { route: '/owner', composed: false },
-  { route: '/owner/quality', composed: false },
+  // app-onboarding-outcome-1440.png against workflow_configuration_itisyou_verify
+  { route: '/app/onboarding/outcome', composed: true },
+  // app-onboarding-review-1440.png against compatibility_proof_checkout_review_itisyou_verify
+  { route: '/app/onboarding/review', composed: true },
+  // app-connections-1440.png against connections_evidence_sources_itisyou_verify
+  { route: '/app/connections', composed: true },
+  // app-runs-id-failed-1440.png against run_details_evidence_itisyou_verify
+  { route: '/app/runs/:id', composed: true },
+  // app-usage-1440.png against reports_exports_itisyou_verify; the four count cards sit
+  // under the meter rather than above it, as the reference has them.
+  { route: '/app/usage', composed: true },
+  // app-billing-1440.png against billing_cancellation_support_itisyou_verify
+  { route: '/app/billing', composed: true },
+  // owner-1440.png and owner-known-1440.png against owner_overview_itisyou_verify; the
+  // reference's fixed side navigation is shared chrome and was not translated.
+  { route: '/owner', composed: true },
+  // owner-quality-1440.png against automated_testing_and_cleanup_centre_itisyou_verify;
+  // the reference's cleanup half is served at /owner/cleanup, which is not composed.
+  { route: '/owner/quality', composed: true },
+  // No approved screen exists for these two routes.
   { route: '/admin/login', composed: false },
   { route: '/support', composed: false },
+  // A reference exists (visual_development_story_itisyou_verify); no screenshot, not built.
   { route: '/development-story/visual', composed: false },
 ];
 
