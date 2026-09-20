@@ -3,7 +3,7 @@
 Supersedes `docs/launch-plan.md`. One owner, one status, one next action, one closing
 evidence per item. Updated in place; no second copy anywhere.
 
-**Now:** 12:02 UTC · **Allowance resets:** 13:45 UTC · **Remaining:** ~1h40m
+**Now:** 12:12 UTC · **Allowance resets:** 13:45 UTC · **Remaining:** ~1h30m
 
 Status: `done` · `active` · `blocked` · `queued`
 
@@ -104,11 +104,10 @@ Status: `done` · `active` · `blocked` · `queued`
 
 ## Launch blockers (only these stop a launch)
 
-1. **1.2 to 1.6, production-origin payment path.** Production has 0 users, 0 owners, 0 workspaces, 0 redeemed sign-in links (11 issued). Two application defects (no enrolment page; verify never stamped the session) plus the missing workspace-create action are fixed in `569e8e3` — CI, gate, deploy pending. Then the owner's steps in `docs/owner-actions.md` (O10, O11, O8, O13, O14, O6).
-2. **4.5, the campaign was published empty**: keywords and negatives now saved; the responsive search ad is being entered. Google's status is "Not eligible — low search volume, under review" and may stay that way.
-3. Nothing else blocks a launch from the code side.
-
-Closed since the last report: 4.3/4.4 (budget lowered to GBP 12.25 on the account's actual DST+VAT treatment), O5, O7 (owner published). Reopened: 3.3 as two defects, fixed in `569e8e3`.
+1. **1.2 to 1.6, production-origin payment path** — now unblocked on the identity side (owner claimed, enrolled, test workspace `ws_01M2Z9TE8795829F6132BD4B5F` created, customer signed in 12:0xZ). Checkout eligibility needs both connections `ready`, a workflow and a published outcome: the owner is pasting the HubSpot and Resend credentials; the Resend connection reaches `ready` only when a signed callback arrives.
+2. **Connect page defect (found 12:10Z):** `/app/onboarding/connect` renders "The webhook address is not published yet … that endpoint does not exist in this deployment yet" **unconditionally**, while `POST /api/v1/webhooks/resend/:opaqueId` is mounted and `connections.webhook_path_id` is set on credential submit. A customer cannot finish Resend through the product; the page also states something false. Fix: render the real endpoint URL from `webhook_path_id` and drop the callout. Queued behind the checkout proof.
+3. **4.5, campaign**: submitted, ad under Google review, not delivering. Unchanged.
+4. **Live payments:** NOT READY — 7 of 13 FAIL (`docs/live-payment-approval.md`).
 
 ## Improvements that can wait
 
