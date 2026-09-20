@@ -92,7 +92,9 @@ function statuses(): Html {
         <p class="eyebrow">Four results, never a fifth</p>
         <h2>${ONE_LINE_PROMISE}</h2>
       </div>
-      <div class="grid grid-2">
+      <!-- Four across at desktop width, per the approved design. Counting them is how a
+           reader learns there are exactly four, which is the section's whole claim. -->
+      <div class="grid grid-4">
         ${STATUS_DEFINITIONS.map(
           (definition) =>
             html`<div class="margin-row">

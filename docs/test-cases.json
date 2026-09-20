@@ -38964,6 +38964,23 @@
       "countable": true
     },
     {
+      "id": "RESIL-188",
+      "category": "accessibility_resilience",
+      "level": "unit",
+      "requirement": "the four-across grid exists and never passes through three columns",
+      "risk": "The four run statuses are the product vocabulary and the section claiming there are exactly four is only convincing if a reader can count them at a glance. The approved design lays them in one row; a 2x2 reads as two pairs. Three columns of four items leaves an orphan on a second row, reading as three and a straggler — the opposite of the claim — and the skipped step looks like an oversight someone would tidy away by folding grid-4 into the existing three-column rule.",
+      "risk_source": "case",
+      "setup": "The generated stylesheet, checked for the two-column and four-column steps and for the absence of a three-column one.",
+      "expected": "grid-4 climbs one to two to four and never three.",
+      "owner_agent": "A11",
+      "implementation_ref": "tests/unit/ui/tokens.test.ts:228",
+      "provider_backed": false,
+      "status": "passing",
+      "runner": "vitest",
+      "area": "tests/unit/ui/tokens.test.ts",
+      "countable": true
+    },
+    {
       "id": "RESIL-300",
       "category": "accessibility_resilience",
       "level": "integration",
