@@ -3,7 +3,7 @@
 Supersedes `docs/launch-plan.md`. One owner, one status, one next action, one closing
 evidence per item. Updated in place; no second copy anywhere.
 
-**Now:** 08:05 UTC · **Allowance resets:** 13:45 UTC · **Remaining:** ~3h40m
+**Now:** 08:10 UTC · **Allowance resets:** 13:45 UTC · **Remaining:** ~3h35m
 
 Status: `done` · `active` · `blocked` · `queued`
 
@@ -35,12 +35,12 @@ Status: `done` · `active` · `blocked` · `queued`
 
 ## D3 — Customer and owner screens
 
-| #   | Item                                                                             | Owner   | Status   | Next action | Evidence to close                                                                 |
-| --- | -------------------------------------------------------------------------------- | ------- | -------- | ----------- | --------------------------------------------------------------------------------- |
-| 3.1 | Essential Stitch screens (`/app`, onboarding, runs, usage, billing, connections) | A-UI    | **done** | —           | 36 screenshots at 390/820/1440, viewport read back                                |
-| 3.2 | Public screens                                                                   | A-UI    | **done** | —           | 5 routes composed                                                                 |
-| 3.3 | Owner journey stays authenticated, MFA on consequential actions                  | auditor | **done** | —           | `/owner` 404, `/admin` 303, `/admin/login` 200; `authorise()` demands MFA ≤15 min |
-| 3.4 | Owner dashboard shows launch figures                                             | lead    | queued   | After D1    | figures render from live ports                                                    |
+| #   | Item                                                                             | Owner          | Status                               | Next action | Evidence to close                                                                                                                                                             |
+| --- | -------------------------------------------------------------------------------- | -------------- | ------------------------------------ | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 3.1 | Essential Stitch screens (`/app`, onboarding, runs, usage, billing, connections) | A-UI           | **done, deployed `5da4766`**         | —           | 36 screenshots at 390/820/1440, viewport read back; each opened beside its reference                                                                                          |
+| 3.2 | Public screens                                                                   | A-UI           | **done, production verified**        | —           | `/`, `/pricing`, `/how-it-works`, `/demo` composed and re-captured; `/security` has **no approved reference** and is honestly marked not composed                             |
+| 3.3 | Owner journey stays authenticated, MFA on consequential actions                  | auditor + lead | **done, production verified 08:06Z** | —           | anonymous: `/owner` 404, `/owner/quality` 404, `/admin` 303, `/admin/login` 200, `/app` 401; `authorise()` demands MFA ≤15 min                                                |
+| 3.4 | Owner dashboard shows launch figures                                             | A-UI           | **done, deployed `5da4766`**         | —           | eight tiles from live ports, `unknown` (no numeral) on a failed read, OWNER-901..907; cannot label sandbox vs live orders because no mode column exists, and the tile says so |
 
 ## D4 — Launch
 
@@ -77,6 +77,9 @@ Status: `done` · `active` · `blocked` · `queued`
 | Visit rule 7 (monotonic exclusion)     | `a77290d`            | yes       | yes                   | own 03:42 session flipped external to internal_test on production                                                                       |
 | Design figure milestone                | `121214d`            | yes       | yes                   | Telegram delivery not re-verified this hour                                                                                             |
 
+| Owner dashboard from live ports + owner screens composed | `5da4766` | yes | yes, `dbece4ef` 08:05Z | `/owner` 404 anonymous at 08:06Z; tiles not yet viewed with an owner session on production |
+| Design-figure Telegram gate (`outcome !== 'sent'`) | `5da4766` | yes | yes | awaiting the first post-deploy cron tick; the 13-of-19 row was absent at 08:07Z |
+
 ## Live figures (read from the databases at 07:47 UTC)
 
 |                                    | Production                                                                                                                             | Staging                                                                                                                   |
@@ -94,7 +97,7 @@ Status: `done` · `active` · `blocked` · `queued`
 
 1. **1.2 to 1.6, production-origin payment path**, waiting on **O6** (a sign-in only you can receive).
 2. **4.5, campaign submission**: conditions met; blocked by an ad blocker in the browser profile (O7).
-3. **3.4, owner dashboard launch figures** and remaining owner-screen composition, in the UI lane now.
+3. Nothing else blocks a launch from the code side. Not composed and honestly listed: `/security` (no reference), `/app/onboarding/connect`, `/admin/login`, `/support`, `/development-story/visual`.
 
 Closed since the last report: 4.1 (gate), 5.3 (false claims, production verified), 2.5 to 2.7 (HubSpot both paths), 1.1 and 4.2 (deploy with version marker).
 
