@@ -145,7 +145,43 @@ const RULES = [
     re: /\b(?:Zapier|Make\.com|Workato|Tray\.io|n8n)\b/i,
     why: 'names a real competitor; any comparative claim must be true and reviewed',
   },
-  // 6. Registry names nobody has claimed.
+  // 6. Business facts the approved designs invent.
+  //
+  // Added 20 September 2026, after sweeping the nineteen Stitch screens the owner approved
+  // as a VISUAL reference. Across them the designs carry 70 money figures, 21 trial and
+  // retention windows, 23 guarantee or SLA claims and 16 plan-tier references, almost none
+  // of which is true of this product: the pricing screen alone shows GBP 85.00 a month, a
+  // "14-Day Agency Trial No CC Required", an SLA and a guarantee. The real plan is GBP
+  // 29.00 a month, 500 runs, one workflow, HubSpot and Resend only, no trial and no
+  // certification of any kind.
+  //
+  // The competitor rule above already catches Zapier, Make.com and n8n, which is why those
+  // are not repeated here. These three cover what it does not, and they exist because the
+  // composition work still to come will be done FROM those files -- the moment a designed
+  // page is implemented faithfully, its copy arrives with it unless something refuses.
+  {
+    id: 'wrong-plan-price',
+    // Any per-month price that is not the plan price. The negative lookahead spares
+    // "GBP 29.00 a month" and nothing else; a different figure beside "a month" is either a
+    // price we do not charge or a sentence that needs rewording so it cannot be read as one.
+    re: /£\s?(?!29\b)\d[\d,]*(?:\.\d{2})?\s*(?:a|per|\/)\s*month/i,
+    why: 'states a monthly price that is not the plan price of £29.00',
+  },
+  {
+    id: 'unoffered-trial',
+    // "No trial is offered" must stay sayable, so a preceding denial suppresses the rule.
+    // `\w+ ` between the number and "trial" catches the designs' own phrasing, which is
+    // "14-Day Agency Trial" rather than "14-day trial" — a rule that only matched the tidy
+    // form would have passed the exact string it was written for.
+    re: /(?<!\bno )(?<!\bnot )\b(?:\d+[- ]day (?:\w+ ){0,2}trial|free trial|no (?:cc|credit card) required)\b/i,
+    why: 'offers a trial period this product does not have',
+  },
+  {
+    id: 'invented-plan-tier',
+    re: /\b(?:(?:starter|growth|enterprise|boutique|high[- ]scale)[- ](?:agency|plan|tier|partner)|per[- ]seat|seat limits?|volume tier)\b/i,
+    why: 'implies multiple plans or seat pricing; there is one plan and no seats',
+  },
+  // 7. Registry names nobody has claimed.
   {
     id: 'unclaimed-package',
     re: /\b(?:pip install|npm install|yarn add|PyPI:|pnpm add)\s+@?itisyou\b/i,
@@ -298,7 +334,10 @@ function readable(path) {
 
 let tracked = [];
 try {
-  tracked = execFileSync('git', ['ls-files', '-z'], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
+  tracked = execFileSync('git', ['ls-files', '-z'], {
+    encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024,
+  })
     .split('\0')
     .filter(Boolean);
 } catch {
