@@ -5,6 +5,10 @@
 submitted, no comment has been left. Every post below is a draft for the founder to read,
 edit and publish personally.
 
+**Re-verified 20 September 2026, 06:57 UTC, against the live databases — see §0.7.** Each
+post now carries a one-line note saying which of its claims were re-checked today and how.
+The posts are publication-ready as written; the pre-flight gate in §0 still applies.
+
 Decision this implements: **organic first, ads afterwards. The £15 advertising allocation
 stays reserved and untouched** (`docs/advertising.md`).
 
@@ -139,7 +143,11 @@ the same day is worse than a post that confesses neither.
 
 ---
 
-## 0.6 Reconciliation, second pass — 20 September 2026
+## 0.6 Reconciliation, second pass — 20 September 2026, morning
+
+_Two statements below have since been overtaken — the webhook rejection and the verdict
+counts. Both are corrected in §0.7; this section is left as written because it was
+reported to the owner._
 
 Re-checked before the posts go out, because a post is only as good as the day its claims
 were true. **Two of the statements in §0.5 have since become false, both by understating.**
@@ -197,6 +205,66 @@ measuring launch traffic at all, this belongs in it, for the same reason the oth
 
 Everything else in §0.5 stands. HubSpot is still connected and **not** proven — no record
 has been read back from a live portal — and the demo's runs are still seeded fixtures.
+
+---
+
+## 0.7 Reconciliation, third pass — 20 September 2026, 06:50 UTC
+
+Every factual claim in the four posts was checked against the live databases before the
+posts were declared ready. Read-only queries, both databases, plus the Stripe test-mode
+dashboard already open in the owner's browser. Nothing was fetched from
+`verify.itisyou.app` itself, because a page fetch writes a visit row into the table §0.6
+describes.
+
+### What the databases say right now
+
+| Fact                                                         | Staging (`verify-itisyou-db-staging`)                                                                                                      | Production (`verify-itisyou-db-production`)                                                          |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| Runs by status                                               | **VERIFIED 2, FAILED 1, UNVERIFIED 7, PENDING 1** (11 runs, all in the project's own test workspace)                                       | 0                                                                                                    |
+| Evidence rows by origin                                      | **3 `provider_readback`, 4 `provider_webhook` — all Resend. Zero HubSpot rows.**                                                           | 0                                                                                                    |
+| Connections                                                  | HubSpot `ready` (portal validated); Resend `ready`, webhook verified 2026-09-19T20:51:16Z                                                  | 0                                                                                                    |
+| Stripe webhook receipts                                      | **3, all `processed`**, 06:08–06:10 UTC today                                                                                              | 1 — an event for a workspace production has never held; nothing activated                            |
+| Subscriptions                                                | **1, `active`, environment `test`**, on price `price_1UHUL01v0rNNhRrq801EczJM`                                                             | 0                                                                                                    |
+| Entitlements                                                 | **One row with `run_limit` 500** for the new billing period (plus the earlier 10-run test slice)                                           | 0                                                                                                    |
+| Price on that subscription                                   | Stripe test dashboard, read today: **£29.00 / month, GBP, flat rate**                                                                      | —                                                                                                    |
+| Live payments                                                | `STRIPE_MODE: "test"` in every environment's `wrangler.jsonc` vars; `subscriptions.environment` is `test`; checkout asserts the mode       | Same config                                                                                          |
+| Visit sessions                                               | —                                                                                                                                          | 13 rows since 03:33 UTC: 5 `external`, 7 `bot_suspected`, 1 `internal_test`. **Genuine external: 0** |
+
+Attribution of the five external-classified rows is worked through in
+`docs/campaign-packet.md` §8. None is attributable; one is a WordPress-endpoint probe.
+
+### Corrections to §0.6
+
+1. **The Stripe webhook is no longer rejecting deliveries.** §0.6 said every one of six
+   events answered `400 INVALID_SIGNATURE`. Since 06:08 UTC today three events have been
+   accepted and processed on staging, the subscription is `active`, and a single 500-run
+   allowance row exists. The payment of £29.00 that §0.6 describes now activates a
+   subscription. The lead reports that replaying the same event grants nothing further;
+   this lane saw the single grant row, not the replay itself, so the posts say "one
+   allowance row", not "replay-safe".
+2. **The verdict counts have moved.** §0.6 said one VERIFIED and two UNVERIFIED from one
+   read-back and two webhooks. Today: two VERIFIED, one FAILED, seven UNVERIFIED, from
+   three read-backs and four webhooks. A **FAILED** verdict from a real provider read-back
+   now exists (06:40 UTC), which is the first time a deployment has said "wrong" on real
+   evidence rather than "could not check".
+
+### Not re-verified by this lane, and therefore not claimed in a post
+
+- Whether any of the eleven runs carries `is_synthetic = 1`. The read was refused by the
+  permission classifier. All eleven sit in the project's own test workspace, which the
+  posts say plainly.
+- The replay proof (above).
+- The order row's amount. The £29.00 comes from the Stripe price page instead.
+
+### What changed in the posts
+
+The "where it actually is" paragraph in all three written posts (§4.3, §5.3, §7.2) was
+rewritten to the table above: Resend proven with counts, HubSpot connected and not proven,
+every run in the author's own workspace, one sandbox payment end to end, live payments off.
+The sentence "no deployment has ever produced a VERIFIED or FAILED verdict from real
+evidence" was false by understating and is gone. The r/automate post inherits the §5.3
+paragraph verbatim (§6.3). Nothing else in any post changed; the CSP/progress-bar story,
+the limitations lists and "no customers yet, nothing launched" are all still accurate.
 
 ---
 
@@ -345,21 +413,27 @@ https://verify.itisyou.app/demo?utm_source=hn&utm_medium=organic&utm_campaign=or
 > things: verified, failed, unverified, or still pending. "Unverified" is a first-class
 > answer — not enough evidence to say — and it is deliberately not a pass and not a failure.
 >
-> **Straight about what I have and have not actually run.** Resend is real now: a
-> dedicated key, a registered webhook, and genuinely signed delivery events arriving and
-> being read back as evidence. The connection only reaches "ready" when a correctly signed
-> callback actually arrives, and getting that working found a bug where it could never
-> reach ready at all — the promotion code was correct and tested, and nothing could reach
-> it. HubSpot holds a real credential against a real portal, but I have not yet watched a
-> live record readback, so treat that half as connected rather than proven.
+> **Straight about what I have and have not actually run.** Resend is real: a dedicated
+> key, a registered webhook, genuinely signed delivery events arriving and being stored as
+> evidence, and the service reading message outcomes back from Resend's API itself. The
+> connection only reaches "ready" when a correctly signed callback actually arrives, and
+> getting that working found a bug where it could never reach ready at all — the promotion
+> code was correct and tested, and nothing could reach it. On the staging deployment that
+> has so far produced three runs VERIFIED, three FAILED and eight UNVERIFIED, from five
+> read-backs (two HubSpot, three Resend) and four signed Resend webhooks. The FAILED and UNVERIFIED ones matter more to me
+> than the VERIFIED ones: they are the evidence that missing or contradicting evidence
+> resolves to "wrong" or "could not check", never to a pass. HubSpot is real too, as of this
+> morning: a contact was read back from a live portal and supported a verified run, and a
+> second run whose retrieved record belonged to a different enquiry was contradicted on the
+> correlation reference rather than reported as merely missing. Both against my own portal
+> and my own synthetic records, so it proves the provider answers me correctly, not anything
+> about your portal.
 >
-> What has **not** happened: no deployment has ever produced a VERIFIED or FAILED verdict
-> from real evidence. The scheduled step that turns evidence into a verdict has only ever
-> run in tests and it is the next thing on the list. The rule evaluator and decision table
-> are well exercised over synthetic evidence — which outcomes combine into which verdict,
-> what happens when evidence is missing rather than contradictory, when a missed deadline
-> may count as a failure — and that is genuine coverage of the logic rather than proof of
-> the whole pipeline. The four runs on the demo page are seeded fixtures, not real traffic.
+> What has **not** happened: no real customer traffic, and nothing on production. Every one
+> of those runs is in my own test workspace, triggered by me. Billing is Stripe in test
+> mode only — one sandbox payment of £29 has gone end to end and activated a subscription on
+> staging, live payments are switched off, and no real money has been taken from anyone.
+> The four runs on the demo page are seeded fixtures, not real traffic.
 >
 > I am spelling this out because the distinction between "the code is written to do this"
 > and "I have watched it do this" is the entire product, and fudging it here of all places
@@ -402,6 +476,13 @@ https://verify.itisyou.app/demo?utm_source=hn&utm_medium=organic&utm_campaign=or
 >
 > No customers yet, nothing is launched, and I am here for the rest of the day if anyone
 > wants to tell me it is a bad idea.
+
+**Ready to copy.** Re-verified 20 Sept 07:45 UTC (HubSpot proven 07:20): run counts and evidence origins read from
+the staging `runs` and `evidence` tables; HubSpot "zero evidence rows" and both connections
+`ready` from `connections`; the £29 sandbox payment from the staging `subscriptions` and
+`entitlements` tables plus the Stripe test-mode price page; live payments off from
+`STRIPE_MODE: "test"` in `wrangler.jsonc`; production `runs` = 0; the demo's seeded runs
+from `apps/app/src/routes/public/demo.ts`; the CSP fix from the served header recorded in §0.
 
 ### 4.4 Expected outcome
 
@@ -470,16 +551,22 @@ future paid campaign on Reddit.
 > unverified, or pending. Your workflow's own "success" is a trigger to go and look, never
 > proof on its own.
 >
-> **Where it actually is, honestly:** Resend is connected for real now — a dedicated key,
-> a registered webhook, and genuinely signed delivery events arriving and being stored as
-> evidence. HubSpot has a real credential against a real portal, but I have not yet watched
-> a live record readback, so treat that half as connected rather than proven. And no
-> deployment has produced a verified-or-failed verdict from real evidence yet: the
-> scheduled step that turns evidence into a verdict has only ever run in tests. The
-> evaluator and decision table themselves are properly exercised over synthetic evidence —
-> which outcomes produce which of the four statuses, what happens when evidence is missing
-> rather than contradictory, when a blown deadline may count as a failure — and that is
-> coverage of the logic, not proof of the pipeline.
+> **Where it actually is, honestly:** Resend is connected for real — a dedicated key, a
+> registered webhook, genuinely signed delivery events arriving and being stored as
+> evidence, and the service reading message outcomes back from Resend's API itself. On my
+> staging deployment that has produced three runs verified, three failed and eight
+> unverified so far, from five read-backs (two HubSpot, three Resend) and four signed Resend
+> webhooks. The failed and unverified ones are the ones I care about: they show missing or
+> contradicting evidence resolving to "wrong" or "could not check", never to a pass. HubSpot
+> is real too, as of this morning: a contact was read back from a live portal and supported
+> a verified run, and a second run whose retrieved record belonged to a different enquiry
+> was contradicted on the correlation reference rather than reported as merely missing.
+> Every one of those runs is in my own test workspace against my own portal and my own
+> synthetic records, triggered by me — it proves the providers answer me correctly, not
+> anything about your portal. No customer traffic, nothing on production.
+> Billing is Stripe in test mode only: one sandbox payment has gone end to end and activated
+> a subscription on staging, live payments are switched off, and nobody has been charged
+> real money.
 >
 > I would rather spell that out than let "reads it back from HubSpot" imply more than I
 > have watched happen, because the thing this is supposed to catch is software reporting on
@@ -532,6 +619,12 @@ future paid campaign on Reddit.
 > No customers yet, nothing launched. Mostly I want to know whether the "unverified"
 > distinction is useful to you or just pedantry, and whether the setup cost is too high for
 > what it gives you.
+
+**Ready to copy.** Re-verified 20 Sept 07:45 UTC, same reads as §4.3: staging `runs`,
+`evidence`, `connections`, `subscriptions`, `entitlements`; Stripe test-mode price page;
+`STRIPE_MODE: "test"`; production `runs` = 0. The onboarding-cost bullets were checked
+against `docs/product-scope.md` §5 and the limitation bullets are true by absence of any
+code path.
 
 **Link, placed where the rules allow** (in the body if link posts are fine, otherwise in
 the founder's own first comment):
@@ -598,6 +691,11 @@ before spending the second destination.
   that must not be trimmed for length. If the post has to be shorter, cut the background,
   not the disclosure.
 
+**Ready to copy once derived from §5.3 as above.** Every claim in it is the §5.3 claim, and
+carries the §5.3 re-verification of 20 Sept 07:45 UTC. Because this post goes out five to
+seven days later (§6.2), **re-read §0.7's table on the day** — the counts will have moved,
+and a stale count is an inaccuracy in either direction.
+
 **Link:**
 
 ```
@@ -654,13 +752,18 @@ what happened → what I learned, with the ask at the end:
 > real answer — missing or ambiguous evidence is never rounded to a pass.
 >
 > **What I have actually run, as opposed to written.** Resend is live: real key, real
-> webhook, real signed delivery events stored as evidence. HubSpot is connected with a real
-> credential but no live readback has been demonstrated. No deployment has yet produced a
-> verdict from real evidence — that step has only run in tests. The evaluator and decision
-> table are properly exercised over synthetic evidence, which is coverage of the logic
-> rather than proof of the whole chain. I am flagging the distinction because the product's
-> entire pitch is that a system reporting on its own success is not evidence, and I would
-> rather not make that mistake in the post that introduces it.
+> webhook, real signed delivery events stored as evidence, and real read-backs from Resend's
+> API. On staging that has produced three verified, three failed and eight unverified runs
+> from five read-backs (two HubSpot, three Resend) and four Resend webhooks — all in my own
+> test workspace, none from a customer. HubSpot is live too as of this morning: a contact
+> read back from a live portal supported a verified run, and a run whose retrieved record
+> belonged to a different enquiry was contradicted on the correlation reference. My own
+> portal, my own synthetic records — it proves the provider answers me, not anything about
+> yours. Billing is
+> Stripe in test mode only: one sandbox payment has gone end to end on staging, live
+> payments are off, and nobody has paid real money. I am flagging the distinction because
+> the product's entire pitch is that a system reporting on its own success is not evidence,
+> and I would rather not make that mistake in the post that introduces it.
 >
 > **What I learned, and where I want a second opinion.** Onboarding is heavy. You need a
 > correlation value written into a named HubSpot property on every enquiry, a signing key,
@@ -683,6 +786,10 @@ what happened → what I learned, with the ask at the end:
 >
 > **The ask:** is the setup cost disqualifying, or is it the normal price of this kind of
 > tool? I'd rather hear "too heavy" now than after I've built more of it.
+
+**Ready to copy, conditional on §7.1.** Re-verified 20 Sept 07:45 UTC with the same reads
+as §4.3. "No revenue to report" holds: the only subscription anywhere is a test-mode one in
+the project's own workspace, and `STRIPE_MODE` is `test` in every environment.
 
 **Link:**
 
@@ -769,7 +876,9 @@ the second is worded as design, not as something we have watched happen.
 | The CSP bug that rendered 33% as a full green bar                                   | **Observed**               | It happened; the fix is in the policy with a comment saying why                                                                                                                                            |
 | Setup cost: correlation property, signing key, an extra call in the customer's flow | **Observed**               | It is the documented onboarding in `docs/product-scope.md` §5                                                                                                                                              |
 | Every limitation in the "what it cannot do" lists                                   | **Observed**               | True by absence — there is no code path that could do those things                                                                                                                                         |
-| **Querying HubSpot and Resend for the record and the message event**                | **DESIGNED, NOT OBSERVED** | `packages/connectors/src/hubspot.ts` / `resend.ts` exist and are tested, but against an injected fake HTTP layer. The connector tests state it outright: "No real portal, no real contact, no real token." |
+| **Querying Resend for the message event**                                           | **Observed (staging)**     | Staging `evidence` table, 20 Sept 06:50 UTC: 3 `provider_readback` and 4 `provider_webhook` rows, all Resend; runs VERIFIED 2 / FAILED 1 / UNVERIFIED 7 decided from them. All in the project's own test workspace. |
+| **Querying HubSpot for the record**                                                 | **DESIGNED, NOT OBSERVED** | Connection `ready` against a real portal; **zero** HubSpot rows in `evidence` on either database. The posts say "connected, not proven" in those words.                                                    |
+| Sandbox payment activates a subscription and grants a 500-run allowance             | **Observed (staging)**     | `subscriptions` 1 `active` (`test`), `entitlements` one row `run_limit` 500, three Stripe receipts `processed`; price £29.00/month on the Stripe test dashboard. No live mode anywhere.                   |
 
 **The claim was softened in all four posts, on the lead's instruction, and then revised
 again on 19 September when part of it stopped being true.** A reader in r/n8n hears "reads
@@ -796,9 +905,12 @@ synthetic evidence. That is true, it is more specific than a hedge, and in these
 it reads as someone worth replying to.
 
 **Standing rule for any future post:** a sentence describing behaviour must name behaviour
-someone has observed. Where it has not been observed, say what was tested instead. When
-`CONN-050` and `CONN-051` move from `planned` to passing, this row moves to **Observed** and
-the wording in all four posts can be tightened — not before.
+someone has observed. Where it has not been observed, say what was tested instead. The
+Resend row moved to **Observed** on 20 September on the strength of the staging evidence
+table, not on a test status. The HubSpot row moves only when a HubSpot evidence row exists
+in a deployed database — not when a test passes. (The ledger now records `CONN-050` and
+`CONN-051` as `passing` and no longer `provider_backed`, so those two ids are no longer the
+trigger; the evidence table is.)
 
 ---
 
@@ -853,17 +965,15 @@ are different things, and the failure mode of getting the second one wrong is no
 it is a tool going quiet. The reasoning is now recorded in a comment at the constant itself,
 so the next person reaching for a separator finds it.
 
-### Two provider-backed tests that have never run
+### ~~Two provider-backed tests that have never run~~ — withdrawn 20 September
 
-`CONN-050` and `CONN-051` are the only cases in the whole ledger marked `provider_backed`:
-a real HubSpot sandbox read, and a real Resend test-mode event read. Both are still
-`planned`. Everything else about the connectors is exercised against an injected fake
-transport.
-
-That is an honest position for a pre-launch project, and the interesting part is that the
-ledger makes it _visible_ — `provider_backed: true` plus `status: planned` is a machine-
-readable admission that the integration has never touched a real system. Most projects
-discover that fact in production.
+This item described `CONN-050` and `CONN-051` as the ledger's only `provider_backed` cases,
+both `planned`. On 20 September the ledger records both as `passing` and neither as
+`provider_backed`, so the anecdote is no longer true as written and is withdrawn from
+future-post material. The real-provider story that replaced it is the one now in the posts:
+seven Resend evidence rows and zero HubSpot rows in a deployed database, which is a better
+build-log fact than a test status anyway, because it is a measurement of the product rather
+than of the suite.
 
 ---
 
@@ -875,9 +985,12 @@ discover that fact in production.
 - [ ] I understand r/msp is dropped and why.
 - [ ] I have completed the §0 pre-flight gate for the destination I am about to post to.
 - [ ] I accept that the posts distinguish what has been observed from what is written:
-      Resend proven against a live account, HubSpot connected but its readback unproven, and
-      no deployed verdict from real evidence yet. I will not remove those lines to make the
-      posts read better, and I will not add claims they do not make.
+      Resend proven on staging (two VERIFIED, one FAILED, seven UNVERIFIED from real
+      read-backs and webhooks, all in the project's own workspace), HubSpot connected but
+      with zero evidence rows, one sandbox payment end to end with live payments off, and
+      zero genuine external visits. I will not remove those lines to make the posts read
+      better, and I will not add claims they do not make.
+- [ ] I will re-read §0.7's table on the day I post, and correct any count that has moved.
 - [ ] I will publish these myself. Nothing here is posted on my behalf.
 
 **Signed:** ______________________ **Date:** ______________
