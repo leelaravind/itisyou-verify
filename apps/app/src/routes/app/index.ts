@@ -43,6 +43,14 @@ import {
   maskedAccountLabel,
 } from './syntheticPort.js';
 import { SELECTABLE_COVERAGE_MODES } from '@verify/domain';
+import {
+  isSecureRequest,
+  readCookie,
+  sessionCookie,
+  sessionCookieName,
+  sessionIdFor,
+} from '../../lib/session.js';
+import type { Env } from '../../lib/context.js';
 import type { CoverageMode } from '@verify/contracts';
 import type {
   CustomerDataPort,
@@ -279,6 +287,82 @@ export function createAppRoutes(resolve: PortResolver = syntheticResolver): Hono
 
   /* -------------------------------------------------------------------- sign in */
 
+  /**
+   * The session id the browser already holds, hashed, so the redemption can revoke it.
+   *
+   * A stale cookie must not stop a valid link working, and it must not be carried forward
+   * either: fixation is exactly what rotating on every privilege transition prevents.
+   */
+  async function presentedSessionId(request: Request, secure: boolean): Promise<string | null> {
+    const value = readCookie(request.headers.get('cookie'), sessionCookieName(secure));
+    return value === null ? null : sessionIdFor(value);
+  }
+
+  /**
+   * Complete a sign-in from an emailed link.
+   *
+   * This route did not exist until 20 September 2026, and its absence made the whole
+   * customer journey a dead end by construction: `redeemSignInToken` was written, tested
+   * and reachable from nothing, so even a delivered link had nowhere to land. The owner's
+   * link had the same problem -- I wired /admin/login to genuinely send an email the day
+   * before, and the URL inside it answered 404.
+   *
+   * The token is single-use and the redemption is one conditional statement, so two
+   * browsers opening the same link race in the database and the loser gets nothing. The
+   * session id is minted fresh, so a cookie the browser already held cannot survive a
+   * sign-in.
+   *
+   * Every failure answers the same way. "That link has expired" and "that link was already
+   * used" and "no such token" are one sentence, because distinguishing them tells an
+   * unauthenticated caller which addresses have accounts.
+   */
+  routes.get('/sign-in/complete', async (c) => {
+    const { redeemSignInToken } = await import('../../lib/auth.js');
+    const env = c.env as Env;
+    const secure = isSecureRequest(c.req.raw, env.PUBLIC_BASE_URL);
+    const token = (c.req.query('token') ?? '').trim();
+
+    const redeemed =
+      token === ''
+        ? ({ ok: false, refusal: 'unknown_or_used' } as const)
+        : await redeemSignInToken(env.DB as never, {
+            token,
+            now: new Date(),
+            presentedSessionId: await presentedSessionId(c.req.raw, secure),
+          });
+
+    if (!redeemed.ok) {
+      const port = await resolve(c);
+      const csrf = generateCsrfToken();
+      setCsrfCookie(c, csrf);
+      return page(
+        c,
+        shell(port, {
+          title: 'Sign in',
+          path: '/app/sign-in',
+          body: SignInPage({
+            csrfToken: csrf,
+            submitted: {
+              ok: false,
+              fieldErrors: {},
+              redirectTo: null,
+              message:
+                'That sign-in link cannot be used. Links work once and expire after fifteen minutes. Ask for a new one.',
+            },
+            email: '',
+            linkSent: false,
+          }),
+        }),
+        { status: 401 },
+      );
+    }
+
+    c.header('set-cookie', sessionCookie(redeemed.session.sessionValue, { secure }), {
+      append: true,
+    });
+    return c.redirect('/app', 303);
+  });
+
   routes.get('/sign-in', async (c) => {
     const port = await resolve(c);
     const session = await port.session();
@@ -314,7 +398,10 @@ export function createAppRoutes(resolve: PortResolver = syntheticResolver): Hono
     const result = await port.requestSignInLink(email);
     const token = generateCsrfToken();
     setCsrfCookie(c, token);
-    if (result.ok) return c.redirect(result.redirectTo ?? '/app', 303);
+    // A successful request is NOT a redirect to /app. There is no session yet -- the link
+    // is in an inbox -- so redirecting would bounce straight back here and look like the
+    // request had failed. It renders the confirmation instead, which is also the only
+    // answer that can be identical for an address with an account and one without.
     return page(
       c,
       shell(port, {
@@ -324,10 +411,10 @@ export function createAppRoutes(resolve: PortResolver = syntheticResolver): Hono
           csrfToken: token,
           submitted: result,
           email,
-          linkSent: false,
+          linkSent: result.ok,
         }),
       }),
-      { status: 422 },
+      { status: result.ok ? 200 : 422 },
     );
   });
 

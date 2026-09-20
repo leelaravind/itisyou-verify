@@ -83,6 +83,15 @@ import {
 const CREDENTIAL_KEY_VERSION = 1;
 
 /**
+ * The identical answer a sign-in request receives when a link went out.
+ *
+ * It never varies with the address -- not with whether it has an account, not with
+ * whether it was rate limited -- because either would make this an account oracle.
+ */
+const SIGN_IN_SENT =
+  'If that address has a workspace, a sign-in link is on its way. It works once and expires in fifteen minutes.';
+
+/**
  * Said the same way on the page before the button and on the response after it.
  *
  * It names the missing secret on purpose. The person who reads this on a bare deployment is
@@ -296,8 +305,54 @@ export class D1CustomerDataPort implements CustomerDataPort {
         email: 'That does not look like an email address.',
       });
     }
+    const address = trimmed.toLowerCase();
+
+    // Rate limited on a hash of the address, never the address itself. A different answer
+    // when limited would tell someone probing that their probing is working.
+    const { consume } = await import('../lib/ratelimit');
+    const { hashToken } = await import('@verify/security');
+    const decision = await consume(
+      this.#db,
+      `signin:customer:${await hashToken(address, 'ratelimit')}`,
+      5,
+      15 * 60,
+      this.#now,
+    );
+    if (!decision.allowed) return ok(null, SIGN_IN_SENT);
+
+    const { issueSignInToken } = await import('../lib/auth');
+    const issued = await issueSignInToken(this.#db, { email: address, now: this.#now });
+
+    const base = this.#env.PUBLIC_BASE_URL.replace(/\/+$/, '');
+    const { createNotificationDelivery } = await import('../notifications/delivery');
+    const report = await createNotificationDelivery(
+      this.#env as never,
+      new D1SupportDataPort(this.#db),
+    ).deliver([
+      {
+        template: 'sign_in_link',
+        to: address,
+        variables: {
+          link: `${base}/app/sign-in/complete?token=${encodeURIComponent(issued.token)}`,
+          expires_at: issued.expiresAt,
+        },
+      },
+    ] as never);
+
+    if (report.sent > 0) return ok(null, SIGN_IN_SENT);
+
+    // The two failures are kept apart for the same reason the owner path keeps them
+    // apart: "we are not set up to email you" and "we tried and it did not go" are
+    // different facts, and only one is worth retrying. This method used to return the
+    // first unconditionally -- including on production, which has both Resend secrets --
+    // which made it a false statement about the deployment rather than about the address.
+    const configured =
+      (this.#env.RESEND_API_KEY ?? '').length > 0 &&
+      (this.#env.RESEND_FROM_ADDRESS ?? '').length > 0;
     return refuse(
-      'No sign-in link was sent. Email delivery is not connected in this environment yet, so nothing would arrive and we will not pretend otherwise.',
+      configured
+        ? 'No sign-in link was sent. We tried and the attempt failed, so nothing arrived. Please try again in a moment.'
+        : 'No sign-in link was sent. This deployment has no email delivery configured, so nothing would arrive and we will not pretend otherwise.',
     );
   }
 

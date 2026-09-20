@@ -523,6 +523,56 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
    * exists, is the owner's, is a customer's or is nobody's. There is deliberately no branch
    * here that could produce a different page for a different address.
    */
+  /**
+   * Complete an owner sign-in from an emailed link.
+   *
+   * This did not exist. The link `requestSignInLink` puts in the email pointed here and
+   * this path answered 404 -- so the fix that made /admin/login genuinely send a mail
+   * replaced a false claim with a real email containing a dead URL. Worth stating plainly:
+   * removing a lie is not the same as making the thing work, and I shipped the first while
+   * believing I had done the second.
+   *
+   * Every failure answers identically, for the same reason the request side does.
+   */
+  routes.get('/admin/login/complete', async (c) => {
+    const { redeemSignInToken } = await import('../../lib/auth.js');
+    const { isSecureRequest, readCookie, sessionCookie, sessionCookieName, sessionIdFor } =
+      await import('../../lib/session.js');
+
+    const env = c.env as unknown as { PUBLIC_BASE_URL: string; DB: unknown };
+    const secure = isSecureRequest(c.req.raw, env.PUBLIC_BASE_URL);
+    const token = (c.req.query('token') ?? '').trim();
+    const presented = readCookie(c.req.raw.headers.get('cookie'), sessionCookieName(secure));
+
+    const redeemed =
+      token === ''
+        ? ({ ok: false, refusal: 'unknown_or_used' } as const)
+        : await redeemSignInToken(env.DB as never, {
+            token,
+            now: new Date(),
+            presentedSessionId: presented === null ? null : await sessionIdFor(presented),
+          });
+
+    if (!redeemed.ok) {
+      return ownerPage(
+        c,
+        adminLoginDocument({
+          csrfToken: newPageToken(c),
+          submitted: false,
+          fieldError:
+            'That sign-in link cannot be used. Links work once and expire after fifteen minutes.',
+          email: '',
+        }),
+        401,
+      );
+    }
+
+    c.header('set-cookie', sessionCookie(redeemed.session.sessionValue, { secure }), {
+      append: true,
+    });
+    return c.redirect('/owner', 303);
+  });
+
   routes.post('/admin/login', async (c) => {
     const form = await readForm(c);
     const email = (form.single['email'] ?? '').trim().slice(0, 254);
