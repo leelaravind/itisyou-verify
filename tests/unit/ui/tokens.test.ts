@@ -7,7 +7,7 @@
  */
 import { gzipSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
-import { CSS, CSS_BYTES, DARK, LIGHT, STATUS_PRESENTATION, THEME_SCRIPT } from '@verify/ui';
+import { CSS, CSS_BYTES, DARK, LIGHT, STATUS_PRESENTATION, THEME_SCRIPT, TYPE } from '@verify/ui';
 
 /** WCAG 2.1 relative luminance. */
 function luminance(hex: string): number {
@@ -129,6 +129,38 @@ describe('design tokens', () => {
     expect(CSS, 'the blur has no unsupported-browser guard').toContain(
       '@supports not (backdrop-filter:blur(1px))',
     );
+  });
+
+  it('RESIL-185 the display sizes compute to the approved pixel values at both design widths', () => {
+    /*
+     * `empirical_verification_system/DESIGN.md` specifies the scale in pixels at two
+     * widths: display-lg is 36px mobile and 56px desktop, display-md is 28px and 40px.
+     * Those are expressed here as clamps, which is the right shape for a fluid page and
+     * the wrong shape for trusting by eye -- a clamp can be "about right" and be neither
+     * designed number.
+     *
+     * So this evaluates the clamp arithmetic at 375px and 1440px and checks the endpoints
+     * ARE the designed values. It is the difference between implementing a design and
+     * implementing something that resembles it.
+     */
+    const px = (token: string, viewport: number): number => {
+      const m = /clamp\(([\d.]+)rem,\s*([\d.]+)rem \+ ([\d.]+)vw,\s*([\d.]+)rem\)/.exec(token);
+      if (m === null) throw new Error(`${token} is not a two-ended clamp`);
+      const [min, base, vw, max] = [m[1], m[2], m[3], m[4]].map((part) => Number(part ?? NaN));
+      if ([min, base, vw, max].some((n) => n === undefined || Number.isNaN(n))) {
+        throw new Error(`${token} has a part that is not a number`);
+      }
+      const fluid = (base as number) * 16 + ((vw as number) / 100) * viewport;
+      return Math.round(Math.min(Math.max(fluid, (min as number) * 16), (max as number) * 16));
+    };
+
+    expect(px(TYPE.display, 375), 'display-lg at the mobile width').toBe(36);
+    expect(px(TYPE.display, 1440), 'display-lg at the desktop width').toBe(56);
+    expect(px(TYPE.h1, 375), 'display-md at the mobile width').toBe(28);
+    expect(px(TYPE.h1, 1440), 'display-md at the desktop width').toBe(40);
+    // The two fixed sizes, straight from the spec.
+    expect(TYPE.h2, 'headline-lg is 24px').toBe('1.5rem');
+    expect(TYPE.h3, 'headline-sm is 18px').toBe('1.125rem');
   });
 
   it('CUST-006 reduced motion is respected and focus is always visible', () => {

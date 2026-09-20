@@ -191,11 +191,32 @@ export const FONT = {
 } as const;
 
 /** Type scale. Display sizes are fluid; body sizes are fixed so line length stays honest. */
+/**
+ * Type scale — the approved Stitch scale, converted rather than approximated.
+ *
+ * `empirical_verification_system/DESIGN.md` specifies sizes in pixels at two widths:
+ * `display-lg` 56px with a 36px mobile variant, `display-md` 40px with 28px mobile,
+ * `headline-lg` 24px and `headline-sm` 18px. Body sizes were already 16/14/12 and match.
+ *
+ * The two display sizes are expressed as clamps solved across a 375px–1440px viewport so
+ * the endpoints ARE the designed values rather than something near them: at 375px the
+ * display computes to 36px and at 1440px to 56px. A designer who measures the rendered
+ * page at either width gets the number they drew.
+ *
+ * The previous scale topped out at 48px, which is a fifth smaller than the design and the
+ * difference a hero headline is mostly made of. Body, small and micro are unchanged;
+ * Stitch's `body-sm` is 13px against our 12px micro, and 12px is kept because it is the
+ * floor the contrast and readability work was done against.
+ */
 export const TYPE = {
-  display: 'clamp(2rem, 1.35rem + 2.7vw, 3rem)',
-  h1: 'clamp(1.625rem, 1.35rem + 1.15vw, 2.125rem)',
-  h2: '1.3125rem',
-  h3: '1.0625rem',
+  /** Stitch `display-lg`: 36px at 375px, 56px at 1440px. */
+  display: 'clamp(2.25rem, 1.8099rem + 1.878vw, 3.5rem)',
+  /** Stitch `display-md`: 28px at 375px, 40px at 1440px. */
+  h1: 'clamp(1.75rem, 1.4859rem + 1.127vw, 2.5rem)',
+  /** Stitch `headline-lg`. */
+  h2: '1.5rem',
+  /** Stitch `headline-sm`. */
+  h3: '1.125rem',
   body: '1rem',
   small: '0.875rem',
   micro: '0.75rem',
