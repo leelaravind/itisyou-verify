@@ -86,10 +86,10 @@ browser suite has any unexpected or flaky result (it refused `e0aa820` on exactl
 Google Ads account 227-475-1523, campaign 24269887676. Published by the owner 07:55Z; found to
 carry no keywords and no ads. Budget lowered 12.46 → **£12.25** total (Google's 2% UK DST fee
 on top, VAT on the fee → £14.99), verified across a reload. Five exact-match keywords and
-eight negatives saved. Responsive search ad entered from the packet; saving it raised
-Google's identity challenge, which only the owner can complete. Status "Not eligible — low
-search volume, under review". Spend £0.00; no impression served. States: drafted ✓,
-submitted ✓ (by the owner), approved ✗, delivering ✗.
+eight negatives saved. The packet's responsive search ad saved at 10:15Z after the owner
+cleared Google's identity check: **Pending — Under review**, 0 impressions. Campaign status
+"Not eligible" (low search volume, ad under review). Spend £0.00; no impression served.
+States: drafted ✓, submitted ✓, approved ✗, delivering ✗.
 
 ## 9. What only the owner can do
 
