@@ -88,6 +88,32 @@ describe('design tokens', () => {
     expect(CSS, 'the light palette must still be emitted').toContain(LIGHT.paper);
   });
 
+  it('RESIL-183 the responsive ladder survives, so no token change can quietly drop mobile', () => {
+    /*
+     * The owner asked for the approved design across desktop AND mobile. The palette was
+     * changed at the token layer, which restyles every screen at once and could in
+     * principle have been done in a way that left the layout rules behind -- and nothing in
+     * the suite was watching the breakpoints.
+     *
+     * These are the widths the stylesheet actually uses: a phone-only rule below 40rem, and
+     * a ladder up through tablet to desktop. The case asserts they are all still emitted. It
+     * does NOT assert the pages look like the two Stitch mobile references, which is a
+     * separate piece of work recorded as outstanding in `docs/stitch-mapping.md`. A test
+     * that implied otherwise would be the kind of claim this product exists to refuse.
+     */
+    const required = [
+      '@media (max-width:39.99rem)',
+      '@media (min-width:34rem)',
+      '@media (min-width:40rem)',
+      '@media (min-width:46rem)',
+      '@media (min-width:52rem)',
+      '@media (min-width:60rem)',
+    ];
+    for (const query of required) {
+      expect(CSS, `the stylesheet no longer emits ${query}`).toContain(query);
+    }
+  });
+
   it('CUST-006 reduced motion is respected and focus is always visible', () => {
     expect(CSS).toContain('@media (prefers-reduced-motion:reduce)');
     expect(CSS).toContain(':focus-visible{outline:2px solid var(--c-focus)');
