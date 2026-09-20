@@ -2678,15 +2678,19 @@ export class D1OwnerAuth implements OwnerAuthPort {
    */
   #delivery: NotificationDelivery | undefined = undefined;
 
-  constructor(input: { db: Db; env: Env }) {
+  readonly #fetchImpl: typeof fetch | undefined;
+
+  constructor(input: { db: Db; env: Env; fetchImpl?: typeof fetch }) {
     this.#db = input.db;
     this.#env = input.env;
+    this.#fetchImpl = input.fetchImpl;
   }
 
   get #notifications(): NotificationDelivery {
     this.#delivery ??= createNotificationDelivery(
       this.#env as never,
       new D1SupportDataPort(this.#db),
+      this.#fetchImpl === undefined ? {} : { fetchImpl: this.#fetchImpl },
     );
     return this.#delivery;
   }
@@ -2727,16 +2731,29 @@ export class D1OwnerAuth implements OwnerAuthPort {
     const issued = await issueSignInToken(this.#db, { email: address, now });
 
     const base = this.#env.PUBLIC_BASE_URL.replace(/\/+$/, '');
-    const report = await this.#notifications.deliver([
-      {
-        template: 'sign_in_link',
-        to: address,
-        variables: {
-          link: `${base}/admin/login/complete?token=${encodeURIComponent(issued.token)}`,
-          expires_at: issued.expiresAt,
+    // Same defect and same fix as the customer port: the request is now the shape
+    // `deliver()` reads, with an event-derived key and a logger, instead of
+    // `{ template, to, variables }` behind `as never`.
+    const notificationKey = `sign_in_link:${await hashToken(issued.token, 'notification-key')}`;
+    const expiresInMinutes = Math.max(
+      1,
+      Math.round((Date.parse(issued.expiresAt) - now.getTime()) / 60_000),
+    );
+    const report = await this.#notifications.deliver(
+      [
+        {
+          notificationKey,
+          workspaceId: null,
+          recipientEmail: address,
+          template: 'sign_in_link',
+          vars: {
+            signInUrl: `${base}/admin/login/complete?token=${encodeURIComponent(issued.token)}`,
+            expiresInMinutes,
+          },
         },
-      },
-    ] as never);
+      ],
+      (entry) => console.warn('owner_sign_in_delivery', entry),
+    );
 
     // What actually happened, and the three outcomes are kept apart deliberately.
     //

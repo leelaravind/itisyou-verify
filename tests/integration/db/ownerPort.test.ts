@@ -373,6 +373,11 @@ describe('owner auth port', () => {
     // only `sent | no_transport`, so this rendered "no email delivery configured" on
     // production, which has both secrets -- a false configuration statement added while
     // removing five others.
+    // The transport is stubbed to REFUSE, so `send_failed` here is caused by the transport.
+    // Before 20 September this case passed for a different reason: the request shape was
+    // wrong, `.trim()` threw on an undefined recipient, and the throw was swallowed as
+    // `failed` before any row was written. The row assertion below is what tells the two
+    // apart, and it is the assertion this case lacked.
     const auth = new D1OwnerAuth({
       db: h.db,
       env: env({
@@ -380,10 +385,37 @@ describe('owner auth port', () => {
         RESEND_API_KEY: 're_0000000000000000000000',
         RESEND_FROM_ADDRESS: 'verify@example.invalid',
       }),
+      fetchImpl: (async () => new Response('nope', { status: 500 })) as typeof fetch,
     });
     expect(await auth.requestSignInLink(OWNER_EMAIL)).toEqual({ delivery: 'send_failed' });
     // The token is still minted, so a retry does not silently lose the attempt.
     expect(countRows(h, 'login_tokens')).toBe(1);
+    // And the attempt is a recorded fact, not a silent throw.
+    expect(countRows(h, 'notification_deliveries')).toBe(1);
+  });
+
+  it('AUTH-436 a deployment that can send does send, and the message carries the admin link', async () => {
+    const calls: string[] = [];
+    const auth = new D1OwnerAuth({
+      db: h.db,
+      env: env({
+        // secret-scan:allow synthetic; the stub never lets it leave the process
+        RESEND_API_KEY: 're_0000000000000000000000',
+        RESEND_FROM_ADDRESS: 'verify@example.invalid',
+      }),
+      fetchImpl: (async (_input: RequestInfo | URL, init?: RequestInit) => {
+        calls.push(String(init?.body ?? ''));
+        return new Response(JSON.stringify({ id: 'stub_msg_1' }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      }) as typeof fetch,
+    });
+
+    expect(await auth.requestSignInLink(OWNER_EMAIL)).toEqual({ delivery: 'sent' });
+    expect(calls.length).toBe(1);
+    expect(calls[0]).toContain('/admin/login/complete?token=');
+    expect(countRows(h, 'notification_deliveries')).toBe(1);
   });
 
   it('AUTH-433 a deployment with no mail transport says nothing was sent, rather than claiming one was', async () => {

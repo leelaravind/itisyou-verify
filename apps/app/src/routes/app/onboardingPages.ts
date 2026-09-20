@@ -39,7 +39,13 @@ import {
 import { setupGuide, type ProviderSetupGuide } from '@verify/connectors';
 import { preCheckoutPanel, type DisclosureSection } from '../../billing/index.js';
 import { LIMITS, type CoverageMode } from '@verify/contracts';
-import { connectionPresentation, formMessage, onboardingProgress, pageHead } from './chrome.js';
+import {
+  connectionPresentation,
+  connectionTally,
+  formMessage,
+  onboardingProgress,
+  pageHead,
+} from './chrome.js';
 import { formatDuration } from '../public/shared.js';
 import type {
   ActivationView,
@@ -58,17 +64,57 @@ interface StepShellOptions {
   readonly title: string;
   readonly lede: string;
   readonly body: Html;
+  /**
+   * Something computed to sit beside the head — a tally of states, as the approved
+   * screens set beside their titles. Absent, the head stands alone as before.
+   */
+  readonly aside?: Html | null;
 }
 
 function stepShell(options: StepShellOptions): Html {
+  const head = pageHead({ eyebrow: options.eyebrow, title: options.title, lede: options.lede });
   return html`<div class="wrap section stack-lg">
     ${onboardingProgress(options.href)}
-    ${pageHead({ eyebrow: options.eyebrow, title: options.title, lede: options.lede })}
+    ${
+      options.aside === undefined || options.aside === null
+        ? head
+        : html`<div class="section-head">${head}${options.aside}</div>`
+    }
     ${options.body}
   </div>`;
 }
 
 /* ------------------------------------------------------------- 1. compatibility */
+
+/** The badge each provider card wears, so the tally beside the head can wear the same one. */
+function compatibilityBadge(entry: ConnectorCompatibility): { readonly status: StatusKey; readonly label: string } {
+  return entry.supported
+    ? { status: 'VERIFIED', label: 'Supported' }
+    : { status: 'FAILED', label: 'Not supported' };
+}
+
+/**
+ * The providers counted by the label their card wears, in the order they are listed. Only
+ * labels that occur are listed: a zero under "Not supported" would dress an all-clear as a
+ * measured result, and the reference draws a count only for what it found.
+ */
+function compatibilityTally(entries: readonly ConnectorCompatibility[]): Html {
+  const groups = new Map<string, { readonly status: StatusKey; count: number }>();
+  for (const entry of entries) {
+    const badge = compatibilityBadge(entry);
+    const group = groups.get(badge.label);
+    if (group === undefined) groups.set(badge.label, { status: badge.status, count: 1 });
+    else group.count += 1;
+  }
+  return html`<ul class="tally" aria-label="Providers by state">
+    ${[...groups.entries()].map(
+      ([label, group]) => html`<li data-compatibility-tally="${label}">
+        <span class="tally__count">${String(group.count)}</span>
+        ${StatusBadge({ status: group.status, label })}
+      </li>`,
+    )}
+  </ul>`;
+}
 
 export function CompatibilityPage(entries: readonly ConnectorCompatibility[]): Html {
   const blocked = entries.filter((entry) => !entry.supported);
@@ -77,6 +123,7 @@ export function CompatibilityPage(entries: readonly ConnectorCompatibility[]): H
     eyebrow: 'Step 1 of 7',
     title: 'Can we verify your setup?',
     lede: 'Version one checks exactly one workflow shape, using exactly two providers. Read this before you connect anything — if your automation does something else, we cannot verify it yet.',
+    aside: entries.length === 0 ? null : compatibilityTally(entries),
     body: html`<div class="stack-lg">
       ${ActivationNotice()}
       ${
@@ -91,45 +138,50 @@ export function CompatibilityPage(entries: readonly ConnectorCompatibility[]): H
             })
       }
 
-      <div class="grid grid-2">
-        ${entries.map((entry) =>
-          Card({
-            title: entry.displayName,
-            aside: StatusBadge({
-              status: entry.supported ? 'VERIFIED' : 'FAILED',
-              label: entry.supported ? 'Supported' : 'Not supported',
-            }),
-            body: html`<div class="stack-sm">
-              <p class="small muted">${entry.purpose}</p>
-              <!-- The requirements sit in a sunken pane inside the card, the way the approved
-                   compatibility screen frames each provider's facts. -->
-              <div class="pane">
-                <p class="eyebrow">You need</p>
-                <ul class="small">
-                  ${entry.requirements.map((requirement) => html`<li>${requirement}</li>`)}
-                </ul>
-              </div>
-            </div>`,
-          }),
-        )}
+      <!-- Composition follows the approved compatibility screen: the provider cards stacked
+           in the wider left column, one card per provider with its facts in a sunken pane;
+           the commitment and the control in the narrower right one, seven parts to five.
+           In document order every card is read before the control, and the control is the
+           same inert element as before — the layout moved nothing a form could submit. -->
+      <div class="grid grid-7-5">
+        <div class="stack" data-compatibility-providers>
+          ${entries.map((entry) => {
+            const badge = compatibilityBadge(entry);
+            return Card({
+              title: entry.displayName,
+              aside: StatusBadge({ status: badge.status, label: badge.label }),
+              body: html`<div class="stack-sm">
+                <p class="small muted">${entry.purpose}</p>
+                <div class="pane">
+                  <p class="eyebrow">You need</p>
+                  <ul class="small">
+                    ${entry.requirements.map((requirement) => html`<li>${requirement}</li>`)}
+                  </ul>
+                </div>
+              </div>`,
+            });
+          })}
+        </div>
+
+        <div class="stack" data-compatibility-control>
+          ${Callout({
+            tone: 'limit',
+            title: 'One more thing, and it is real work',
+            body: html`<p>
+              Your automation has to send us one signed event for each enquiry. That means editing the flow you
+              already have to add an outbound call. We cannot do this part for you, and without it we have
+              nothing to check.
+            </p>`,
+          })}
+
+          ${UnavailableAction({
+            label: 'These all apply — continue',
+            reason: ACTIVATION_UNAVAILABLE_REASON,
+            whenBack: ACTIVATION_UNAVAILABLE_WHEN,
+          })}
+          ${ButtonRow([Button({ label: 'Read the setup requirements', href: '/how-it-works', variant: 'quiet' })])}
+        </div>
       </div>
-
-      ${Callout({
-        tone: 'limit',
-        title: 'One more thing, and it is real work',
-        body: html`<p>
-          Your automation has to send us one signed event for each enquiry. That means editing the flow you
-          already have to add an outbound call. We cannot do this part for you, and without it we have
-          nothing to check.
-        </p>`,
-      })}
-
-      ${UnavailableAction({
-        label: 'These all apply — continue',
-        reason: ACTIVATION_UNAVAILABLE_REASON,
-        whenBack: ACTIVATION_UNAVAILABLE_WHEN,
-      })}
-      ${ButtonRow([Button({ label: 'Read the setup requirements', href: '/how-it-works', variant: 'quiet' })])}
     </div>`,
   });
 }
@@ -167,17 +219,32 @@ function permissionNotice(guide: ProviderSetupGuide): Html {
   });
 }
 
-/** Three lists that together say exactly where this connection's power begins and ends. */
-function scopeLists(guide: ProviderSetupGuide): Html {
+/**
+ * Three lists that together say exactly where this connection's power begins and ends.
+ *
+ * The first — what we read — sits in a sunken pane directly under the card's head, where
+ * the approved connections screen frames each provider's readback facts. The other two
+ * close the card, two abreast. The same three lists as before, in the same words; only
+ * where they sit has moved.
+ */
+function readPane(guide: ProviderSetupGuide): Html {
+  return html`<div class="pane" data-connect-reads="${guide.provider}">
+    <p class="eyebrow">What we read</p>
+    <ul class="small">
+      ${guide.weRead.map((item) => html`<li>${item}</li>`)}
+    </ul>
+  </div>`;
+}
+
+function boundaryLists(guide: ProviderSetupGuide): Html {
   const list = (heading: string, items: readonly string[]): Html => html`<div class="stack-sm">
     <p class="eyebrow">${heading}</p>
     <ul class="small muted">
       ${items.map((item) => html`<li>${item}</li>`)}
     </ul>
   </div>`;
-  return html`<div class="grid grid-3">
-    ${list('What we read', guide.weRead)}${list('What we never do', guide.weNeverDo)}
-    ${list('What this cannot prove', guide.cannotProve)}
+  return html`<div class="grid grid-2" data-connect-boundaries="${guide.provider}">
+    ${list('What we never do', guide.weNeverDo)}${list('What this cannot prove', guide.cannotProve)}
   </div>`;
 }
 
@@ -247,6 +314,7 @@ function connectCard(connection: ConnectionView, options: ConnectPageOptions): H
       ${StatusBadge({ status: presentation.status, label: presentation.label })}
     </div>
     <p class="small muted">${guide.purpose}</p>
+    ${readPane(guide)}
 
     ${
       connection.status === 'testing' || connection.status === 'authorising'
@@ -309,7 +377,7 @@ function connectCard(connection: ConnectionView, options: ConnectPageOptions): H
       ])}
     </div>
 
-    ${scopeLists(guide)}
+    ${boundaryLists(guide)}
   </section>`;
 }
 
@@ -324,33 +392,18 @@ export function ConnectPage(options: ConnectPageOptions): Html {
   const allReady =
     options.connections.length > 0 &&
     options.connections.every((connection) => connection.status === 'ready');
+  const hasConnections = options.connections.length > 0;
   return stepShell({
     href: '/app/onboarding/connect',
     eyebrow: 'Step 2 of 7',
     title: 'Connect HubSpot and Resend',
     lede: 'Read what each credential can do before you paste it. Where a provider offers nothing narrower than we need, we say so rather than glossing over it.',
     body: html`<div class="stack-lg">
-      ${
-        options.connections.length === 0
-          ? EmptyState({
-              title: 'No providers to connect',
-              body:
-                'We could not list the providers this workflow needs. That is a fault on our side, not ' +
-                'something you have done — nothing about your setup has changed. Try again shortly, and ' +
-                'tell us if it keeps happening.',
-              actions: [
-                Button({ label: 'Contact support', href: '/app/support', variant: 'quiet' }),
-              ],
-            })
-          : options.connections.map((connection) => connectCard(connection, options))
-      }
-      ${ButtonRow([
-        Button({
-          label: 'Continue to field mapping',
-          href: '/app/onboarding/mapping',
-          variant: allReady ? 'primary' : 'default',
-        }),
-      ])}
+      <!-- Composition follows the approved connections screen: the notice above the cards,
+           one card per provider side by side from desktop width (stacked below it, because
+           each card carries a form), and a closing band with the count of connections by
+           state on the left and the way onward on the right. The notice used to follow the
+           button; it now precedes the cards, and says the same thing. -->
       ${
         allReady
           ? null
@@ -362,6 +415,32 @@ export function ConnectPage(options: ConnectPageOptions): Html {
             </p>`,
             })
       }
+      ${
+        hasConnections
+          ? html`<div class="split" data-connect-cards>
+              ${options.connections.map((connection) => connectCard(connection, options))}
+            </div>`
+          : EmptyState({
+              title: 'No providers to connect',
+              body:
+                'We could not list the providers this workflow needs. That is a fault on our side, not ' +
+                'something you have done — nothing about your setup has changed. Try again shortly, and ' +
+                'tell us if it keeps happening.',
+              actions: [
+                Button({ label: 'Contact support', href: '/app/support', variant: 'quiet' }),
+              ],
+            })
+      }
+      <div class="cta-band">
+        ${hasConnections ? connectionTally(options.connections) : null}
+        ${ButtonRow([
+          Button({
+            label: 'Continue to field mapping',
+            href: '/app/onboarding/mapping',
+            variant: allReady ? 'primary' : 'default',
+          }),
+        ])}
+      </div>
     </div>`,
   });
 }

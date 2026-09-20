@@ -34,7 +34,7 @@ Stitch screen without an implemented route**, and no orphan.
 | 6   | `sign_in_welcome_mobile_itisyou_verify`               | `/app/sign-in` at mobile width                       | 200      | Palette applied; responsive behaviour is ours, not verified against the reference    |
 | 7   | `customer_dashboard_itisyou_verify`                   | `/app`                                               | auth     | Composition translated (see below); copy is ours                                     |
 | 8   | `customer_dashboard_mobile_itisyou_verify`            | `/app` at mobile width                               | auth     | Composition translated: count cards two abreast, run table stacks into records       |
-| 9   | `connections_evidence_sources_itisyou_verify`         | `/app/connections`                                   | auth     | Composition translated; two provider cards, not the reference's four                 |
+| 9   | `connections_evidence_sources_itisyou_verify`         | `/app/connections`, `/app/onboarding/connect`        | auth     | Composition translated on both; two provider cards, not the reference's four         |
 | 10  | `workflow_configuration_itisyou_verify`               | `/app/onboarding/mapping`, `/app/onboarding/outcome` | auth     | Composition translated: status tiles, rules beside timing                            |
 | 11  | `compatibility_proof_checkout_review_itisyou_verify`  | `/app/onboarding/compatibility`, `/proof`, `/review` | auth     | Composition translated; the checkout control keeps its `order.ready` gate            |
 | 12  | `run_details_evidence_itisyou_verify`                 | `/app/runs/:id`                                      | auth     | Composition translated: verdict band, check tally, checks beside provenance          |
@@ -90,7 +90,7 @@ second price, no trial and no seat term reached any of the ten pages.
 | `/app`                                    | `customer_dashboard_…` and `…_mobile_…`              | Head beside a mono fact bar; four run-count cards in one row (2×2 on a phone); period figures as a metrics bar; framed run ledger with a tally under it | The payment-paused banner, the £89 renewal, the 1,904/5,000 quota, the "proof chain" and "forensic diff" blocks — none of those facts exist here         |
 | `/app/connections`                        | `connections_evidence_sources_…`                     | Notice above the cards; one card per provider in a row, facts in a sunken pane, state tally beside the head                                            | Four providers (we have two), the encryption architecture panel, the "isolation protocol" copy                                                            |
 | `/app/onboarding/mapping`, `/outcome`     | `workflow_configuration_…`                           | Four status tiles above the rules; the rule in the wider column with its facts beside it; checks beside timing                                         | The operator grammar, the settling-window slider, the per-rule weight column, the £0.14 cost tile                                                         |
-| `/app/onboarding/compatibility`, `/proof`, `/review` | `compatibility_proof_checkout_review_…`   | Provider facts in panes; proof verdict beside its checks; disclosure in the wider column, order summary and control in the narrower one                | The £120 + VAT total, the 10,000-run allowance, the "unconditional refund" copy, the card-on-file block                                                   |
+| `/app/onboarding/proof`, `/review`        | `compatibility_proof_checkout_review_…`              | Proof verdict beside its checks; disclosure in the wider column, order summary and control in the narrower one                                          | The £120 + VAT total, the 10,000-run allowance, the "unconditional refund" copy, the card-on-file block                                                   |
 | `/app/runs/:id`                           | `run_details_evidence_…`                             | Head beside a mono bar; verdict band ruled in the verdict's colour with the check tally beside it and identifiers under it; checks 7 / provenance 5   | The four status tiles (a FAILED tile on an UNVERIFIED run's page would dress it as a failure — CUST-063), the raw-body inspector, the "audit guarantee" |
 | `/app/usage`                              | `reports_exports_…`                                  | Period facts as a mono bar; the meter in the wider column; four count cards under it                                                                    | Export formats, the export ledger, the 365-day retention tiles — we offer none of those                                                                   |
 | `/app/billing`                            | `billing_cancellation_support_…`                     | Subscription and plan 7 / portal control 5; cancellation and support as two panes leading to their own pages                                            | The invoice table, the VAT registration, the card on file, the support form inline (it stays on `/app/support`)                                           |
@@ -100,6 +100,31 @@ They were made by rendering each screen to static HTML through the real Worker
 (`tests/integration/customer/screens-dump.test.ts`) and loading that file in Playwright's
 bundled Chromium with the viewport set to exactly each width; the script reads
 `window.innerWidth` back and refuses to write a file whose width is not the one asked for.
+
+### The two onboarding steps, composed (20 September 2026, later still)
+
+The first two setup steps were recomposed the same way — the reference's arrangement, none
+of its words — and pinned by `CUST-951..CUST-953` in
+`tests/unit/ui/onboarding-composition.test.ts`, which also assert that every paste form
+still posts to the same action with the same token and hidden provider, that the
+permission notice still precedes the paste box, that the compatibility control is still
+the inert element and not a button, and that no reference phrase and no pound figure at
+all reached either page (neither states a price; the one real price is on `/review`).
+
+The mapping had no row of its own for `/app/onboarding/connect`. It was composed against
+row 9, `connections_evidence_sources_…`, because that is the one approved screen that
+draws a credential paste flow — a key box under each provider's readback facts, a primary
+control under the box, a count of connections by state along the bottom — and it is the
+same reference `/app/connections` is composed against, so the two pages now draw the same
+card the same way.
+
+| Route                           | Reference folder                        | What was taken from the reference                                                                                                                                                                                                        | What was not, and why                                                                                                                                                                                                                                                                                                                                                                                             |
+| ------------------------------- | --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/app/onboarding/connect`       | `connections_evidence_sources_…`        | The notice above the cards; one card per provider side by side from desktop width (stacked on a tablet, because each card carries a form); in each card the readback facts in a sunken pane under the head, then the permission statement, then the paste box and its control; a closing band with the count of connections by state on the left and the way onward on the right | Four providers (we have two); the head's "sandbox environment" and "refresh all probes" tiles (no such fact, no such action); the "isolation protocol architecture" panel and its four-stage envelope row; the audit-ledger link. Our cards run far taller than the reference's, because they carry the full permission notice, the numbered setup steps and the two boundary lists — none of those words were cut for the layout |
+| `/app/onboarding/compatibility` | `compatibility_proof_checkout_review_…` | Head beside a count of providers by the label each card wears; the provider cards stacked in the wider column, each with its facts in a sunken pane; the commitment and the (inert) control in the narrower one, seven parts to five, read after every card in document order | The four-status legend strip (this step's badges are two of the four; the four tiles live on `/outcome`); the second pane per card and the payload blocks (probe results, which do not exist before anything is connected); the "overall assessment" card; the commercial column's £120, VAT line, £144 total and card on file (not our price; the one real price is on `/review`); the seven-day policy card and its three metric tiles (the disclosure is on `/review`) |
+
+Screenshots: `app-onboarding-connect-{390,820,1440}.png` and
+`app-onboarding-compatibility-{390,820,1440}.png` (re-captured), by the same method.
 
 ## The owner screens, composed (20 September 2026, later still)
 
@@ -138,15 +163,24 @@ be seen carrying figures) and `owner-quality-{390,820,1440}.png`, made by
 `packages/ui/src/designProgress.ts` was reconciled by opening each served screenshot at
 1440px beside its reference `screen.png`. The public screens were re-captured for this
 (`home`, `pricing`, `how-it-works`, `demo` under `docs/screenshots/stitch/`), because the
-captures under `docs/screenshots/` predate the public composition pass. The list now reads
-**13 of 19 composed**. Two labels were corrected to routes the Worker serves
-(`/app/onboarding` → `/app/onboarding/compatibility`, `/app/onboarding/workflow` →
-`/app/onboarding/outcome`), and `/security` — previously counted — is no longer, because no
-approved screen exists for that route and a layout cannot be composed against a reference
-that does not exist. The six not composed: `/security`, `/app/onboarding/compatibility`
-(its cards took the reference's panes and nothing else), `/app/onboarding/connect`,
-`/admin/login`, `/support` (no reference for either) and `/development-story/visual`. The
-earlier figure of 5 of 19 was reported to the owner and is left named here.
+captures under `docs/screenshots/` predate the public composition pass. At that
+reconciliation the list read **13 of 19 composed**. Two labels were corrected to routes the
+Worker serves (`/app/onboarding` → `/app/onboarding/compatibility`,
+`/app/onboarding/workflow` → `/app/onboarding/outcome`), and `/security` — previously
+counted — is no longer, because no approved screen exists for that route and a layout cannot
+be composed against a reference that does not exist. The six not composed at that point:
+`/security`, `/app/onboarding/compatibility` (its cards took the reference's panes and
+nothing else), `/app/onboarding/connect`, `/admin/login`, `/support` (no reference for
+either) and `/development-story/visual`. The earlier figure of 5 of 19 was reported to the
+owner and is left named here.
+
+Later the same day `/app/onboarding/compatibility` and `/app/onboarding/connect` were
+composed (the section above) and flipped after the same comparison, so the list now reads
+**15 of 19 composed**, which `designProgress()` reports as 78% — rounded down from 78.9.
+The four not composed: `/security`, `/admin/login` and `/support`, for which no approved
+screen exists, and `/development-story/visual`, which has a reference and is not built.
+Nothing was composed for `/support`: the instruction was to stop rather than invent a
+reference for it, and this document is where that is recorded.
 
 ## Why the token layer was done first
 

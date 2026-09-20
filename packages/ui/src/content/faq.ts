@@ -134,6 +134,6 @@ export const FAQ_ENTRIES: readonly FaqEntry[] = [
     id: 'is-verification-live-today',
     question: 'Is this actually running for real accounts right now?',
     answer:
-      'Not yet, and the reason is narrower than it used to be. Three things this answer once listed are now done: the endpoint that receives your automation\'s signed events is live and refuses an unsigned request, a Resend connection reaches "ready" only once a correctly signed callback has actually arrived, and the plan allowance is enforced on the live request path. What remains is the part that matters most before anyone pays: no purchase has been completed end to end on a live deployment, and a HubSpot record has never been read back from a real portal. We are not taking payment until both are done. This page stops saying it the day it stops being true, which is why it says less today than it did yesterday.',
+      'Not yet, and the reason is narrower than it used to be. Both providers have now been exercised against live accounts, and a sandbox purchase has completed end to end on a deployment and activated a subscription exactly once. What remains is the part that matters most before anyone pays: live payments are switched off until the owner turns them on separately, and this deployment cannot yet create a new customer workspace. We are not taking payment until both are done. This page stops saying it the day it stops being true, which is why it says less today than it did yesterday.',
   },
 ];

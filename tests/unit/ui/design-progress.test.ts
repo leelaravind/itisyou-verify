@@ -40,19 +40,14 @@ describe('the design progress figure', () => {
     // "the palette applies", the figure becomes the exact claim this product refuses.
     //
     // Reconciled 20 September 2026: /app and /owner were the two examples here until each
-    // was built against its reference and the served screenshot compared with it. The
-    // routes below are the ones that still only wear the palette — two have no approved
-    // screen at all, so they can never be "composed against" one — and every route in the
-    // list must name an address the Worker actually serves.
+    // was built against its reference and the served screenshot compared with it; later
+    // the same day /app/onboarding/compatibility and /app/onboarding/connect left this
+    // list the same way (CUST-951..953 pin their arrangement). The routes below are the
+    // ones that still only wear the palette — three have no approved screen at all, so
+    // they can never be "composed against" one — and every route in the list must name
+    // an address the Worker actually serves.
     const composed = STITCH_SCREENS.filter((s) => s.composed).map((s) => s.route);
-    for (const route of [
-      '/security',
-      '/app/onboarding/compatibility',
-      '/app/onboarding/connect',
-      '/admin/login',
-      '/support',
-      '/development-story/visual',
-    ]) {
+    for (const route of ['/security', '/admin/login', '/support', '/development-story/visual']) {
       expect(composed, route).not.toContain(route);
     }
     expect(STITCH_SCREENS.map((s) => s.route)).not.toContain('/app/onboarding');

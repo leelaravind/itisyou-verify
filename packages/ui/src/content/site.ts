@@ -81,7 +81,7 @@ export interface ServiceActivationNotice {
 
 export const SERVICE_ACTIVATION_NOTICE: ServiceActivationNotice = {
   headline: 'We are not yet accepting live verification traffic',
-  body: 'Everything on this site describes how ITISYOU Verify is built to work, and the underlying checking logic is real and tested. Three things this notice used to call unfinished are now done, and it is only honest to say so: the endpoint that receives your automation\'s signed events is live and refuses an unsigned request, a Resend connection reaches "ready" only once a correctly signed callback has actually arrived, and the plan allowance is enforced on the live request path. What is not finished is the part that matters most before anyone pays: no purchase has been completed end to end on a deployment, and a HubSpot record has never been read back from a real portal. So we are not taking payment or activating new workspaces yet. This notice comes down when that last part is done, and not before.',
+  body: 'Everything on this site describes how ITISYOU Verify is built to work, and the checking logic is real, tested, and has now been exercised against both providers: a Resend message outcome and a HubSpot contact have each been read back from a live account and supported a verified run, and a run whose retrieved record belonged to a different enquiry was contradicted rather than reported missing. A sandbox purchase has completed end to end on a deployment and activated a subscription exactly once. What is not finished is the part that matters most before anyone pays: live payments are switched off until the owner turns them on separately, and this deployment cannot yet create a new customer workspace. So we are not taking payment or activating new workspaces yet. This notice changes when either of those changes, and not before.',
 };
 
 /**
@@ -98,7 +98,7 @@ export const SERVICE_ACTIVATION_NOTICE: ServiceActivationNotice = {
  * clever.
  */
 export const FOOTER_SERVICE_DESCRIPTION =
-  'ITISYOU Verify is built to read HubSpot and Resend back itself and report what the evidence shows. Not yet accepting live verification traffic: we are not taking payment or activating workspaces until a purchase has been completed end to end and a HubSpot record has been read back from a real portal.';
+  'ITISYOU Verify reads HubSpot and Resend back itself and reports what the evidence shows. Not yet accepting live verification traffic: live payments are switched off until the owner turns them on separately, and this deployment cannot yet create a new customer workspace.';
 
 /**
  * What has, and has not, been proven against a real provider.

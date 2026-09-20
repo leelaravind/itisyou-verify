@@ -202,6 +202,101 @@ describe('CustomerDataPort against D1', () => {
     expect(link.message).toContain('No sign-in link was sent');
   });
 
+  /**
+   * API-247..API-249 — the sign-in email actually leaves the building.
+   *
+   * On 20 September 2026 the owner's own sign-in on production returned "We tried and the
+   * attempt failed". Traced through the real route: a token was minted, no
+   * `notification_deliveries` row existed, and nothing reached the log, because
+   * `requestSignInLink` passed `{ template, to, variables }` to `deliver()` behind an
+   * `as never` cast while `sendNotification` reads `recipientEmail` and `vars`. The address
+   * was `undefined`, `.trim()` threw inside the claim, and the throw was swallowed as
+   * `failed` before any row was written. API-240 asserted the failure message and so
+   * enshrined the bug. These cases drive the port through the REAL delivery path with a
+   * stubbed transport, and fail against the old shape.
+   */
+  function resendStub(status: number, calls: { url: string; body: string }[]): typeof fetch {
+    return (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      calls.push({ url, body: String(init?.body ?? '') });
+      return new Response(status === 200 ? JSON.stringify({ id: 'stub_msg_1' }) : 'nope', {
+        status,
+        headers: { 'content-type': 'application/json' },
+      });
+    }) as typeof fetch;
+  }
+
+  function anonymousPort(h: TestDb, fetchImpl: typeof fetch): D1CustomerDataPort {
+    return new D1CustomerDataPort({
+      db: h.db,
+      env: {
+        ...fakeEnv(h.db),
+        // secret-scan:allow synthetic; the stub never lets it leave the process
+        RESEND_API_KEY: 're_0000000000000000000000',
+        RESEND_FROM_ADDRESS: 'verify@example.invalid',
+      } as Env,
+      request: { headers: new Headers(), url: 'http://localhost:8787/app/sign-in' },
+      now: NOW,
+      fetchImpl,
+    });
+  }
+
+  const deliveries = (h: TestDb) =>
+    h.raw
+      .prepare('SELECT template, state, notification_key FROM notification_deliveries')
+      .all() as { template: string; state: string; notification_key: string }[];
+
+  it('API-247 a sign-in request reaches the transport with the link in the message body', async () => {
+    const calls: { url: string; body: string }[] = [];
+    const port = anonymousPort(h, resendStub(200, calls));
+
+    const result = await port.requestSignInLink('someone@example.com');
+
+    expect(result.ok, 'the port refused a request the transport accepted').toBe(true);
+    expect(calls.length, 'no request reached the transport').toBe(1);
+    expect(calls[0]?.url).toContain('api.resend.com');
+    // The message carries a usable link, which means the template received `signInUrl`
+    // rather than an undefined `link`.
+    expect(calls[0]?.body).toContain('/app/sign-in/complete?token=');
+    const rows = deliveries(h);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.template).toBe('sign_in_link');
+    expect(rows[0]?.state).toBe('sent');
+  });
+
+  it('API-248 the notification key never contains the sign-in token', async () => {
+    // The key is stored in the clear; the token is a credential. The key is a hash of it.
+    const calls: { url: string; body: string }[] = [];
+    const port = anonymousPort(h, resendStub(200, calls));
+    await port.requestSignInLink('someone@example.com');
+
+    const token = /token=([A-Za-z0-9_-]+)/.exec(calls[0]?.body ?? '')?.[1] ?? '';
+    expect(token.length, 'no token found in the sent message').toBeGreaterThan(16);
+    const key = deliveries(h)[0]?.notification_key ?? '';
+    expect(key.startsWith('sign_in_link:')).toBe(true);
+    expect(key).not.toContain(token);
+  });
+
+  it('API-249 a transport that refuses leaves a failed row, so "we tried" is a recorded fact', async () => {
+    // The difference between "attempted and refused" and "never attempted" is a row. On
+    // production there was no row, which is how the defect was diagnosed; with the fix, a
+    // genuine transport failure is recorded as one.
+    const calls: { url: string; body: string }[] = [];
+    const port = anonymousPort(h, resendStub(500, calls));
+
+    const result = await port.requestSignInLink('someone@example.com');
+
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain('We tried and the attempt failed');
+    // The sender retries a 5xx before giving up, so this is "at least one request reached
+    // the transport", not "exactly one". The first draft asserted one and failed against
+    // the correct retry policy.
+    expect(calls.length).toBeGreaterThanOrEqual(1);
+    const rows = deliveries(h);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.state).toBe('failed');
+  });
+
   it('API-241 orderSummary resolves price and allowance server-side and lists real blockers', async () => {
     const port = await signIn(h, a);
     const summary = await port.orderSummary();

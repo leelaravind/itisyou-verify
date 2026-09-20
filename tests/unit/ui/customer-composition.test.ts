@@ -482,10 +482,13 @@ describe('the onboarding composition', () => {
     expect(noProof).not.toContain('<div class="grid grid-7-5">');
     expect(noProof).toContain('No proof run yet');
 
-    // Compatibility: each provider's requirements in a pane inside its card, both providers.
+    // Compatibility: each provider's requirements in a pane inside its card, both providers,
+    // stacked in the wider column of the seven-to-five grid (CUST-952 pins the rest).
     const compatibility = await render(CompatibilityPage(await p.connectorCompatibility()));
     expect(count(compatibility, '<div class="pane">')).toBe(2);
-    expect(compatibility.indexOf('<div class="pane">')).toBeGreaterThan(compatibility.indexOf('<div class="grid grid-2">'));
+    const compatibilityGrid = compatibility.indexOf('<div class="grid grid-7-5">');
+    expect(compatibilityGrid).toBeGreaterThan(-1);
+    expect(compatibility.indexOf('<div class="pane">')).toBeGreaterThan(compatibilityGrid);
   });
 });
 

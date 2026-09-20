@@ -33,6 +33,10 @@
  * corrected to the routes that actually exist: `/app/onboarding` and
  * `/app/onboarding/workflow` were never served; the reference each stood for is served at
  * `/app/onboarding/compatibility` and `/app/onboarding/outcome`.
+ *
+ * Later the same day the two onboarding steps below were composed and flipped after the
+ * same comparison — their 1440px capture opened beside the reference `screen.png`, and
+ * the section order, card arrangement and column count read against it.
  */
 export const STITCH_SCREENS: readonly { readonly route: string; readonly composed: boolean }[] = [
   // home-1440.png against itisyou_verify_ground_truth_automation_verification_for_agencies
@@ -47,11 +51,17 @@ export const STITCH_SCREENS: readonly { readonly route: string; readonly compose
   { route: '/security', composed: false },
   // app-1440.png against customer_dashboard_itisyou_verify
   { route: '/app', composed: true },
-  // app-onboarding-compatibility-1440.png: the reference's probe cards lent their sunken
-  // panes, and nothing else — section order and columns here are ours.
-  { route: '/app/onboarding/compatibility', composed: false },
-  // No screenshot under docs/screenshots/stitch/, and not recomposed.
-  { route: '/app/onboarding/connect', composed: false },
+  // app-onboarding-compatibility-1440.png against compatibility_proof_checkout_review_…:
+  // head beside a count of providers by state; the provider cards stacked in the wider
+  // column with their facts in a pane; the commitment and the inert control in the
+  // narrower one. Not the reference's legend strip, payload blocks or commercial column.
+  { route: '/app/onboarding/compatibility', composed: true },
+  // app-onboarding-connect-1440.png against connections_evidence_sources_itisyou_verify —
+  // the one approved screen that draws a credential paste flow (the mapping's row 9, which
+  // /app/connections is also composed against): notice above the cards, one card per
+  // provider side by side, the readback pane under each head, the count of connections by
+  // state in the closing band. Two cards, not the reference's four.
+  { route: '/app/onboarding/connect', composed: true },
   // app-onboarding-outcome-1440.png against workflow_configuration_itisyou_verify
   { route: '/app/onboarding/outcome', composed: true },
   // app-onboarding-review-1440.png against compatibility_proof_checkout_review_itisyou_verify

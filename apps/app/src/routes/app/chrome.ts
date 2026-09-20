@@ -13,7 +13,7 @@ import {
   type StatusKey,
 } from '@verify/ui';
 import type { ConnectionStatus } from '@verify/contracts';
-import type { RunCountsView } from './port.js';
+import type { ConnectionView, RunCountsView } from './port.js';
 
 /**
  * The banner every page carries while it is running on the synthetic port.
@@ -130,6 +130,34 @@ export const CONNECTION_PRESENTATION: Readonly<Record<ConnectionStatus, Connecti
 
 export function connectionPresentation(status: ConnectionStatus): ConnectionPresentation {
   return CONNECTION_PRESENTATION[status];
+}
+
+/**
+ * The connections grouped by the state they are shown in, in the order they are listed —
+ * the strip of counts the approved connections screen closes with.
+ *
+ * Each entry wears the same badge and the same label as the card it counts, so the strip
+ * cannot say "ready" about a connection the card says is not finished. Nothing is grouped
+ * under a label that no card carries. The connect step draws this under its cards;
+ * `/app/connections` draws the same strip beside its head from its own copy in
+ * accountPages.ts, which predates this one and was left where it is.
+ */
+export function connectionTally(connections: readonly ConnectionView[]): Html {
+  const groups = new Map<string, { readonly status: StatusKey; count: number }>();
+  for (const connection of connections) {
+    const presentation = connectionPresentation(connection.status);
+    const group = groups.get(presentation.label);
+    if (group === undefined) groups.set(presentation.label, { status: presentation.status, count: 1 });
+    else group.count += 1;
+  }
+  return html`<ul class="tally" aria-label="Connections by state">
+    ${[...groups.entries()].map(
+      ([label, group]) => html`<li data-connection-tally="${label}">
+        <span class="tally__count">${String(group.count)}</span>
+        ${StatusBadge({ status: group.status, label })}
+      </li>`,
+    )}
+  </ul>`;
 }
 
 /* ------------------------------------------------------------- run counts */
