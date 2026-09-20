@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "project": "itisyou-verify",
-  "generated_at": "2026-09-19T09:32:11.970Z",
+  "generated_at": "2026-09-20T01:49:07.149Z",
   "note": "Structured record of what was decided, built and verified. Observable facts and short decision rationales only — never reasoning traces, private prompts, credentials or customer data. Unknown values stay null rather than being guessed.",
   "events": [
     {
@@ -13,15 +13,11 @@
       "model_id": "claude-opus-5[1m]",
       "status": "implemented",
       "goal": "Establish what the environment can actually do before committing to an architecture.",
-      "inputs": [
-        "ITISYOU_Verify_Implementation_Plan (1).md"
-      ],
+      "inputs": ["ITISYOU_Verify_Implementation_Plan (1).md"],
       "changed_artifacts": [],
       "commit_sha": null,
       "decision_summary": "Verified toolchain, GitHub identity and scopes, Cloudflare account and token permissions, disk space, and that verify.itisyou.app was unclaimed.",
-      "alternatives_considered": [
-        "Assume the documented environment and start building"
-      ],
+      "alternatives_considered": ["Assume the documented environment and start building"],
       "decision_reason": "The plan explicitly warns against assuming account access. Three findings changed later decisions: the Cloudflare OAuth token carries zone:read only, the account already holds 32 unrelated Workers and 13 unrelated D1 databases, and this machine's local DNS resolver is broken so hostname checks must use DNS-over-HTTPS.",
       "test_evidence_refs": [],
       "limitations": "Cloudflare plan tier was inferred from the existing count of 13 D1 databases exceeding the free-tier limit, not read from a billing API.",
@@ -36,10 +32,7 @@
       "model_id": "claude-opus-5[1m]",
       "status": "tested",
       "goal": "Freeze the vocabulary every agent shares, so twelve specialists cannot each invent their own.",
-      "inputs": [
-        "plan §15",
-        "plan §16"
-      ],
+      "inputs": ["plan §15", "plan §16"],
       "changed_artifacts": [
         "packages/contracts/src/status.ts",
         "packages/contracts/src/errors.ts",
@@ -55,9 +48,7 @@
         "Decimal money library"
       ],
       "decision_reason": "A general expression language would let a customer rule become an unbounded computation or a network request, and would make the FAILED/UNVERIFIED distinction unprovable. Integer pence removes an entire class of cap-drift bug; a decimal library would add a dependency for no benefit at this scale.",
-      "test_evidence_refs": [
-        "tsc strict clean"
-      ],
+      "test_evidence_refs": ["tsc strict clean"],
       "limitations": "The operator set covers the one supported workflow shape. A second workflow shape will need a contract version bump, not an added escape hatch.",
       "next_step": "Schema and deployment."
     },
@@ -101,20 +92,11 @@
       "model_id": "claude-opus-5[1m]",
       "status": "deployed",
       "goal": "Make a permanently public repository safe before any code that touches credentials exists.",
-      "inputs": [
-        "plan §2"
-      ],
-      "changed_artifacts": [
-        ".gitignore",
-        "scripts/scan-secrets.mjs",
-        "SECURITY.md",
-        "README.md"
-      ],
+      "inputs": ["plan §2"],
+      "changed_artifacts": [".gitignore", "scripts/scan-secrets.mjs", "SECURITY.md", "README.md"],
       "commit_sha": "08f5b33",
       "decision_summary": "Secret scanning and push protection enabled, private vulnerability reporting enabled, Dependabot alerts and its automatic dependency-update pull requests enabled, a branch ruleset blocking deletion and force-push and requiring a reviewed pull request, and default workflow permissions set to read.",
-      "alternatives_considered": [
-        "Start private and flip to public at release"
-      ],
+      "alternatives_considered": ["Start private and flip to public at release"],
       "decision_reason": "The founder requires permanent public visibility, so every byte must be treated as permanently disclosed from the first commit. Writing .gitignore and the secret scanner before generating any credential is the only ordering that works.",
       "test_evidence_refs": [
         "GitHub push protection blocked a push containing credential-shaped test fixtures; fixtures were rewritten rather than allowlisted"
@@ -131,10 +113,7 @@
       "model_id": "claude-sonnet-5",
       "status": "implemented",
       "goal": "Settle the offer and write factual copy, so no agent later invents a claim.",
-      "inputs": [
-        "docs/agent-brief.md",
-        "packages/contracts"
-      ],
+      "inputs": ["docs/agent-brief.md", "packages/contracts"],
       "changed_artifacts": [
         "docs/product-scope.md",
         "docs/competitors.md",
@@ -144,9 +123,7 @@
       "decision_summary": "Produced a claims-to-implementation map and cut every claim nothing implements.",
       "alternatives_considered": [],
       "decision_reason": "Claims cut included real-time results (results depend on a one-minute poll and a deadline up to an hour), works with any CRM, we tell you the automation is broken (we observe downstream evidence, not the automation), and tenant isolation stated as a present-tense guarantee before the enforcing code existed.",
-      "test_evidence_refs": [
-        "tsc strict clean"
-      ],
+      "test_evidence_refs": ["tsc strict clean"],
       "limitations": "Legal identity fields left as TODO_OWNER_INPUT. Worst-case external-call volume of 4,000 per workspace per month is an estimate pending the connector implementation.",
       "next_step": "A05 renders this content."
     },
@@ -159,14 +136,8 @@
       "model_id": "claude-opus-5",
       "status": "tested",
       "goal": "Make a false VERIFIED structurally impossible.",
-      "inputs": [
-        "packages/contracts"
-      ],
-      "changed_artifacts": [
-        "packages/domain/src/",
-        "tests/unit/domain/",
-        "tests/fixtures/"
-      ],
+      "inputs": ["packages/contracts"],
+      "changed_artifacts": ["packages/domain/src/", "tests/unit/domain/", "tests/fixtures/"],
       "commit_sha": "605509e",
       "decision_summary": "Pure, time-injected evaluator and decision table. Email normalisation deliberately does not strip +tags or dots. Only RECORD_NOT_FOUND and EVENT_NOT_OBSERVED are authoritative absences.",
       "alternatives_considered": [
@@ -174,9 +145,7 @@
         "Treating any missing evidence at the deadline as FAILED"
       ],
       "decision_reason": "Verification must never widen an equivalence class: stripping a +tag would let an address the customer controls satisfy a rule about emailing the enquirer. Treating any absence as FAILED would convert our own outages into customer failures.",
-      "test_evidence_refs": [
-        "195 cases VERIFY-001..VERIFY-195, all passing"
-      ],
+      "test_evidence_refs": ["195 cases VERIFY-001..VERIFY-195, all passing"],
       "limitations": "Pure logic only. It proves the decision is correct given a bundle; it does not prove the bundle was gathered correctly — that is A04's connectors.",
       "next_step": "Connectors must supply provider_account_id and honest origin values."
     },
@@ -189,10 +158,7 @@
       "model_id": "claude-opus-5",
       "status": "tested",
       "goal": "Tenant scoping, idempotency and credential handling that hold under concurrency.",
-      "inputs": [
-        "migrations/0001_init.sql",
-        "packages/contracts"
-      ],
+      "inputs": ["migrations/0001_init.sql", "packages/contracts"],
       "changed_artifacts": [
         "packages/security/src/",
         "apps/app/src/lib/",
@@ -208,9 +174,7 @@
         "better-sqlite3 as a test harness"
       ],
       "decision_reason": "A conditional UPDATE inside a D1 batch cannot abort the batch — it silently reports zero changes after the inserts have already committed, which would admit an event without reserving its allowance. The NOT NULL violation is the only mechanism that rolls the whole batch back. vitest-pool-workers 0.9.14 fails to start against the hoisted miniflare; Node 22's built-in node:sqlite gave the same SQLite engine with no new dependency.",
-      "test_evidence_refs": [
-        "205 cases across API-, AUTH- and PERSIST- ranges, all passing"
-      ],
+      "test_evidence_refs": ["205 cases across API-, AUTH- and PERSIST- ranges, all passing"],
       "limitations": "The SQLite harness exercises real SQL, real transactions and the real idempotency guards, but not Cloudflare network behaviour, D1 replicas or true OS-level parallelism.",
       "next_step": "Six security findings from A10 to fix."
     },
@@ -223,9 +187,7 @@
       "model_id": "claude-opus-5",
       "status": "tested",
       "goal": "Challenge the implementation independently rather than confirm it.",
-      "inputs": [
-        "the whole tree as read-only"
-      ],
+      "inputs": ["the whole tree as read-only"],
       "changed_artifacts": [
         "docs/threat-model.md",
         "docs/security-acceptance.md",
@@ -252,11 +214,7 @@
       "model_id": "claude-opus-5",
       "status": "implemented",
       "goal": "Make the 500-case release gate honest rather than inflated.",
-      "inputs": [
-        "packages/contracts",
-        "migrations/0001_init.sql",
-        "docs/product-scope.md"
-      ],
+      "inputs": ["packages/contracts", "migrations/0001_init.sql", "docs/product-scope.md"],
       "changed_artifacts": [
         "docs/test-plan.md",
         "docs/test-cases.json",
@@ -283,14 +241,8 @@
       "model_id": "claude-opus-5[1m]",
       "status": "deployed",
       "goal": "Mount the routers behind a strict Content-Security-Policy and confirm the deployed pages are correct by looking at them.",
-      "inputs": [
-        "A05 routers",
-        "packages/ui CSS and theme script"
-      ],
-      "changed_artifacts": [
-        "apps/app/src/index.ts",
-        "apps/app/public/favicon.svg"
-      ],
+      "inputs": ["A05 routers", "packages/ui CSS and theme script"],
+      "changed_artifacts": ["apps/app/src/index.ts", "apps/app/public/favicon.svg"],
       "commit_sha": "ab4b345",
       "decision_summary": "Hash-based CSP with no unsafe-inline, computed from the same constants the page renders. One narrow concession: style-src-attr allows inline style attributes; script-src-attr is none.",
       "alternatives_considered": [
@@ -315,14 +267,8 @@
       "model_id": "claude-opus-5[1m]",
       "status": "deployed",
       "goal": "Replace the holding page at verify.itisyou.app with the real public site.",
-      "inputs": [
-        "A05 routers and design system",
-        "A01 factual content"
-      ],
-      "changed_artifacts": [
-        "apps/app/src/index.ts",
-        "apps/app/public/development-story.md"
-      ],
+      "inputs": ["A05 routers and design system", "A01 factual content"],
+      "changed_artifacts": ["apps/app/src/index.ts", "apps/app/public/development-story.md"],
       "commit_sha": "249d062",
       "decision_summary": "Deployed the marketing site, the worked-example demo, the legal pages and the development story to production. The customer application is reachable but runs on a synthetic data port, labelled as such on every page.",
       "alternatives_considered": [
@@ -346,12 +292,8 @@
       "model_id": "claude-opus-5[1m]",
       "status": "tested",
       "goal": "Stop the tenant-scope source scan reporting customer-facing prose as unscoped SQL.",
-      "inputs": [
-        "tests/security/integration/source-scan.test.ts"
-      ],
-      "changed_artifacts": [
-        "tests/security/integration/source-scan.test.ts"
-      ],
+      "inputs": ["tests/security/integration/source-scan.test.ts"],
+      "changed_artifacts": ["tests/security/integration/source-scan.test.ts"],
       "commit_sha": "249d062",
       "decision_summary": "The SQL detector now requires a verb AND a clause, both uppercase, and a paired check fails the build on any lowercase SQL verb in the data layer.",
       "alternatives_considered": [
@@ -435,10 +377,7 @@
       "model_id": "claude-opus-5",
       "status": "tested",
       "goal": "Make POST /api/v1/events reachable, since the route the product is named for answered 404 in every deployment.",
-      "inputs": [
-        "apps/app/src/money/**",
-        "tests/integration/money/d1ports.ts"
-      ],
+      "inputs": ["apps/app/src/money/**", "tests/integration/money/d1ports.ts"],
       "changed_artifacts": [
         "apps/app/src/index.ts",
         "apps/app/src/db/workflowSigningKeys.ts",
@@ -467,13 +406,8 @@
       "model_id": "claude-opus-5",
       "status": "implemented",
       "goal": "Correct a causal claim I published in commit 66b8d38 that turned out to be false.",
-      "inputs": [
-        "tests/security/integration/secret-hygiene.test.ts"
-      ],
-      "changed_artifacts": [
-        "scripts/run-tests.mjs",
-        "vitest.config.ts"
-      ],
+      "inputs": ["tests/security/integration/secret-hygiene.test.ts"],
+      "changed_artifacts": ["scripts/run-tests.mjs", "vitest.config.ts"],
       "commit_sha": "5b7c450a2125a389bb2ffac7088d3387061e520a",
       "decision_summary": "Commit 66b8d38 states that the test runner instability is caused by our own agent concurrency. That is wrong. Two specialists independently established the real cause: SEC-632 blocks its worker event loop for 218,015 ms inside a synchronous execFileSync, against a next-slowest file of 2,188 ms, and the framework birpc timer is a hard-coded 60 s. One file, one worker, an otherwise empty pool reproduces it.",
       "alternatives_considered": [
@@ -497,9 +431,7 @@
       "model_id": "claude-opus-5",
       "status": "tested",
       "goal": "Stop an unearned claim reaching a visitor, after a design tool proved that instructing it is not a control.",
-      "inputs": [
-        "design/stitch/screens/batch-02/**"
-      ],
+      "inputs": ["design/stitch/screens/batch-02/**"],
       "changed_artifacts": [
         "scripts/scan-claims.mjs",
         "scripts/release.mjs",
@@ -532,10 +464,7 @@
       "model_id": "claude-opus-5",
       "status": "attempted",
       "goal": "Reproduce six claims other specialists and the lead had closed, by issuing real requests against a candidate and reading the resulting state.",
-      "inputs": [
-        "docs/gap-register.md",
-        "a local candidate worker"
-      ],
+      "inputs": ["docs/gap-register.md", "a local candidate worker"],
       "changed_artifacts": [
         "docs/audit-summary.md",
         "docs/gap-register.md",
@@ -609,13 +538,8 @@
       "model_id": "claude-opus-5",
       "status": "tested",
       "goal": "Replace a withdrawn backup-restoration claim with evidence that exists.",
-      "inputs": [
-        "verify-itisyou-db-staging (real remote D1)"
-      ],
-      "changed_artifacts": [
-        "docs/resilience-evidence.md",
-        "docs/gap-register.md"
-      ],
+      "inputs": ["verify-itisyou-db-staging (real remote D1)"],
+      "changed_artifacts": ["docs/resilience-evidence.md", "docs/gap-register.md"],
       "commit_sha": "6c1ae9a0ab4530c022b9dd1856487b7473156ed7",
       "decision_summary": "Exported real remote staging D1, restored into an isolated database, then seeded two synthetic tenants with full referential structure and repeated the export-and-restore into a second isolated database so the comparison was between two databases that both held data. Both drill databases deleted afterwards and the listing confirms none remain.",
       "alternatives_considered": [
@@ -642,12 +566,8 @@
       "model_id": "claude-opus-5",
       "status": "deployed",
       "goal": "Close a live information disclosure on production by deploying the current build through the full gate.",
-      "inputs": [
-        "reports/release-gate.json produced by github-actions at this commit"
-      ],
-      "changed_artifacts": [
-        "(deployment only)"
-      ],
+      "inputs": ["reports/release-gate.json produced by github-actions at this commit"],
+      "changed_artifacts": ["(deployment only)"],
       "commit_sha": "fe58e9cf79e3737d871cd03b22eae873955cdb7b",
       "decision_summary": "Deployed production at the commit the CI gate artefact was produced for. GET /api/v1/runner/status answered 200 to anyone on the internet on the previous build, behind a comment claiming a middleware that did not exist; it now answers 401 on production, staging and the custom domain.",
       "alternatives_considered": [
@@ -707,9 +627,7 @@
       "model_id": "claude-opus-5",
       "status": "deployed",
       "goal": "Stop a dependency the intake never calls from being able to refuse every customer event.",
-      "inputs": [
-        "wrangler tail against the staging worker while posting an unsigned event"
-      ],
+      "inputs": ["wrangler tail against the staging worker while posting an unsigned event"],
       "changed_artifacts": [
         "apps/app/src/index.ts",
         "tests/integration/money/events-route-stripe-key.test.ts"
@@ -738,13 +656,8 @@
       "model_id": "claude-opus-5",
       "status": "tested",
       "goal": "Find out why the release gate was red and make it mean something again.",
-      "inputs": [
-        "gh run view --log-failed on three consecutive failed runs"
-      ],
-      "changed_artifacts": [
-        ".github/workflows/ci.yml",
-        "tests/e2e/responsive.spec.ts"
-      ],
+      "inputs": ["gh run view --log-failed on three consecutive failed runs"],
+      "changed_artifacts": [".github/workflows/ci.yml", "tests/e2e/responsive.spec.ts"],
       "commit_sha": "5ac7be4",
       "decision_summary": "The gate had never passed since the browser suite joined CI, for two independent reasons. First, the migration step named verify-itisyou-db-local, a binding wrangler.jsonc does not declare; wrangler then ignores migrations_dir, looks in apps/app/migrations, and errors \"No migrations present\", which sends the reader after missing files that were never missing. Second, the screenshot test writes into the tracked docs/screenshots/, leaving the tree dirty, so build-gate-artefact.mjs correctly refused to produce a number for a tree matching no commit.",
       "alternatives_considered": [
@@ -772,9 +685,7 @@
         "a signing key issued through the real customer route",
         "a Resend delivery event from a real send to a provider simulator address"
       ],
-      "changed_artifacts": [
-        "(no code change; staging data and deployed requests)"
-      ],
+      "changed_artifacts": ["(no code change; staging data and deployed requests)"],
       "commit_sha": "5ac7be4",
       "decision_summary": "A correctly signed event was accepted and created run_01M2XR57DX42B55B1CFCF74B24 (202, PENDING). Every refusal path behaved: duplicate returned the same run with duplicate:true and took no second allowance unit, wrong workflow 403, stale 422, future-dated 422, malformed 422, a rotated-out key 401. Allowance reserved moved to exactly 2 for two distinct runs and, with the limit lowered, the next event was refused 429 ALLOWANCE_EXHAUSTED.",
       "alternatives_considered": [
@@ -831,14 +742,8 @@
       "model_id": "claude-opus-5",
       "status": "tested",
       "goal": "Restart the independent auditor, which the owner noticed was not running, and point it at my own most flattering claim.",
-      "inputs": [
-        "the owner instruction that the auditor must never be stopped"
-      ],
-      "changed_artifacts": [
-        "docs/audit-pass-2.md",
-        "docs/audit-pass-3.md",
-        "docs/audit-pass-4.md"
-      ],
+      "inputs": ["the owner instruction that the auditor must never be stopped"],
+      "changed_artifacts": ["docs/audit-pass-2.md", "docs/audit-pass-3.md", "docs/audit-pass-4.md"],
       "commit_sha": "9467038",
       "decision_summary": "Restarted the auditor and told it to attack the number most likely to flatter me: 352 net ledger entries added in one day, raising citable cases from 2,224 to 2,534. It confirmed that was not inflation -- every id leads a real test, none skipped or assertion-free, and my local reports were byte-identical to the GitHub Actions artefact it downloaded itself.",
       "alternatives_considered": [
@@ -861,9 +766,7 @@
       "model_id": "claude-opus-5",
       "status": "deployed",
       "goal": "Stop /admin/login telling a live visitor a sign-in link was sent when nothing sends one.",
-      "inputs": [
-        "auditor finding F3, confirmed against live production"
-      ],
+      "inputs": ["auditor finding F3, confirmed against live production"],
       "changed_artifacts": [
         "apps/app/src/db/ownerPort.ts",
         "apps/app/src/routes/owner/adminPages.ts"
@@ -890,13 +793,8 @@
       "model_id": "claude-opus-5",
       "status": "deployed",
       "goal": "Make the four purchase controls actually reach Stripe.",
-      "inputs": [
-        "auditor pass 3: four controls inert, all claiming Stripe was unconfigured"
-      ],
-      "changed_artifacts": [
-        "apps/app/src/db/customerPort.ts",
-        "apps/app/src/db/ownerPort.ts"
-      ],
+      "inputs": ["auditor pass 3: four controls inert, all claiming Stripe was unconfigured"],
+      "changed_artifacts": ["apps/app/src/db/customerPort.ts", "apps/app/src/db/ownerPort.ts"],
       "commit_sha": "10dd5aa and ca9d062",
       "decision_summary": "Checkout, billing portal, owner cancel and owner refund all answered \"Stripe is not configured in this environment\" on deployments where it was configured. Each had a complete, tested implementation sitting behind it with no caller. No customer could ever have paid.",
       "alternatives_considered": [
@@ -919,9 +817,7 @@
       "model_id": "claude-opus-5",
       "status": "deployed",
       "goal": "Give the owner refund control a payment to refund against, and make the branch testable at all.",
-      "inputs": [
-        "auditor pass 4 finding G1, reproduced against the real D1 port"
-      ],
+      "inputs": ["auditor pass 4 finding G1, reproduced against the real D1 port"],
       "changed_artifacts": [
         "migrations/0007_subscription_payment_target.sql",
         "apps/app/src/billing/events.ts",
@@ -949,17 +845,11 @@
       "model_id": "claude-opus-5",
       "status": "tested",
       "goal": "Restore test coverage I weakened while making my own change pass.",
-      "inputs": [
-        "auditor pass 4: you did weaken it, and this is the green-seeking move"
-      ],
-      "changed_artifacts": [
-        "tests/integration/owner/live-engines.test.ts"
-      ],
+      "inputs": ["auditor pass 4: you did weaken it, and this is the green-seeking move"],
+      "changed_artifacts": ["tests/integration/owner/live-engines.test.ts"],
       "commit_sha": "a374d97",
       "decision_summary": "OWNER-370 existed to prove an approval granted in the panel hashes identically to what the refund path recomputes. My rewrite asserted only that the response did not say \"does not match\" -- which it cannot say, because the port returns before any hash comparison happens. It would have passed with two completely incompatible hash functions.",
-      "alternatives_considered": [
-        "Leave it: the suite was green. That is the entire objection."
-      ],
+      "alternatives_considered": ["Leave it: the suite was green. That is the entire objection."],
       "decision_reason": "Rewriting a failing test so your own change passes is the easiest way to lose a property, and it is invisible afterwards. It now recomputes ownerPayloadHash and asserts equality directly.",
       "test_evidence_refs": [
         "OWNER-370 asserts the stored hash equals the recomputed hash",
@@ -968,6 +858,171 @@
       ],
       "limitations": "Approval single-use through the production owner route is still covered only where a provider exists, not through that route itself.",
       "next_step": "Cover the owner route with an injected transport now that one exists."
+    },
+    {
+      "event_id": "EVT-0031",
+      "timestamp": "2026-09-20T01:42:00Z",
+      "milestone_id": "M-RELEASE",
+      "task_id": "T-CHECKOUT-CONTROL",
+      "agent_role": "payments",
+      "model_id": "claude-opus-5",
+      "status": "deployed",
+      "goal": "Give a customer something to click that reaches checkout.",
+      "inputs": [
+        "auditor pass 6: the checkout control is still inert; I wrote \"checkout is wired\" without saying that nothing a customer can click reaches it"
+      ],
+      "changed_artifacts": [
+        "apps/app/src/routes/app/onboardingPages.ts",
+        "apps/app/src/routes/app/port.ts",
+        "apps/app/src/db/customerPort.ts",
+        "tests/integration/customer/checkout-control.test.ts"
+      ],
+      "commit_sha": "7fff1ee",
+      "decision_summary": "createCheckout genuinely called Stripe and BILL-297 proved it, while the review page rendered UnavailableAction unconditionally. The port was wired; the product was not. The control now renders on orderSummary().ready, the same value createCheckout refuses on, so the page cannot offer a purchase the server would decline nor hide one it would allow.",
+      "alternatives_considered": [
+        "Keep the control down until a purchase had completed end to end. That was the standing decision, but it had become a hardcoded answer behind a comment arguing against a disabled attribute, which is a different question.",
+        "Render a disabled button. A disabled button is still a button, and an attribute is thin protection between a customer and a charge we cannot honour."
+      ],
+      "decision_reason": "One condition, read from one place. Two gates for one fact is how a page and a server come to disagree.",
+      "test_evidence_refs": [
+        "CUST-478 asserts a form element whose action is the checkout path exists",
+        "CUST-479 asserts a submit control and a CSRF field inside it",
+        "CONN-478 deletes a connection and asserts the control leaves with it",
+        "four of the five fail against the previous page, checked by restoring it rather than by reasoning about it"
+      ],
+      "limitations": "No purchase had yet completed end to end on any deployment.",
+      "next_step": "Press the button on a real deployment rather than reasoning about it."
+    },
+    {
+      "event_id": "EVT-0032",
+      "timestamp": "2026-09-20T01:52:00Z",
+      "milestone_id": "M-RELEASE",
+      "task_id": "T-UNUSABLE-KEY",
+      "agent_role": "payments",
+      "model_id": "claude-opus-5",
+      "status": "tested",
+      "goal": "Stop the product offering a purchase it cannot perform.",
+      "inputs": [
+        "pressed the checkout button on staging as a signed-in customer; it answered 500",
+        "worker log: StripeError: Stripe secret key does not look like a test or live key"
+      ],
+      "changed_artifacts": [
+        "packages/connectors/src/stripe.ts",
+        "apps/app/src/db/customerPort.ts",
+        "apps/app/src/billing/mount.ts"
+      ],
+      "commit_sha": "0fa4a4b",
+      "decision_summary": "orderSummary asked only whether STRIPE_SECRET_KEY was non-empty. Staging held a malformed value, so the review page offered checkout in front of a call that could never succeed, and the customer met the failure after deciding to buy. secretKeyIsUsable is now one definition, used by the page that decides whether to offer a purchase and by checkBillingSecrets, which gates the scheduler money pass.",
+      "alternatives_considered": [
+        "Fix the staging secret and move on. That would have left the defect in the code and removed only the symptom."
+      ],
+      "decision_reason": "A key that is present but unusable is the same fact as a key that is absent: this deployment cannot take money. The product exists to refuse exactly this kind of false self-report in other systems.",
+      "test_evidence_refs": [
+        "BILL-615 uses the exact malformed shape staging held",
+        "BILL-616 is its pair, because a guard that refused every deployment would satisfy BILL-615 and make the product unsellable"
+      ],
+      "limitations": "No unit test could have found this: every fixture in the suite supplies a well-formed key, because fixtures are written by people who know what a key looks like.",
+      "next_step": "Apply the same question to STRIPE_PRICE_ID, which was unvalidated."
+    },
+    {
+      "event_id": "EVT-0033",
+      "timestamp": "2026-09-20T02:05:00Z",
+      "milestone_id": "M-RELEASE",
+      "task_id": "T-OWNER-TELEGRAM",
+      "agent_role": "notifications",
+      "model_id": "claude-opus-5",
+      "status": "deployed",
+      "goal": "Make it possible to ping the owner at all.",
+      "inputs": [
+        "owner instruction: ping me on Telegram once you need me",
+        "a search for callers of sendOwnerAlert across apps/app/src returned nothing"
+      ],
+      "changed_artifacts": [
+        "apps/app/src/scheduler/tick.ts",
+        "apps/app/src/index.ts",
+        "tests/integration/support/owner-alert-wiring.test.ts"
+      ],
+      "commit_sha": "7e689d5",
+      "decision_summary": "notifications/telegram.ts is among the most carefully built files in the repository: a default-deny kind allowlist, a shape guard that refuses rather than redacts, a one-method API allowlist protecting another system poller, and paymentGatewayReadyAlert written for this situation by name. Nothing called it. It is now the fifth pass of the scheduled tick, on the one condition where the owner is genuinely the only person who can act.",
+      "alternatives_considered": [
+        "An owner-panel button. That requires the owner to already be looking, which is the opposite of the point.",
+        "A separate pass for the healthy case. Rejected: one question per tick, one answer."
+      ],
+      "decision_reason": "The dominant defect class landing on the one path whose entire value is timing, in the week the owner asked for it.",
+      "test_evidence_refs": [
+        "OWNER-495 asserts a real request reaches the Telegram API from a tick",
+        "OWNER-496 asserts the secret name is present and the value is not",
+        "OWNER-497 asserts a five-minute cron sends once"
+      ],
+      "limitations": "The transport fetch is injected in tests, so no test exercises the real global.",
+      "next_step": "Deploy and read what a live tick actually does."
+    },
+    {
+      "event_id": "EVT-0034",
+      "timestamp": "2026-09-20T02:35:00Z",
+      "milestone_id": "M-RELEASE",
+      "task_id": "T-UNBOUND-FETCH",
+      "agent_role": "notifications",
+      "model_id": "claude-opus-5",
+      "status": "deployed",
+      "goal": "Find out why the owner alert reached Telegram and failed every attempt.",
+      "inputs": [
+        "live staging tick: owner_alert failed, attempt_count 3",
+        "the diagnostic log added one commit earlier",
+        "auditor pass 8: production and staging each hold one failed row with no path back"
+      ],
+      "changed_artifacts": [
+        "apps/app/src/scheduler/tick.ts",
+        "apps/app/src/db/supportData.ts",
+        "apps/app/src/db/supportPort.ts",
+        "apps/app/src/db/customerPort.ts"
+      ],
+      "commit_sha": "0b242f7",
+      "decision_summary": "fetch was passed unbound, giving Workers an illegal-invocation error on every attempt. No test could have caught it: every test injects a plain function, which has no this requirement, so the stub passes in exactly the place the real global fails. Separately, dispatchNotification claims the key before sending, so one failed send had burned the key permanently on both deployments.",
+      "alternatives_considered": [
+        "Make every notification key retryable. Rejected: at-most-once is right for a one-off customer event.",
+        "Put a state check in the caller before dispatching. Rejected: a guard belongs where it cannot be forgotten."
+      ],
+      "decision_reason": "A standing condition stays true until a person acts, so its alert must be re-sendable; a delivered message must not be. releaseUndelivered carries the state test in the SQL WHERE clause, so it cannot remove a sent row whatever a future caller believes.",
+      "test_evidence_refs": [
+        "OWNER-500 and OWNER-502 both fail without releaseUndelivered",
+        "OWNER-501 passes either way, which is the point of it",
+        "confirmed live: staging and production both reached state sent with provider_status accepted_by_sending_service"
+      ],
+      "limitations": "Found only by deploying. The general class, where a stub cannot reproduce the real runtime, remains unaddressed.",
+      "next_step": "Carry the same binding and logging into every owner alert through one shared builder."
+    },
+    {
+      "event_id": "EVT-0035",
+      "timestamp": "2026-09-20T02:45:00Z",
+      "milestone_id": "M-RELEASE",
+      "task_id": "T-ONE-FACT-SIX-COPIES",
+      "agent_role": "qa",
+      "model_id": "claude-opus-5",
+      "status": "tested",
+      "goal": "Stop the same fact going stale in a different place every time it is corrected.",
+      "inputs": [
+        "auditor passes 6, 7 and 8, each finding another stale copy of the activation reason"
+      ],
+      "changed_artifacts": [
+        "tests/unit/ui/activation-consistency.test.ts",
+        "docs/product-scope.md",
+        "docs/test-cases.json"
+      ],
+      "commit_sha": "0b242f7",
+      "decision_summary": "The answer to why a visitor cannot buy yet exists in six places. Three were corrected and three were not, and two of the stale three were serving statements that had stopped being true, on /pricing, beside a corrected copy contradicting them. The specification was among them, which is worse than a stale string because a spec puts it back the next time someone implements from it.",
+      "alternatives_considered": [
+        "Correct the remaining copies again. That had been done twice and had not stopped it recurring.",
+        "Derive every copy from one constant. Rejected for now: a footer line is not a banner, and forcing identical wording would make each surface worse."
+      ],
+      "decision_reason": "The defect is not any one string. It is that nothing failed when two copies disagreed.",
+      "test_evidence_refs": [
+        "DOC-500 asserts no copy names a gap that has been closed",
+        "DOC-501 asserts the three long-form copies each name both outstanding gaps",
+        "checked against the genuinely stale revision: it fails, and names which copy and which claim"
+      ],
+      "limitations": "The closed-gap and outstanding-gap lists are maintained by hand, so closing a fourth gap needs an edit here too.",
+      "next_step": "Keep the lists beside the notice they describe when the next gap closes."
     }
   ]
 }

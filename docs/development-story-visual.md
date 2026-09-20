@@ -134,11 +134,11 @@ they are all the same story.
 **Three defects were found in one afternoon. All three were correct code that nothing
 reached. All three were invisible to a suite of 2,578 passing tests.**
 
-| What was broken | What it looked like | How it was found |
-| --- | --- | --- |
-| A signed Resend callback could never mark a connection ready | The promotion code was right, guarded, and tested. It could not run, because the value it tested was read from a column that is never null on a real connection. | Two genuinely signed deliveries arrived, were processed, and the connection did not move. |
-| Every customer event got a 500, on staging **and** production | The intake built a Stripe client it never calls, and a malformed key made construction throw. | One line of `wrangler tail`. No amount of reading found it. |
-| Delivery evidence attached to the newest pending run, not the right one | Every assertion, status mapping and signature check around it was correct. | Two runs existed at once and the evidence landed on the wrong one. |
+| What was broken                                                         | What it looked like                                                                                                                                              | How it was found                                                                          |
+| ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| A signed Resend callback could never mark a connection ready            | The promotion code was right, guarded, and tested. It could not run, because the value it tested was read from a column that is never null on a real connection. | Two genuinely signed deliveries arrived, were processed, and the connection did not move. |
+| Every customer event got a 500, on staging **and** production           | The intake built a Stripe client it never calls, and a malformed key made construction throw.                                                                    | One line of `wrangler tail`. No amount of reading found it.                               |
+| Delivery evidence attached to the newest pending run, not the right one | Every assertion, status mapping and signature check around it was correct.                                                                                       | Two runs existed at once and the evidence landed on the wrong one.                        |
 
 The third is the serious one. Two enquiries in flight at the same time is an ordinary
 Tuesday, and the consequence was that one enquiry's acknowledgement could satisfy another
@@ -147,8 +147,8 @@ enquiry's check — which is precisely, and only, the thing this product claims 
 ### The pattern worth taking away
 
 Each of these had a comment above it describing the correct behaviour. In the evidence
-case the comment said, in as many words, that *"a webhook that guessed would attach
-evidence to the wrong run"* — and then the code guessed, because the placeholder run the
+case the comment said, in as many words, that _"a webhook that guessed would attach
+evidence to the wrong run"_ — and then the code guessed, because the placeholder run the
 comment described had never been built. The comment was not wrong. It documented an
 intention that the implementation had quietly drifted away from, and nothing in the test
 suite could tell the difference.
@@ -250,11 +250,65 @@ The lesson is not "test more". Every one of these had tests, and they passed. It
 test which cannot reach the code it names proves nothing, and the only reliable way to find
 out is to run the real thing and to let somebody else check.
 
+### What happened next, on the same day
+
+The auditor stayed on for three more passes, and the project changed shape again.
+
+**The button did not exist.** I had written "checkout is wired", which was true of the
+port and false of the product: the review page rendered an unavailable notice
+unconditionally, so nothing a customer could click reached the working code. The comment
+guarding it argued that "a disabled button is still a button" -- a good argument against a
+`disabled` attribute and no argument at all for hard-coding the answer, which is quietly
+what it had become. The control now appears exactly when the server would accept a
+purchase, because it reads the same value the server refuses on.
+
+**Then I pressed it, and it answered 500.** Staging's Stripe key was set and malformed,
+and the page had only checked the string was non-empty -- so it offered a purchase in
+front of a call that could never succeed, and a customer would have met the failure after
+deciding to buy. Not one of 2,600 tests could have caught it, because every fixture in the
+suite supplies a well-formed key. Fixtures are written by people who know what a key looks
+like.
+
+**The channel the owner asked for could not be reached.** `notifications/telegram.ts` is
+among the most carefully built files here: a default-deny allowlist of message kinds, a
+guard that refuses rather than redacts, a one-method API allowlist written to protect a
+poller belonging to somebody else's system, and an alert builder created for this exact
+situation by name. Nothing in the application called any of it. The owner had asked to be
+pinged and the code to do it was unreachable -- the same defect class, landing on the one
+path whose entire value is timing.
+
+**And when it was wired, it still did not work.** The first live tick failed three times.
+The reason was one word: `fetch` was passed unbound, which Workers rejects. No test could
+reproduce it, because every test injects a plain function and a plain function has no
+`this` to get wrong -- the stub passes in precisely the place the real runtime fails. It
+was found by deploying, then reading the transport's own words out of a live log that had
+been added twenty minutes earlier for exactly that purpose.
+
+**Worse: the first failure had silenced the channel permanently.** The notification key is
+claimed before the send and settled onto the same row, so one failed attempt took the key
+for good. Production and staging each held a single dead row and could never have alerted
+again. That is correct for a one-off customer email; it is wrong for a standing condition
+that stays true until a person acts. A failed alert can now be re-sent and a delivered one
+cannot, and the difference is enforced in the SQL rather than remembered by a caller.
+
+**One fact had six copies, and nothing failed when they disagreed.** "Why can I not buy
+this yet" is answered in six places. Three were corrected and three were not, and two of
+the stale ones were serving statements that had stopped being true -- on the pricing page,
+beside a corrected copy contradicting them. One of the stale copies was the specification
+itself, which is worse than a stale string, because a spec puts it back the next time
+somebody implements from it. Correcting them a third time would not have helped. There is
+now a test that fails when any copy names a gap that has closed, and it names which copy.
+
 ### What is still not true
 
-No money has moved through any of the four controls on a deployment. They are wired and
-tested; nobody has bought anything. Those are different claims and this page will not blur
-them.
+No money has moved through any purchase control on a deployment. The button exists, the
+route works, the provider is reachable, and nobody has bought anything. Those are
+different claims and this page will not blur them.
+
+Two deployments still cannot take payment at all: both hold a Stripe price id that is not
+a price id. The product says so on its own review page, names the setting, and says the
+fault is ours rather than the customer's -- which is the behaviour being aimed for, and is
+not the same as working.
 
 ## What is verified, and what is relayed
 
