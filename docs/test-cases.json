@@ -38845,6 +38845,23 @@
       "countable": true
     },
     {
+      "id": "RESIL-187",
+      "category": "accessibility_resilience",
+      "level": "unit",
+      "requirement": "the hero accent has a solid colour before the gradient and is never a status colour",
+      "risk": "background-clip:text paints glyphs with the gradient and needs color:transparent to reveal it. Where the gradient does not paint — an old engine, print, forced colours — transparent text on a dark ground is invisible rather than merely unstyled. Separately, a green word in this interface carries a verdict: the accent must not be the VERIFIED colour, or a headline reads as a result.",
+      "risk_source": "case",
+      "setup": "The generated stylesheet and the BRAND token, checked for an unconditional solid colour, a @supports guard around the clip, a forced-colors fallback, inequality with DARK.verified, and measured contrast on both surfaces.",
+      "expected": "All hold. Checked by emptying the solid-colour rule, which fails the case.",
+      "owner_agent": "A11",
+      "implementation_ref": "tests/unit/ui/tokens.test.ts:200",
+      "provider_backed": false,
+      "status": "passing",
+      "runner": "vitest",
+      "area": "tests/unit/ui/tokens.test.ts",
+      "countable": true
+    },
+    {
       "id": "RESIL-300",
       "category": "accessibility_resilience",
       "level": "integration",

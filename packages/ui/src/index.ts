@@ -50,6 +50,7 @@ export {
   FONT,
   LAYOUT,
   LIGHT,
+  BRAND,
   ELEVATION,
   RADIUS,
   SPACE,

@@ -248,6 +248,33 @@ export const RADIUS = {
 } as const;
 
 /**
+ * Brand accent — display only, and deliberately NOT a status colour.
+ *
+ * The approved Stitch system defines `primary` (#6ffbbe) and `secondary` (#4cd7f6)
+ * separately from its four status colours, and the hero headline uses a gradient between
+ * them on one clipped span. Reusing `verified` for that gradient would have been easier and
+ * would have been wrong: on this interface a green word carries a verdict, and a reader
+ * meeting one in a headline would reasonably read it as one. `primary` is a shade off
+ * `status-confirmed` (#6ffbbe against #4edea3) precisely so the two can sit on the same
+ * page without being confused, and that distinction only survives if it is honoured here.
+ *
+ * Both are measured against the two surfaces they can appear on, recomputed from these
+ * values: primary 14.35:1 on paper and 12.59:1 on surface; secondary 10.93:1 and 9.59:1.
+ * Every one clears AA body text, which is stricter than the 3:1 large text would need.
+ *
+ * Kept out of `Palette` on purpose. `Palette` is the set of colours a component may reach
+ * for, and every member of it is classified by the contrast suite against a threshold
+ * chosen for its ROLE. These two have one use, in one rule, on text that is never the only
+ * way a fact is conveyed. RESIL-187 measures them rather than letting them escape.
+ */
+export const BRAND = {
+  /** Stitch `primary`. */
+  primary: '#6ffbbe',
+  /** Stitch `secondary`, which is also the focus ring. */
+  secondary: '#4cd7f6',
+} as const;
+
+/**
  * Elevation — the piece of the approved design this interface did not have at all.
  *
  * The Stitch screens put `shadow-sm` on cards and `shadow-lg` on the surfaces that sit
