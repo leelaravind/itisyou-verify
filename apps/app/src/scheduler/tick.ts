@@ -851,6 +851,49 @@ export async function handleScheduled(
     }
   }
 
+  // One message per deployed version, on production only. The owner asked to be told on
+  // Telegram when a release lands, and the only sender this application has is this pass.
+  // Keyed on the commit, so a version that stays deployed sends once and a redeploy of the
+  // same commit sends nothing. The counts are read from the live tables at send time, so
+  // the message says what THIS deployment holds -- and, while no platform owner exists,
+  // names the page that says what only the owner can do about it.
+  if (ownerAlert.outcome !== 'sent' && env.ENVIRONMENT === 'production') {
+    const commit = ((env as { COMMIT_SHA?: string }).COMMIT_SHA ?? '').trim();
+    if (commit.length >= 7) {
+      try {
+        const counts = await db
+          .prepare(
+            `SELECT (SELECT COUNT(*) FROM users WHERE is_platform_owner = 1) AS owners,
+                    (SELECT COUNT(*) FROM users WHERE totp_enrolled_at IS NOT NULL) AS enrolled,
+                    (SELECT COUNT(*) FROM workspaces WHERE deleted_at IS NULL) AS workspaces`,
+          )
+          .first<{ owners: number; enrolled: number; workspaces: number }>();
+        const owners = counts?.owners ?? null;
+        const alert = milestoneAlert({
+          milestoneId: `release_deployed:${env.ENVIRONMENT}:${commit.slice(0, 12)}`,
+          measure: `Production now runs ${commit.slice(0, 12)}`,
+          value:
+            `platform owners ${owners ?? 'unknown'}, authenticators enrolled ${counts?.enrolled ?? 'unknown'}, ` +
+            `workspaces ${counts?.workspaces ?? 'unknown'}` +
+            (owners === 0
+              ? '. No platform owner exists yet - the steps only you can take are in docs/owner-actions.md (O10, O11, O8, O13, O14, O6)'
+              : ''),
+        });
+        const supportPort = new D1SupportDataPort(db);
+        const result = await sendOwnerAlert(
+          { port: supportPort, transport: ownerTransport(), now: () => now },
+          alert,
+        );
+        ownerAlert = { attempted: true, outcome: result.outcome };
+      } catch (caught) {
+        (options.logger ?? SILENT_LOGGER).warn('scheduler.owner_alert.failed', {
+          message: caught instanceof Error ? caught.message : String(caught),
+        });
+        ownerAlert = { attempted: true, outcome: 'failed' };
+      }
+    }
+  }
+
   return {
     ...report,
     billing,

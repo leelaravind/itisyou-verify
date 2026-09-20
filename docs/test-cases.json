@@ -36125,6 +36125,23 @@
       "countable": true
     },
     {
+      "id": "OWNER-505",
+      "category": "owner_panel",
+      "level": "integration",
+      "requirement": "on production a deployed commit is announced once, with the live owner and workspace counts",
+      "risk": "The owner asked to be told on Telegram when a release lands; without this the only channel the application has stays silent on the event the owner is waiting for, and a message keyed on anything but the commit would either repeat every tick or never fire again.",
+      "risk_source": "case",
+      "setup": "Production scene with COMMIT_SHA set; four ticks (payments milestone, design figure, release message, repeat).",
+      "expected": "Tick 3 sends one message containing the twelve-character commit, platform owners 0, workspaces 1 and docs/owner-actions.md, never the full sha; tick 4 is a duplicate and sends nothing.",
+      "owner_agent": "A02",
+      "implementation_ref": "tests/integration/support/owner-alert-wiring.test.ts",
+      "provider_backed": false,
+      "status": "passing",
+      "runner": "vitest",
+      "area": "tests/integration/support/owner-alert-wiring.test.ts",
+      "countable": true
+    },
+    {
       "id": "OWNER-600",
       "category": "owner_panel",
       "level": "integration",

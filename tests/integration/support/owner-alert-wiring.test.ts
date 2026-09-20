@@ -194,6 +194,38 @@ describe('a cron tick pings the owner when only the owner can act', () => {
     expect(afterThird, 'a milestone repeated').toBe(2);
   });
 
+  it('OWNER-505 on production a deployed commit is announced once, with the live owner and workspace counts', async () => {
+    // The owner asked to be told on Telegram when a release lands. The message is keyed on
+    // the commit, reads the counts from the tables at send time, and -- while no platform
+    // owner exists -- names the page listing what only the owner can do about it.
+    const s = scene({
+      ENVIRONMENT: 'production',
+      COMMIT_SHA: '569e8e3bfaf3f9e4038235bad0db81680f256f27',
+    });
+
+    await s.tick(); // payments milestone
+    await s.tick(); // design figure
+    const third = await s.tick();
+    const afterThird = s.calls.length;
+    const fourth = await s.tick();
+    const afterFourth = s.calls.length;
+
+    expect(third.ownerAlert?.outcome, 'the release message never went out').toBe('sent');
+    expect(afterThird).toBe(3);
+    const body = s.calls[2]?.body ?? '';
+    expect(body).toContain('Production now runs 569e8e3bfaf3');
+    // Read from the table, not asserted: the scene seeds one workspace and no owner.
+    expect(body).toContain('platform owners 0');
+    expect(body).toContain('workspaces 1');
+    expect(body).toContain('docs/owner-actions.md');
+    // The full sha is not the message; twelve characters identify a deploy.
+    expect(body).not.toContain('569e8e3bfaf3f9e4038235bad0db81680f256f27');
+
+    // The same version, still deployed, sends nothing more.
+    expect(fourth.ownerAlert?.outcome).toBe('duplicate');
+    expect(afterFourth).toBe(3);
+  });
+
   it('OWNER-499 with no Telegram configured the tick still succeeds and records why', async () => {
     const s = scene({
       STRIPE_SECRET_KEY: 'not-a-stripe-key',
