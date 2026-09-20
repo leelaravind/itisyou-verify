@@ -124,9 +124,12 @@ function runDetail(run: DemoRun): Html {
         : null,
   }));
 
-  return html`<section class="stack" id="${run.id}">
-    <div class="row-between">
-      <div class="stack-sm">
+  // One framed panel per run, as the reference frames each inspection record. The verdict
+  // badge sits opposite the heading, at the large size, and is the only coloured thing in
+  // the head: an UNVERIFIED run gets the same frame and the same weight as a VERIFIED one.
+  return html`<section class="panel" id="${run.id}" data-demo-run="${run.status}">
+    <div class="section-head">
+      <div class="section-head__text">
         <p class="eyebrow">Run ${run.id}</p>
         <h2>${maskDisplayValue(run.summary)}</h2>
       </div>
@@ -234,6 +237,36 @@ function ruleTable(): Html {
   });
 }
 
+/** The four statuses, in the contract's order, so the tally always has four entries. */
+const TALLY_ORDER: readonly StatusKey[] = ['VERIFIED', 'FAILED', 'UNVERIFIED', 'PENDING'];
+
+/**
+ * One count per status under the run list — all four, always, including any that are zero.
+ *
+ * The reference closes its results table with a strip of counts. Ours is computed from the
+ * runs the engine actually produced, and the colour comes only from the badge component, so
+ * an UNVERIFIED count can never be drawn as a pass here any more than in the table above.
+ */
+function runTally(): Html {
+  return html`<ul class="tally" aria-label="Runs by result">
+    ${TALLY_ORDER.map(
+      (status) => html`<li data-tally="${status}">
+        <span class="tally__count">${String(DEMO_RUNS.filter((run) => run.status === status).length)}</span>
+        ${StatusBadge({ status })}
+      </li>`,
+    )}
+  </ul>`;
+}
+
+/**
+ * Composition follows the approved how-it-works / demonstration screen: a framed hero panel
+ * whose head sits beside a mono bar of facts about the workflow; the health pair; then the
+ * run list framed as a results panel — the amber-results callout above the table, the tally
+ * below it; then the rules, one framed panel per run, and the standing limitations. The
+ * synthetic banner keeps its place at the very top of the panel, above the heading, because
+ * it is the single most important sentence on the page. Every fact in the meta bar is read
+ * from the demo's own rules and runs; nothing is typed in.
+ */
 export function DemoPage(): Html {
   return html`<div class="wrap section stack-lg">
     ${
@@ -243,7 +276,7 @@ export function DemoPage(): Html {
       // the page traffic lands on is not a disclosure.
       ProviderProofNotice()
     }
-    <div class="stack">
+    <section class="panel panel--hero">
       <div class="synthetic">
         <p class="synthetic__tag">Synthetic workspace</p>
         <p class="small">
@@ -254,37 +287,47 @@ export function DemoPage(): Html {
         </p>
       </div>
 
-      <div class="stack-sm">
-        <p class="eyebrow">Worked example</p>
-        <h1>One workflow, four runs, four honest answers</h1>
-        <p class="lede measure">
-          This is what the product looks like when it is working. Two of these four runs are not a pass,
-          and that is the point: a tool that could only show you green would not be worth connecting.
-        </p>
+      <div class="section-head">
+        <div class="section-head__text">
+          <p class="eyebrow">Worked example</p>
+          <h1>One workflow, four runs, four honest answers</h1>
+          <p class="lede">
+            This is what the product looks like when it is working. Two of these four runs are not a pass,
+            and that is the point: a tool that could only show you green would not be worth connecting.
+          </p>
+        </div>
+        <ul class="meta-bar" aria-label="About this workflow">
+          <li>Runs <b>${String(DEMO_RUNS.length)}</b></li>
+          <li>Rule version <b>${DEMO_RUNS[0]?.rulesRef ?? ''}</b></li>
+          <li>Completion window <b>${formatDuration(DEMO_RULES.deadline_seconds)}</b></li>
+          <li>Coverage mode <b>${DEMO_RULES.coverage_mode}</b></li>
+        </ul>
       </div>
-    </div>
+    </section>
 
     <div class="health">
       ${Card({ title: 'Verification rate', headingLevel: 2, body: HealthReadout(DEMO_HEALTH) })}
       ${Card({ title: 'Coverage', headingLevel: 2, body: CoverageNotice(DEMO_COVERAGE) })}
     </div>
 
-    ${Callout({
-      tone: 'limit',
-      title: 'Read the two amber results carefully',
-      body: html`<p>
-          "Unverified" is not a failure. It means we could not retrieve the evidence — in this example the
-          HubSpot authorisation had expired — so we are telling you we could not look, rather than guessing.
-        </p>
-        <p>
-          "Pending" means the agreed completion window is still open. Neither of them is a verdict about
-          your automation.
-        </p>`,
-    })}
-
     <section class="stack" id="demo-runs">
       <h2>Runs</h2>
-      ${runList()}
+      <div class="results">
+        ${Callout({
+          tone: 'limit',
+          title: 'Read the two amber results carefully',
+          body: html`<p>
+              "Unverified" is not a failure. It means we could not retrieve the evidence — in this example the
+              HubSpot authorisation had expired — so we are telling you we could not look, rather than guessing.
+            </p>
+            <p>
+              "Pending" means the agreed completion window is still open. Neither of them is a verdict about
+              your automation.
+            </p>`,
+        })}
+        ${runList()}
+        <div class="results__bar">${runTally()}</div>
+      </div>
     </section>
 
     <section class="stack">

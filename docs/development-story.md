@@ -284,8 +284,16 @@ because every part of the code was right.
 
 The owner's approved designs were swept through this repository's own claim scanner, which
 reported 34 findings across nine rule classes — a compliance attestation this business
-does not hold, four monthly prices that are not the plan price, a trial period that is not
+does not hold, monthly prices that are not the plan price, a trial period that is not
 offered. Three new rules were written for gaps the scanner did not already cover.
+
+That count of 34 was wrong, and the scanner was why. It matched each rule against the raw
+markup line, while a comment four lines above it said tags were stripped first — they were
+stripped into a variable used only for the exemption check. A claim split across two
+elements was therefore invisible, and that is the ordinary shape of a price on a designed
+page: the figure in one element, the period in its sibling. The real count is **109** in
+the screen files. The gate reported two wrong monthly prices where the rendered text
+carries eighteen.
 
 They matched nothing at all. A mangled escape had left invisible control characters inside
 all three patterns: invisible in an editor, invisible in search output, and enough to stop

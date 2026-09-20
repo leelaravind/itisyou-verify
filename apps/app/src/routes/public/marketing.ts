@@ -24,6 +24,7 @@ import {
   EVIDENCE_RETENTION_NOTE,
   HOME_HOW_IT_WORKS,
   HOME_WHAT_THIS_DOES_NOT_DO,
+  ONE_LINE_PROMISE,
   OWNER_LEGAL_IDENTITY,
   PLAN_ALLOWANCE,
   PLAN_AT_ALLOWANCE,
@@ -55,6 +56,7 @@ import { LIMITS } from '@verify/contracts';
  */
 import { PAYMENT_RECOVERY_POLICY } from '../../billing/policy.js';
 import { FaqAll, FaqList, findFaq } from './faq.js';
+import { statusCards } from './home.js';
 import { TodoOwnerInput } from './todo.js';
 
 function pageHead(eyebrow: string, title: string, lede: string): Html {
@@ -67,62 +69,113 @@ function pageHead(eyebrow: string, title: string, lede: string): Html {
 
 /* ------------------------------------------------------------------ how it works */
 
+/**
+ * One FAQ entry as a pane: the question is the heading, the answer is the body.
+ *
+ * The approved reference opens this screen with two panes side by side — the automation's
+ * own report on the left, the independent read-back on the right. The two entries that
+ * make that contrast in A01's own words are the error-alerts question (we do not watch the
+ * automation; we read the providers back) and the modify-anything question (we only ever
+ * read). Nothing is written here; the panes are a frame for sentences that already exist.
+ */
+function faqPane(id: string): Html {
+  const entry = findFaq(id);
+  return html`<div class="pane" id="faq-${entry.id}">
+    <h3>${entry.question}</h3>
+    <p>${entry.answer}</p>
+  </div>`;
+}
+
+/**
+ * Composition follows the approved how-it-works / demonstration screen: a framed hero
+ * panel carrying the head and a two-pane split; a section head; the three steps as three
+ * cards across; the four statuses as four tiles inside one panel; the exclusions as a
+ * ruled reading column inside a panel; then the questions, the standing limitations and a
+ * closing band with the calls to action. The reference markup's copy is NOT carried over —
+ * it names competitors, a certification and a trial this business does not have. Every
+ * sentence below is A01's or was already on this route.
+ */
 export function HowItWorksPage(): Html {
   return html`<div class="wrap section stack-lg">
-    ${pageHead(
-      'How it works',
-      'Three steps, and the setup work each one really needs',
-      'This page is the long version. Nothing here is a summary of a feature we have not built — if a step sounds like work, it is work.',
-    )}
+    <section class="panel panel--hero">
+      <div class="panel__intro">
+        ${pageHead(
+          'How it works',
+          'Three steps, and the setup work each one really needs',
+          'This page is the long version. Nothing here is a summary of a feature we have not built — if a step sounds like work, it is work.',
+        )}
+      </div>
+      <div class="split">
+        ${faqPane('different-from-automation-error-alerts')}
+        ${faqPane('do-you-modify-anything')}
+      </div>
+    </section>
 
     <!-- Before the steps, not after them. Step 1 and step 3 are both "we read your
          provider back"; a reader must not finish those sentences and only then learn how
          that has been proven. -->
     ${ProviderProofNotice()}
 
-    <ol class="steps">
-      ${HOME_HOW_IT_WORKS.map(
-        (step) => html`<li>
-          <h3>${step.title}</h3>
-          <p>${step.description}</p>
-        </li>`,
-      )}
-    </ol>
-
     <section class="stack">
-      <h2>What you need before day one</h2>
-      <p class="small muted measure">${findFaq('what-do-i-need-before-starting').answer}</p>
-      <!-- The answer above used to end "see our onboarding guide for the exact steps",
-           and this callout existed to contradict it. The answer itself now says there is
-           no guide, so the correction only has to say where the instructions are. -->
-      ${Callout({
-        tone: 'limit',
-        title: 'This page is the guide',
-        body: html`<p>
-          There is no separate step-by-step onboarding document, and we would rather say so than link
-          to one that does not exist. The steps above are the full instructions as far as they go; ask
-          us if a step is unclear.
-        </p>`,
-      })}
+      <div class="section-head">
+        <div class="section-head__text">
+          <p class="eyebrow">Three steps</p>
+          <h2>What setting this up actually involves</h2>
+        </div>
+      </div>
+      <!-- Still an ordered list: this is a real sequence. The cards are the reference's
+           three-across arrangement; the numbering is the same counter the steps list uses. -->
+      <ol class="step-cards grid grid-3">
+        ${HOME_HOW_IT_WORKS.map(
+          (step) => html`<li class="card step-card">
+            <h3>${step.title}</h3>
+            <p>${step.description}</p>
+          </li>`,
+        )}
+      </ol>
     </section>
 
     <section class="stack">
+      <h2>What you need before day one</h2>
+      <div class="split">
+        <p class="small muted">${findFaq('what-do-i-need-before-starting').answer}</p>
+        <!-- The answer above used to end "see our onboarding guide for the exact steps",
+             and this callout existed to contradict it. The answer itself now says there is
+             no guide, so the correction only has to say where the instructions are. -->
+        ${Callout({
+          tone: 'limit',
+          title: 'This page is the guide',
+          body: html`<p>
+            There is no separate step-by-step onboarding document, and we would rather say so than link
+            to one that does not exist. The steps above are the full instructions as far as they go; ask
+            us if a step is unclear.
+          </p>`,
+        })}
+      </div>
+    </section>
+
+    <!-- Four tiles in one panel, four across at desktop. Counting them is how a reader
+         learns there are exactly four; a 2x2 reads as two pairs. -->
+    <section class="panel">
       <h2>What we report</h2>
-      <div class="grid grid-2">
+      <div class="grid grid-4">
         ${STATUS_DEFINITIONS.map(
-          (definition) => html`<div class="margin-row">
-            <div class="margin-row__gutter">${StatusBadge({ status: definition.status })}</div>
+          (definition) => html`<div class="tile" data-status-tile="${definition.status}">
+            ${StatusBadge({ status: definition.status })}
             <p class="small muted">${definition.description}</p>
           </div>`,
         )}
       </div>
     </section>
 
-    <section class="stack">
+    <section class="panel">
       <h2>What this does not do</h2>
-      <div class="grid grid-2">
-        ${HOME_WHAT_THIS_DOES_NOT_DO.map((item) =>
-          Card({ title: item.heading, body: html`<p class="small muted">${item.body}</p>` }),
+      <div class="rule-list">
+        ${HOME_WHAT_THIS_DOES_NOT_DO.map(
+          (item) => html`<div>
+            <h3>${item.heading}</h3>
+            <p>${item.body}</p>
+          </div>`,
         )}
       </div>
     </section>
@@ -130,7 +183,6 @@ export function HowItWorksPage(): Html {
     <section class="stack">
       <h2>Questions people ask first</h2>
       ${FaqList([
-        'different-from-automation-error-alerts',
         'run-never-started',
         'what-is-coverage-mode',
         'evidence-source-down',
@@ -140,15 +192,17 @@ export function HowItWorksPage(): Html {
     </section>
 
     ${StandingLimitations()}
-    ${ButtonRow([
-      Button({
-        label: 'See a worked example',
-        href: '/demo',
-        variant: 'primary',
-        icon: iconArrow(),
-      }),
-      Button({ label: 'See the price', href: '/pricing', variant: 'quiet' }),
-    ])}
+    <div class="cta-band">
+      ${ButtonRow([
+        Button({
+          label: 'See a worked example',
+          href: '/demo',
+          variant: 'primary',
+          icon: iconArrow(),
+        }),
+        Button({ label: 'See the price', href: '/pricing', variant: 'quiet' }),
+      ])}
+    </div>
   </div>`;
 }
 
@@ -194,7 +248,19 @@ function PaymentRecoveryDisclosure(): Html {
   </section>`;
 }
 
+/**
+ * The pricing page, composed as the approved pricing design lays it out
+ * (`design/stitch/screens/batch-02/.../pricing_policy_itisyou_verify`): a left-aligned
+ * page head; a main grid split seven to five, with the plan card and the payment-failure
+ * policy in the wider column and the purchase summary in the narrower one; then the four
+ * results as a row of cards, the questions two abreast, and the standing limitations.
+ *
+ * The plan card carries the price in its head, opposite the plan name, and the allowance
+ * as a bar of metrics rather than a table. Every figure is the frozen contract's; the
+ * design's own prices, top-ups, seat wording and trial are not here and must not be.
+ */
 export function PricingPage(): Html {
+  const runsIncluded = PLAN_ALLOWANCE.find((line) => line.label === 'Runs included');
   return html`<div class="wrap section stack-lg">
     ${pageHead(
       'Pricing',
@@ -204,50 +270,87 @@ export function PricingPage(): Html {
 
     ${ActivationNotice()}
 
-    <div class="grid grid-2">
-      ${Card({
-        title: PLAN_NAME,
-        headingLevel: 2,
-        body: html`<div class="stack">
-          <p class="price">
+    <div class="grid grid-7-5">
+      <div class="stack">
+        ${Card({
+          title: PLAN_NAME,
+          headingLevel: 2,
+          aside: html`<p class="price">
             <span class="price__amount">${PLAN_PRICE_DISPLAY}</span>
             <span class="price__period">${PLAN_BILLING_PERIOD}</span>
-          </p>
-          ${Table({
-            caption: `What the ${PLAN_NAME} plan includes`,
-            captionHidden: true,
-            columns: [
-              { key: 'label', header: 'Included', rowHeader: true, cell: (line) => line.label },
-              { key: 'value', header: 'Amount', numeric: true, cell: (line) => line.value },
-            ],
-            rows: PLAN_ALLOWANCE,
-          })}
-          ${UnavailableAction({
-            label: 'Start setting this up',
-            reason: ACTIVATION_UNAVAILABLE_REASON,
-            whenBack: ACTIVATION_UNAVAILABLE_WHEN,
-          })}
-        </div>`,
-      })}
+          </p>`,
+          body: html`<div class="stack">
+            <dl class="metrics" aria-label="What the ${PLAN_NAME} plan includes">
+              ${PLAN_ALLOWANCE.map(
+                (line) => html`<div>
+                  <dt>${line.label}</dt>
+                  <dd>${line.value}</dd>
+                </div>`,
+              )}
+            </dl>
+            ${Callout({ tone: 'limit', title: 'When you reach the allowance', body: html`<p>${PLAN_AT_ALLOWANCE}</p>` })}
+            <div class="grid grid-2">
+              ${Callout({ tone: 'note', title: 'Renewal', body: html`<p>${PLAN_RENEWAL_WORDING}</p>` })}
+              ${Callout({ tone: 'note', title: 'Cancelling', body: html`<p>${PLAN_CANCELLATION_WORDING}</p>` })}
+            </div>
+          </div>`,
+        })}
+        ${PaymentRecoveryDisclosure()}
+      </div>
       <div class="stack">
-        ${Callout({ tone: 'limit', title: 'When you reach the allowance', body: html`<p>${PLAN_AT_ALLOWANCE}</p>` })}
-        ${Callout({ tone: 'note', title: 'Renewal', body: html`<p>${PLAN_RENEWAL_WORDING}</p>` })}
-        ${Callout({ tone: 'note', title: 'Cancelling', body: html`<p>${PLAN_CANCELLATION_WORDING}</p>` })}
-        ${Callout({ tone: 'limit', title: 'Tax', body: html`<p>${PLAN_TAXES_NOTE}</p>` })}
+        ${Card({
+          title: 'Your order',
+          headingLevel: 2,
+          body: html`<div class="stack">
+            <dl class="summary">
+              <div>
+                <dt>Plan</dt>
+                <dd>${PLAN_NAME}</dd>
+              </div>
+              <div>
+                <dt>Price</dt>
+                <dd>${PLAN_PRICE_DISPLAY} ${PLAN_BILLING_PERIOD}</dd>
+              </div>
+              ${runsIncluded === undefined
+                ? null
+                : html`<div>
+                    <dt>${runsIncluded.label}</dt>
+                    <dd>${runsIncluded.value}</dd>
+                  </div>`}
+            </dl>
+            ${UnavailableAction({
+              label: 'Start setting this up',
+              reason: ACTIVATION_UNAVAILABLE_REASON,
+              whenBack: ACTIVATION_UNAVAILABLE_WHEN,
+            })}
+            ${Callout({ tone: 'limit', title: 'Tax', body: html`<p>${PLAN_TAXES_NOTE}</p>` })}
+          </div>`,
+        })}
       </div>
     </div>
 
-    ${PaymentRecoveryDisclosure()}
+    <section class="stack">
+      <div class="section-head">
+        <div class="section-head__text">
+          <p class="eyebrow">Four results, never a fifth</p>
+          <h2>What we report</h2>
+        </div>
+        <p class="small muted">${ONE_LINE_PROMISE}</p>
+      </div>
+      ${statusCards()}
+    </section>
 
     <section class="stack">
       <h2>Pricing questions</h2>
-      ${FaqList([
-        'what-counts-as-a-run',
-        'what-happens-over-allowance',
-        'how-cancel',
-        'invite-team',
-        'tax-and-currency',
-      ])}
+      <div class="faq-grid">
+        ${FaqList([
+          'what-counts-as-a-run',
+          'what-happens-over-allowance',
+          'how-cancel',
+          'invite-team',
+          'tax-and-currency',
+        ])}
+      </div>
     </section>
 
     ${StandingLimitations()}
@@ -256,34 +359,50 @@ export function PricingPage(): Html {
 
 /* --------------------------------------------------------------------- security */
 
+/**
+ * There is no Stitch screen for this route (docs/stitch-mapping.md has no row for
+ * /security), so the composition borrows the how-it-works / demonstration screen's rhythm:
+ * a framed hero panel whose split carries the two notices that qualify everything below
+ * it; the data flow as numbered cards three across; the subprocessor table in a framed
+ * results panel with a count bar; retention and access side by side; the standing
+ * limitations last. Not one claim is added. The reference screens' "trust" footers name a
+ * certification this business does not hold, and that is exactly why this page keeps
+ * saying so in the hero rather than gaining a badge.
+ */
 export function SecurityPage(): Html {
   return html`<div class="wrap section stack-lg">
-    ${pageHead(
-      'Security and data handling',
-      'Where your data goes, and who else touches it',
-      'The whole list, including the parts that are not ours. We hold no certification and do not claim one.',
-    )}
-
-    ${Callout({
-      tone: 'limit',
-      title: 'Certifications',
-      body: html`<p>
-        ${TodoOwnerInput({
-          field: 'certifications',
-          value: OWNER_LEGAL_IDENTITY.certifications,
-          explanation:
-            'We make no accuracy, security or uptime certification. Any certification claimed here must be one the owner actually holds and can evidence.',
+    <section class="panel panel--hero">
+      <div class="panel__intro">
+        ${pageHead(
+          'Security and data handling',
+          'Where your data goes, and who else touches it',
+          'The whole list, including the parts that are not ours. We hold no certification and do not claim one.',
+        )}
+      </div>
+      <div class="split">
+        ${Callout({
+          tone: 'limit',
+          title: 'Certifications',
+          body: html`<p>
+            ${TodoOwnerInput({
+              field: 'certifications',
+              value: OWNER_LEGAL_IDENTITY.certifications,
+              explanation:
+                'We make no accuracy, security or uptime certification. Any certification claimed here must be one the owner actually holds and can evidence.',
+            })}
+          </p>`,
         })}
-      </p>`,
-    })}
-
-    ${ProviderProofNotice()}
+        ${ProviderProofNotice()}
+      </div>
+    </section>
 
     <section class="stack">
       <h2>The data flow, end to end</h2>
-      <ol class="steps">
+      <!-- An ordered list still: the stages happen in this order. Six cards fall as two
+           rows of three at desktop, three rows of two on a tablet, one column on a phone. -->
+      <ol class="step-cards grid grid-3">
         ${DATA_FLOW.map(
-          (stage) => html`<li>
+          (stage) => html`<li class="card step-card">
             <h3>${stage.stage}</h3>
             <p>${stage.description}</p>
           </li>`,
@@ -293,27 +412,34 @@ export function SecurityPage(): Html {
 
     <section class="stack">
       <h2>Subprocessors</h2>
-      ${Table({
-        caption:
-          'Every third party that processes data on our behalf, what it does, and what it sees',
-        columns: [
-          { key: 'name', header: 'Subprocessor', rowHeader: true, cell: (row) => row.name },
-          { key: 'role', header: 'Role', cell: (row) => row.role },
-          { key: 'data', header: 'Data involved', cell: (row) => row.dataInvolved },
-        ],
-        rows: SUBPROCESSORS,
-      })}
+      <div class="results">
+        ${Table({
+          caption:
+            'Every third party that processes data on our behalf, what it does, and what it sees',
+          columns: [
+            { key: 'name', header: 'Subprocessor', rowHeader: true, cell: (row) => row.name },
+            { key: 'role', header: 'Role', cell: (row) => row.role },
+            { key: 'data', header: 'Data involved', cell: (row) => row.dataInvolved },
+          ],
+          rows: SUBPROCESSORS,
+        })}
+        <div class="results__bar">
+          <p class="micro mono">${SUBPROCESSORS.length} subprocessors</p>
+        </div>
+      </div>
     </section>
 
-    <section class="stack">
-      <h2>Retention</h2>
-      ${Callout({ tone: 'note', body: html`<p>${EVIDENCE_RETENTION_NOTE}</p>` })}
-    </section>
+    <div class="split">
+      <section class="stack">
+        <h2>Retention</h2>
+        ${Callout({ tone: 'note', body: html`<p>${EVIDENCE_RETENTION_NOTE}</p>` })}
+      </section>
 
-    <section class="stack">
-      <h2>Access we ask for</h2>
-      ${FaqList(['store-customer-data', 'do-you-modify-anything', 'data-used-to-train', 'how-long-evidence-kept'])}
-    </section>
+      <section class="stack">
+        <h2>Access we ask for</h2>
+        ${FaqList(['store-customer-data', 'do-you-modify-anything', 'data-used-to-train', 'how-long-evidence-kept'])}
+      </section>
+    </div>
 
     ${StandingLimitations()}
   </div>`;

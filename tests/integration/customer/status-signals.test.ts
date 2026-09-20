@@ -32,6 +32,7 @@ import {
   visibleText,
   type SignedIn,
 } from './harness.js';
+import { DEMO_RUNS } from '../../../apps/app/src/routes/public/demoData.js';
 
 let open: SignedIn | null = null;
 
@@ -241,8 +242,18 @@ describe('an UNVERIFIED verdict shows the shape of the hole', () => {
     const html = await getPublic('/demo');
     // One chunk per run section, each running to the next run's section (cards are
     // sections too, so a lazy `</section>` match would stop at the first nested card).
-    const sections = html.split(/(?=<section class="stack" id="run_)/).slice(1);
-    expect(sections.length).toBeGreaterThanOrEqual(4);
+    //
+    // Keyed on `data-demo-run`, NOT on a CSS class. This split used to look for
+    // `<section class="stack" id="run_`, and on 20 September 2026 a composition change
+    // restyled that wrapper to `class="panel"`. The property below was still true and the
+    // case stopped testing it: zero sections matched, so the loop ran zero times and only
+    // the length assertion failed. Had the length floor been absent as well, this would
+    // have passed while asserting nothing. A test that depends on a class name is a test
+    // that any restyle can silently void.
+    const sections = html.split(/(?=<section [^>]*data-demo-run=)/).slice(1);
+    expect(sections.length, 'no run sections were found — the marker has moved again').toBe(
+      DEMO_RUNS.length,
+    );
     let unverified = 0;
     for (const section of sections) {
       const isUnverified = section.includes('data-run-verdict="UNVERIFIED"');

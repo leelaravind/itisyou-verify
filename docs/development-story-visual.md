@@ -352,6 +352,15 @@ rather than implementation -- build a designed page faithfully and its copy arri
 it, and the copy is the half that would put a false claim in front of someone about to
 pay.
 
+**And the count of 34 was itself wrong, because the scanner could not see half of them.**
+It matched each rule against the raw markup line while a comment four lines above it said
+tags were stripped first; they were stripped into a variable used only for the exemption
+check. A claim split across two elements was invisible -- the ordinary shape of a price on
+a designed page, the figure in one element and the period in its sibling. The scanner now
+matches both forms and reports **109** findings in the screen files. It had reported two
+wrong monthly prices where the rendered text carries eighteen. Found by an independent
+audit, not by me.
+
 **Three rules were written for the gaps, and they matched nothing.** A mangled escape had
 left invisible control characters inside all three patterns. The scanner reported a clean
 sweep over content carrying four wrong prices, and I would have believed it. It was caught

@@ -93,7 +93,9 @@ with the suite run between each.
 
 Sweeping all nineteen `code.html` files for business facts found that the approved
 compositions carry a great deal of invented content. Run through this repository's own claim
-scanner, the nineteen screens produce **34 findings across 9 rule classes**:
+scanner, the twenty-two screen files produce **109 findings across 9 rule classes**, and 168 across the whole design directory once the `DESIGN.md` files are included. Reproduce with `node scripts/scan-claims.mjs --paths design`.
+
+> **This figure was published as 34 and that was wrong.** An independent audit found the > scanner matched each rule against the raw markup line while a comment four lines above > said tags were stripped first -- they were stripped into a variable used only for the > exemption check. So any claim split across an element boundary was invisible, which is > the ordinary shape of a price on a designed page: the figure in one element, the period > in its sibling. The gate reported two wrong monthly prices where the rendered text > carries eighteen. The scanner now matches the raw line AND the tag-stripped text, and > the number above is what it reports. The earlier 34 is left named here rather than > quietly replaced, because it was reported to the owner.
 
 | Rule                          | Hits | Example from the designs                                          |
 | ----------------------------- | ---- | ----------------------------------------------------------------- |

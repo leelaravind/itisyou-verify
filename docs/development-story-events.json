@@ -1108,7 +1108,7 @@
         "RESIL-183 pins the six breakpoints the stylesheet relies on, which nothing was watching",
         "thirteen public routes fetched from production, all 200"
       ],
-      "limitations": "Three new rules were written and matched nothing at all: invisible control characters had been left inside every pattern, and the scanner reported no findings over content carrying four wrong prices. It was caught only by refusing to believe a new rule works because it did not error. The authenticated screens are marked as behind a login rather than given a status code, and mobile could not be verified visually because the capture tool renders at a fixed viewport whatever the window size — so no mobile image is offered as evidence.",
+      "limitations": "Three new rules were written and matched nothing at all: invisible control characters had been left inside every pattern, and the scanner reported no findings over content carrying four wrong prices. It was caught only by refusing to believe a new rule works because it did not error. The count of 34 was itself wrong and the scanner was why — it matched each rule against the raw markup line while a comment four lines above said tags were stripped first, so a claim split across two elements was invisible. The real figure is 109 in the screen files; the gate reported two wrong monthly prices where the rendered text carries eighteen. Found by an independent audit. The authenticated screens are marked as behind a login rather than given a status code, and mobile could not be verified visually because the capture tool renders at a fixed viewport whatever the window size — so no mobile image is offered as evidence.",
       "next_step": "Compose the shared elements first, since all nineteen screens share them."
     },
     {
@@ -1266,6 +1266,42 @@
       ],
       "limitations": "Two sessions on production are classified as external visitors and both fall inside this session’s own working window on pages it was checking, so the external figure is not yet a count of genuine outside visitors. A browser cannot send the header that marks internal traffic, so the classifier has no way to recognise the operator. The launch objective is measured by that figure, so it is recorded here rather than left to be discovered in a report. The rendered page has also grown past 300KB and the decision cards should move to a second route.",
       "next_step": "Make operator traffic recognisable to the classifier before any launch figure is reported."
+    },
+    {
+      "event_id": "EVT-0044",
+      "timestamp": "2026-09-20T06:15:00Z",
+      "milestone_id": "M-BILLING",
+      "task_id": "T-WEBHOOK-ACCEPTED",
+      "agent_role": "lead",
+      "model_id": "claude-opus-5[1m]",
+      "status": "deployed",
+      "goal": "Find out why signature verification actually failed, rather than asserting a cause.",
+      "inputs": [
+        "the owner refusing the diagnosis: a rejection proves verification failed, not that a secret is absent"
+      ],
+      "changed_artifacts": [
+        "apps/app/src/billing/mount.ts",
+        "tests/integration/billing/mount.test.ts",
+        "scripts/scan-claims.mjs",
+        "docs/test-cases.json"
+      ],
+      "commit_sha": null,
+      "decision_summary": "The signing secret was present in both environments the whole time; `wrangler secret list` says so. Two defects, either sufficient on its own. The endpoint resolver trimmed neither the path id nor the secret, and a secret set by piping into `wrangler secret put` carries the trailing newline the generating command printed — on the path id that fails a constant-time comparison on LENGTH, so the route refuses on the lookup before the signature is considered. And the route’s rejection reason, written specifically because the response tells the caller nothing, was discarded at the mount: the route falls back to a no-op log and nothing supplied one.",
+      "alternatives_considered": [
+        "Ask the owner to set the secret again, which is what had been asked three times already.",
+        "Trim the supplied path id as well as the configured one, which is one character shorter to write."
+      ],
+      "decision_reason": "A rejection is one answer to the caller and three answers to the operator, and the three had nowhere to go — so the system was as opaque from inside as from outside, and the owner was told a secret was missing while it sat in both environments. Trimming the SUPPLIED id would have widened the opaque-path gate that exists because a review once found the shared secret was the only one.",
+      "test_evidence_refs": [
+        "a real Stripe delivery resent to the deployed staging service: handled, effect invoice_paid, status processed",
+        "two further events accepted; the third reported a duplicate effect, so two events that could each activate produced one activation",
+        "read from the live staging database: one subscription row, status active; one entitlement row, 500 runs, none consumed",
+        "an event replayed against the deployed service answered as an already-processed duplicate and the entitlement timestamp did not move",
+        "BILL-633 fails against the unfixed resolver with the same 400 the six real deliveries got",
+        "BILL-635 and BILL-636 assert the caller still learns nothing while the operator learns which cause it was"
+      ],
+      "limitations": "An independent audit of the design work found this repository’s claim scanner matched each rule against the raw markup line while its own comment said tags were stripped first, so any claim split across two elements was invisible. It reported two wrong monthly prices where the rendered text carries eighteen. Fixed here, and the published finding count was corrected from 34 to 109.",
+      "next_step": "Prove authenticated access against the activated subscription, and repeat on production."
     }
   ]
 }
