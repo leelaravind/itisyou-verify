@@ -901,25 +901,36 @@ export class D1CustomerDataPort implements CustomerDataPort {
     // 400 from the provider AFTER the customer has pressed Continue. The auditor called
     // this "the next STRIPE_SECRET_KEY" and was right: one of the pair was validated and
     // the other was not, for no reason other than which one had already caused an outage.
-    const priceId = this.#env.STRIPE_PRICE_ID ?? '';
+    const rawPriceId = this.#env.STRIPE_PRICE_ID ?? '';
+    const priceId = rawPriceId.trim();
     if (priceId !== '' && !/^price_[A-Za-z0-9]+$/.test(priceId)) {
+      // Name the actual problem. "Is not a Stripe price id" sent the owner to the Stripe
+      // dashboard three times looking for a value they may already have set correctly, and
+      // the three likely causes want three different actions. None of these says the value:
+      // a price id is not a secret, but this message is rendered to a customer.
+      const because =
+        rawPriceId !== priceId
+          ? 'it has whitespace around it, which usually means it was piped in with a trailing newline'
+          : /^prod_/.test(priceId)
+            ? 'it is a product id (prod_…) rather than the price id (price_…) underneath it'
+            : 'it does not begin with price_';
       blockers.push(
-        'Payments are not enabled in this environment: STRIPE_PRICE_ID is set but is not a Stripe price id. That is our configuration, not something on your side.',
+        `Payments are not enabled in this environment: STRIPE_PRICE_ID is set but ${because}. That is our configuration, not something on your side.`,
       );
     }
-    const secretKey = this.#env.STRIPE_SECRET_KEY ?? '';
+    const secretKey = (this.#env.STRIPE_SECRET_KEY ?? '').trim();
     if (secretKey !== '' && !secretKeyIsUsable(secretKey)) {
       blockers.push(
         'Payments are not enabled in this environment: STRIPE_SECRET_KEY is set but is not a usable Stripe key. That is our configuration, not something on your side.',
       );
     }
-    if ((this.#env.STRIPE_PRICE_ID ?? '') === '' || (this.#env.STRIPE_SECRET_KEY ?? '') === '') {
+    if (priceId === '' || secretKey === '') {
       // Naming the secret is not a leak -- these are variable names, not values -- and the
       // person reading it on a bare deployment is the operator, who would otherwise go
       // looking through code to find out which of the two is missing.
       const missing = [
-        (this.#env.STRIPE_SECRET_KEY ?? '') === '' ? 'STRIPE_SECRET_KEY' : null,
-        (this.#env.STRIPE_PRICE_ID ?? '') === '' ? 'STRIPE_PRICE_ID' : null,
+        secretKey === '' ? 'STRIPE_SECRET_KEY' : null,
+        priceId === '' ? 'STRIPE_PRICE_ID' : null,
       ].filter((name): name is string => name !== null);
       blockers.push(
         `Payments are not enabled in this environment: ${missing.join(' and ')} is not set. That is our configuration, not something on your side.`,
@@ -960,7 +971,7 @@ export class D1CustomerDataPort implements CustomerDataPort {
     return createBillingRuntime(this.#env as never, {
       data: new D1BillingDataPort(this.#db),
       gateway: createStripeClient({
-        secretKey: this.#env.STRIPE_SECRET_KEY ?? '',
+        secretKey: (this.#env.STRIPE_SECRET_KEY ?? '').trim(),
         ...(this.#fetchImpl === undefined ? {} : { fetchImpl: this.#fetchImpl }),
       }),
       now: () => toIso(this.#now),
@@ -1410,7 +1421,7 @@ export class D1CustomerDataPort implements CustomerDataPort {
           'There is no subscription to manage yet, so there is nothing to open and nothing to cancel.',
       };
     }
-    if ((this.#env.STRIPE_SECRET_KEY ?? '') === '') {
+    if ((this.#env.STRIPE_SECRET_KEY ?? '').trim() === '') {
       return {
         href: null,
         reason:

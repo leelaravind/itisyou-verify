@@ -127,8 +127,8 @@ export function checkBillingSecrets(env: BillingEnv): {
   // nor live. Staging held exactly such a key, so every tick reported the pass ready and
   // then failed inside it. Counting a malformed key as missing is the honest answer to the
   // question this function is actually asked: can this deployment take money.
-  const secretKey = env.STRIPE_SECRET_KEY ?? '';
-  if (secretKey.trim().length > 0 && !secretKeyIsUsable(secretKey)) {
+  const secretKey = (env.STRIPE_SECRET_KEY ?? '').trim();
+  if (secretKey.length > 0 && !secretKeyIsUsable(secretKey)) {
     missing.push(BILLING_SECRET_NAMES.secretKey);
   }
   return { ready: missing.length === 0, missing };
@@ -165,7 +165,11 @@ export function createEndpointSecretResolver(env: BillingEnv): StripeEndpointSec
 
 export function billingConfigFromEnv(env: BillingEnv): BillingConfig {
   const environment = billingEnvironmentOf(env);
-  const priceId = env.STRIPE_PRICE_ID ?? '';
+  // Trimmed where it is READ, not only where it is checked. A secret set by piping a value
+  // into `wrangler secret put` carries the trailing newline the generating command printed,
+  // and a validator that trims while the consumer does not is worse than no validator: the
+  // check passes and the provider gets a value with a newline in it.
+  const priceId = (env.STRIPE_PRICE_ID ?? '').trim();
   return buildBillingConfig({
     environment,
     priceId,

@@ -196,3 +196,60 @@ describe('a deployment that cannot charge does not offer to', () => {
     expect(checkoutForm(await reviewPage(h, ws))).not.toBeNull();
   });
 });
+
+/**
+ * Say which problem it is, and tolerate the one that is our fault.
+ *
+ * "STRIPE_PRICE_ID is set but is not a Stripe price id" sent the owner to the Stripe
+ * dashboard three times looking for a value they may already have set correctly. The three
+ * likely causes want three different actions, and one of them — a trailing newline from
+ * `node -e "..." | wrangler secret put` — is not a wrong value at all. A validator that
+ * rejects it while the consumer would have accepted it is a defect in the validator.
+ *
+ * So the value is trimmed where it is READ, not only where it is checked. Trimming in one
+ * place and not the other is worse than neither: the check passes and Stripe receives a
+ * value with a newline in it.
+ *
+ * Case ids `BILL-621..BILL-624`.
+ */
+describe('a misconfigured price id says which misconfiguration it is', () => {
+  it('BILL-621 a price id with a trailing newline is accepted, not rejected', async () => {
+    connectBoth(h, ws);
+
+    // Exactly what a piped `wrangler secret put` stores.
+    const body = await reviewPage(h, ws, { STRIPE_PRICE_ID: 'price_0000000000test\n' });
+
+    expect(
+      checkoutForm(body),
+      'a stray newline blocked an otherwise valid price id',
+    ).not.toBeNull();
+  });
+
+  it('BILL-622 a product id is named as a product id', async () => {
+    connectBoth(h, ws);
+
+    const body = await reviewPage(h, ws, { STRIPE_PRICE_ID: 'prod_ABC123' });
+
+    expect(checkoutForm(body)).toBeNull();
+    expect(body).toContain('product id');
+  });
+
+  it('BILL-623 anything else is reported as not beginning with the prefix', async () => {
+    connectBoth(h, ws);
+
+    const body = await reviewPage(h, ws, { STRIPE_PRICE_ID: 'not-an-id-at-all' });
+
+    expect(checkoutForm(body)).toBeNull();
+    expect(body).toContain('does not begin with');
+  });
+
+  it('BILL-624 a secret key with surrounding whitespace is accepted too', async () => {
+    connectBoth(h, ws);
+
+    // The same pipe, the same newline, the other half of the pair.
+    const padded = `  ${['sk', 'test', '0'.repeat(24)].join('_')}\n`;
+    const body = await reviewPage(h, ws, { STRIPE_SECRET_KEY: padded });
+
+    expect(checkoutForm(body), 'a stray newline blocked an otherwise valid key').not.toBeNull();
+  });
+});

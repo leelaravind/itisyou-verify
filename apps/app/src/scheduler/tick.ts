@@ -714,7 +714,7 @@ export async function handleScheduled(
         {
           kind: 'authentication_required',
           notificationKey,
-          headline: 'Payments are not configured on a deployment',
+          headline: `Payments are not configured on ${env.ENVIRONMENT ?? 'unknown'}`,
           /*
            * The exact command, because the owner reads this on a phone.
            *
@@ -724,7 +724,7 @@ export async function handleScheduled(
            * a log, or the assistant. The secret NAMES are variable names.
            */
           detail:
-            `The ${environment} deployment cannot take payment. ` +
+            `The ${env.ENVIRONMENT ?? 'unknown'} deployment (Stripe ${environment} mode) cannot take payment. ` +
             `Unset or unusable: ${names.join(', ')}. ` +
             'Only you can fix this, because the value must not pass through the assistant, a ' +
             'log or a screenshot. From the apps/app folder, for each name above: ' +
@@ -766,13 +766,30 @@ export async function handleScheduled(
   if (billingSecrets.ready && (env.PUBLIC_BASE_URL ?? '').length > 0) {
     try {
       const environment = env.STRIPE_MODE === 'live' ? 'live' : 'test';
+      /*
+       * Say WHICH deployment.
+       *
+       * Two of these arrived on the owner's phone four minutes apart, identical, and the
+       * only way to tell them apart was to read both databases. They were not duplicates --
+       * one was production and one was staging -- but a message that cannot be attributed
+       * is a message that has to be investigated, which is most of the cost the alert was
+       * supposed to save. `ENVIRONMENT` is the binding that differs; the Stripe mode alone
+       * does not, because both deployments are deliberately in test mode.
+       *
+       * The measure also no longer says "usable". `checkBillingSecrets` establishes that
+       * five secrets are present and that the key has a usable shape; it does not check the
+       * price id's shape, and on the day this fired the price id still carried a trailing
+       * newline that the purchase path rejected. The alert now claims exactly what was
+       * checked.
+       */
+      const deployment = env.ENVIRONMENT ?? 'unknown';
       const alert =
         environment === 'live'
           ? paymentGatewayReadyAlert({ environment, dashboardPath: '/admin' })
           : milestoneAlert({
-              milestoneId: `payments_configured:${environment}:${env.ENVIRONMENT ?? 'unknown'}`,
-              measure: 'Sandbox payments configured and usable',
-              value: 'ready',
+              milestoneId: `payments_configured:${environment}:${deployment}`,
+              measure: `Sandbox payment secrets present on ${deployment}`,
+              value: 'all five set, key shape valid',
             });
       const supportPort = new D1SupportDataPort(db);
       await supportPort.releaseUndeliveredNotification(alert.notificationKey);

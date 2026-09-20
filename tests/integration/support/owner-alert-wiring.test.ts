@@ -152,7 +152,12 @@ describe('a cron tick pings the owner when only the owner can act', () => {
     expect(first.ownerAlert?.outcome).toBe('sent');
     expect(second.ownerAlert?.outcome, 'the milestone repeated').toBe('duplicate');
     expect(s.calls.length).toBe(1);
-    expect(s.calls[0]?.body).toContain('Sandbox payments configured');
+    // The message must name the deployment. Two identical milestones arrived on the
+    // owner's phone four minutes apart and the only way to tell which was which was to
+    // read both live databases; they were not duplicates, but an unattributable alert
+    // costs the investigation it was meant to save.
+    expect(s.calls[0]?.body).toContain('Sandbox payment secrets present on');
+    expect(s.calls[0]?.body, 'the alert does not name its deployment').toContain('test');
   });
 
   it('OWNER-499 with no Telegram configured the tick still succeeds and records why', async () => {

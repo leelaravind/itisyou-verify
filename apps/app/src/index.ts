@@ -351,7 +351,7 @@ app.all('/api/v1/webhooks/stripe/*', async (c) => {
           c.env as never,
           {
             data: new D1BillingDataPort(c.env.DB),
-            gateway: createStripeClient({ secretKey: c.env.STRIPE_SECRET_KEY ?? '' }),
+            gateway: createStripeClient({ secretKey: (c.env.STRIPE_SECRET_KEY ?? '').trim() }),
             billingContact: createBillingContactLookup(c.env.DB),
             newId: (prefix: string) => newId(prefix),
           } as never,
@@ -516,7 +516,7 @@ function safeStripeClient(secretKey: string): ReturnType<typeof createStripeClie
 
 app.all('/api/v1/events', async (c) => {
   if (moneyApp === null) {
-    const secretKey = (c.env as Env).STRIPE_SECRET_KEY ?? '';
+    const secretKey = ((c.env as Env).STRIPE_SECRET_KEY ?? '').trim();
     if (secretKey.length > 0 && safeStripeClient(secretKey) === null) {
       // Loud, once per isolate, and without the value: a deployment in this state can take
       // events but cannot take money, and that is worth seeing in the logs.
