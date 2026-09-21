@@ -340,8 +340,11 @@ a:hover{text-decoration-thickness:2px}
   .rail a{color:var(--c-muted);text-decoration:none;font-size:var(--t-small);padding:var(--s2) var(--s3);transition:color var(--dur-fast) var(--ease),background-color var(--dur-fast) var(--ease)}
   .rail a:hover{color:var(--c-ink)}
   .rail a[aria-current="page"]{color:var(--c-ink);background:var(--c-sunken);font-weight:600}
-  .site .nav a{display:none}
-  .site .nav .micro, .site .nav form, .site .nav button{display:revert}
+  /* Scoped to a page that actually HAS a rail. Unscoped, this hid the primary navigation
+     on every public and customer page at desktop width, which the browser suite caught by
+     failing to click a header link that was no longer there. */
+  .has-rail .site .nav a{display:none}
+  .has-rail .site .nav .micro, .has-rail .site .nav form, .has-rail .site .nav button{display:revert}
 }
 
 /* ---- a shape, shown rather than described ------------------------------- */

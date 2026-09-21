@@ -101,7 +101,7 @@ export function Shell(options: ShellOptions): Html {
     <style>${raw(CSS)}</style>
     <script>${raw(THEME_SCRIPT)}</script>
   </head>
-  <body>
+  <body${options.rail === true ? raw(' class="has-rail"') : raw('')}>
     <a class="skip" href="#main">Skip to main content</a>
     <header class="site">
       <div class="wrap site__inner">
