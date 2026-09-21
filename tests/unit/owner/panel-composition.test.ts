@@ -17,6 +17,8 @@ import { describe, expect, it } from 'vitest';
 import { OverviewPage } from '@app/routes/owner/dashboardPages';
 import { OperationsPage } from '@app/routes/owner/opsPages';
 import { OwnerLayout } from '@app/routes/owner/chrome';
+import { CustomersPage } from '@app/routes/owner/dashboardPages';
+import { LIMITS } from '@verify/contracts';
 import { MemoryOwnerDataPort, syntheticOwnerPrincipal } from '@app/owner/memory';
 import type { OverviewView } from '@app/owner/port';
 import { CSS, html, renderSync } from '@verify/ui';
@@ -161,6 +163,72 @@ describe('the owner panel reserves error styling for problems', () => {
     const current = /\.rail a\[aria-current="page"\]\{([^}]*)\}/.exec(CSS)?.[1] ?? '';
     expect(current, 'the rail marks the current item with nothing at all').not.toBe('');
     expect(current, 'the rail grew a left-edge accent bar').not.toContain('border-left');
+  });
+
+  it("OWNER-925 a customer runs count is shown against the allowance, not on its own", () => {
+    /*
+     * A bare "4" in this column says nothing about whether a customer is nowhere near their
+     * limit or about to hit it, which is the only thing the column is read for.
+     *
+     * The denominator is the plan constant because there is one plan. This case asserts the
+     * rendered figure against that constant rather than against a literal, so the day a
+     * per-workspace allowance exists, this is what says the column has to come from the port
+     * instead of from a constant.
+     */
+    const page = renderSync(
+      CustomersPage({
+        customers: [
+          {
+            workspaceId: 'ws_1',
+            name: 'Worked example',
+            contactMask: 'd**@example.invalid',
+            eligible: true,
+            ineligibleReason: null,
+            subscriptionStatus: null,
+            connectionsReady: 2,
+            connectionsTotal: 2,
+            runsThisPeriod: 4,
+            createdAt: '2026-09-01T00:00:00.000Z',
+            isSynthetic: true,
+          },
+        ],
+        exceptions: [],
+        csrfToken: 'token-for-this-test',
+      }),
+    );
+
+    const at = page.indexOf('data-customer-runs');
+    expect(at, 'the runs column is a bare number again').toBeGreaterThan(-1);
+    const cell = page.slice(at, page.indexOf('</span>', page.indexOf('</span>', at) + 1));
+    expect(cell).toContain('4');
+    expect(cell, 'the allowance is not shown beside the count').toContain(
+      String(LIMITS.PLAN_RUNS_PER_PERIOD),
+    );
+
+    // A workspace whose figure could not be read still says unknown rather than zero.
+    const unknown = renderSync(
+      CustomersPage({
+        customers: [
+          {
+            workspaceId: 'ws_2',
+            name: 'Unreadable',
+            contactMask: 'x**@example.invalid',
+            eligible: false,
+            ineligibleReason: 'no connection',
+            subscriptionStatus: null,
+            connectionsReady: 0,
+            connectionsTotal: 2,
+            runsThisPeriod: null,
+            createdAt: '2026-09-01T00:00:00.000Z',
+            isSynthetic: false,
+          },
+        ],
+        exceptions: [],
+        csrfToken: 'token-for-this-test',
+      }),
+    );
+    expect(unknown).toContain('data-unknown');
+    expect(unknown, 'an unreadable figure grew a denominator').not.toContain('data-customer-runs');
   });
 
   it('OWNER-923 the placeholder-deployment banner is one sentence with the rest behind a disclosure', () => {

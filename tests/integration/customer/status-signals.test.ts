@@ -221,6 +221,77 @@ describe('an UNVERIFIED verdict shows the shape of the hole', () => {
     expect(verdict).not.toContain('title="');
   });
 
+  it('CUST-418 two checks blocked by the same outage are named in one line, not in two identical ones', async () => {
+    /*
+     * Both checks on this run are blocked by one unreachable provider, so both carry the
+     * same forty-word sentence. Printed once per gap, that paragraph appeared twice, back
+     * to back, word for word. A paragraph repeated verbatim is one a reader learns to skip,
+     * which is the opposite of what a follow-up line under an amber verdict is for.
+     *
+     * Nothing moved into a disclosure and nothing was shortened: both labels are still
+     * named, at body size, in the flow. Only the duplicate sentence is gone.
+     */
+    open = await signedInWorkspace();
+    seedRunsFor(open, [{ id: 'run_two', status: 'UNVERIFIED' }]);
+    seedAssertionsFor(open, 'run_two', [
+      {
+        ruleId: 'r1_email',
+        label: 'The acknowledgement email was delivered',
+        status: 'UNKNOWN',
+        reasonCode: 'CONNECTION_UNAVAILABLE',
+        expected: 'a delivered event for a**@example.test',
+        observed: null,
+      },
+      {
+        ruleId: 'r2_recipient',
+        label: 'The acknowledgement went to the address the enquiry named',
+        status: 'UNKNOWN',
+        reasonCode: 'CONNECTION_UNAVAILABLE',
+        expected: 'a**@example.test',
+        observed: null,
+      },
+    ]);
+
+    const { html } = await getSignedIn(open, '/app/runs/run_two');
+    const gaps = [...html.matchAll(/data-verdict-gap[^>]*>([\s\S]*?)<\/p>/g)].map((m) => m[1] ?? '');
+    expect(gaps.length, 'the same reason was printed once per check again').toBe(1);
+
+    // Both checks are still named, in one line.
+    const line = gaps[0] ?? '';
+    expect(line).toContain('The acknowledgement email was delivered');
+    expect(line).toContain('The acknowledgement went to the address the enquiry named');
+    expect(line.toLowerCase()).toContain('could not reach the connected system');
+    expect(line, 'a reason code replaced the sentence').not.toContain('CONNECTION_UNAVAILABLE');
+  });
+
+  it('CUST-419 two checks blocked for DIFFERENT reasons keep their own lines', async () => {
+    // The grouping must not be a collapse. Two different reasons are two different facts.
+    open = await signedInWorkspace();
+    seedRunsFor(open, [{ id: 'run_mixed', status: 'UNVERIFIED' }]);
+    seedAssertionsFor(open, 'run_mixed', [
+      {
+        ruleId: 'r1_email',
+        label: 'The acknowledgement email was delivered',
+        status: 'UNKNOWN',
+        reasonCode: 'CONNECTION_UNAVAILABLE',
+        expected: 'a delivered event for a**@example.test',
+        observed: null,
+      },
+      {
+        ruleId: 'r2_record',
+        label: 'A CRM record was created',
+        status: 'UNKNOWN',
+        reasonCode: 'EVIDENCE_UNAVAILABLE',
+        expected: 'a contact carrying enq_0001',
+        observed: null,
+      },
+    ]);
+
+    const { html } = await getSignedIn(open, '/app/runs/run_mixed');
+    const gaps = [...html.matchAll(/data-verdict-gap[^>]*>([\s\S]*?)<\/p>/g)].map((m) => m[1] ?? '');
+    expect(gaps.length, 'two different reasons were merged into one line').toBe(2);
+  });
+
   it('CUST-415 a VERIFIED run carries no follow-up line, so the line keeps its meaning', async () => {
     open = await signedInWorkspace();
     seedRunsFor(open, [{ id: 'run_ok', status: 'VERIFIED' }]);

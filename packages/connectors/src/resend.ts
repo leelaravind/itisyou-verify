@@ -171,7 +171,7 @@ export function mapResendLastEvent(lastEvent: unknown): EmailStatus | null {
  * constructed: `resendCall` builds its URL from this table alone. The verification
  * service does not send mail on a customer's behalf, and nothing in this file could.
  */
-const RESEND_OPERATIONS = Object.freeze({
+export const RESEND_OPERATIONS = Object.freeze({
   retrieve_email: Object.freeze({ method: 'GET' as SafeMethod, path: '/emails/' }),
   list_domains: Object.freeze({ method: 'GET' as SafeMethod, path: '/domains' }),
 });

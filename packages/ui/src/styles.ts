@@ -355,6 +355,9 @@ a:hover{text-decoration-thickness:2px}
 .snip__caption{margin:0 0 var(--s2);font-family:var(--f-mono);font-size:var(--t-micro);text-transform:uppercase;letter-spacing:0.1em;color:var(--c-faint)}
 .snip__lines{list-style:none;margin:0;padding:0}
 .snip__lines li{font-family:var(--f-mono);font-size:var(--t-micro);line-height:1.7;white-space:pre;color:var(--c-muted)}
+/* The why-line under a call: same block, plainly subordinate, and it wraps because it is a
+   sentence rather than a shape. */
+.snip__lines li.snip__why{font-family:inherit;white-space:normal;color:var(--c-faint);padding-bottom:var(--s2)}
 
 /* ---- the claim rule at full size: reported beside retrieved ---------------- */
 /* The home page has room for the comparison the product is actually about, so it shows
@@ -878,7 +881,11 @@ a:hover{text-decoration-thickness:2px}
 .faq{border-top:1px solid var(--c-rule)}
 .faq>div{border-bottom:1px solid var(--c-rule);padding-block:var(--s4)}
 .faq h3{margin:0 0 var(--s2)}
-.faq p{margin:0;color:var(--c-muted);font-size:var(--t-small)}
+/* An answer is prose and takes a reading measure. Unconstrained, the support page set
+   twenty answers across the full 1140px column at about 160 characters a line, which is
+   roughly twice a comfortable measure and is why that page read as a wall. The question
+   keeps the full width so the list stays scannable; only the answer is measured. */
+.faq p{margin:0;color:var(--c-muted);font-size:var(--t-small);max-width:var(--w-measure)}
 /* The questions as ruled rows in one column, not a two-across grid of cards.
    Five answers in two columns leaves an orphan, the cards were the soft rounded kind the
    owner's exclusions name, and a reader scanning for one question reads a single column
