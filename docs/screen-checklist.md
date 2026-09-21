@@ -28,8 +28,8 @@ information sits beside what, and which devices earn their space.
 
 | Screen | Reference | Compared | Implemented | Verified 1440/834/390 | Auditor |
 | --- | --- | --- | --- | --- | --- |
-| `/` home | `itisyou_verify_post_execution_readback_checks_for_automation_agencies` | yes | yes — see below | yes | pending |
-| `/pricing` | `pricing_policy_itisyou_verify` | yes | nothing to change | yes | pending |
+| `/` home | `itisyou_verify_post_execution_readback_checks_for_automation_agencies` | yes | yes — see below | yes | PASS |
+| `/pricing` | `pricing_policy_itisyou_verify` | yes | nothing to change | yes | not inspected |
 | `/how-it-works` | `how_it_works_demonstration_itisyou_verify` | pending | — | — | pending |
 | `/demo` | `run_details_evidence_itisyou_verify` | pending | — | — | pending |
 | `/security` | none published | n/a | — | — | pending |
@@ -58,7 +58,7 @@ invisible card. Fixed and held by `RESIL-918`.
 
 | Screen | Reference | Compared | Implemented | Verified | Auditor |
 | --- | --- | --- | --- | --- | --- |
-| `/app` workspace | `customer_dashboard_itisyou_verify` | yes | yes — see below | yes | pending |
+| `/app` workspace | `customer_dashboard_itisyou_verify` | yes | yes — see below | yes | not inspected |
 | `/app` mobile | `customer_dashboard_mobile_itisyou_verify` | pending | — | — | pending |
 | `/app/connections` | `connections_evidence_sources_itisyou_verify` | pending | — | — | pending |
 | `/app/runs`, `/app/runs/:id` | `run_details_evidence_itisyou_verify` | pending | — | — | pending |
@@ -71,10 +71,10 @@ invisible card. Fixed and held by `RESIL-918`.
 
 | Screen | Reference | Compared | Implemented | Verified | Auditor |
 | --- | --- | --- | --- | --- | --- |
-| `/owner` overview | `owner_overview_itisyou_verify` | yes | yes — see below | yes, 13 screens | pending |
-| `/owner/customers` | `owner_customer_incident_management_itisyou_verify` | pending | — | — | pending |
-| `/owner/approvals`, `/owner/ads` | `owner_approvals_campaigns_and_budget_...` | pending | — | — | pending |
-| `/owner/quality`, `/owner/cleanup` | `automated_testing_and_cleanup_centre_itisyou_verify` | pending | — | — | pending |
+| `/owner` overview | `owner_overview_itisyou_verify` | yes | yes — see below | yes, 13 screens | PASS |
+| `/owner/customers` | `owner_customer_incident_management_itisyou_verify` | pending | rail and tones only | yes, three widths | pending |
+| `/owner/approvals`, `/owner/ads` | `owner_approvals_campaigns_and_budget_...` | pending | rail and tones only | yes, three widths | pending |
+| `/owner/quality`, `/owner/cleanup` | `automated_testing_and_cleanup_centre_itisyou_verify` | pending | rail and tones only | yes, three widths | pending |
 | `/owner/operations`, `/owner/controls`, `/owner/settings`, `/owner/connections`, `/owner/verification` | none published | n/a | recomposed 21 Sept (tones, notices, freshness) | yes, 13 screens at three widths | pending |
 | `/admin/login` | none published | n/a | — | — | pending |
 
@@ -111,6 +111,24 @@ wrapper was first called `.panel`, which is already the class on every framed se
 panel. Declaring a two-column grid on it turned the launch-figures section into a two-column
 layout with its own heading as the first column. Caught by looking at the render rather than
 by a test.
+
+### A correction the auditor asked for, and the half of it that was refused
+
+An independent auditor read this file against the artefacts and reported the five owner rows
+above as stale: renders exist for all thirteen owner screens at three widths, so "pending"
+looked wrong. Half of that is right and the file was wrong.
+
+**Taken:** the Verified column. Those screens ARE rendered through the real router and
+captured at 1440, 834 and 390 with no horizontal overflow, and the Implemented column now
+names what they actually received, which is the rail and the callout retoning rather than a
+composition pass.
+
+**Refused:** the auditor's conclusion that they should be marked compared. Rendering a screen
+and capturing it is not comparing it with its reference. Only `/owner` has been read beside
+`owner_overview_itisyou_verify`; nobody has yet put `/owner/customers` beside
+`owner_customer_incident_management_itisyou_verify` and written down the differences. Marking
+those rows compared would be the exact substitution this file exists to stop: evidence that a
+screen exists, presented as evidence that it matches.
 
 ## What this checklist is not
 

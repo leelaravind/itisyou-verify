@@ -1,0 +1,71 @@
+Customer journey verified on DEPLOYED staging, end to end
+Commit 0d2f06c17fdb, 21 September 2026.
+
+Two seeded synthetic identities on ws_automation_test, one workspace_viewer and one
+workspace_admin. Seeded by scripts/seed-automation-identity.mjs, which refuses
+--env production by design; that guard was not weakened and production was not seeded.
+
+Three things in here are worth reading rather than counting:
+
+  - the guided test verification was followed to a SETTLED result. It came back
+    UNVERIFIED, which is the honest answer for a synthetic record the connectors
+    cannot read back, and it is the check working rather than the check breaking.
+  - the allowance moved 15 to 16: exactly one run, the same admission path a real
+    enquiry takes.
+  - two billing-portal openings produced two DIFFERENT Stripe sessions. Before the
+    idempotency fix they were byte-identical, which is the expired-session defect.
+
+An earlier run of this script recorded two failures where the poll gave up while the
+run was still PENDING inside its own 30-minute completion window. That is the product
+behaving correctly and the CHECK was wrong, so the check was corrected to assert the
+honest property: settled, or PENDING with its deadline not yet passed.
+
+
+=== staging https://verify-itisyou-staging.kpleelaaravind.workers.dev ===
+commit 0d2f06c17fdbc7962ee9f6a7c0936f7d5009e53a
+
+--- 1. connection testing ---
+PASS  GET /app/connections as admin
+PASS    offers a Test connection form
+INFO  pressing Test connection answered 200
+PASS    names all three findings separately
+PASS    refuses the workflow inference
+PASS    says the stored credential was untouched
+PASS    the corrected notice is the one served
+
+--- 2. allowance before the test ---
+PASS  GET /app/usage
+INFO  usage page reads 15 of 500
+
+--- 3. guided test verification, followed to a settled result ---
+PASS  GET /app as admin
+PASS    the workspace offers the form
+PASS    states the allowance cost before the fields
+INFO  starting one answered 303 -> /app/runs/run_01M32948EP8CC52DCE605F4B2E?started=test
+PASS    it redirects to the run rather than inventing a verdict
+INFO  the run settled as UNVERIFIED
+PASS    it either settled, or is PENDING inside its own completion window
+PASS    and the result is one the evaluator can actually reach
+PASS    the run is labelled as a test
+
+--- 4. allowance accounting after the test ---
+INFO  usage page reads 16 of 500
+PASS    the test consumed exactly one run of the allowance
+
+--- 5. billing portal: a fresh session per opening ---
+PASS  GET /app/billing as admin
+PASS    no Stripe URL is baked into the page
+INFO  two openings answered 303 and 303
+PASS    both open a Stripe portal
+PASS    and the second is a different session, not the first reused
+
+--- 6. viewer restrictions, at the route ---
+PASS  viewer is offered no Test connection form
+PASS    and the route refuses them
+PASS    naming the role
+PASS  viewer is offered no test-verification form
+PASS    and the route refuses them
+PASS  viewer is refused the billing portal
+
+ALL CHECKS PASSED
+
