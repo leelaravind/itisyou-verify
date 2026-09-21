@@ -181,14 +181,20 @@ describe('synthetic data can never be mistaken for a real workspace', () => {
 
   it('SEC-212 a synthetic workspace has no billing portal and nothing to buy', () => {
     // Verified against the deployed site on 2026-09-19: POST /app/onboarding/checkout
-    // answers 503 with no stack trace and no secret, and `billingPortalLink()` returns
-    // null with a reason. Pinned here so a future wiring cannot quietly make a demo
-    // workspace purchasable.
+    // answers 503 with no stack trace and no secret, and the synthetic port's billing
+    // portal returns null with a reason. Pinned here so a future wiring cannot quietly
+    // make a demo workspace purchasable.
+    //
+    // `billingPortalLink` became TWO methods on 21 September 2026: `billingPortalAvailability`
+    // (asks Stripe nothing, decides whether to draw the control) and `openBillingPortal`
+    // (mints one session per click). Both are checked, because a synthetic workspace
+    // becoming purchasable through either half is the thing this case is here to prevent.
     const synthetic = readFileSync(
       join(ROOT, 'apps', 'app', 'src', 'routes', 'app', 'syntheticPort.ts'),
       'utf8',
     );
-    expect(synthetic).toMatch(/billingPortalLink[\s\S]{0,400}href:\s*null/);
+    expect(synthetic).toMatch(/billingPortalAvailability[\s\S]{0,400}canOpen:\s*false/);
+    expect(synthetic).toMatch(/openBillingPortal[\s\S]{0,400}href:\s*null/);
     expect(synthetic).not.toMatch(/https:\/\/checkout\.stripe\.com/);
   });
 

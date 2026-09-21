@@ -5,7 +5,7 @@
  *
  * The owner gave a list of devices this product may not use, and said in terms that it
  * overrides any conflicting style in the approved Stitch design. On 21 September 2026 an
- * audit found NINE of them shipped:
+ * audit found NINE things worth fixing, of which EIGHT map to a named exclusion (the ninth, item 9 below, is dead code the gradient left behind rather than a breach). A later meta-audit also found two breaches this list MISSED, em dashes in copy and a three-column card grid on /security, both fixed the same day. The list:
  *
  *   1. a mint-to-cyan gradient painting the hero headline
  *   2. a blurred radial orb behind two hero panels
@@ -55,12 +55,25 @@ const BANNED: readonly (readonly [string, readonly string[]])[] = [
   // A radial orb is a positioned circle behind content. `border-radius:50%` is how one is
   // drawn and nothing else in this interface is a circle, so the token is the signal.
   ['radial orbs', ['border-radius:50%']],
-  // Decorative motion. A keyframe animation in this sheet would only ever be decoration.
-  // `transition` on a control is functional and stays; so does `animation:none`, which is
-  // the reduced-motion reset and is the opposite of the thing being excluded.
-  ['decorative animation', ['@keyframes']],
 ];
 
+/*
+ * "No decorative animation" used to live in BANNED as a bare `@keyframes` needle, on the
+ * reasoning that a keyframe animation in this sheet would only ever be decoration. On 21
+ * September 2026 the owner reversed the earlier no-motion rule and asked for restrained,
+ * purposeful motion -- short content transitions, disclosure expansion, loading feedback,
+ * action-completion feedback, tasteful hover transitions -- and a bare `@keyframes` needle
+ * cannot tell a genuine one of those from an ornament. It is checked below instead, more
+ * precisely than a substring ban could manage: exactly one `@keyframes` rule may exist
+ * (`spin`, the rotation on `LoadingState`'s glyph -- see
+ * `packages/ui/src/components/icons.ts` and `.spinner` in the stylesheet, which is real
+ * "this is still being checked" feedback, not decoration), nothing may declare a second
+ * one, and every `animation:` value in the sheet must be either `none` (the
+ * reduced-motion reset, still the opposite of the thing being excluded) or that same
+ * spin. Perpetual motion untied to a real waiting state, flashing, animated arrows and
+ * bouncing decorations are exactly as forbidden as they were; this file no longer
+ * confuses "declares a keyframe" with "is decoration".
+ */
 describe("the owner's design exclusions hold in the served stylesheet", () => {
   it('RESIL-911 no excluded visual device appears anywhere in the stylesheet', () => {
     for (const [device, needles] of BANNED) {
@@ -68,11 +81,22 @@ describe("the owner's design exclusions hold in the served stylesheet", () => {
         expect(CSS, `${device}: "${needle}" is in the stylesheet`).not.toContain(needle);
       }
     }
-    // Every `animation:` in the sheet must be the reduced-motion reset. Anything else is
-    // motion somebody added for its own sake.
+    // Exactly one @keyframes rule may exist: the loading spinner's rotation. A second one
+    // would be motion somebody added for its own sake, which is exactly what this case
+    // exists to catch.
+    const keyframeNames = [...CSS.matchAll(/@keyframes\s+([a-zA-Z0-9_-]+)/g)].map((m) => m[1]);
+    expect(
+      keyframeNames,
+      'the stylesheet does not declare exactly the one allowed @keyframes rule',
+    ).toEqual(['spin']);
+    // Every `animation:` in the sheet must be the reduced-motion reset or the loading
+    // spin. Anything else is motion somebody added for its own sake.
     const animations = [...CSS.matchAll(/animation:([^;}!]+)/g)].map((m) => (m[1] ?? '').trim());
     for (const value of animations) {
-      expect(value, `animation:${value} is not the reduced-motion reset`).toBe('none');
+      expect(
+        value === 'none' || /^spin\b/.test(value),
+        `animation:${value} is neither the reduced-motion reset nor the loading spin`,
+      ).toBe(true);
     }
   });
 

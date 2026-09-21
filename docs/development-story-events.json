@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "project": "itisyou-verify",
-  "generated_at": "2026-09-21T12:00:00Z",
+  "generated_at": "2026-09-21T14:05:00Z",
   "note": "Structured record of what was decided, built and verified. Observable facts and short decision rationales only — never reasoning traces, private prompts, credentials or customer data. Unknown values stay null rather than being guessed.",
   "events": [
     {
@@ -1649,8 +1649,7 @@
         "packages/ui/src/content/legal.ts",
         "packages/ui/src/content/pricing.ts",
         "packages/ui/src/content/faq.ts",
-        "apps/app/src/routes/public/legal.ts",
-        "apps/app/src/billing/policy.ts"
+        "apps/app/src/routes/public/legal.ts"
       ],
       "commit_sha": "30ade27",
       "decision_summary": "OWNER_LEGAL_IDENTITY carried TODO_OWNER_INPUT in every field and now carries the confirmed values: sole trader, the Poole correspondence address, no company registration, not VAT-registered, no certifications, the published support address for legal notices. With no placeholder left, TERMS_SKELETON_NOTE and its three render sites on /terms, /privacy and /refunds went with them. Separately, /pricing and the FAQ said tax is calculated and added by our payment provider; Stripe Tax is not enabled and the business is not VAT-registered, so nothing added anything. Both now say the price is the price, that no VAT is charged, and that a buyer outside the UK may owe tax at home which we neither calculate nor collect.",
@@ -1665,7 +1664,7 @@
         "CUST-072",
         "CUST-807"
       ],
-      "limitations": "L5 and L6 are cleared in the code and not yet on a deployment. This is not legal advice and the terms remain unreviewed by a solicitor.",
+      "limitations": "L5 and L6 are cleared in the code and not yet on a deployment. This is not legal advice and the terms remain unreviewed by a solicitor. Correction, 21 September 2026: this event originally listed artefacts that are not in 30ade27. A meta-audit checked every changed_artifacts entry against git and found three events doing this. Moved out of the list and recorded here instead: apps/app/src/billing/policy.ts (landed in d204da8).",
       "next_step": "Deploy, then read the three pages back from production."
     },
     {
@@ -1801,10 +1800,7 @@
         "the owner rejecting the first regression as proving CSRF rather than role"
       ],
       "changed_artifacts": [
-        "apps/app/src/db/customerPort.ts",
-        "tests/integration/customer/checkout-control.test.ts",
-        "docs/live-payment-approval.md",
-        "docs/launch-checklist.md"
+        "tests/integration/customer/checkout-control.test.ts"
       ],
       "commit_sha": "bb28abe",
       "decision_summary": "Two pages were changed that morning to render their setup controls on role === workspace_admin, with a comment claiming that was the same rule the server uses. It was the rule for saveFieldMapping, saveExpectedOutcome and submitConnectionCredentials. It was not the rule for createCheckout, which refuses only on orderSummary().ready, and orderSummary had never consulted a role. On a workspace with both providers ready and a workflow published, a workspace_viewer was shown a live checkout button and pressing it produced a 303 to Stripe Checkout for a workspace they may only read. Fixed as a blocker inside orderSummary so the page and the route read one answer. The first regression written for it posted no CSRF token and asserted only that the answer was not a 303, which passes with or without any role check because CSRF is refused before the handler runs; the owner rejected it. Rewritten to send a real session and a real double-submit pair, to assert the specific role sentence, zero Stripe calls and zero order rows, and to carry an admin control on the identical fixture that does reach Stripe.",
@@ -1818,7 +1814,7 @@
         "AUTH-515",
         "AUTH-516"
       ],
-      "limitations": "Exercised against a synthetic workspace. No live Stripe objects exist, so no real money was ever reachable through this path; production has been in test mode throughout.",
+      "limitations": "Exercised against a synthetic workspace. No live Stripe objects exist, so no real money was ever reachable through this path; production has been in test mode throughout. Correction, 21 September 2026: this event originally listed artefacts that are not in bb28abe. A meta-audit checked every changed_artifacts entry against git and found three events doing this. Moved out of the list and recorded here instead: apps/app/src/db/customerPort.ts (landed in 5b9532b, c3c736d); docs/live-payment-approval.md (landed in b27647e); docs/launch-checklist.md (landed in b27647e).",
       "next_step": "Deploy to staging, verify both roles there, then production."
     },
     {
@@ -1834,11 +1830,7 @@
         "the CI release-gate artefact for d11c271654bd",
         "the owner's explicit authorisation to deploy, and their instruction to stop deleting evidence"
       ],
-      "changed_artifacts": [
-        "docs/SESSION_HANDOVER.md",
-        "docs/launch-checklist.md",
-        "docs/live-payment-approval.md"
-      ],
+      "changed_artifacts": [],
       "commit_sha": "d11c271",
       "decision_summary": "The gate refused production for the previous commit and named the reason: two Playwright cases had failed in CI while the artefact reported failing: 0, because that figure is computed from the vitest report and never reads the Playwright one. Both were stale assertions against the day's copy changes, not product defects, and both were fixed before any deploy. Staging was released first at 11:51Z and production at 11:54Z from the same artefact, so both environments run one candidate. On deployed staging, with two seeded synthetic identities on one workspace, an admin reached the connect step and saw a checkout form and a viewer saw neither, and a viewer POST carrying a real session and CSRF pair answered 503 on role. The seeded sessions were revoked afterwards and the revocation confirmed. The release procedure no longer runs rm -rf reports: each release keeps its artefact under reports/release-gate/<sha12>/.",
       "alternatives_considered": [
@@ -1853,7 +1845,7 @@
         "CUST-071",
         "CUST-072"
       ],
-      "limitations": "Production remains STRIPE_MODE test with no live Stripe objects, so no payment alert has ever fired and both kinds hold zero rows. Advertising stays paused. The owner panel was verified on staging only: the seed script refuses production by design.",
+      "limitations": "Production remains STRIPE_MODE test with no live Stripe objects, so no payment alert has ever fired and both kinds hold zero rows. Advertising stays paused. The owner panel was verified on staging only: the seed script refuses production by design. Correction, 21 September 2026: this event originally listed artefacts that are not in d11c271. A meta-audit checked every changed_artifacts entry against git and found three events doing this. Moved out of the list and recorded here instead: docs/SESSION_HANDOVER.md (landed in bb28abe); docs/launch-checklist.md (landed in b27647e); docs/live-payment-approval.md (landed in b27647e).",
       "next_step": "Owner: the organic posts, the support routing rule, L2-L4, and the production owner-panel re-check."
     }
   ]

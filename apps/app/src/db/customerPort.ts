@@ -1457,28 +1457,71 @@ export class D1CustomerDataPort implements CustomerDataPort {
     };
   }
 
-  async billingPortalLink(): Promise<{ href: string | null; reason: string | null }> {
+  /**
+   * Can this reader open the portal? Asked without calling Stripe.
+   *
+   * ## The defect this split fixes
+   *
+   * There was one method, `billingPortalLink()`, and `GET /app/billing` called it while
+   * rendering. It created a real Stripe billing-portal session and the page put the
+   * returned URL straight into `<a href>`. A Stripe portal session is single-use and
+   * short-lived, so:
+   *
+   *  - every page view, including a refresh or a back-button, burned a session;
+   *  - the link a customer eventually clicked was minted when the page was drawn, not when
+   *    they clicked, so on any page left open it had expired. That is the "expired session"
+   *    the owner hit from a fresh sign-in;
+   *  - a bearer-secret URL sat in the HTML of an authenticated page.
+   *
+   * Availability is now decided from what we already hold and the session is minted per
+   * click by `openBillingPortal`, below.
+   */
+  async billingPortalAvailability(): Promise<{ canOpen: boolean; reason: string | null }> {
+    const refusal = await this.#portalRefusal();
+    return refusal === null ? { canOpen: true, reason: null } : { canOpen: false, reason: refusal };
+  }
+
+  /** The one place that decides whether a portal opening is allowed, so both paths agree. */
+  async #portalRefusal(): Promise<string | null> {
     const scope = await this.#scope();
-    if (scope === null) return { href: null, reason: 'Sign in to manage billing.' };
+    if (scope === null) return 'Sign in to manage billing.';
+    // Same rule as `orderSummary`: managing the card and cancelling the plan are changes to
+    // the workspace's money, and a viewer may read this workspace, not spend from it.
+    if (scope.role !== 'workspace_admin') {
+      return 'Only a workspace admin can manage billing. Your role in this workspace is viewer, so the portal is not yours to open.';
+    }
     const subscription = await subscriptions.getForWorkspace(
       this.#db,
       scope.workspaceId,
       this.#env.STRIPE_MODE === 'live' ? 'live' : 'test',
     );
     if (subscription === null) {
-      return {
-        href: null,
-        reason:
-          'There is no subscription to manage yet, so there is nothing to open and nothing to cancel.',
-      };
+      return 'There is no subscription to manage yet, so there is nothing to open and nothing to cancel.';
     }
     if ((this.#env.STRIPE_SECRET_KEY ?? '').trim() === '') {
-      return {
-        href: null,
-        reason:
-          'The billing portal could not be opened: this deployment has no STRIPE_SECRET_KEY, so there is no portal session to create. That is our configuration, not something on your side.',
-      };
+      return 'The billing portal could not be opened: this deployment has no STRIPE_SECRET_KEY, so there is no portal session to create. That is our configuration, not something on your side.';
     }
+    return null;
+  }
+
+  /**
+   * Mint one fresh portal session for one authorised opening.
+   *
+   * The refusal check is repeated here rather than trusted from the page, because the page
+   * is not what protects this: `POST /app/billing/portal` is reachable by anyone holding a
+   * session and a CSRF pair, and a control being absent from a render has never been an
+   * authorisation. `openBillingPortal` in `billing/portal.ts` reads the Stripe customer id
+   * from our own binding rather than from the request, so a forged `cus_…` reaches nothing,
+   * and it refuses a session whose livemode disagrees with this deployment.
+   *
+   * The URL is returned and nothing else is done with it: not logged, not stored, not
+   * counted. It is a bearer credential for this customer's billing account.
+   */
+  async openBillingPortal(): Promise<{ href: string | null; reason: string | null }> {
+    const refusal = await this.#portalRefusal();
+    if (refusal !== null) return { href: null, reason: refusal };
+    const scope = await this.#scope();
+    if (scope === null) return { href: null, reason: 'Sign in to manage billing.' };
 
     try {
       const { openBillingPortal } = await import('../billing/index');
@@ -1487,10 +1530,10 @@ export class D1CustomerDataPort implements CustomerDataPort {
       });
       return { href: opened.portalUrl, reason: null };
     } catch (error) {
-      // A portal we could not open is reported as not opened. The previous version of this
-      // method returned that sentence unconditionally -- including on deployments where
-      // Stripe WAS configured -- so the customer was told a configuration fact that was
-      // false and the portal was never attempted.
+      // A portal we could not open is reported as not opened. An older version of this
+      // returned the "no STRIPE_SECRET_KEY" sentence unconditionally -- including on
+      // deployments where Stripe WAS configured -- so the customer was told a configuration
+      // fact that was false and the portal was never attempted.
       return {
         href: null,
         reason: `The billing portal could not be opened. ${

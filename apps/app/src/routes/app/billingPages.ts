@@ -33,6 +33,7 @@ import {
   ButtonRow,
   Callout,
   Card,
+  CsrfField,
   EmptyState,
   PLAN_BILLING_PERIOD,
   PLAN_CANCELLATION_WORDING,
@@ -43,7 +44,7 @@ import {
   type Html,
 } from '@verify/ui';
 import { LIMITS } from '@verify/contracts';
-import { pageHead } from './chrome.js';
+import { formMessage, pageHead } from './chrome.js';
 import type { ActivationView } from './port.js';
 
 /** The subscription state, said plainly, with no verb the evidence does not support. */
@@ -135,7 +136,18 @@ export function BillingReturnPage(options: BillingReturnPageOptions): Html {
 
 export interface BillingPageOptions {
   readonly activation: ActivationView;
-  readonly portal: { readonly href: string | null; readonly reason: string | null };
+  /**
+   * Whether the portal could be opened, NOT a link to it.
+   *
+   * It carried `href` until 21 September 2026, which meant this page minted a real,
+   * single-use Stripe portal session every time it rendered and put the resulting
+   * bearer-secret URL into an anchor. See `customerPort.billingPortalAvailability`.
+   */
+  readonly portal: { readonly canOpen: boolean; readonly reason: string | null };
+  /** Double-submit token for the form that opens the portal. */
+  readonly csrfToken: string | null;
+  /** Set when an opening was attempted and refused, so the page can say what happened. */
+  readonly portalProblem?: string | null;
   /** True when Stripe returned the customer here from an abandoned checkout. */
   readonly checkoutCancelled: boolean;
 }
@@ -201,8 +213,19 @@ export function BillingPage(options: BillingPageOptions): Html {
         })}
       </div>
       <div class="stack">
+        <!-- A form, not a link.
+             This control was an anchor whose href was a Stripe portal URL created while
+             the page was being rendered. Those sessions are single-use and short-lived, so
+             the link was often stale before anybody clicked it, every refresh burned
+             another one, and a bearer secret sat in the markup of an authenticated page.
+             Submitting mints one session for this one opening and redirects to it. -->
         ${
-          options.portal.href === null
+          options.portalProblem === undefined || options.portalProblem === null
+            ? null
+            : formMessage(options.portalProblem)
+        }
+        ${
+          !options.portal.canOpen
             ? EmptyState({
                 title: 'There is nothing to manage yet',
                 body:
@@ -212,14 +235,20 @@ export function BillingPage(options: BillingPageOptions): Html {
                   Button({ label: 'See what you would be buying', href: '/app/onboarding/review' }),
                 ],
               })
-            : ButtonRow([
-                Button({
-                  label: 'Open the billing portal',
-                  href: options.portal.href,
-                  variant: 'primary',
-                  external: true,
-                }),
-              ])
+            : html`<form method="post" action="/app/billing/portal" class="stack-sm">
+                ${CsrfField(options.csrfToken)}
+                ${ButtonRow([
+                  Button({
+                    label: 'Open the billing portal',
+                    variant: 'primary',
+                    type: 'submit',
+                  }),
+                ])}
+                <p class="small muted">
+                  Opens Stripe's own billing portal in this tab, with a session created at the moment
+                  you press it. Stripe's page carries a link back here.
+                </p>
+              </form>`
         }
         ${Callout({
           tone: 'note',

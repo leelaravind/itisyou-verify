@@ -358,7 +358,8 @@ describe('the billing composition', () => {
     const markup = await render(
       BillingPage({
         activation: await p.activation(),
-        portal: await p.billingPortalLink(),
+        portal: await p.billingPortalAvailability(),
+        csrfToken: CSRF,
         checkoutCancelled: false,
       }),
     );
@@ -510,7 +511,8 @@ describe('the reference copy stays in the reference', () => {
         await render(
           BillingPage({
             activation: await p.activation(),
-            portal: await p.billingPortalLink(),
+            portal: await p.billingPortalAvailability(),
+        csrfToken: CSRF,
             checkoutCancelled: false,
           }),
         ),

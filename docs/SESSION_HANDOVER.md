@@ -1,9 +1,11 @@
 # Session handover — ITISYOU Verify
 
-Written 21 September 2026, 08:40 UTC, by session `claude-68` for a fresh Claude Code session.
-Every figure below was read at that time from the repository, the deployed services or their
-databases; where something could not be read, it says so. No credentials, cookies or codes
-appear here.
+Written 21 September 2026, 08:40 UTC. **Corrected at 14:10 UTC** after an independent
+meta-audit found this file, the first in its own prescribed reading order, still describing
+as open several defects that the same day had already fixed and deployed. Every figure below
+is re-read, or says it could not be.
+Figures are read from the repository, the deployed services or their databases; where
+something could not be read, it says so. No credentials, cookies or codes appear here.
 
 Read in this order: this file → `docs/launch-checklist.md` (the one checklist) →
 `docs/owner-actions.md` (what only the owner can do) → `docs/live-payment-approval.md` (the
@@ -14,11 +16,11 @@ live-payment decision) → `docs/handover-evidence.md` (one page of sourced clai
 | Item                        | Value                                                                                                          |
 | --------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | Branch                      | `main`                                                                                                         |
-| HEAD                        | `bdd55fa` (2026-09-21T08:09:00Z), equal to `origin/main`                                                       |
-| Working tree                | clean at 08:25Z (no stashes; single worktree `H:/itisyou-verify`; the release worktree was removed on 20 Sept) |
-| Production                  | `a89f60e` — Cloudflare version `e3c1a1b8`; `GET https://verify.itisyou.app/health` returns that commit         |
-| Staging                     | `61139dc` — `https://verify-itisyou-staging.kpleelaaravind.workers.dev/health`                                 |
-| Commits after `a89f60e`     | `61139dc`, `bdd55fa`: documentation only; no code or public asset changed, so no deploy is pending             |
+| HEAD                        | see `git rev-parse HEAD`; this row went stale twice on 21 Sept and is no longer pinned here                   |
+| Working tree                | single worktree `H:/itisyou-verify`, no stashes. Check it; do not trust a recorded state    |
+| Production                  | `d11c271654bd` at 11:54Z, verified by `GET https://verify.itisyou.app/health`                                 |
+| Staging                     | `d11c271654bd` at 11:51Z, released BEFORE production from the same gate artefact                              |
+| Undeployed work             | At 14:10Z the tree carries the billing-portal fix and its tests, uncommitted. Not deployed  |
 | Last CI run used to release | `gh run list` — releases require the CI artefact `release-gate-<fullsha>` for HEAD (see §6)                    |
 
 **Release procedure that works** (all four traps hit this weekend are avoided by it).
@@ -41,10 +43,19 @@ Staging first, then production, with the same artefact and therefore the same ca
 `node scripts/release.mjs --check-gate-artefact --gate-artefact <path>` answers "would this
 artefact let this commit reach production" in a second, without deploying anything.
 
-The earlier version of this procedure ran `rm -rf reports` before and after every release.
-That threw away the gate artefact, the vitest and Playwright results and the served HTML
-captured for the rendered claim scan: exactly the evidence a release is supposed to leave
-behind. Removed on 21 September 2026 at the owner's instruction.
+The earlier version of this PROCEDURE ran `rm -rf reports` before and after every release.
+That threw away the gate artefact, both test reports and the served HTML captured for the
+rendered claim scan: exactly the evidence a release is supposed to leave behind. Removed on
+21 September 2026 at the owner's instruction.
+
+To be exact about what changed, because a commit message on this made it sound like a code
+change and a meta-audit called that out: `scripts/release.mjs` was **not modified**. It
+already accepted `--gate-artefact` and `--check-gate-artefact`. What changed is the written
+procedure above and the habit of keeping `reports/release-gate/<sha12>/` per commit.
+
+One consequence worth knowing before you cite anything from there: **`reports/` is
+git-ignored**, so artefacts under it exist only on the machine that produced them. Evidence
+that a document points at has been copied into `docs/evidence/`, which is tracked.
 
 Wrangler commands run from `apps/app`. The gate runs the whole suite locally and refuses a
 dirty tree, a stale story copy (`apps/app/public/development-story.md` must equal
@@ -63,7 +74,7 @@ Telegram message goes to the owner once per deployed commit (proof: a
 | Owner path on production: bootstrap, authenticator, MFA-gated action, closed bootstrap                                        | production `audit_events`: `owner.bootstrap granted` 10:59Z, `auth.totp.enrolled` 11:09Z, `auth.totp.accepted` 11:37Z, `owner.workspace.created` 11:39Z, `owner.bootstrap already_bootstrapped` 11:59Z (20 Sept); `docs/owner-actions.md`                                                                                                      |
 | Anonymous access refused everywhere in the panel                                                                              | `/owner`, `/owner/customers`, `/admin/authenticator` → 404; `/admin` → 303; `/app` → 401 (curl, 20–21 Sept)                                                                                                                                                                                                                                    |
 | Public claims corrected and scanned as served                                                                                 | `scripts/scan-claims.mjs` runs inside the release over 7 served pages; `packages/ui/src/content/site.ts` notice                                                                                                                                                                                                                                |
-| Tests                                                                                                                         | ledger `docs/test-cases.json` 2,797 rows, `node scripts/verify-test-cases.mjs --strict` PASS; last full local suite 2,737 passed / 4 skipped (20 Sept 09:5xZ) before the fixture time bomb; CI green on every deployed commit                                                                                                                  |
+| Tests                                                                                                                         | ledger `docs/test-cases.json` 2,831 rows at 14:10Z on 21 Sept, `--strict` PASS. Suite counts in this file and in commit messages are **unit + integration unless they say otherwise**; the full run including `tests/security` is larger. A count without that qualifier is not to be trusted                                                                                                                  |
 | Stitch design                                                                                                                 | 15 of 19 screens composed (`packages/ui/src/designProgress.ts`); exports in `design/stitch/` (see §5)                                                                                                                                                                                                                                          |
 | Owner alerts via Telegram                                                                                                     | payments-configured, design-figure and release milestones delivered (`notification_deliveries`)                                                                                                                                                                                                                                                |
 | Advertising                                                                                                                   | campaign 24269887676 submitted 20 Sept; **paused 21 Sept 08:50 UK by the owner's account, intentionally**; £12.25 total budget; 0 impressions; £0.00 spent                                                                                                                                                                                     |
@@ -156,9 +167,9 @@ to migrate it.
 | `curl -sI https://verify.itisyou.app/pricing \| grep -i form-action`                                                                                   | `form-action 'self' https://checkout.stripe.com https://billing.stripe.com`                               |
 | Production DB reads (from `apps/app`): `pnpm exec wrangler d1 execute verify-itisyou-db-production --env production --remote --json --command "<SQL>"` | see §2 for the rows read; never select secret columns                                                     |
 
-**Sandbox proof vs live readiness — kept apart.** Sandbox: proven on production (D1.1–1.6,
-§2 row 1). Live: **NOT READY, 6 of 13 FAIL** — L2, L3, L4, L5, L6, L7 in
-`docs/live-payment-approval.md`; R1–R5 above are the path.
+**Sandbox proof vs live readiness, kept apart.** Sandbox: proven on production (D1.1-1.6,
+§2 row 1). Live: **NOT READY, 3 of 13 FAIL** as of 21 Sept 14:00Z. L5, L6 and L7 are PASS and
+deployed. What remains is L2, L3 and L4, all owner-only, in that order.
 
 ## 7. Constraints that remain in force
 
@@ -172,14 +183,27 @@ to migrate it.
 
 ## 8. Known defects and gaps not to be called complete on the strength of a unit test
 
-- Onboarding CTAs taken down unconditionally (R7) — the product cannot be entered through its own buttons; only the routes work.
-- Payment alerts absent (R3) — no owner is told of a live payment or a failed charge.
-- Legal pages carry placeholders (R1) and a tax sentence the checkout does not implement (R2).
-- Support mailbox unverified (R8).
-- Four screens not composed; `/security` has no approved reference (R9).
-- Design figure and launch tiles are honest but `unknown` where a read fails; the owner dashboard's sandbox-vs-live order labelling has no mode column.
-- `docs/gap-register.md` carries stale rows; 13 ledger rows sit on borrowed ids; the `transport` column and webhook evidence reaching the evaluator remain deferred.
-- Browser tabs on the owner's provider dashboards were left open by this session (R13).
+**Corrected 14:10Z.** The three items struck through below were listed here as open while
+they were already fixed and deployed the same morning. A meta-audit found them. Left visible
+rather than deleted, because a handover that silently rewrites its own history teaches the
+next reader to trust it less, not more.
+
+- ~~Onboarding CTAs taken down unconditionally (R7)~~ **fixed and deployed** at `d11c271654bd`;
+  both controls render on `session.role === 'workspace_admin'`, verified on deployed staging
+  for both roles.
+- ~~Payment alerts absent (R3)~~ **fixed**; see L7, and BILL-662 for what actually proves the
+  live/test gate.
+- ~~Legal pages carry placeholders (R1) and a tax sentence the checkout does not implement (R2)~~
+  **fixed and deployed**, read back from the served pages.
+- **Still open:** the billing portal fix and the connection/test-verification actions are in the
+  working tree and NOT yet deployed at the time of writing.
+- Support mailbox unverified (R8): DNS proves Cloudflare Email Routing; whether a routing rule
+  exists for `support@` could not be determined from this machine and is an owner action.
+- Four screens not composed; `/security` has no owner-approved reference.
+- `docs/gap-register.md` carries stale rows; 13 ledger rows sit on borrowed ids; the
+  `transport` column and webhook evidence reaching the evaluator remain deferred.
+- Browser tabs on the owner's provider dashboards: not reachable from a fresh session's tab
+  group, so the owner closes them.
 
 ## 9. Running jobs
 

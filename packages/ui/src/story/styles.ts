@@ -62,7 +62,15 @@ export const STORY_BASE = `
 
 /* native disclosure: works with JavaScript off, keyboard operable, visible focus ring */
 .disc{border:1px solid var(--c-rule);border-radius:var(--r-control);background:var(--c-surface)}
-.disc__summary{cursor:pointer;padding:var(--s3) var(--s4);font-weight:600;font-size:var(--t-small);list-style:none;display:flex;gap:var(--s2);align-items:baseline}
+/* No transition here, deliberately, and this is the one place in the product where that is
+   still true after the owner asked for motion on 21 September 2026. A hover transition was
+   added to this selector with the rest of the animation work and is removed again: the
+   development-story page carries the sentence "nothing is animated" in its own copy and
+   labels itself a historical record, and DOC-111 exists to hold the page to what it tells
+   the reader. Animating it to match the rest of the product would have made the page's own
+   claim false, which is a worse outcome than an unanimated hover. */
+.disc__summary{cursor:pointer;padding:var(--s3) var(--s4);font-weight:600;font-size:var(--t-small);color:var(--c-muted);list-style:none;display:flex;gap:var(--s2);align-items:baseline}
+.disc__summary:hover,.disc[open]>.disc__summary{color:var(--c-ink)}
 .disc__summary::-webkit-details-marker{display:none}
 .disc__summary::before{content:"+";font-family:var(--f-mono);color:var(--c-faint);flex:0 0 1em}
 .disc[open]>.disc__summary::before{content:"\\2212"}
@@ -92,7 +100,7 @@ export const STORY_BASE = `
 @media (min-width:34rem){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (min-width:60rem){.stats{grid-template-columns:repeat(3,minmax(0,1fr))}}
 .stat{border:1px solid var(--c-rule);border-radius:var(--r-container);background:var(--c-surface);padding:var(--s4)}
-.stat__value{font-family:var(--f-mono);font-size:1.75rem;font-weight:600;line-height:1;letter-spacing:-0.02em;margin:0;word-break:break-word;font-variant-numeric:tabular-nums}
+.stat__value{font-family:var(--f-mono);font-size:var(--t-figure-xs);font-weight:600;line-height:1;letter-spacing:-0.02em;margin:0;word-break:break-word;font-variant-numeric:tabular-nums}
 .stat__value--unknown{font-family:var(--f-sans);font-size:var(--t-h3);font-weight:640;letter-spacing:-0.01em;color:var(--c-unverified)}
 .stat__unit{font-family:var(--f-sans);font-size:var(--t-small);font-weight:400;color:var(--c-muted);margin-left:0.2em}
 .stat__label{font-size:var(--t-small);font-weight:600;margin:var(--s2) 0 0}

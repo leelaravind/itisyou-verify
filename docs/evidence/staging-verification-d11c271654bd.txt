@@ -1,0 +1,44 @@
+Staging verification of the setup journey and the viewer restriction
+Run 21 September 2026 against the DEPLOYED staging service, commit d11c271654bd.
+Two seeded synthetic identities on ws_automation_test: one workspace_viewer, one
+workspace_admin, each its own user, session and membership row (scripts/seed-automation-identity.mjs).
+
+
+=== deployed staging: https://verify-itisyou-staging.kpleelaaravind.workers.dev ===
+
+commit d11c271654bdeb05192d6b36e8f53a03b17d3356  environment staging  database reachable
+
+--- the journey opens for a workspace admin ---
+PASS  GET /app as admin renders
+INFO  /app served the CONFIGURED branch for the admin
+PASS    the configured dashboard shows no taken-down entry control
+PASS  GET step 1 as admin renders
+PASS    offers a real link to step 2
+PASS    does not show the public activation banner
+PASS    does not tell a member no workspace exists
+
+--- the journey stays shut for a workspace viewer ---
+PASS  GET /app as viewer renders
+INFO  /app served the CONFIGURED branch for the viewer
+PASS    and NOT about buying the product
+PASS  GET step 1 as viewer renders
+PASS    offers NO link to step 2
+PASS    the reason is about their role
+
+--- the checkout authorisation hole, on the deployed service ---
+PASS  GET the review step as viewer renders
+PASS    offers NO form that reaches checkout
+PASS    names the role refusal
+PASS  POST checkout as viewer is NOT a redirect to a payment page
+PASS    carries no Location header
+PASS    reached checkout authorisation (503, not a 403 from the CSRF gate)
+PASS    names the role refusal
+PASS    says no session was created and no card charged
+
+--- what the admin meets at the review step on this deployment ---
+PASS  GET the review step as admin renders
+INFO  admin sees a checkout form: true
+PASS    the admin is NOT refused on role
+
+ALL CHECKS PASSED
+

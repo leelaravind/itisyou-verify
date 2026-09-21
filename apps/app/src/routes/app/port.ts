@@ -383,7 +383,31 @@ export interface CustomerDataPort {
   /* usage and billing */
   usage(): Promise<UsageView>;
   /** A link into the Stripe Billing Portal, or why there is not one yet. */
-  billingPortalLink(): Promise<{ readonly href: string | null; readonly reason: string | null }>;
+  /**
+   * Whether the billing portal COULD be opened for this reader, and why not if it could not.
+   *
+   * Asks Stripe nothing. It answers from what we already hold: a session, a subscription in
+   * this deployment's mode, a billing-customer binding, the secret, and the reader's role.
+   *
+   * It is separate from `openBillingPortal` because the page that renders the control is a
+   * GET, and a Stripe billing-portal session is single-use and short-lived. Creating one to
+   * decide whether to draw a button meant every page view burned a session and baked its
+   * secret-bearing URL into the HTML, so by the time anybody clicked it had usually been
+   * consumed or expired. That is the "expired session" the owner reported.
+   */
+  billingPortalAvailability(): Promise<{
+    readonly canOpen: boolean;
+    readonly reason: string | null;
+  }>;
+
+  /**
+   * Mint a FRESH portal session, now, for one authorised opening.
+   *
+   * Called only from `POST /app/billing/portal`, never from a render. The returned URL
+   * carries a bearer secret: it is handed straight to a 303 and is never logged, stored,
+   * counted, or put in a page.
+   */
+  openBillingPortal(): Promise<{ readonly href: string | null; readonly reason: string | null }>;
 
   /* support */
   submitSupportRequest(input: SupportRequestInput): Promise<SupportResult>;

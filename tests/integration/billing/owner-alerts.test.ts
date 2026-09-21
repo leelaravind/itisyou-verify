@@ -367,6 +367,52 @@ describe('checkout.session.completed: spending_decision', () => {
     expect(s.ownerRows()).toHaveLength(0);
     expect(s.calls).toHaveLength(0);
   });
+
+  it('BILL-662 the gate reads the SIGNED livemode flag, not the deployment environment', async () => {
+    /*
+     * The case the other eight could not make.
+     *
+     * Every fixture above ties `config.environment` and `event.livemode` together: a
+     * `scene('live')` always sends `livemode: true`, a `scene('test')` always sends
+     * `livemode: false`. So all eight stay green if the gate is rewritten from
+     * `event.livemode` to `config.environment === 'live'`, and the L7 evidence cell was
+     * citing them for a property they do not test. An independent meta-audit found that,
+     * and it is the right kind of finding: the tests were not wrong, the claim about what
+     * they proved was.
+     *
+     * This drives the two apart. The deployment says live; the event Stripe signed says
+     * test. `handleStripeEvent` is called directly, because the webhook route refuses a
+     * mode mismatch with a 400 before the handler ever runs (`providerModeMatches`), and
+     * that refusal is a different guard from this one.
+     *
+     * Reading the environment would raise an alert here. Reading the signed field does
+     * not, and the signed field is the one Stripe actually vouches for.
+     */
+    const s = await scene('live');
+    await seedOrder(s.billingData, s.workspaceId, s.clock.value, 'live');
+    const runtime = s.runtime();
+
+    const body = stripeEvent('checkout.session.completed', checkoutSession(s.workspaceId), {
+      id: 'evt_owner_alert_mode_split_1',
+      livemode: false,
+    });
+    const parsed: StripeEventShape = {
+      id: String(body['id']),
+      type: String(body['type']),
+      created: Number(body['created']),
+      livemode: Boolean(body['livemode']),
+      data: body['data'] as { object: Record<string, unknown> },
+    };
+    expect(parsed.livemode, 'the fixture must carry a test-mode signed flag').toBe(false);
+
+    await handleStripeEvent(runtime, parsed);
+
+    expect(
+      s.ownerRows(),
+      'a test-mode event raised an owner alert on a live deployment, so the gate is reading the environment rather than the signed livemode flag',
+    ).toHaveLength(0);
+    expect(s.calls).toHaveLength(0);
+  });
 });
 
 describe('invoice.payment_failed: critical_incident', () => {

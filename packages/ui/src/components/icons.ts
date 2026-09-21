@@ -58,6 +58,24 @@ export const iconExternal = (): Html =>
 /** A rightward arrow for "next". */
 export const iconArrow = (): Html => glyph('<path d="M3 8h10"/><path d="m9 4 4 4-4 4"/>');
 
+/**
+ * A rotating partial ring, for `LoadingState` only — genuine "this is still being checked"
+ * feedback, not decoration. Deliberately not one of the four status glyphs above and not
+ * dashed like `iconDash`: a status glyph is a claim about evidence, and a result that has
+ * not come back yet is not a claim of any kind. `.spinner` in the stylesheet carries the
+ * one animation this system allows itself; `prefers-reduced-motion` neutralises it through
+ * the same universal reset that covers every other transition and animation in the sheet.
+ */
+export const iconSpinner = (): Html =>
+  raw(
+    '<svg class="spinner" width="16" height="16" viewBox="0 0 16 16" fill="none" ' +
+      'stroke="currentColor" stroke-width="1.6" stroke-linecap="round" ' +
+      'aria-hidden="true" focusable="false">' +
+      '<circle cx="8" cy="8" r="6.4" opacity="0.25"/>' +
+      '<path d="M8 1.6a6.4 6.4 0 0 1 6.4 6.4"/>' +
+      '</svg>',
+  );
+
 export type GlyphName = 'check' | 'cross' | 'dash' | 'arc';
 
 /** Resolve a glyph by the name held in the token table. */

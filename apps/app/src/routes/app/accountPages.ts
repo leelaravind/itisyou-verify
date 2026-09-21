@@ -323,7 +323,13 @@ export function SupportFormPage(options: {
 /* ----------------------------------------------------------------- cancellation */
 
 export function CancelPage(options: {
-  readonly portal: { readonly href: string | null; readonly reason: string | null };
+  /**
+   * Whether the portal could be opened, not a link to it. The same change as on
+   * `/app/billing`: a Stripe portal session is single-use, so minting one to decide
+   * whether to draw a button meant the link was usually spent before it was clicked.
+   */
+  readonly portal: { readonly canOpen: boolean; readonly reason: string | null };
+  readonly csrfToken: string | null;
 }): Html {
   return html`<div class="wrap section stack-lg measure">
     ${Breadcrumb([{ label: 'Workspace', href: '/app' }, { label: 'Billing and cancellation' }])}
@@ -336,7 +342,7 @@ export function CancelPage(options: {
     ${Callout({ tone: 'note', title: 'What cancelling does', body: html`<p>${PLAN_CANCELLATION_WORDING}</p>` })}
 
     ${
-      options.portal.href === null
+      !options.portal.canOpen
         ? EmptyState({
             title: 'There is no subscription to cancel',
             body:
@@ -344,15 +350,13 @@ export function CancelPage(options: {
               'No reason was recorded, which is itself a defect worth reporting.',
             actions: [Button({ label: 'Back to the workspace', href: '/app' })],
           })
-        : ButtonRow([
-            Button({
-              label: 'Open the billing portal',
-              href: options.portal.href,
-              variant: 'primary',
-              external: true,
-            }),
-            Button({ label: 'Back to the workspace', href: '/app', variant: 'quiet' }),
-          ])
+        : html`<form method="post" action="/app/billing/portal" class="stack-sm">
+            ${CsrfField(options.csrfToken)}
+            ${ButtonRow([
+              Button({ label: 'Open the billing portal', variant: 'primary', type: 'submit' }),
+              Button({ label: 'Back to the workspace', href: '/app', variant: 'quiet' }),
+            ])}
+          </form>`
     }
 
     ${Callout({

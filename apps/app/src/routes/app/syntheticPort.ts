@@ -666,12 +666,16 @@ export class SyntheticCustomerDataPort implements CustomerDataPort {
     };
   }
 
-  async billingPortalLink(): Promise<{ href: string | null; reason: string | null }> {
-    return {
-      href: null,
-      reason:
-        'There is no subscription to manage. This workspace is running on synthetic data and has never been connected to Stripe, so there is no billing portal to open and nothing to cancel.',
-    };
+  /** The synthetic workspace has no Stripe binding, so both halves refuse for one reason. */
+  readonly #noPortal =
+    'There is no subscription to manage. This workspace is running on synthetic data and has never been connected to Stripe, so there is no billing portal to open and nothing to cancel.';
+
+  async billingPortalAvailability(): Promise<{ canOpen: boolean; reason: string | null }> {
+    return { canOpen: false, reason: this.#noPortal };
+  }
+
+  async openBillingPortal(): Promise<{ href: string | null; reason: string | null }> {
+    return { href: null, reason: this.#noPortal };
   }
 
   async submitSupportRequest(input: SupportRequestInput): Promise<SupportResult> {
