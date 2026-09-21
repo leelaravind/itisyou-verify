@@ -28883,6 +28883,23 @@
       "countable": true
     },
     {
+      "id": "CUST-483",
+      "category": "api_security_privacy",
+      "level": "integration",
+      "requirement": "form-action names self and exactly the two Stripe pages a post may redirect to",
+      "risk": "Chrome enforces form-action on the redirect that follows a form submission, so form-action self silently swallowed the 303 to Stripe Checkout: production created the Checkout Session, the customer stayed on the review page, and nothing said why. Found 21 September 2026 on the first production checkout attempt.",
+      "risk_source": "case",
+      "setup": "GET /pricing through the whole Worker with a test env; parse the served Content-Security-Policy.",
+      "expected": "form-action is exactly 'self' https://checkout.stripe.com https://billing.stripe.com; default-src none, connect-src self, frame-ancestors none, base-uri none are unchanged; no unsafe-inline anywhere.",
+      "owner_agent": "A02",
+      "implementation_ref": "tests/integration/customer/csp-form-action.test.ts",
+      "provider_backed": false,
+      "status": "passing",
+      "runner": "vitest",
+      "area": "tests/integration/customer/csp-form-action.test.ts",
+      "countable": true
+    },
+    {
       "id": "CUST-701",
       "category": "customer_lifecycle",
       "level": "unit",

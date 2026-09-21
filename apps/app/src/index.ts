@@ -160,13 +160,18 @@ async function buildCsp(): Promise<string> {
     // The favicon is a same-origin SVG served from the assets binding.
     "img-src 'self' data:",
     "font-src 'self'",
-    // Forms post back to us and nowhere else.
-    "form-action 'self'",
+    // Forms post back to us, and the two Stripe pages a post may redirect to. Chrome
+    // enforces `form-action` on the redirect that follows a form submission (CSP3 says it
+    // may; Chrome does), so `'self'` alone silently swallowed the 303 to Stripe Checkout:
+    // the server created the session, answered 303, and the customer stayed on the review
+    // page with nothing to say why. Found 21 September 2026 on the first production
+    // checkout attempt, after a comment here had asserted the opposite for a day.
+    "form-action 'self' https://checkout.stripe.com https://billing.stripe.com",
     "base-uri 'none'",
     // No third party may frame the application.
     "frame-ancestors 'none'",
-    // Stripe's hosted checkout and billing portal are full-page redirects, which
-    // `form-action 'self'` does not cover and `connect-src` does not gate.
+    // Stripe's hosted checkout and billing portal are full-page navigations; `connect-src`
+    // does not gate them, `form-action` above does.
     "connect-src 'self'",
     'upgrade-insecure-requests',
   ].join('; ');
