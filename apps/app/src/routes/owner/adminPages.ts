@@ -198,7 +198,7 @@ export function BootstrapPage(options: BootstrapPageOptions): Html {
     ${
       options.verifiedSubject === null
         ? Callout({
-            tone: 'warn',
+            tone: 'note',
             title: 'Sign in first',
             body: html`<p>
             You have not proved an email address in this session yet.
@@ -327,7 +327,7 @@ export function AuthenticatorPage(options: AuthenticatorPageOptions): Html {
       options.issued === null
         ? null
         : html`${Callout({
-            tone: 'warn',
+            tone: 'limit',
             title: 'Shown once. It will not be shown again.',
             body: html`<p class="measure">
               Add the secret to your authenticator app now, and store the recovery codes somewhere that is not

@@ -103,7 +103,7 @@ export function QualityPage(options: {
       options.formDependency === null
         ? null
         : Callout({
-            tone: 'warn',
+            tone: 'limit',
             title: 'Saved, but not run',
             body: html`<p data-dependency="true">${options.formDependency}</p>`,
           })
@@ -163,7 +163,7 @@ export function QualityPage(options: {
                 </ul>
               </div>`
             : Callout({
-                tone: 'warn',
+                tone: 'note',
                 title: 'There is nothing to download',
                 body: html`<p data-dependency="true">${options.artifactsUnavailableReason}</p>`,
               }),
@@ -465,7 +465,7 @@ export function ReportCard(options: { readonly report: CleanupReport }): Html {
         report.checkpoint === null
           ? null
           : Callout({
-              tone: 'warn',
+              tone: 'limit',
               title: 'This run did not finish',
               body: html`<p data-checkpoint="true">
                 ${report.checkpoint.handled.length} handled, ${report.checkpoint.remaining.length} still to do.

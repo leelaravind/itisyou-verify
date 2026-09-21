@@ -84,8 +84,12 @@ interface LaunchFigure {
   readonly note: string;
 }
 
-function LaunchFigureTile(figure: LaunchFigure, now: Date): Html {
+function LaunchFigureTile(figure: LaunchFigure, now: Date, sharedLabel: string | null): Html {
   const observed = freshness(figure.observedAt, now);
+  // The strip states the freshness most tiles share; a tile matching it stays quiet, and a
+  // tile read at a different moment keeps its own line, because that is the difference
+  // worth seeing.
+  const ownLine = sharedLabel === observed.label ? null : observed.label;
   return html`<div class="card stack-sm" data-launch-metric="${figure.label}" data-launch-figure="${figure.key}">
     <p class="eyebrow">${figure.label}</p>
     <p class="score ${figure.value === null ? 'score--none' : ''}">
@@ -93,9 +97,31 @@ function LaunchFigureTile(figure: LaunchFigure, now: Date): Html {
         figure.value === null ? html`<span data-unknown="true">unknown</span>` : figure.value
       }</span>
     </p>
-    <p class="micro muted">${observed.label}</p>
+    ${ownLine === null ? null : html`<p class="micro muted">${ownLine}</p>`}
     <p class="small">${figure.note}</p>
   </div>`;
+}
+
+/**
+ * The freshness most of the strip shares, or `null` when no label covers at least half of
+ * it. Stating it once and letting the odd tile out speak for itself turns eight identical
+ * lines into one line plus the differences, which are the only part worth reading.
+ */
+function commonFreshness(figures: readonly LaunchFigure[], now: Date): string | null {
+  const counts = new Map<string, number>();
+  for (const figure of figures) {
+    const { label } = freshness(figure.observedAt, now);
+    counts.set(label, (counts.get(label) ?? 0) + 1);
+  }
+  let best: string | null = null;
+  let bestCount = 0;
+  for (const [label, count] of counts) {
+    if (count > bestCount) {
+      best = label;
+      bestCount = count;
+    }
+  }
+  return bestCount * 2 >= figures.length && bestCount > 1 ? best : null;
 }
 
 function launchMetricValue(metric: LaunchMetric): string | null {
@@ -236,6 +262,8 @@ export function OverviewPage(options: OverviewPageOptions): Html {
     },
   ];
 
+  const stripFreshness = commonFreshness(figures, options.now);
+
   const healthCounts = HEALTH_STATES.map(
     (state) => [state, view.health.filter((item) => item.state === state).length] as const,
   );
@@ -262,15 +290,18 @@ export function OverviewPage(options: OverviewPageOptions): Html {
     </div>
 
     ${Callout({
-      tone: finance.anyUnknown ? 'warn' : 'note',
+      tone: finance.anyUnknown ? 'limit' : 'note',
       title: finance.anyUnknown
         ? 'Some figures are not known yet'
         : 'Figures as at the last refresh',
       body: html`<p>
-          ${refreshed.label}. Anything showing <span class="mono">unknown</span> has not been measured on this
-          deployment; it is not zero, and you should not read it as zero.
-        </p>
-        <p class="small">${NET_RECEIPTS_CAVEAT}</p>`,
+        ${refreshed.label}. Anything showing <span class="mono">unknown</span> has not been measured on this
+        deployment; it is not zero, and you should not read it as zero.
+      </p>`,
+      detail: {
+        summary: 'How net receipts is worked out',
+        body: html`<p class="small">${NET_RECEIPTS_CAVEAT}</p>`,
+      },
     })}
 
     <section class="panel" aria-labelledby="launch-figures-heading">
@@ -282,9 +313,16 @@ export function OverviewPage(options: OverviewPageOptions): Html {
           Adding them together, or quoting the largest of them on its own, would tell you the business is
           doing better than it is.
         </p>
+        ${
+          stripFreshness === null
+            ? null
+            : html`<p class="micro muted" data-strip-freshness="true">
+                Unless a figure says otherwise: ${stripFreshness}.
+              </p>`
+        }
       </div>
       <div class="count-grid" data-launch-figures>
-        ${figures.map((figure) => LaunchFigureTile(figure, options.now))}
+        ${figures.map((figure) => LaunchFigureTile(figure, options.now, stripFreshness))}
       </div>
     </section>
 

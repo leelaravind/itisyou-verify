@@ -527,7 +527,7 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
             result.dependency === null
               ? null
               : Callout({
-                  tone: 'warn',
+                  tone: 'limit',
                   title: 'Something this needs is not there',
                   body: html`<p data-dependency="true">${result.dependency}</p>`,
                 })
@@ -1189,7 +1189,7 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
           body: html`<div class="wrap section stack">
             ${PageHead({ title: 'Type this into the runner' })}
             ${Callout({
-              tone: 'warn',
+              tone: 'limit',
               title: 'Shown once, and only once',
               body: html`<p>
                   This code is not stored anywhere we can read it back. If you leave this page without using it,
@@ -1698,7 +1698,7 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
             body: html`<div class="wrap section stack">
               ${PageHead({ title: 'There is nothing to download' })}
               ${Callout({
-                tone: 'warn',
+                tone: 'limit',
                 title: 'No evidence pack is attached to this deployment',
                 body: html`<p data-dependency="true">
                   ${
