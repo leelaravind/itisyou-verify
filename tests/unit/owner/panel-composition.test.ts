@@ -153,7 +153,9 @@ describe('the owner panel reserves error styling for problems', () => {
     expect(CSS).toContain('.rail{display:none}');
     const wide = CSS.slice(CSS.indexOf('@media (min-width:78rem){'));
     expect(wide).toContain('.rail{display:flex');
-    expect(wide, 'the header links stay beside the rail').toContain('.site .nav a{display:none}');
+    expect(wide, 'the header links stay beside the rail').toContain('.has-rail .site .nav a{display:none}');
+    // Scoped: a page without a rail keeps its header navigation at every width.
+    expect(wide, 'the rule hides the header nav on every page').not.toMatch(/(?<!has-rail ).site .nav a{display:none}/);
 
     // The current item is marked without the excluded left-edge bar.
     const current = /\.rail a\[aria-current="page"\]\{([^}]*)\}/.exec(CSS)?.[1] ?? '';
