@@ -92,7 +92,7 @@ describe('telegram transport', () => {
 
     const body = JSON.parse(posted[0]?.body ?? '{}') as { chat_id: string; text: string };
     expect(body.chat_id).toBe(FAKE_CHAT);
-    expect(body.text.startsWith('ITISYOU Verify — One campaign is waiting')).toBe(true);
+    expect(body.text.startsWith('ITISYOU Verify: One campaign is waiting')).toBe(true);
     // The only method this codebase may call.
     expect(posted[0]?.url.endsWith('/sendMessage')).toBe(true);
   });

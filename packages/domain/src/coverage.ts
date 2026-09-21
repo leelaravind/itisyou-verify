@@ -89,7 +89,7 @@ export const COVERAGE_MODE_SUPPORT: Readonly<Record<CoverageMode, CoverageModeSu
     supported: false,
     selectable: false,
     unavailable_reason:
-      'We cannot offer this yet. It would mean listing enquiries out of your connected system ourselves, and we have not built that — so choosing it would mean promising to spot enquiries your automation never reported while having no way to see them.',
+      'We cannot offer this yet. It would mean listing enquiries out of your connected system ourselves, and we have not built that. So choosing it would mean promising to spot enquiries your automation never reported while having no way to see them.',
     requires: [
       'a connector operation that enumerates records we were never told about',
       'a scheduler pass that reconciles what we enumerated against the runs we received',
@@ -208,7 +208,7 @@ export function describeCoverage(workflow: {
     detail:
       'Your automation sends us an event for each enquiry, and we then verify it against the connected systems independently.',
     limitation:
-      'If your automation stops sending events, we receive nothing — and nothing is not the same as everything passing. Watch the activity warning below, not the pass rate.',
+      'If your automation stops sending events, we receive nothing. Nothing is not the same as everything passing. Watch the activity warning below, not the pass rate.',
     warning,
   };
 }
@@ -338,7 +338,7 @@ export function summariseWorkflowHealth(counts: RunCounts): WorkflowHealth {
       verified_percentage: null,
       headline: 'No runs received yet',
       detail:
-        'There is nothing to score. An empty workflow is not a passing workflow — if you expected enquiries by now, your automation may not be reaching us.',
+        'There is nothing to score. An empty workflow is not a passing workflow: if you expected enquiries by now, your automation may not be reaching us.',
     };
   }
 
@@ -383,7 +383,7 @@ export function summariseWorkflowHealth(counts: RunCounts): WorkflowHealth {
       decided_runs: decided,
       verified_percentage: percentage,
       headline: `${counts.unverified} run${counts.unverified === 1 ? '' : 's'} could not be verified`,
-      detail: `${percentage}% of decided runs were verified. The rest are unverified, which means we could not get the evidence — not that your automation failed.`,
+      detail: `${percentage}% of decided runs were verified. The rest are unverified, which means we could not get the evidence, not that your automation failed.`,
     };
   }
 

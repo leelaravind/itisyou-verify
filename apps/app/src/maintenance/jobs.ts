@@ -598,7 +598,7 @@ export async function runnerAvailability(db: Db, now: string): Promise<RunnerAva
     return {
       online: false,
       reason:
-        'The paired runner is offline — the machine is switched off, asleep, or the runner is not running. Jobs will queue until it checks in.',
+        'The paired runner is offline: the machine is switched off, asleep, or the runner is not running. Jobs will queue until it checks in.',
       pairedDevices: devices.length,
       activeDevices: active.length,
     };

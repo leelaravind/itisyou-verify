@@ -128,7 +128,7 @@ function draftSteps(platform: AdPlatformId, request: CreateDraftRequest): readon
       'The platform shows the campaign in a draft/paused state with no delivery.',
     ],
     [
-      `Set the total/lifetime budget to exactly ${request.budget_minor} minor units of ${request.currency}. If the platform offers only an average daily budget, stop and return to the owner — the packet assumed a total ceiling.`,
+      `Set the total/lifetime budget to exactly ${request.budget_minor} minor units of ${request.currency}. If the platform offers only an average daily budget, stop and return to the owner: the packet assumed a total ceiling.`,
       'Screenshot of the budget field showing the exact figure and the budget type.',
     ],
     [
@@ -184,12 +184,12 @@ function publishSteps(request: PublishRequest): readonly ManualStep[] {
 function pauseSteps(ref: CampaignRef): readonly ManualStep[] {
   const steps: readonly string[][] = [
     [
-      `Open campaign ${ref.external_id ?? '(external id not recorded — find it by name)'} in the ${ref.platform} ads manager and set it to paused.`,
+      `Open campaign ${ref.external_id ?? '(external id not recorded, find it by name)'} in the ${ref.platform} ads manager and set it to paused.`,
       'The campaign row shows Paused.',
     ],
     [
       'Reload the page after at least one minute and confirm the state is still Paused.',
-      'A second, independent read shows Paused — one read is a screenshot, two are evidence.',
+      'A second, independent read shows Paused: one read is a screenshot, two are evidence.',
     ],
     [
       'Check the delivery/spend column stops increasing over the next reporting interval.',
@@ -466,7 +466,7 @@ export async function recordExternalId(
   if (record.external_id !== null && record.external_id !== externalId) {
     return fail(
       'REQUIRES_HUMAN',
-      `local record ${localId} already points at ${record.external_id}; two external ids means two campaigns — stop and check the platform`,
+      `local record ${localId} already points at ${record.external_id}; two external ids means two campaigns: stop and check the platform`,
     );
   }
   const updated: ManualCampaignRecord = { ...record, external_id: externalId };
@@ -489,7 +489,7 @@ export async function recordObservation(
   if (observation.state === 'active' && record.external_id === null) {
     return fail(
       'EXTERNAL_ID_UNKNOWN',
-      'refusing to record an active observation for a campaign with no external id — there is nothing to have observed',
+      'refusing to record an active observation for a campaign with no external id: there is nothing to have observed',
     );
   }
   const clearsPause = observation.state === 'paused' || observation.state === 'ended';

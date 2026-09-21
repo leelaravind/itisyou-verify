@@ -129,25 +129,25 @@ describe("the owner's design exclusions hold in the served stylesheet", () => {
      * 2026 and a source-level grep could not tell the two apart without an allowlist that
      * would rot.
      *
-     * The scope is four public pages, and the two gaps in it are stated rather than
-     * papered over, because a guard that implies more coverage than it has is worse than
-     * a narrow one:
+     * The scope is the five public pages, and the gap in it is stated rather than papered
+     * over, because a guard that implies more coverage than it has is worse than a narrow
+     * one: the signed-in and owner screens are not rendered here, which needs a session
+     * fixture and belongs in an integration test. Their copy was swept on the same day and
+     * nothing holds it there yet.
      *
-     *  - the signed-in and owner screens are not rendered here; that needs a session
-     *    fixture and belongs in an integration test.
-     *  - `/demo` is not in the list yet. Its status explanations come from
-     *    `packages/domain`, which the 21 September copy sweep did not cover, so it still
-     *    shows four. `DemoPage` is imported and ready to add the moment that is clean;
-     *    listing it now would mean a failing case standing in for work not done.
+     * `/demo` joined this list second. Its status explanations come from
+     * `packages/domain`, which the first sweep did not cover, so for one commit it still
+     * showed four dashes and the case said so instead of quietly covering four pages and
+     * implying five.
      *
      * The character class covers the en dash too. It was being used for date ranges, and
      * a reader cannot tell the two apart at a glance.
      */
-    void DemoPage;
     const pages: readonly (readonly [string, string])[] = [
       ['/', await render(HomePage())],
       ['/pricing', await render(PricingPage())],
       ['/how-it-works', await render(HowItWorksPage())],
+      ['/demo', await render(DemoPage())],
       ['/security', await render(SecurityPage())],
     ];
     for (const [path, markup] of pages) {

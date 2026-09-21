@@ -195,7 +195,7 @@ export async function reconcileSubscriptions(
           discrepancies.push(
             discrepancy(record, 'status_mismatch', record.status, provider.status, [
               'Stripe reports this subscription as served, but our guards refused the change.',
-              'A cancelled subscription is never resurrected automatically — look at it.',
+              'A cancelled subscription is never resurrected automatically: look at it.',
             ]),
           );
         }

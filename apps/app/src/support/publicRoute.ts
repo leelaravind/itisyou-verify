@@ -136,7 +136,7 @@ function SupportFormBody(state: FormState): Html {
     <p>
       Your message is stored with credentials, tokens, card-shaped numbers and other
       people's email addresses removed before it is written down. Please do not send us a
-      password or an API key in any case — we never need one.
+      password or an API key in any case. We never need one.
     </p>
     <form method="post" action="/support" novalidate>
       <p>
@@ -263,7 +263,7 @@ export function createPublicSupportRoute(
             subject,
             body,
             message:
-              'We have had several messages from this address in a short time. Please wait a little and send this again — nothing you wrote has been lost.',
+              'We have had several messages from this address in a short time. Please wait a little and send this again. Nothing you wrote has been lost.',
             fieldErrors: {},
           },
           429,

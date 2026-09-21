@@ -56,7 +56,7 @@ export const QUALITY_SUITES: readonly QualitySuite[] = [
     id: 'integration',
     label: 'Integration tests',
     proves:
-      'The database work — tenant scoping, idempotency, budget guards — against a real SQLite.',
+      'The database work (tenant scoping, idempotency, budget guards) against a real SQLite.',
     doesNotProve:
       'Cloudflare D1 over the network. The SQL is real; the network, the replicas and true parallelism are not exercised.',
     typicalMinutes: 3,
@@ -92,7 +92,7 @@ export const QUALITY_SUITES: readonly QualitySuite[] = [
     label: 'Rebuild the release evidence pack',
     proves:
       'Regenerates the test report, the results file and the release-readiness decision from a real run.',
-    doesNotProve: 'Nothing extra — it is the "everything" run plus the paperwork.',
+    doesNotProve: 'Nothing extra: it is the "everything" run plus the paperwork.',
     typicalMinutes: 11,
     mayCostMoney: false,
   },
@@ -332,7 +332,7 @@ export const JOB_STATE_TEXT: Readonly<
   infrastructure_error: {
     label: 'Could not run',
     meaning:
-      'Something in the machinery failed — not the code under test. Nothing is proved either way; run it again.',
+      'Something in the machinery failed, not the code under test. Nothing is proved either way; run it again.',
   },
 };
 
@@ -435,7 +435,7 @@ export class UnboundQualityArtifactStore implements QualityArtifactStore {
     return (
       'No test evidence pack is attached to this deployment. The files are produced by ' +
       '`scripts/build-test-report.mjs` on a machine that can run the suite, and they have not been uploaded here. ' +
-      'Until they are, there is nothing to download — not an empty file, and not an older run pretending to be this one.'
+      'Until they are, there is nothing to download: not an empty file, and not an older run pretending to be this one.'
     );
   }
 }
@@ -499,7 +499,7 @@ export const MAX_ARTIFACT_PART_CHARS = 256 * 1024;
 export const QUALITY_ARTIFACTS_MIGRATION_HINT =
   'The evidence pack is stored in the quality_artifacts table, and this deployment has no such table. ' +
   'It needs the migration that creates it, and then an upload of a pack produced by scripts/build-test-report.mjs. ' +
-  'Nothing is being hidden from you — there is genuinely nothing stored here to download.';
+  'Nothing is being hidden from you; there is genuinely nothing stored here to download.';
 
 /** The narrow slice of D1 this store needs, typed structurally so a test can supply it. */
 export interface ArtifactQueryable {
@@ -564,7 +564,7 @@ export class D1QualityArtifactStore implements QualityArtifactStore {
       if (result.results.length > 0) return null;
       return (
         'No evidence pack has been uploaded to this deployment yet. Run scripts/build-test-report.mjs on a machine ' +
-        'that can run the suite, and upload what it produces. Nothing here is out of date — there is nothing here.'
+        'that can run the suite, and upload what it produces. Nothing here is out of date; there is nothing here.'
       );
     } catch {
       return QUALITY_ARTIFACTS_MIGRATION_HINT;

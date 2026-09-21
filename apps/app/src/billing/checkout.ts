@@ -281,7 +281,7 @@ export async function readCheckoutReturn(
     entitlement,
     awaitingConfirmation,
     message: awaitingConfirmation
-      ? 'Your payment is with Stripe. This page updates once Stripe confirms it — usually within a few seconds.'
+      ? 'Your payment is with Stripe. This page updates once Stripe confirms it, usually within a few seconds.'
       : 'Your subscription is active.',
   };
 }

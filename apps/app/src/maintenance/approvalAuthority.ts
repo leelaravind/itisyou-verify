@@ -96,7 +96,7 @@ export function noActionTypeCoversRelease(
     detail:
       `approval ${approval.id} was granted for ${approval.action_type}, which does not authorise a release to ` +
       `${payload.environment}. No owner action type on this deployment binds an approval to a release, so at ` +
-      'present nothing can authorise this job — that is a missing action type, not a mistake in the request. ' +
+      'present nothing can authorise this job: that is a missing action type, not a mistake in the request. ' +
       'The approval has not been used.',
   };
 }

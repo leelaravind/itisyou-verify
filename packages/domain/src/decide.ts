@@ -52,7 +52,7 @@ export const DECISION_REASON = {
    */
   UNVERIFIED_ACCESS:
     'We could not retrieve the evidence needed to judge this run, so it is unverified rather than failed. ' +
-    'The gap is on our side of the check — we could not reach or read the connected system — and it is not a fault we found in your automation.',
+    'The gap is on our side of the check (we could not reach or read the connected system), and it is not a fault we found in your automation.',
   UNVERIFIED_INCOMPLETE:
     'The deadline passed with some required checks still unproven, so this run is unverified rather than failed. ' +
     'Unproven means we did not get a reading in time; it is not a fault we found in your automation.',

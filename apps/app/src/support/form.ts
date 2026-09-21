@@ -263,7 +263,7 @@ export async function submitSupportForm(
     throw new AppError(
       429,
       'SUPPORT_FORM_RATE_LIMITED',
-      'You have sent us several messages in a short time. Please wait a little and try again — we have the earlier ones.',
+      'You have sent us several messages in a short time. Please wait a little and try again. We have the earlier ones.',
       retryAfter,
     );
   }

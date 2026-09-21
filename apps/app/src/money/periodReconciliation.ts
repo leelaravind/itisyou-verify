@@ -462,7 +462,7 @@ async function repairCounters(
       after: before,
       evidence: evidenceOut,
       note:
-        'This row changed while the repair was being decided — an admission or a settle ' +
+        'This row changed while the repair was being decided: an admission or a settle ' +
         'landed. Nothing was overwritten; the next pass will look again.',
     };
   }

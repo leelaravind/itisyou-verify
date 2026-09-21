@@ -275,7 +275,7 @@ describe('telegram: splitting and composition', () => {
       text: 'One campaign is waiting.',
       html: '',
     });
-    expect(text.startsWith(`${MESSAGE_PREFIX} — Approval needed`)).toBe(true);
+    expect(text.startsWith(`${MESSAGE_PREFIX}: Approval needed`)).toBe(true);
     expect(text).toContain('One campaign is waiting.');
 
     // Even with no headline at all, the prefix is still there.

@@ -290,13 +290,13 @@ function customerMessageForError(provider: ProviderId, error: ClassifiedError): 
     case 'PERMISSION_MISSING':
       return provider === 'hubspot'
         ? `That token works, but the private app is missing the ${HUBSPOT_READ_SCOPE} scope, so we could not read anything. Nothing has been saved. Add the scope in HubSpot and paste the token again.`
-        : `That key works, but it can only send email — it cannot read anything back. Nothing has been saved. Resend offers no read-only key, so reading delivery evidence needs a full-access key.`;
+        : `That key works, but it can only send email; it cannot read anything back. Nothing has been saved. Resend offers no read-only key, so reading delivery evidence needs a full-access key.`;
     case 'RATE_LIMITED':
       return `${name} asked us to slow down, so we could not check that token yet. Nothing has been saved. Try again in a minute.`;
     case 'PROVIDER_UNAVAILABLE':
       return `We could not reach ${name} to check that token, so nothing has been saved. This is a problem at our end or theirs, not with your token. Try again shortly.`;
     case 'UNSUPPORTED_CAPABILITY':
-      return `${name} refused the request we use to check a connection. Nothing has been saved. Tell us about this — it usually means the provider changed something.`;
+      return `${name} refused the request we use to check a connection. Nothing has been saved. Tell us about this: it usually means the provider changed something.`;
     case 'NOT_FOUND':
     case 'AMBIGUOUS_MATCH':
     case 'INVALID_EVIDENCE':
@@ -474,7 +474,7 @@ export async function establishConnection(
     message:
       status === 'ready'
         ? `Connected. We checked that token against ${name} and read back the account it belongs to.`
-        : `That ${name} token works and we have saved it. The connection is not finished yet — see the step below. We will mark it ready when we have actually received a signed message, not before.`,
+        : `That ${name} token works and we have saved it. The connection is not finished yet: see the step below. We will mark it ready when we have actually received a signed message, not before.`,
     setupSteps: outstanding,
     callsMade: validation.calls_made,
   };

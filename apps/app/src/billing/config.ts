@@ -33,7 +33,7 @@ export const PLAN_VERSION = 1;
 export const PLAN: PlanDefinition = Object.freeze({
   code: 'verify_single_workflow_monthly',
   version: PLAN_VERSION,
-  displayName: 'ITISYOU Verify — one workflow',
+  displayName: 'ITISYOU Verify: one workflow',
   amountMinor: LIMITS.PLAN_PRICE_PENCE,
   currency: 'GBP',
   interval: 'month',

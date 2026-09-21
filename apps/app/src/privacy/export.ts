@@ -307,7 +307,7 @@ async function collectSection(
  * NEW WORDING (A09): A01 wrote no export copy. Flagged in the handoff.
  */
 const COMPLETE_STATEMENT =
-  'This is everything we hold for this workspace, apart from stored provider credentials, which are never exported in any form — not even masked.';
+  'This is everything we hold for this workspace, apart from stored provider credentials, which are never exported in any form, not even masked.';
 const INCOMPLETE_STATEMENT =
   'This export reached its size limit before everything was written, so it is not complete. The sections that were cut short are named above. Ask us and we will send the rest.';
 

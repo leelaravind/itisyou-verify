@@ -137,7 +137,7 @@ export const DATA_FLOW_NODES: readonly DataFlowNode[] = [
       'The email evidence source, and the service that sends our own transactional messages.',
     dataCategories: ['email_evidence', 'account_identity'],
     whatWeSend:
-      'Read requests for message status events, and the transactional emails we send you — sign-in links, failure notices, deletion confirmations.',
+      'Read requests for message status events, and the transactional emails we send you: sign-in links, failure notices, deletion confirmations.',
     whatWeReceive:
       'Message status events for the acknowledgement email your rules reference, and whether the sending service accepted a message we submitted. Acceptance is never treated as proof that anyone received it.',
     enabledByDefault: true,
@@ -302,14 +302,14 @@ export const CUSTOMER_REQUESTS: readonly CustomerRequest[] = [
     request: 'Correct something that is wrong',
     howToAsk: 'Send us a support message saying what is wrong.',
     whatHappens:
-      'Configuration you control — your workspace name, workflow rules, contact address — you can change yourself. Evidence we read back from HubSpot or Resend is a record of what those systems said at the time; we will not alter it, because an altered record of evidence is worthless. If it is wrong, the place to correct it is the source system, and the next check will read the corrected value.',
+      'Configuration you control (your workspace name, workflow rules, contact address), you can change yourself. Evidence we read back from HubSpot or Resend is a record of what those systems said at the time; we will not alter it, because an altered record of evidence is worthless. If it is wrong, the place to correct it is the source system, and the next check will read the corrected value.',
   },
   {
     id: 'deletion',
     request: 'Delete my workspace and its data',
     howToAsk: 'From the account page while signed in, or by sending us a support message.',
     whatHappens:
-      'We schedule the deletion with a short grace period so it can be undone, then revoke your sessions, stop scheduled checks and expire shareable links, and remove your evidence, runs, workflow configuration and rules, provider connections and their stored credentials, support messages, notification records and every membership of the workspace. Your sign-in identity is not removed automatically, because it can belong to another workspace — ask and we will remove that too. We send you a statement of exactly what remains and why.',
+      'We schedule the deletion with a short grace period so it can be undone, then revoke your sessions, stop scheduled checks and expire shareable links, and remove your evidence, runs, workflow configuration and rules, provider connections and their stored credentials, support messages, notification records and every membership of the workspace. Your sign-in identity is not removed automatically, because it can belong to another workspace. Ask and we will remove that too. We send you a statement of exactly what remains and why.',
   },
   {
     id: 'stop_optional_processing',

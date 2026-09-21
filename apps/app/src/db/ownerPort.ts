@@ -143,7 +143,7 @@ const NO_ADS =
 const ADS_AUTHORISED_BUT_UNSUBMITTED =
   'The approval has been spent and this campaign is now marked ready to submit, with the exact packet you ' +
   'approved recorded against it. Nothing has been created at an advertising platform, because no advertising ' +
-  'provider is connected to this deployment — no money can be spent by this action. Submitting is a separate ' +
+  'provider is connected to this deployment, so no money can be spent by this action. Submitting is a separate ' +
   'step that needs a connected platform.';
 
 /**
@@ -166,7 +166,7 @@ const ADS_AUTHORISED_BUT_UNSUBMITTED =
  * loses the only gate on it.
  */
 const BUDGET_LIMIT_NEEDS_APPROVAL =
-  'A spending ceiling cannot be changed through the ordinary settings save — it is the one setting on this page ' +
+  'A spending ceiling cannot be changed through the ordinary settings save: it is the one setting on this page ' +
   'that decides how much money the platform may spend, so it needs an approval granted for that exact change. ' +
   'Nothing has been saved and the current ceilings still stand. There is no approval-bound path for this on ' +
   'this deployment yet, so today the answer is that a ceiling cannot be raised from the panel at all.';
@@ -1295,7 +1295,7 @@ export class D1OwnerDataPort implements OwnerDataPort {
       await this.#audit(ctx, 'owner.campaign.activate_raced', campaignId);
       return writeFailed(
         'This campaign changed while the activation was being authorised, so it has not been activated. The ' +
-          'approval has been spent and cannot be reused — read the campaign again and approve it again if you ' +
+          'approval has been spent and cannot be reused. Read the campaign again and approve it again if you ' +
           'still want it to run.',
       );
     }
@@ -1626,7 +1626,7 @@ export class D1OwnerDataPort implements OwnerDataPort {
         const packet = parsePacket(input.payloadJson);
         if (packet === null) {
           return writeFailed(
-            'That is not a campaign packet. A campaign approval is bound to the exact packet you read — its ' +
+            'That is not a campaign packet. A campaign approval is bound to the exact packet you read: its ' +
               'platform, budget, audience, creative, destination and dates.',
             { payload_json: 'Paste the campaign packet.' },
           );
@@ -2084,7 +2084,7 @@ export class D1OwnerDataPort implements OwnerDataPort {
         ok: false,
         detail:
           'There is no preview on record with that inventory. Nothing is deleted that has not been listed and ' +
-          'read first — take a preview and read it.',
+          'read first. Take a preview and read it.',
       };
     }
 
@@ -2097,7 +2097,7 @@ export class D1OwnerDataPort implements OwnerDataPort {
       return {
         ok: false,
         detail:
-          'Quarantine is not available on this deployment — there is nowhere to move these rows to, and moving ' +
+          'Quarantine is not available on this deployment: there is nowhere to move these rows to, and moving ' +
           'nothing while reporting "quarantined" would be a lie. Nothing has been deleted. Untick quarantine to ' +
           'delete them, or leave them where they are.',
       };
@@ -2130,7 +2130,7 @@ export class D1OwnerDataPort implements OwnerDataPort {
       return {
         ok: false,
         detail:
-          'The list of things to remove is not the list you approved — something has been added or has gone away ' +
+          'The list of things to remove is not the list you approved: something has been added or has gone away ' +
           'since you looked. Nothing has been deleted, and no approval has been used. Take a fresh preview.',
       };
     }

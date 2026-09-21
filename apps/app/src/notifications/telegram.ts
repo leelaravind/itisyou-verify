@@ -296,7 +296,7 @@ export const GUARD_EXPLANATION: Readonly<Record<GuardReason, string>> = {
   contains_credential_shape:
     'The text contains something shaped like a credential or an access token. This channel refuses such a message outright; it does not send a redacted version.',
   contains_card_number:
-    'The text contains something shaped like a payment card number. We never hold one, so this is almost certainly a mistake — and it is refused either way.',
+    'The text contains something shaped like a payment card number. We never hold one, so this is almost certainly a mistake, and it is refused either way.',
   contains_raw_payload:
     'The text looks like a raw provider payload or a structured record rather than a sentence. Records belong on the dashboard, behind a login.',
   too_many_messages:
@@ -547,7 +547,7 @@ export class TelegramTransport implements NotificationTransport {
 export function composeOwnerText(message: OutboundMessage): string {
   const headline = message.subject.trim();
   const detail = message.text.trim();
-  const head = headline.length > 0 ? `${MESSAGE_PREFIX} — ${headline}` : MESSAGE_PREFIX;
+  const head = headline.length > 0 ? `${MESSAGE_PREFIX}: ${headline}` : MESSAGE_PREFIX;
   return detail.length > 0 ? `${head}\n\n${detail}` : head;
 }
 
@@ -662,7 +662,7 @@ export function paymentGatewayReadyAlert(params: {
     kind: 'authentication_required',
     notificationKey: `authentication_required:payment_gateway_ready:${params.environment}`,
     headline: 'Payment gateway ready for card details',
-    detail: `The ${params.environment} payment gateway is set up and waiting for card details. Only you can enter them — we never see a card number, so this cannot be done for you. Open ${params.dashboardPath} when you are ready.`,
+    detail: `The ${params.environment} payment gateway is set up and waiting for card details. Only you can enter them: we never see a card number, so this cannot be done for you. Open ${params.dashboardPath} when you are ready.`,
   };
 }
 

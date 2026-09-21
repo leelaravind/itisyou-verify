@@ -213,7 +213,7 @@ export const CONTROL_DESCRIPTION: Readonly<
     stops:
       'We stop the retries and the extra provider reads that cost money. Runs still record what they have.',
     doesNotStop:
-      'Verification does not become wrong — it becomes unverified where we could not look. Nothing is marked failed because of this.',
+      'Verification does not become wrong; it becomes unverified where we could not look. Nothing is marked failed because of this.',
   },
   chatbot: {
     label: 'Assistant',
