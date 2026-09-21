@@ -51,6 +51,7 @@ export {
   LAYOUT,
   LIGHT,
   BRAND,
+  MOTION,
   RADIUS,
   SPACE,
   STATUS_PRESENTATION,

@@ -218,11 +218,18 @@ describe('the connections composition', () => {
   it('CUST-903 the read-only notice precedes the provider cards, the cards sit two abreast with their facts in a sunken pane, and the tally beside the head groups by the same label and badge each card wears', async () => {
     const p = port();
     const connections = await p.connections();
-    const markup = await render(ConnectionsPage({ connections, csrfToken: CSRF, submitted: null }));
+    const markup = await render(ConnectionsPage({
+      canTest: true,
+      tested: null, connections, csrfToken: CSRF, submitted: null }));
 
     const head = markup.indexOf('<div class="section-head">');
     const tally = markup.indexOf('<ul class="tally" aria-label="Connections by state">');
-    const notice = markup.indexOf('>We only ever read<');
+    // The notice heading changed from "We only ever read" to "What we do with these
+    // credentials". The old title was a claim about the CREDENTIAL and for Resend it was
+    // false: Resend publishes no read-only key, so the key a customer pastes is a
+    // full-access one. The page now states what OUR CODE does, which is the true version
+    // and the one a customer weighing that trade needs.
+    const notice = markup.indexOf('>What we do with these credentials<');
     const grid = markup.indexOf('<div class="grid grid-2">');
     expect(head).toBeGreaterThan(-1);
     expect(tally).toBeGreaterThan(head);
@@ -242,9 +249,21 @@ describe('the connections composition', () => {
     expect(tallySlice).not.toContain('badge--pending');
     // Every card keeps its form, its token and its provider, so a layout change moved no control.
     expect(count(markup, 'action="/app/onboarding/connect"')).toBe(connections.length);
-    expect(count(markup, `name="csrf_token" value="${CSRF}"`)).toBe(connections.length);
+    /*
+     * Each card now carries TWO forms: the existing connect form and the new "Test
+     * connection" one. The token count moved with it, and that is the assertion worth
+     * keeping rather than the literal two: every state-changing form on this page must
+     * carry a CSRF field, because one that does not is a guaranteed 403 the customer
+     * meets only after pressing it.
+     */
+    expect(count(markup, 'action="/app/connections/test"')).toBe(connections.length);
+    const forms = count(markup, '<form');
+    expect(forms).toBe(connections.length * 2);
+    expect(count(markup, `name="csrf_token" value="${CSRF}"`)).toBe(forms);
     // No connection list means no grid and no tally — the honest empty state instead.
-    const empty = await render(ConnectionsPage({ connections: [], csrfToken: CSRF, submitted: null }));
+    const empty = await render(ConnectionsPage({
+      canTest: true,
+      tested: null, connections: [], csrfToken: CSRF, submitted: null }));
     expect(empty).not.toContain('<div class="grid grid-2">');
     expect(empty).not.toContain('aria-label="Connections by state"');
     expect(empty).toContain('We cannot show your connections right now');
@@ -502,7 +521,9 @@ describe('the reference copy stays in the reference', () => {
       ['/app', await workspace()],
       [
         '/app/connections',
-        await render(ConnectionsPage({ connections: await p.connections(), csrfToken: CSRF, submitted: null })),
+        await render(ConnectionsPage({
+      canTest: true,
+      tested: null, connections: await p.connections(), csrfToken: CSRF, submitted: null })),
       ],
       ['/app/runs/:id', await render(RunDetailPage({ run: (await p.run('run_syn_0002'))! }))],
       ['/app/usage', await render(UsagePage(await p.usage(), workflow.counts))],

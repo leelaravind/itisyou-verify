@@ -864,6 +864,45 @@ export function createAppRoutes(resolve: PortResolver = syntheticResolver): Hono
 
   /* ----------------------------------------------------- connections and usage */
 
+  /**
+   * Test one connection, now, against the provider.
+   *
+   * A POST because it costs an outbound call to somebody else's API on our account: a GET
+   * would be fired by a prefetch, a crawler or a link preview, and the customer would be
+   * spending their own provider's rate limit without pressing anything. It also means the
+   * CSRF check applies.
+   *
+   * The result is rendered on the page the customer is already on rather than redirected
+   * to, so the check, its time and its next action arrive together.
+   */
+  routes.post('/connections/test', async (c) =>
+    withSession(c, async (port, session) => {
+      const body = await formBody(c);
+      const provider = body['provider'] === 'resend' ? 'resend' : 'hubspot';
+      const test = port.testConnection?.bind(port);
+      const tested = test === undefined ? null : await test(provider);
+      return page(
+        c,
+        shell(port, {
+          title: 'Connections',
+          path: '/app/connections',
+          accountLabel: maskedAccountLabel(session.email),
+          csrfToken: session.csrfToken,
+          body: ConnectionsPage({
+            connections: await port.connections(),
+            csrfToken: session.csrfToken,
+            submitted: null,
+            canTest: session.role === 'workspace_admin' && test !== undefined,
+            tested,
+          }),
+        }),
+        // A check that ran and found a problem is a successful check: the page renders 200
+        // and says what it found. Only a check that could not run at all is a 503.
+        { status: tested?.blockedReason == null ? 200 : 503 },
+      );
+    }),
+  );
+
   routes.get('/connections', async (c) =>
     withSession(c, async (port, session) =>
       page(
@@ -877,6 +916,8 @@ export function createAppRoutes(resolve: PortResolver = syntheticResolver): Hono
             connections: await port.connections(),
             csrfToken: session.csrfToken,
             submitted: null,
+            canTest: session.role === 'workspace_admin' && typeof port.testConnection === 'function',
+            tested: null,
           }),
         }),
       ),
