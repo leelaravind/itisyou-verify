@@ -1,4 +1,4 @@
- deployed | deployed | deployed |# Completion checklist — the authoritative one
+# Completion checklist — the authoritative one
 
 Opened 21 September 2026, 16:35 UTC. This file supersedes the per-screen and launch
 checklists as the single place to read status. `docs/screen-checklist.md` keeps the per-screen
@@ -41,7 +41,7 @@ this file, deliberately.
 | B4 | Synthetic separation | coordinator | Test runs excluded from the workspace rate and the owner total | VERIFY-563; `/app/usage` states it | deployed |
 | B5 | Billing portal, fresh session per opening | coordinator | Two openings produce two different Stripe sessions | BILL-675/676; staging evidence section 5 | deployed |
 | B6 | Viewer permissions | coordinator | All three actions refused at the route, naming the role | staging evidence section 6 | deployed |
-| B7 | Payment alert delivery | Agent C | Live-mode first payment alerts once; failed charge alerts every time; test mode does not alert | `docs/evidence/functional-closure.txt`: both gates are `if (event.livemode)`; exactly-once comes from a UNIQUE notification key on the Stripe session id; BILL-657..662 already separate live from test. 9 of 9 passing | verified |
+| B7 | Payment alert delivery | Agent C | Test mode alerts nobody; a live checkout alerts once however many times Stripe redelivers it; a failed charge alerts once per INVOICE, so Smart Retries of the same invoice collapse into that one alert and a new failed invoice raises its own | `docs/evidence/functional-closure.txt`: both raise paths sit inside `if (event.livemode)` (`billing/events.ts:238,562`); idempotency is a UNIQUE `notification_key` claimed in `notifications/send.ts`, keyed on the checkout session id for the payment alert and on the invoice id for the failure alert; BILL-657..662 separate live from test. 9 of 9 passing | verified |
 | B8 | Support receipt and reply | Agent C + coordinator | Either a path exists and is evidenced, or its absence is stated plainly | same file: nothing pushes a support case anywhere, and the queue listed escalated cases only. Open cases now reach it, OWNER-926, mutation-checked, live at 38614ab5622d. Replying as support@ still needs an outbound identity (B10) | deployed, with a stated limit |
 | B9 | Owner panel through real login | owner + coordinator | Owner signs in at `/admin/login` with a TOTP code; panel read against production data | none yet | blocked on the owner |
 | B10 | `support@itisyou.app` routing rule | owner | Rule exists in Cloudflare Email Routing; one test message received | none yet | blocked on the owner |
@@ -53,7 +53,7 @@ this file, deliberately.
 | C1 | Release gate on the exact commit | coordinator | CI artefact matches HEAD; browser suite green | release output per commit | deployed |
 | C2 | Staging first, then production | coordinator | Same artefact, staging verified before promotion | `docs/evidence/production-954a5a71750f.txt` | deployed |
 | C3 | Served commit confirmed | coordinator | `/health` read independently of the release script | same file | deployed |
-| C4 | Screenshots preserved durably | coordinator | Tracked copies under `docs/evidence/screenshots/` | `production-954a5a71750f/` | deployed |
+| C4 | Screenshots preserved durably | coordinator | Tracked copies under `docs/evidence/screenshots/` for the commit that is live | `production-38614ab5622d/`, 39 files. Earlier commits' sets are replaced rather than accumulated, so this row always names one directory and it is the current one | deployed |
 | C5 | Test sessions revoked | coordinator | `revoked_at` set; cookies answer 401 | same file, section 5 and 7 | deployed |
 | C6 | This candidate (A7, A8, A9, B8) released | coordinator | Full suite, staging, production, served commit | `docs/evidence/production-38614ab5622d.txt` | deployed |
 | C7 | Ads paused, live payments disabled | owner | Unchanged | `docs/launch-checklist.md` 4.5; `/pricing` copy | verified |
@@ -72,6 +72,27 @@ this file, deliberately.
 No known critical defects. Flaky or blocked checks: the production migration step has twice
 failed with "Command failed" and passed unchanged on a retry; it is a no-op on both databases
 and is recorded here rather than treated as green.
+
+## D2. Independent audit of this candidate
+
+Run on Opus, read-only, against `38614ab5622d` live. Eight areas: billing-portal freshness,
+role enforcement on money, payment alerts, support visibility, synthetic separation, four
+rendered screens, the live exclusions, and this file's own honesty.
+
+Items 1 to 7 reproduced. Nothing in the security or payment paths was found wrong. Two
+observations worth keeping:
+
+- BILL-676 asserts two requests reach Stripe, which catches a LOCAL cache but not a
+  Stripe-side replay. BILL-675 is the case that catches a constant key, and it is the one
+  that was mutation-checked.
+- The provider call table clips at 390px inside its own `.tablewrap`, which scrolls and is
+  keyboard reachable (`role="region"`, `tabindex="0"`). Not a defect.
+
+All three findings were in this file rather than in the product, and all three are fixed
+above: a corrupted title line, a C4 citation pointing at a deleted directory, and B7 stating
+an acceptance criterion the code deliberately does not meet. The last was the one worth
+having: "failed charge alerts every time" would have been a wrong requirement to hold the
+code to, and the code is right.
 
 ## E. Exactly what is needed from the owner
 
