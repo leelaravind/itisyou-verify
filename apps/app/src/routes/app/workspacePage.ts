@@ -19,6 +19,7 @@
  * the reference, whose copy carries a payment state, a price and a plan that are not ours.
  */
 import {
+  Disclosure,
   Callout,
   CsrfField,
   Field,
@@ -146,7 +147,25 @@ function testVerification(options: WorkspacePageOptions): Html {
             label: 'Run a test verification',
             reason: offer.reason ?? 'A test verification cannot be started right now.',
           })
-        : html`<form method="post" action="/app/test-verification" class="stack">
+        : /*
+           * The four fields sit behind a disclosure, closed until somebody wants them.
+           *
+           * This is an occasional action on a page whose job is to answer "is my automation
+           * working". Open, the form and its hints ran about 500 pixels and pushed the
+           * verification rate, the activity warning and the recent runs below the fold on a
+           * laptop: the page answered its own question last. Closed, it is one line, and the
+           * answers are the first thing a reader meets.
+           *
+           * What does NOT go inside it: the allowance cost above and the refusal of the
+           * inference below. A limitation behind a disclosure is a limitation somebody can
+           * say they never saw, and the owner's requirement is that the cost is stated
+           * BEFORE the test is started. It reopens itself when a submission came back with
+           * errors, because the reader has to see what they typed.
+           */
+          Disclosure({
+            open: submitted !== null && !submitted.ok,
+            summary: 'Describe the enquiry to check',
+            body: html`<form method="post" action="/app/test-verification" class="stack">
             ${CsrfField(options.csrfToken)}
             ${Fieldset({
               legend: 'The enquiry to check',
@@ -184,7 +203,8 @@ function testVerification(options: WorkspacePageOptions): Html {
             ${ButtonRow([
               Button({ label: 'Run a test verification', variant: 'primary', type: 'submit' }),
             ])}
-          </form>`
+          </form>`,
+          })
     }
 
     ${Callout({

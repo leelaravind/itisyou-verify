@@ -31,6 +31,19 @@ export interface ShellOptions {
   readonly body: Html;
   /** Extra links rendered on the right of the header — sign in, sign out. */
   readonly headerAside?: Html;
+  /**
+   * Render the same nav items again as a left rail beside `<main>`, for a panel with many
+   * screens.
+   *
+   * Opt-in, and nothing that does not ask for it changes. The owner panel has thirteen
+   * screens and its header nav wrapped onto three lines on a phone and ran the full width of
+   * a desktop; a rail is what the approved owner reference uses and it is the right device
+   * for a panel. Only one of the two is ever visible: the rail appears at the width where
+   * there is room for it and the header nav is hidden, and below that the header nav comes
+   * back and the rail is not rendered to a reader at all (`display:none` removes it from
+   * the accessibility tree, so nobody meets the same thirteen links twice).
+   */
+  readonly rail?: boolean;
 }
 
 /**
@@ -104,7 +117,19 @@ export function Shell(options: ShellOptions): Html {
       </div>
     </header>
     ${options.beforeMain ?? null}
-    <main id="main" tabindex="-1">${options.body}</main>
+    ${
+      options.rail !== true
+        ? html`<main id="main" tabindex="-1">${options.body}</main>`
+        : html`<div class="shell-rail">
+            <nav class="rail" aria-label="Sections">
+              ${(() => {
+                const active = currentHref(options.nav, options.path);
+                return options.nav.map((item) => navLink(item, active));
+              })()}
+            </nav>
+            <main id="main" tabindex="-1">${options.body}</main>
+          </div>`
+    }
     <footer class="foot">
       <div class="wrap">${options.footer}</div>
     </footer>

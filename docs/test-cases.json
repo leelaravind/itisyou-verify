@@ -48475,6 +48475,23 @@
       "runner": "vitest",
       "area": "tests/unit/ui/design-exclusions.test.ts",
       "countable": true
+    },
+    {
+      "id": "OWNER-924",
+      "category": "owner_panel",
+      "level": "unit",
+      "requirement": "the owner panel navigates by a rail at desktop width and by the header nav below it, never both",
+      "risk": "Thirteen screens in a header nav ran the full width of a desktop and wrapped onto three lines on a phone. Adding a rail risks the opposite fault: the same thirteen links met twice, once in each navigation, by a screen reader as well as an eye.",
+      "risk_source": "case",
+      "setup": "Render the owner layout and read the served stylesheet.",
+      "expected": "Exactly one rail, exactly one aria-current item in it, .rail display:none until 78rem and the header links display:none from there, the current item marked without a left-edge bar, and no rail on a public page.",
+      "owner_agent": "A02",
+      "implementation_ref": "tests/unit/owner/panel-composition.test.ts",
+      "provider_backed": false,
+      "status": "passing",
+      "runner": "vitest",
+      "area": "tests/unit/owner/panel-composition.test.ts",
+      "countable": true
     }
   ]
 }

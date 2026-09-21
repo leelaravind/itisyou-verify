@@ -29,7 +29,7 @@ information sits beside what, and which devices earn their space.
 | Screen | Reference | Compared | Implemented | Verified 1440/834/390 | Auditor |
 | --- | --- | --- | --- | --- | --- |
 | `/` home | `itisyou_verify_post_execution_readback_checks_for_automation_agencies` | yes | yes — see below | yes | pending |
-| `/pricing` | `pricing_policy_itisyou_verify` | pending | — | — | pending |
+| `/pricing` | `pricing_policy_itisyou_verify` | yes | nothing to change | yes | pending |
 | `/how-it-works` | `how_it_works_demonstration_itisyou_verify` | pending | — | — | pending |
 | `/demo` | `run_details_evidence_itisyou_verify` | pending | — | — | pending |
 | `/security` | none published | n/a | — | — | pending |
@@ -58,7 +58,7 @@ invisible card. Fixed and held by `RESIL-918`.
 
 | Screen | Reference | Compared | Implemented | Verified | Auditor |
 | --- | --- | --- | --- | --- | --- |
-| `/app` workspace | `customer_dashboard_itisyou_verify` | pending | — | — | pending |
+| `/app` workspace | `customer_dashboard_itisyou_verify` | yes | yes — see below | yes | pending |
 | `/app` mobile | `customer_dashboard_mobile_itisyou_verify` | pending | — | — | pending |
 | `/app/connections` | `connections_evidence_sources_itisyou_verify` | pending | — | — | pending |
 | `/app/runs`, `/app/runs/:id` | `run_details_evidence_itisyou_verify` | pending | — | — | pending |
@@ -71,12 +71,46 @@ invisible card. Fixed and held by `RESIL-918`.
 
 | Screen | Reference | Compared | Implemented | Verified | Auditor |
 | --- | --- | --- | --- | --- | --- |
-| `/owner` overview | `owner_overview_itisyou_verify` | pending | — | — | pending |
+| `/owner` overview | `owner_overview_itisyou_verify` | yes | yes — see below | yes, 13 screens | pending |
 | `/owner/customers` | `owner_customer_incident_management_itisyou_verify` | pending | — | — | pending |
 | `/owner/approvals`, `/owner/ads` | `owner_approvals_campaigns_and_budget_...` | pending | — | — | pending |
 | `/owner/quality`, `/owner/cleanup` | `automated_testing_and_cleanup_centre_itisyou_verify` | pending | — | — | pending |
 | `/owner/operations`, `/owner/controls`, `/owner/settings`, `/owner/connections`, `/owner/verification` | none published | n/a | recomposed 21 Sept (tones, notices, freshness) | yes, 13 screens at three widths | pending |
 | `/admin/login` | none published | n/a | — | — | pending |
+
+### `/pricing` — compared, and deliberately unchanged
+
+| Difference in the reference | Judgement |
+| --- | --- |
+| Plan detail in the wide column, order summary in the narrow one | Already ours, and asserted by CUST-705 |
+| A bar of plan metrics inside the plan panel | Already ours (CUST-706) |
+| Payment-recovery rules as a 2x2 grid of mono-labelled rules | Refuse. Ours is two ruled columns because one list has a single line and the other has six; as equal cards the short one reads as a panel that failed to load. The asymmetry is the point: very little stops |
+| Questions two abreast | Refuse: we have five, which leaves an orphan, and one column is faster to scan for one question. A stale comment in the code claimed we did this; the comment was wrong and was corrected, not the page |
+| Three tiers, a trial, a certification, named integrations we do not have | Refuse: exclusions and truthfulness |
+
+### `/app` workspace — differences found
+
+| Difference in the reference | Judgement | Done |
+| --- | --- | --- |
+| The dashboard answers "what happened" first: verdict counts, then the ledger | Take it. Ours opened with a four-field test form about 500 pixels tall, which pushed the verification rate, the activity warning and the recent runs below the fold: the page answered its own question last | the form is behind a closed disclosure, one line high. The allowance cost above it and the refusal of the inference below it stay in the flow, and VERIFY-560 now fails if either moves inside |
+| Evidence gates per run, as "2 of 3 gates" | Already ours: the runs table carries a REQUIRED CHECKS column reading 0/2, 1/2, 2/2 | unchanged |
+| A quota allocation row with what remains | Already ours: "This period", runs used, period end, correlation property | unchanged |
+| Left border accent on the payment banner | Refuse: named exclusion | our callout, ruled along the top |
+
+### `/owner` — differences found
+
+| Difference in the reference | Judgement | Done |
+| --- | --- | --- |
+| A persistent left rail listing every section, with the current one marked | Take it. Thirteen screens in a header nav ran the full width of a desktop and wrapped onto three lines on a phone | `ShellOptions.rail`, opt-in, rendered from the same nav items. Only one navigation is ever visible: the rail from 78rem, the header links below it, each `display:none` at the other width so nobody meets thirteen links twice. OWNER-924, mutation-checked |
+| The current item marked by a coloured bar down its left edge | Refuse: named exclusion. Weight, full-contrast ink and a sunken ground instead, with `aria-current` carrying the same fact | |
+| Tiles with an inline verdict breakdown; cost-breakdown bars; incident queue | Refuse for now: every one of those figures is invented in the reference. We would have to measure them first, and a tile that shows a number we did not measure is the fault this whole product exists to report | |
+| Rounded cards, gradients, the emerald accent | Refuse: named exclusions | |
+
+One defect found while building the rail, worth recording because it nearly shipped: the
+wrapper was first called `.panel`, which is already the class on every framed section in the
+panel. Declaring a two-column grid on it turned the launch-figures section into a two-column
+layout with its own heading as the first column. Caught by looking at the render rather than
+by a test.
 
 ## What this checklist is not
 
