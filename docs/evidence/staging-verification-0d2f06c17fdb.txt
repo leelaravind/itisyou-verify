@@ -69,3 +69,12 @@ PASS  viewer is refused the billing portal
 
 ALL CHECKS PASSED
 
+
+=== 7. temporary test sessions revoked ===
+
+  UPDATE sessions SET revoked_at = ... WHERE is_automation = 1 AND revoked_at IS NULL
+  rows_written: 4
+
+  Both seeded cookies then answered 401 on GET /app, read back from the deployed
+  staging service rather than from the database. The local file holding them was
+  deleted. Nothing was seeded on production at any point.
