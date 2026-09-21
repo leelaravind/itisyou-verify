@@ -1,0 +1,30 @@
+Production release of the completion-sprint candidate
+Commit 38614ab5622de3a0900cd222c1ba34569f726e20, 21 September 2026.
+
+Staging 16:47Z, production 16:48Z, one gate artefact, staging first.
+Both /health endpoints read 38614ab5622d at 16:48Z, independently of the release script.
+
+What this candidate carries:
+  /security            mono fact bar, exhaustive provider call table, retention and access
+                       as one section instead of a one-sentence column
+  /app/connections     the call list behind a disclosure
+  /owner/customers     tally strip, runs against the allowance, honest empty state
+  owner exception queue  open support cases now reach it, not only escalated ones
+
+Focused production checks at 16:48Z:
+  200 /  /pricing  /security  /support  /admin/login
+  401 /app         404 /owner
+  /security serves the string "Every call we can make with your credentials"
+
+39 screens captured at 1440, 834 and 390; none overflows horizontally.
+Durable copies: docs/evidence/screenshots/production-38614ab5622d/
+
+One CI failure on the way here, recorded rather than smoothed over: the first push of
+OWNER-926 called seedWorkspace with one argument. Vitest strips types so it passed locally;
+the typecheck gate failed and the release did not happen. The gate did its job.
+
+Still blocked on the owner, unchanged:
+  B9  the owner panel has never been opened signed in, on any deployment
+  B10 support@itisyou.app routing rule, and an outbound identity for replying as that address
+
+Ads remain paused. Live payments remain disabled.
