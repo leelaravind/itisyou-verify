@@ -119,3 +119,15 @@ Seeded its own identity, drove the real mounted routes, and reported:
 One finding, and it was right: the RUN PAGE itself said this was a test only through the field
 value "Source type: owner_test", four cards below the verdict. A reader could not place it.
 The page now says so in words above the verdict, and VERIFY-566 holds that, mutation-checked.
+
+=== the notice, live on the deployed service ===
+
+  GET /app/runs/run_01M32G2MWE20CEF724EB8C4640    200
+    data-test-run-notice present: true
+    "This is a test verification you ran from your workspace, not an enquiry your automation
+     reported."
+    rendered before the verdict: true
+
+  Four seeded sessions revoked afterwards through revoked_at; both cookies answer 401, read
+  back from the deployed service. The local seed files are deleted. Nothing was seeded on
+  production at any point.
