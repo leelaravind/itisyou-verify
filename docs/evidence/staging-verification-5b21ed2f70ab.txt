@@ -1,0 +1,121 @@
+Customer journey re-verified on DEPLOYED staging at the current commit
+Commit 5b21ed2f70ab, 21 September 2026, read from /health before the run.
+
+Re-run because the B2 evidence cited staging at 0d2f06c17fdb, several commits back.
+A claim about the flow has to be proved against the code that is actually serving it.
+
+
+=== staging https://verify-itisyou-staging.kpleelaaravind.workers.dev ===
+commit 5b21ed2f70ab61aa0efd75cdc8db26244e87e124
+
+--- 1. connection testing ---
+PASS  GET /app/connections as admin
+PASS    offers a Test connection form
+INFO  pressing Test connection answered 200
+PASS    names all three findings separately
+PASS    refuses the workflow inference
+PASS    says the stored credential was untouched
+PASS    the corrected notice is the one served
+
+--- 2. allowance before the test ---
+PASS  GET /app/usage
+INFO  usage page reads 18 of 500
+
+--- 3. guided test verification, followed to a settled result ---
+PASS  GET /app as admin
+PASS    the workspace offers the form
+PASS    states the allowance cost before the fields
+INFO  starting one answered 303 -> /app/runs/run_01M32FRV29EF167D3A2EFC4BDA?started=test
+PASS    it redirects to the run rather than inventing a verdict
+INFO  still PENDING, and its deadline (2026-09-21 17:51:12) has not passed
+PASS    it either settled, or is PENDING inside its own completion window
+INFO    not settled within the poll, so the verdict itself is not asserted here
+PASS    the run is labelled as a test
+
+--- 4. allowance accounting after the test ---
+INFO  usage page reads 20 of 500
+FAIL    the test consumed exactly one run of the allowance  (got 2, wanted 1)
+
+--- 5. billing portal: a fresh session per opening ---
+PASS  GET /app/billing as admin
+PASS    no Stripe URL is baked into the page
+INFO  two openings answered 303 and 303
+PASS    both open a Stripe portal
+PASS    and the second is a different session, not the first reused
+
+--- 6. viewer restrictions, at the route ---
+PASS  viewer is offered no Test connection form
+PASS    and the route refuses them
+PASS    naming the role
+PASS  viewer is offered no test-verification form
+PASS    and the route refuses them
+PASS  viewer is refused the billing portal
+
+1 CHECK(S) FAILED
+
+
+=== the one FAIL above, and why it is not a defect ===
+
+  "the test consumed exactly one run of the allowance  (got 2, wanted 1)"
+
+The allowance moved 18 to 20 across one test. It was not charged twice. An independent
+verifier agent was exercising the same flow at the same time, and seed-automation-identity
+seeds BOTH identities into the SAME synthetic workspace (ws_automation_test), so the two
+share one allowance.
+
+Proved rather than assumed. The run list carried three runs in that window:
+
+  run_01M32FMS9KB89965E2800840DB   mine, 17:18
+  run_01M32FRV29EF167D3A2EFC4BDA   mine, 17:20
+  run_01M32FWXGEF45BE2993ACA4CD1   not mine
+
+The third run's correlation value is enq_verifier_20260921_1a2b3c. My script generates
+enq_<timestamp><random> and never that string, so the third run is the other agent's. Two
+agents, two runs, allowance plus two.
+
+A clean serial measurement follows below, taken once the other agent had stopped.
+
+=== the clean serial measurement, with the charge attributed to a run id ===
+
+Two numbers moving by one is weaker evidence than a number moving by one AND exactly one run
+appearing to account for it. This measures both:
+
+before: 20/500, 23 runs listed
+start: 303 -> /app/runs/run_01M32G2MWE20CEF724EB8C4640?started=test
+after:  21/500, 24 runs listed
+new run ids in that window: run_01M32G2MWE20CEF724EB8C4640
+
+PASS  the allowance moved by 1 and exactly 1 run appeared, so the charge is attributable
+
+A second attempt at the same measurement answered 422 and changed nothing: the guided test
+verification is rate limited to four an hour, and by then this workspace had had four. That
+is the limit working. It is written down because the first thing appended to this file was
+that refused attempt, which read like a failure and was not.
+So one guided test verification costs exactly one run of the allowance, and the run that was
+charged for is nameable. Both of the runs started earlier in this session settled as
+UNVERIFIED through the real evaluator, which is the honest answer for a synthetic record the
+connectors cannot read back, and is the check working rather than the check breaking.
+
+=== an independent agent exercised the same flow, without my script ===
+
+Seeded its own identity, drove the real mounted routes, and reported:
+
+  - GET /app states the cost above the form: "This uses one of your 500 runs, and 481 remain",
+    at byte offset 50042, with the submit button at 52981. Above, not after.
+  - the first POST answered 403 because a static seeded CSRF token no longer matched: the
+    cookie rotates on every GET. That is the double-submit check working. A fresh pair gave
+    303 to /app/runs/run_01M32FWXGEF45BE2993ACA4CD1?started=test with no verdict invented.
+  - the run was PENDING on the first poll inside a 30-minute window and settled UNVERIFIED at
+    17:25:25Z, before its deadline, so not a timeout artefact.
+  - the result names what could not be checked rather than claiming a pass: "We could not get
+    enough evidence to say either way. This is not a failure", with each check tagged
+    CONNECTION_UNAVAILABLE and a next step.
+  - allowance 19 to 20. "Runs by result" stayed at 15 both before and after, and the usage
+    page explains why in the customer's own terms.
+  - the run id is the same ULID shape as the other 22 and sits in the one unified run list.
+
+  Its conclusion, verbatim: "PIPELINE REAL: yes".
+
+One finding, and it was right: the RUN PAGE itself said this was a test only through the field
+value "Source type: owner_test", four cards below the verdict. A reader could not place it.
+The page now says so in words above the verdict, and VERIFY-566 holds that, mutation-checked.

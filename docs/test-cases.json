@@ -48696,6 +48696,23 @@
       "risk": "A reset that shortens duration but leaves delay hands a reduced-motion reader an element that is still invisible while the delay runs.",
       "setup": "Read the prefers-reduced-motion block.",
       "expected": "Both durations and both delays are zeroed."
+    },
+    {
+      "id": "VERIFY-566",
+      "category": "verification_logic",
+      "level": "integration",
+      "requirement": "the run page says in words, above the verdict, that a test run was started by the customer",
+      "risk": "A test run was marked only by the field value \"Source type: owner_test\", four cards below the verdict. An independent verifier read a finished run page and could not tell it from customer traffic. A figure you cannot place is worse than no figure, which is the confusion this product exists to refuse.",
+      "risk_source": "case",
+      "setup": "Start a guided test verification and open the run it creates.",
+      "expected": "data-test-run-notice is present, says the customer ran it and that it is left out of their verification rate, and appears before the verdict.",
+      "owner_agent": "A05",
+      "implementation_ref": "tests/integration/customer/test-verification.test.ts",
+      "provider_backed": false,
+      "status": "passing",
+      "runner": "vitest",
+      "area": "tests/integration/customer/test-verification.test.ts",
+      "countable": true
     }
   ]
 }
