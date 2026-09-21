@@ -48424,6 +48424,40 @@
       "risk": "A three-line red banner on every administrative page is the most repeated text in the panel; at that volume it stops being read, and it is the one thing a reader must understand before pressing anything.",
       "setup": "Render the owner layout with synthetic: true.",
       "expected": "The banner carries data-tone=\"limit\", states the invented figures in one sentence, and holds the consequences in a disclosure."
+    },
+    {
+      "category": "commerce",
+      "level": "unit",
+      "risk_source": "case",
+      "owner_agent": "A05",
+      "implementation_ref": "tests/unit/billing/stripe-connector.test.ts",
+      "provider_backed": false,
+      "status": "passing",
+      "runner": "vitest",
+      "area": "tests/unit/billing/stripe-connector.test.ts",
+      "countable": true,
+      "id": "BILL-675",
+      "requirement": "two billing-portal openings send two different idempotency keys",
+      "risk": "The adapter sent portal:<customer>:<returnUrl>, identical on every opening. Stripe replays a stored response for a repeated key for 24 hours, so the second click received the first session: single-use, short-lived and already spent. This is the expired-session defect, reintroduced one layer below its own fix, where BILL-672 could not see it because that case stubs the gateway.",
+      "setup": "Call createBillingPortalSession twice through the real adapter against a recording fetch stub.",
+      "expected": "Two requests reach Stripe, both keys begin portal:<customer>: and the two keys differ."
+    },
+    {
+      "category": "commerce",
+      "level": "unit",
+      "risk_source": "case",
+      "owner_agent": "A05",
+      "implementation_ref": "tests/unit/billing/stripe-connector.test.ts",
+      "provider_backed": false,
+      "status": "passing",
+      "runner": "vitest",
+      "area": "tests/unit/billing/stripe-connector.test.ts",
+      "countable": true,
+      "id": "BILL-676",
+      "requirement": "each opening is a real call, and a live-mode session is refused at a test-mode deployment",
+      "risk": "A cached or locally reused session would hand a customer a spent URL; a live-mode object arriving at a test-mode deployment would hand them somebody else’s billing account.",
+      "setup": "Two openings, the second answered with livemode true.",
+      "expected": "Two requests are made and the live-mode response is rejected with a StripeError."
     }
   ]
 }

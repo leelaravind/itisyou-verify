@@ -511,3 +511,76 @@ describe('current API object shapes', () => {
     expect(invoiceSubscriptionId({})).toBeNull();
   });
 });
+
+describe('the billing portal session is a new session every time', () => {
+  /*
+   * This is the defect that survived its own fix.
+   *
+   * `openBillingPortal` was corrected to mint a session per click rather than during the
+   * page render, and BILL-672 holds that in place. But the adapter below sent a
+   * DETERMINISTIC idempotency key, `portal:<customer>:<returnUrl>`, identical on every
+   * opening for a customer. Stripe replays the stored response for a repeated key for 24
+   * hours, so the second click received the FIRST session: single-use, short-lived, and
+   * already spent. BILL-672 could not see it, because its gateway is a stub that never
+   * reaches this code.
+   *
+   * So the assertion is on the wire: two openings, two different keys.
+   */
+  const portalResponse = {
+    json: {
+      id: 'bps_1',
+      url: 'https://billing.stripe.com/p/session/test_fixture',
+      livemode: false,
+      return_url: 'https://verify.example.test/app/billing',
+    },
+  };
+
+  it('BILL-675 two openings send two different idempotency keys, so Stripe cannot replay the first session', async () => {
+    const { stripe, requests } = client([portalResponse, portalResponse]);
+
+    await stripe.createBillingPortalSession({
+      customerId: 'cus_fixture',
+      returnUrl: 'https://verify.example.test/app/billing',
+    });
+    await stripe.createBillingPortalSession({
+      customerId: 'cus_fixture',
+      returnUrl: 'https://verify.example.test/app/billing',
+    });
+
+    const keys = requests.map((request) => request.headers['idempotency-key'] ?? '');
+    expect(requests.length, 'the second opening did not reach Stripe at all').toBe(2);
+    expect(keys[0]).not.toBe('');
+    expect(
+      keys[0],
+      'both openings sent the same idempotency key, so Stripe replays the first, spent session',
+    ).not.toBe(keys[1]);
+    // Still recognisable, and still inside Stripe's 255-character limit.
+    for (const key of keys) {
+      expect(key.startsWith('portal:cus_fixture:')).toBe(true);
+      expect(key.length).toBeLessThanOrEqual(255);
+    }
+  });
+
+  it('BILL-676 each opening is a real call rather than a local cache, and the mode is checked', async () => {
+    const { stripe, requests } = client([
+      portalResponse,
+      { json: { ...portalResponse.json, id: 'bps_2', livemode: true } },
+    ]);
+
+    const first = await stripe.createBillingPortalSession({
+      customerId: 'cus_fixture',
+      returnUrl: 'https://verify.example.test/app/billing',
+    });
+    expect(first.id).toBe('bps_1');
+
+    // A live-mode object arriving at a test-mode deployment is refused rather than opened:
+    // the customer would otherwise be handed somebody else's billing account.
+    await expect(
+      stripe.createBillingPortalSession({
+        customerId: 'cus_fixture',
+        returnUrl: 'https://verify.example.test/app/billing',
+      }),
+    ).rejects.toThrow(StripeError);
+    expect(requests.length).toBe(2);
+  });
+});
