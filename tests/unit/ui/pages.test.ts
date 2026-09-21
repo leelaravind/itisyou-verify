@@ -155,7 +155,18 @@ describe('public pages', () => {
   it('CUST-053 the public support page shows the real contact address now that the owner has supplied one', async () => {
     const markup = await render(SupportPage());
     expect(markup).toContain('support@itisyou.app');
-    expect(markup).not.toContain('Not yet published — contactEmailForLegalNotices');
+    /*
+     * The negative half, pinned to the placeholder's CURRENT spelling. It read
+     * "Not yet published — contactEmailForLegalNotices" until the em-dash sweep changed
+     * the separator in `todo.ts` to a middle dot, at which point the assertion could
+     * never fail again and was quietly testing nothing. Found by an independent review.
+     *
+     * The marker attribute is the durable half: `TodoOwnerInput` emits
+     * `data-todo-owner-input` only when the value is still a placeholder, and that does
+     * not move when someone rewrites the sentence around it.
+     */
+    expect(markup).not.toContain('data-todo-owner-input');
+    expect(markup).not.toContain('Not yet published');
   });
 
   it('CUST-054 the development story renders an honest empty state when the document is not published', async () => {

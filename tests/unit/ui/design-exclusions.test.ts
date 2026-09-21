@@ -5,28 +5,37 @@
  *
  * The owner gave a list of devices this product may not use, and said in terms that it
  * overrides any conflicting style in the approved Stitch design. On 21 September 2026 an
- * audit found six of them shipped: a mint-to-cyan gradient painting the hero headline, a
- * blurred radial orb behind two hero panels, drop shadows on every card and on the sticky
- * header, a 12px backdrop blur making the header glass, 8px soft corners on every
- * container, and Inter sitting second in the font stack, which meant every machine with
- * Inter installed rendered the site in an excluded face.
+ * audit found NINE of them shipped:
  *
- * Every one of those had arrived with a comment explaining why the approved design wanted
- * it. That is the failure mode this file is for: each was defensible on its own and the
- * list was nobody's job. Fixing them one at a time leaves the next person reading the same
+ *   1. a mint-to-cyan gradient painting the hero headline
+ *   2. a blurred radial orb behind two hero panels
+ *   3. drop shadows on every card, panel, results frame and the sticky header
+ *   4. a 12px backdrop blur making the header glass
+ *   5. 8px soft corners on every container
+ *   6. Inter sitting second in the sans stack, so every machine with Inter installed
+ *      rendered the site in an excluded face
+ *   7. pure white as the light palette's surface, behind every card and the header
+ *   8. coloured left-border callouts, on the callout, the UNVERIFIED follow-up line and
+ *      the pre-checkout must-read line
+ *   9. two brand custom properties left emitted with nothing reading them
+ *
+ * Every one had arrived with a comment explaining why the approved design wanted it. That
+ * is the failure mode this file is for: each was defensible on its own and the list was
+ * nobody's job. Fixing them one at a time leaves the next person reading the same
  * reference and reaching the same conclusions.
  *
  * So the list is the test. These cases do not check that the pages look good, which is not
  * a property a unit test can hold; they check that a named device is absent from the sheet
  * every page serves. An absence is checkable everywhere at once, which is exactly what the
- * six individual fixes were not.
+ * nine individual fixes were not.
  *
- * Case ids `RESIL-911..RESIL-915`.
+ * Case ids `RESIL-911..RESIL-917`.
  *
  * Not covered here, deliberately, because they are properties of copy or of a page rather
  * than of the stylesheet, and are held elsewhere: no fake testimonials, no three-tier
  * pricing (CUST-704 asserts every pound sign on the home page is the one plan price), no
- * emojis or checkmark bullets, no "It's not X, it's Y" copy, and no em dashes in copy.
+ * emojis or checkmark bullets, and no "It's not X, it's Y" copy. Em dashes ARE covered,
+ * by RESIL-916, but against rendered pages rather than against the stylesheet.
  */
 import { describe, expect, it } from 'vitest';
 import { CSS, FONT, LIGHT, DARK, render } from '@verify/ui';
@@ -203,9 +212,14 @@ describe("the owner's design exclusions hold in the served stylesheet", () => {
      * The assertion is on the shape rather than on the four selectors, because the reason
      * this needed fixing at all is that the device kept being copied to new blocks.
      */
-    const leftRules = [...CSS.matchAll(/border-left(?:-color|-width|-style)?:([^;}]+)/g)].map(
-      (m) => (m[1] ?? '').trim(),
-    );
+    /*
+     * What is forbidden is DRAWING a left edge, not removing one: `.results>.callout` sets
+     * `border-left:0` precisely so a callout sits flush inside the frame, and a rule that
+     * takes an edge away cannot be the device the exclusion names.
+     */
+    const leftRules = [...CSS.matchAll(/border-left(?:-color|-width|-style)?:([^;}]+)/g)]
+      .map((m) => (m[1] ?? '').trim())
+      .filter((value) => !/^(?:0(?:px)?|none)$/.test(value));
     expect(leftRules, 'a left-edge rule is back in the stylesheet').toEqual([]);
     // And the replacement is really there, on the callout base rather than on one tone.
     expect(CSS).toMatch(/\.callout\{[^}]*border-top-width:3px/);
@@ -214,5 +228,23 @@ describe("the owner's design exclusions hold in the served stylesheet", () => {
         new RegExp(`\\.callout--${tone}\\{[^}]*border-top-(?:color|style)`),
       );
     }
+    /*
+     * And nothing takes it away again, which the four assertions above cannot see.
+     *
+     * `.results>.callout` zeroed `border-top` so a callout would sit flush inside the
+     * results frame. That was right while the tone lived on the left border and became a
+     * silent deletion the moment the tone moved to the top: at 0,2,0 it beats
+     * `.callout--limit` at 0,1,0, so /demo's amber callout inside that frame lost its
+     * colour and a todo callout there would have lost the dash that is the only thing
+     * separating it from limit without reading the hue. An independent review found it;
+     * the assertions above could not, because they only ask whether the tone rules exist.
+     */
+    const suppressors = [...CSS.matchAll(/([^{}]*\.callout[^{}]*)\{([^}]*)\}/g)].filter(
+      ([, , body]) => /border-top\s*:\s*(?:0|none)\b/.test(body ?? ''),
+    );
+    expect(
+      suppressors.map(([, selector]) => (selector ?? '').trim()),
+      'a rule removes the callout tone rule again',
+    ).toEqual([]);
   });
 });

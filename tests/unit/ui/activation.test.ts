@@ -94,13 +94,30 @@ describe('the service activation notice', () => {
     expect((markup.match(/data-activation-notice/g) ?? []).length).toBe(1);
   });
 
-  it('CUST-123 the onboarding entry point carries it too', async () => {
-    // The admin direction: the banner is about buying, so it stands even where the step
-    // is fully open to the reader.
+  it('CUST-123 the onboarding entry point does NOT carry it, because half of it is false to that reader', async () => {
+    /*
+     * This case asserted the opposite until an independent review on 21 September 2026.
+     *
+     * The banner says no customer workspace exists on this deployment and that public
+     * signup is closed. Step 1 of the setup is behind a session: everyone who reads it is
+     * signed in to a workspace that exists, and they reached the page by being a member
+     * of it. The same sentence had just been corrected where it appeared in the
+     * taken-down control's reason on that page, and left standing in the banner directly
+     * above it.
+     *
+     * The half that is true, that live payments are off, is asserted where it belongs:
+     * CUST-127 and the review step's own sandbox callout, immediately above the control
+     * that would take money. The banner stays on every anonymous surface, which
+     * CUST-121, CUST-122 and the sign-in page cover.
+     */
     const markup = await compatibility(true);
-    expect(text(markup)).toContain(collapse(SERVICE_ACTIVATION_NOTICE.headline));
-    expect(text(markup)).toContain(collapse(SERVICE_ACTIVATION_NOTICE.body));
-    expect((markup.match(/data-activation-notice/g) ?? []).length).toBe(1);
+    expect(markup, 'the public banner is back on an authenticated step').not.toContain(
+      'data-activation-notice',
+    );
+    expect(text(markup)).not.toContain(collapse(SERVICE_ACTIVATION_NOTICE.body));
+    expect(text(markup), 'the false half is back in some other wording').not.toContain(
+      'no customer workspace exists on this deployment',
+    );
   });
 
   it('CUST-124 the notice names each gap rather than apologising in general terms', async () => {
@@ -152,8 +169,9 @@ describe('the activation path is disabled, visibly', () => {
     const markup = await compatibility(true);
     expect(markup).toMatch(/<a[^>]*href="\/app\/onboarding\/connect"/);
     expect(markup).not.toContain('data-unavailable="These all apply, continue"');
-    // The activation banner stays: it is about buying, and it is still true.
-    expect(markup).toContain('data-activation-notice');
+    // And the banner that told this reader their workspace does not exist is gone with
+    // the block; CUST-123 holds that.
+    expect(markup).not.toContain('data-activation-notice');
   });
 
   it('CUST-127 the checkout button is not merely styled disabled — it cannot be submitted', async () => {

@@ -904,6 +904,31 @@ export class D1CustomerDataPort implements CustomerDataPort {
     if (scope === null) blockers.push('You are not signed in.');
 
     if (scope !== null) {
+      /*
+       * Role, and it belongs here rather than on the page.
+       *
+       * Found by an independent review on 21 September 2026, immediately after two pages
+       * were changed to render their setup controls on `role === 'workspace_admin'` with
+       * a comment claiming that was "the same rule the server uses". It was the rule for
+       * `saveFieldMapping`, `saveExpectedOutcome` and `submitConnectionCredentials`. It
+       * was not the rule here, and this is the one that spends money: `createCheckout`
+       * refuses only on `summary.ready`, and nothing in `orderSummary` had ever consulted
+       * a role. On a workspace with both providers ready and a published workflow, a
+       * `workspace_viewer` was shown a live "Continue to secure checkout" button and
+       * could create a real Stripe Checkout Session for a workspace they may only read.
+       *
+       * Adding it as a blocker rather than as a second check inside `createCheckout`
+       * closes the page and the route with one line each way: the review step renders its
+       * control on `order.ready`, `createCheckout` refuses on `order.ready`, and both now
+       * see the same answer. A separate guard in `createCheckout` would have been a
+       * second rule to keep in step with this one, which is the shape of defect that
+       * produced this finding.
+       */
+      if (scope.role !== 'workspace_admin') {
+        blockers.push(
+          'Only a workspace admin can subscribe. Your role in this workspace is viewer, so this is not yours to buy.',
+        );
+      }
       const live = await connections.list(this.#db, scope.workspaceId);
       const ready = new Set(
         live.filter((row) => row.status === 'ready').map((row) => row.provider),

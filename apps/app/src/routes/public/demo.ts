@@ -276,7 +276,7 @@ export function DemoPage(): Html {
       // the page traffic lands on is not a disclosure.
       ProviderProofNotice()
     }
-    <section class="panel panel--hero">
+    <section class="panel">
       <div class="synthetic">
         <p class="synthetic__tag">Synthetic workspace</p>
         <p class="small">
