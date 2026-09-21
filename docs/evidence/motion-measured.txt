@@ -1,0 +1,26 @@
+Motion measured in a real browser, on served bytes
+21 September 2026, against the owner overview as the router serves it at c1fc3c4b5c52.
+
+A rule in a stylesheet is not evidence that a browser runs it, so this measures the
+computed transition and the value mid-flight under each motion preference.
+
+disclosures on the page: 2
+motion allowed : {"found":2,"duration":"0.22s","property":"grid-template-rows","start":8,"midFlight":8.29688,"settled":52.7812}
+reduced motion : {"found":2,"duration":"1e-05s","property":"grid-template-rows","start":8,"midFlight":52.7812,"settled":52.7812}
+
+PASS  the disclosure transitions its row track
+PASS  it runs for the base duration
+PASS  and the browser really interpolates it
+PASS  reduced motion collapses the duration
+PASS  and opens it in one step
+
+ALL CHECKS PASSED
+
+Reading it: with motion allowed the row track is at 8.30px 60ms into a 220ms
+transition and settles at 52.78px, so the browser is genuinely interpolating rather
+than jumping with a duration declared that nothing uses. With reduced motion the
+computed duration collapses to 0.01ms and the same track is already final at 60ms.
+
+Not covered here: no PUBLIC page carries a disclosure, so this device is only reachable
+signed in or on the owner panel. The public pages carry the other motion (entrance,
+hover, press, view transition), which RESIL-919..923 hold against the served sheet.

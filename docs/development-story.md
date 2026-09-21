@@ -526,6 +526,16 @@ defect fell out of the comparison: a reader who asks their system for less motio
 shown a card that never became visible. Eleven screens have been rendered and captured but not
 yet compared, and they are listed as such rather than counted as done.
 
+**The site moves, and now something holds it to that.** The motion was already there:
+content settling in, controls responding, disclosures expanding, pages cross-fading, and none
+of it for a reader who asks their system for less motion. What was missing is the part that
+makes it last. Nothing tested it, and neither failure shows up in a screenshot: a transition
+that has quietly stopped working looks like a design choice, and so does one that has grown
+too pleased with itself. There are now five checks that describe the occasions rather than the
+taste, and the behaviour was measured in a real browser rather than read off the stylesheet.
+Two gaps turned up while writing them: one disclosure opened instantly while the one beside it
+glided, and a form error appeared between frames. Both fixed.
+
 **Not yet true.** Live customer payments, because that needs the owner's approval, and live
 objects in the real Stripe account; the decision page lists each with its evidence. A paying
 stranger: the only workspace on production is the owner's own test workspace, and public
