@@ -1,0 +1,249 @@
+Functional closure: payment alert delivery + support receipt/reply
+Agent C, run 21 September 2026.
+
+=============================================================================
+1. PAYMENT ALERT DELIVERY
+=============================================================================
+
+Code path: apps/app/src/billing/events.ts (handlers), which call two alert
+builders in the same file, which go through apps/app/src/notifications/
+telegram.ts:sendOwnerAlert -> apps/app/src/notifications/send.ts:
+dispatchNotification (the shared at-most-once notification pipe).
+
+1a. checkout.session.completed (LIVE mode) -> spending_decision, exactly once?
+----------------------------------------------------------------------------
+YES.
+
+- Gate: apps/app/src/billing/events.ts:237 `if (event.livemode) { ... }`
+  wraps the call to checkoutSpendingDecisionAlert (events.ts:238-247).
+- event.livemode is the field Stripe itself signed on the webhook payload,
+  read directly rather than via deps.config.environment (design rationale
+  at events.ts:30-37).
+- checkoutSpendingDecisionAlert (events.ts:700-716) builds
+  notificationKey = `spending_decision:checkout_session_completed:${keyId}`
+  (events.ts:711), keyId = Stripe's checkout session id first
+  (events.ts:707), falling back to our order id then workspace id.
+- "Exactly once" is enforced by dispatchNotification, NOT by this file:
+  apps/app/src/notifications/send.ts:6-13 documents notification_key as
+  UNIQUE in notification_deliveries, claimed via
+  `INSERT ... ON CONFLICT DO NOTHING` (claimNotification call at
+  send.ts:249-257). A second claim on the same key returns
+  `inserted: false` and the function short-circuits at send.ts:272-284
+  ("Somebody already claimed this key" / outcome 'duplicate'), sending
+  nothing. Since Stripe's session id is stable across a redelivery of the
+  same event, the retry collapses onto the same key -> same row -> one
+  send. This is the SAME mechanism as order idempotency, not a second
+  scheme (events.ts:21-28, 228-236).
+
+1b. invoice.payment_failed -> critical_incident, every time?
+----------------------------------------------------------------------------
+NO -- and that is by design, not a bug. It fires once PER INVOICE, not once
+per delivery/attempt.
+
+- Gate: apps/app/src/billing/events.ts:561 `if (event.livemode) { ... }`
+  wraps the call to invoicePaymentFailedIncidentAlert (events.ts:562-571).
+- invoicePaymentFailedIncidentAlert (events.ts:730-746) builds
+  notificationKey = `critical_incident:invoice_payment_failed:${keyId}`
+  (events.ts:741), keyId = the Stripe invoice id (events.ts:737), which
+  Stripe holds constant across every Smart-Retries redelivery of the SAME
+  unpaid invoice (each redelivery is a distinct Stripe event id -- the
+  webhook-receipt layer does not dedupe those, per the comment at
+  events.ts:548-560). The invoice-id key means every retry of THAT invoice
+  collapses onto the one alert already sent (claimNotification returns
+  'duplicate', same as 1a), while a genuinely NEW failed invoice (next
+  billing cycle) gets its own id and its own alert.
+- Verified by test: tests/integration/billing/owner-alerts.test.ts:445
+  "BILL-659 a second, distinct retry event for the SAME invoice sends no
+  further alert" and :463 "BILL-660 a DIFFERENT invoice on the same
+  subscription earns its own alert".
+- So: every DISTINCT failed invoice raises exactly one critical_incident.
+  Retries of the same invoice do not re-alert (intentional anti-fatigue
+  design, events.ts:548-560, and OWNER_ALERT_ROUTING's stated purpose at
+  telegram.ts, "every addition makes the previous six less likely to be
+  read").
+
+1c. Is the alert raised on the TEST-mode path too?
+----------------------------------------------------------------------------
+NO. Both gates (events.ts:237 and events.ts:561) are `if (event.livemode)`,
+so a test-mode event (event.livemode === false) skips the alert call
+entirely -- no notifyOwner call is made at all on that branch.
+
+Additional finding worth recording: this exact distinction was already the
+subject of a prior mutation-testing pass recorded in
+docs/evidence/mutation-check-bill-662.txt (21 Sept 2026). It found that
+BILL-654..661 alone do NOT prove the gate reads the signed livemode flag
+(they all pass even if the gate is rewritten to read
+`deps.config.environment === 'live'` instead, because every fixture ties
+environment and livemode together). BILL-662
+(tests/integration/billing/owner-alerts.test.ts:371-416) was added
+specifically to pull them apart: environment='live', event.livemode=false,
+handleStripeEvent invoked directly (bypassing the webhook route's separate
+providerModeMatches mode-mismatch gate) -- and it is the one case in the
+suite that fails when the gate is swapped to read the deployment
+environment instead of the signed field. Mutation-tested confirmation that
+the gate is genuinely event.livemode.
+
+Existing test coverage / gap check
+----------------------------------------------------------------------------
+tests/integration/billing/owner-alerts.test.ts already distinguishes live
+from test mode explicitly and separately for BOTH event types:
+  - BILL-654 (:269) live checkout -> exactly one alert
+  - BILL-655 (:300) redelivery of same live event -> still exactly one
+  - BILL-656 (:317) same checkout, two different event ids -> still exactly
+    one (proves the notification-key claim itself, not just receipt-layer
+    dedup)
+  - BILL-657 (:356) TEST-mode checkout -> zero owner alerts
+  - BILL-662 (:371) the gate reads the SIGNED livemode flag, not
+    deps.config.environment (mutation-tested, see above)
+  - BILL-658 (:419) live renewal failure -> exactly one critical_incident
+  - BILL-659 (:445) same-invoice retry -> no further alert
+  - BILL-660 (:463) different invoice -> own alert
+  - BILL-661 (:474) TEST-mode renewal failure -> zero owner alerts
+
+This is exactly the "does not distinguish live from test mode" gap the
+task asked me to check for -- and it does NOT exist here. Both the
+checkout path and the invoice-failure path already have a dedicated
+test-mode-sends-zero case (BILL-657, BILL-661) plus a case that isolates
+the livemode signal from the deployment environment (BILL-662, already
+mutation-verified in a prior evidence file). I did NOT add a new test
+case. Highest existing BILL- id found via `grep -o '"BILL-[0-9]*"'
+docs/test-cases.json`: BILL-676 (so BILL-677 would be the next free id if
+a genuine gap is found later).
+
+Test run (real numbers)
+----------------------------------------------------------------------------
+Command: cd /h/itisyou-verify && pnpm exec vitest run
+tests/integration/billing/owner-alerts.test.ts
+
+  Test Files  1 passed (1)
+       Tests  9 passed (9)
+  Duration    3.09s
+
+All 9 tests (BILL-654, 655, 656, 657, 662, 658, 659, 660, 661) pass
+unmodified. No source change was made for question 1 -- no defect found.
+
+LIVE PAYMENTS: STRIPE_MODE was not touched. No env var changes made. All
+evidence above comes from reading the existing test harness's own fixtures
+and running the existing suite as instructed.
+
+=============================================================================
+2. SUPPORT RECEIPT AND REPLY
+=============================================================================
+
+Code path traced: apps/app/src/support/publicRoute.ts (HTTP handler) ->
+apps/app/src/support/form.ts:submitSupportForm (validation, rate limits)
+-> apps/app/src/support/cases.ts:createCase (redaction, triage, insert).
+
+2a. What is written when a customer submits the form, and is anything sent?
+----------------------------------------------------------------------------
+What is written: submitSupportForm (apps/app/src/support/form.ts:217-288)
+validates the form, applies per-client and per-email rate limits
+(form.ts:244-269), then calls createCase (form.ts:271-282).
+createCase (apps/app/src/support/cases.ts:217-262):
+  - redacts the body BEFORE storage (cases.ts:224, redactSupportBody --
+    "Redacting on write is a control", cases.ts:1-9)
+  - runs triage() (cases.ts:230-235, imported from ./triage) to assign
+    category/priority/initial state (open, or escalated for e.g. security
+    reports, triage.ts:339-372)
+  - calls port.insertCase(record) (cases.ts:252) -- a single row written to
+    the support_cases table.
+That is the entire effect. No notification is dispatched anywhere in this
+call chain: createCase's only side effect is the DB insert at cases.ts:252
+and its return value is `{ record, triage, redactions, acknowledgement }`
+(cases.ts:255-261) -- a canned acknowledgement STRING returned to the
+customer's own HTTP response, not a message sent to anyone else. Grep for
+sendOwnerAlert / dispatchNotification / Telegram / email / Resend /
+support@itisyou across apps/app/src/support/*.ts (excluding the
+email-address-handling matches like maskEmail, EMAIL_RE, contactEmail
+plumbing) returns nothing.
+
+2b. Is there any code path that emails support@itisyou.app or notifies the
+    owner of a new case?
+----------------------------------------------------------------------------
+NO. Stated plainly, as requested: there is no push notification on support
+case creation. What exists instead is a PULL mechanism only:
+  - apps/app/src/owner/port.ts:156-169 defines ExceptionRow with kind
+    'support_escalated' among others (payment_failed, refund_pending,
+    connection_broken, allowance_exhausted).
+  - apps/app/src/db/ownerPort.ts:590 exceptions() -- called on-demand
+    (e.g. when the owner loads the dashboard) -- runs a SELECT at
+    ownerPort.ts:644-649:
+      `SELECT id, workspace_id, subject, updated_at FROM support_cases
+       WHERE state = 'escalated' ORDER BY updated_at DESC LIMIT 25`
+    and maps each row to kind: 'support_escalated' (ownerPort.ts:653).
+  - This only surfaces a case if its state is 'escalated' (triage-assigned
+    for specific categories, e.g. security reports -- triage.ts:339-341).
+    An ordinary 'open' case (the common path) never appears in this query
+    at all, escalated or not, until/unless the owner happens to open the
+    dashboard.
+  - OWNER_ALERT_KIND, the exhaustive list of things ever pushed to the
+    owner via Telegram/email (apps/app/src/notifications/telegram.ts:65-79),
+    has six members: approval_needed, authentication_required,
+    spending_decision, critical_incident, provider_outage,
+    milestone_reached. There is no support-case kind in that list, and no
+    call anywhere in apps/app/src/support/*.ts to sendOwnerAlert or
+    dispatchNotification.
+  - No code anywhere in the repo sends mail to support@itisyou.app in
+    response to a new case (that address, if it exists at all, is where
+    customers write TO, i.e. the destination this form replaces, not a
+    destination this code sends FROM).
+
+The gap, plainly: a customer's support message is durably and safely
+stored (redacted before write, rate-limited, triaged), and an escalated
+case becomes visible on the owner dashboard's exception queue -- but
+nobody is paged. If the owner does not proactively open the dashboard,
+they will not learn that a message arrived, whether it is a routine
+question or a security escalation. This matches the acknowledgement copy
+customers actually see (cases.ts:212-213): "We have your message and a
+person will read it" -- true only insofar as a person chooses to look.
+
+Per the task's "no product changes unless a real defect is found" +
+"describe it in your report instead of making it" instructions: this is a
+real gap, but fixing it would mean adding a push call (e.g. a new
+'support_case_escalated' OWNER_ALERT_KIND wired from createCase or
+triage()) in apps/app/src/support/cases.ts and/or
+apps/app/src/notifications/telegram.ts -- files I do not own. I have not
+made that change. Recommend routing at minimum escalated cases through
+sendOwnerAlert, keyed on the case id, the same at-most-once pipe billing
+alerts already use.
+
+2c. Support tests (real numbers)
+----------------------------------------------------------------------------
+Command: cd /h/itisyou-verify && pnpm exec vitest run tests/integration/support
+
+  Test Files  10 passed (10)
+       Tests  111 passed (111)
+  Duration    12.22s
+
+Files run: cases.test.ts, deletion.test.ts, export.test.ts,
+notification-wiring.test.ts, notifications.test.ts,
+owner-alert-wiring.test.ts, privacy-triggers.test.ts,
+public-support-route.test.ts, retention.test.ts, telegram.test.ts.
+
+Note: owner-alert-wiring.test.ts (OWNER-495..505) tests billing/system
+alerts (malformed Stripe key, cron milestones, deploy announcements) --
+none of its 11 cases assert that creating a support case triggers an owner
+alert, which is consistent with 2b: no such alert exists, and nothing in
+the current suite claims otherwise. I did not add a test here -- the task
+only asked for a possible addition under question 1 (billing), and no
+false claim exists in the support suite to contradict.
+
+=============================================================================
+SUMMARY
+=============================================================================
+Q1: Both live-mode alerts (spending_decision on checkout.session.completed,
+critical_incident on invoice.payment_failed) fire correctly and exactly
+once per distinguishing key (session id / invoice id), enforced by the
+shared notification_key UNIQUE + INSERT ON CONFLICT DO NOTHING claim in
+notifications/send.ts. Test mode never fires either alert. Existing test
+suite (9/9 passing) already isolates the live/test gate with a
+mutation-verified case (BILL-662); no gap found, no test added.
+
+Q2: A support submission is durably stored (redacted-before-write,
+rate-limited, triaged) but nothing pages the owner. An escalated case is
+only visible if/when the owner opens the dashboard and its exceptions()
+pull query happens to include it. No email or Telegram push exists for any
+support case, escalated or not. This is a real, plainly-stated gap; no
+code was changed to fix it since the fix lives outside my owned files
+(apps/app/src/support/cases.ts, apps/app/src/notifications/telegram.ts).
+Support test suite: 111/111 passing, and it does not claim otherwise.

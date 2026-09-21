@@ -26,9 +26,9 @@ this file, deliberately.
 | A4 | Owner panel rail | coordinator | Rail at desktop, header nav below it, never both | OWNER-924 | deployed |
 | A5 | Owner callout tones | coordinator | Error styling only for problems | OWNER-919..923 | deployed |
 | A6 | Remaining eleven screens compared | coordinator | Each read beside its reference at three widths | `docs/screen-checklist.md` second pass | deployed |
-| A7 | `/security` composed | coordinator | Mono fact bar; exhaustive call table; retention and access as one section | CUST-807 | working |
-| A8 | Connections: API detail behind disclosure | coordinator | Call list present but collapsed by default | CONN-526 | working |
-| A9 | Owner customers layout | coordinator | Tally strip; runs against allowance; honest empty state | OWNER-925 | working |
+| A7 | `/security` composed | coordinator | Mono fact bar; exhaustive call table; retention and access as one section | CUST-807 | verified |
+| A8 | Connections: API detail behind disclosure | coordinator | Call list present but collapsed by default | CONN-526 | verified |
+| A9 | Owner customers layout | coordinator | Tally strip; runs against allowance; honest empty state | OWNER-925 | verified |
 | A10 | Stitch: missing references generated | coordinator | Generated, or a bounded attempt recorded and the screen composed from the design system | one attempt on 21 Sept timed out with no screen created; `/security` composed from the design system instead | verified |
 
 ## B. Functional verification
@@ -41,8 +41,8 @@ this file, deliberately.
 | B4 | Synthetic separation | coordinator | Test runs excluded from the workspace rate and the owner total | VERIFY-563; `/app/usage` states it | deployed |
 | B5 | Billing portal, fresh session per opening | coordinator | Two openings produce two different Stripe sessions | BILL-675/676; staging evidence section 5 | deployed |
 | B6 | Viewer permissions | coordinator | All three actions refused at the route, naming the role | staging evidence section 6 | deployed |
-| B7 | Payment alert delivery | Agent C | Live-mode first payment alerts once; failed charge alerts every time; test mode does not alert | `docs/evidence/functional-closure.txt` | working |
-| B8 | Support receipt and reply | Agent C | Either a path exists and is evidenced, or its absence is stated plainly | same file | working |
+| B7 | Payment alert delivery | Agent C | Live-mode first payment alerts once; failed charge alerts every time; test mode does not alert | `docs/evidence/functional-closure.txt`: both gates are `if (event.livemode)`; exactly-once comes from a UNIQUE notification key on the Stripe session id; BILL-657..662 already separate live from test. 9 of 9 passing | verified |
+| B8 | Support receipt and reply | Agent C + coordinator | Either a path exists and is evidenced, or its absence is stated plainly | same file: nothing pushes a support case anywhere, and the queue listed escalated cases only. Open cases now reach it, OWNER-926, mutation-checked. Replying as support@ still needs an outbound identity (B10) | verified, with a stated limit |
 | B9 | Owner panel through real login | owner + coordinator | Owner signs in at `/admin/login` with a TOTP code; panel read against production data | none yet | blocked on the owner |
 | B10 | `support@itisyou.app` routing rule | owner | Rule exists in Cloudflare Email Routing; one test message received | none yet | blocked on the owner |
 
@@ -65,6 +65,7 @@ this file, deliberately.
 | high | Billing portal replayed a spent Stripe session | Two openings returned identical URLs on deployed staging | Customer saw "session expired" on the second click | coordinator | Unique idempotency key per opening | BILL-675 mutation-checked; two different sessions on staging |
 | medium | Reduced-motion readers lost a status card | `prefers-reduced-motion`, fourth card measured opacity 0 | Content invisible to that reader | coordinator | Reset zeroes delay as well as duration | RESIL-918 mutation-checked |
 | medium | Owner rail hid the header nav on every page | Desktop width, any public page | Primary navigation missing site-wide | coordinator | Rule scoped to `.has-rail` | CUST-068 in the browser suite; OWNER-924 |
+| medium | An unanswered support message was invisible to the owner | Submit the support form; the case appears nowhere until somebody escalates it | A customer writes in and nobody hears | coordinator | Open cases join escalated ones in the exception queue | OWNER-926, mutation-checked |
 | low | Stale capture contradicted a live feature | Auditor read a pre-deploy HTML capture | Evidence appeared to refute a true claim | coordinator | Artefact recaptured at the live commit | `docs/evidence/production-954a5a71750f.txt` section 7 |
 | low | `/security` certifications line overflowed its bar | Desktop, text cut mid-word | Cosmetic, one line | coordinator | Explanation moved below the bar | A7 |
 

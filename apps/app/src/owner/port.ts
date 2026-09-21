@@ -160,7 +160,10 @@ export interface ExceptionRow {
     | 'refund_pending'
     | 'connection_broken'
     | 'allowance_exhausted'
-    | 'support_escalated';
+    | 'support_escalated'
+    /* An ordinary message nobody has answered. No alert is sent for one, by design, so this
+       queue is the only place it becomes visible. */
+    | 'support_open';
   readonly workspaceId: string | null;
   readonly summary: string;
   readonly raisedAt: string;
