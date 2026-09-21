@@ -306,6 +306,24 @@ wording, assert it stays silent on our own true sentences, and assert the patter
 no control character. The second half matters as much as the first: the real plan price
 must still pass, and a sentence denying that a trial exists must stay sayable.
 
+### The header that fixed the progress bar blocked the checkout
+
+The strict Content-Security-Policy that stopped a 33% bar drawing as 100% carried
+`form-action 'self'`, with a comment beside it saying Stripe's redirects were not its
+concern. On 21 September the owner pressed "Continue to secure checkout" on production for
+the first time. The server did everything asked of it: created the order, created the
+Checkout Session in Stripe's sandbox, answered 303 to Stripe. The browser stayed on the review
+page and said nothing, because Chrome enforces `form-action` on the redirect that follows a
+form submission, and ours forbade it. No customer could ever have paid. The directive now
+names Stripe's two pages and nothing else, a test reads the header as it is actually served,
+and the comment says what the browser does rather than what we hoped.
+
+The same afternoon the connect page was found telling every customer that the address a
+Resend webhook should call "does not exist in this deployment yet". It existed, and the id
+was assigned the moment a key was checked; the sentence was simply never conditional. The
+card now shows the real address. With both fixed, the checkout completed: three signed events,
+one active subscription, one allowance of 500 runs, and a replayed event that changed nothing.
+
 ### Every control was correct, and none of them could be reached
 
 On 20 September the owner tried to sign in on production and the page said "we tried and
@@ -427,7 +445,7 @@ retrieved record belonged to a different enquiry was contradicted on the correla
 reference rather than merely reported missing. Against our own accounts and our own
 synthetic records, which proves the providers answer us and nothing about your portal.
 
-**Not yet true.** Live customer payments, because that needs the owner's approval and verified business details. A first workspace on production: the supported path now exists (deployed 20 September at `569e8e3`) and the steps only the owner can take are listed in `docs/owner-actions.md`; until they are taken, production has no owner, no authenticator and no workspace. Ten genuine external visits — the counter records them now and the honest count is still zero. Per-screen layout against every approved reference: the shared layer is live, fifteen of nineteen screens are composed, and the rest are ours. The demonstration page's runs are still fixtures. Advertising: the campaign was published by the owner, was found to carry no keywords and no ads, has since had both entered within a GBP 12.25 total (GBP 14.99 with the UK DST fee and VAT), and has never served an impression or spent anything.
+**Not yet true.** Live customer payments, because that needs the owner's approval, seven legal-identity values on the terms and privacy pages, a decided VAT position, live objects in the real Stripe account and an alert for the first live charge; the decision page lists each with its evidence. A paying stranger: the only workspace on production is the owner's own test workspace, and public signup stays closed. Ten genuine external visits — the honest count is still zero. Four of nineteen screens remain uncomposed. The demonstration page's runs are still fixtures. Advertising: submitted, the ad under Google's review, not delivering, nothing spent.
 
 **Spent so far: £0.00 confirmed** against the £100 budget — no campaign activated, no new
 paid resource, and the £30 contingency untouched and separately gated. That figure rests
