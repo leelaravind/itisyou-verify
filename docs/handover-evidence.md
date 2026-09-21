@@ -5,7 +5,7 @@ rests on a database read, the table and the time are named; where it rests on a 
 case id; where it rests on a third party, what that party showed. Anything not listed here
 as proven is not proven.
 
-Deployed commits at 08:05 UTC, 21 September: production and staging `953e9c5`. Owner path on production complete: owner claimed, authenticator enrolled and confirmed, test workspace `ws_01M2Z9TE8795829F6132BD4B5F` created through the panel, bootstrap proven closed, customer identity signed in, HubSpot `ready`, Resend `ready` after a genuinely signed callback to the endpoint created in the owner's Resend account, and the production-origin sandbox checkout completed with exactly-once activation proven by replay.
+Deployed commits at 08:30 UTC, 21 September: production `a89f60e` (version `e3c1a1b8`), staging `61139dc`. Owner path on production complete: owner claimed, authenticator enrolled and confirmed, test workspace `ws_01M2Z9TE8795829F6132BD4B5F` created through the panel, bootstrap proven closed, customer identity signed in, HubSpot `ready`, Resend `ready` after a genuinely signed callback to the endpoint created in the owner's Resend account, and the production-origin sandbox checkout completed with exactly-once activation proven by replay.
 
 ## 1. Payments (sandbox only; live payments are off)
 
