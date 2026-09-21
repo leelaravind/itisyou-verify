@@ -318,7 +318,7 @@ describe('owner data reads', () => {
      * becomes visible to the owner. It listed escalated cases only, which meant an ordinary
      * open case sat in the database unseen.
      */
-    const ws = await seedWorkspace(h);
+    const ws = seedWorkspace(h, 'support');
     for (const [id, state, subject] of [
       ['case_open', 'open', 'A customer asked why a run is unverified'],
       ['case_esc', 'escalated', 'A customer says they were charged twice'],
