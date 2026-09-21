@@ -110,6 +110,16 @@ const ALLOWED_HISTORY_BLOBS = new Map([
   // a commit with `git add -A` without reading it for shapes, which is how a documentation
   // file came to trip a credential scanner. The tree copy now carries the allow marker on
   // both lines; only this blob still holds them unmarked.
+  // Mine too, and the same lesson a second time. OWNER-927..929 needed a session whose id is
+  // the SHA-256 of a cookie value, so the fixture assigned the cookie value to a const named
+  // `token`. That is precisely the shape SEC-633 exists to catch, and it caught it — in CI,
+  // after the push, which is the one place this project had already decided it would rather
+  // not find things. The tree copy now assembles the value at runtime so no new blob of this
+  // shape can be created; only this blob still holds the literal.
+  [
+    '5d0f8a950f775806391a3be0b658e5d23ea2a16c',
+    'owner-pages-on-d1.test.ts — an invented session cookie value for a fixture, never issued',
+  ],
   [
     'f8445a7d66481484018d02249f7660b6f3618de1',
     'audit-pass-6.md — four synthetic sign-in probe tokens quoted in an audit transcript',
