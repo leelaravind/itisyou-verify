@@ -4,7 +4,7 @@ A factual record of what was decided, what was built, what broke, and what is st
 unfinished. Written as it happened. Where something has not been proven, this page says
 so rather than rounding it up.
 
-Last updated: **20 September 2026**.
+Last updated: **21 September 2026**.
 
 ---
 
@@ -473,6 +473,33 @@ rather than one of the twenty-four; and of the seven cases, only five are styles
 same audit found two breaches the original count had missed, em dashes in copy and a
 three-column card grid on the security page, both since fixed. A paragraph about enforcing a
 list is worth very little if the count in it was never checked.
+
+**You can now find out whether your connection still works, and what that does not tell you.**
+A Test connection button beside each provider makes a fresh, bounded check and reports three
+things separately: whether the provider answered our read just now, whether a correctly
+signed callback has ever arrived, and whether your workflow is verified. The third is always
+"not checked", because nothing about a healthy credential can tell us whether your
+automation reports its enquiries to us. The code that performs this check had existed for
+days, fully tested, and was called from nowhere at all. A provider we cannot reach never
+costs you a re-pasted key.
+
+**And you can test the whole thing end to end, without the test flattering you.** Describe
+one enquiry using four values that must already exist: a CRM record, the correlation value on
+it, a message id, and the address it should have reached. We create nothing and send nothing.
+The event is admitted through exactly the same door a real one uses and decided by the same
+engine reading the same providers, so it starts as pending and can come back failed or
+unverified: that is the check working. It costs one run from your allowance, and the page
+says so above the fields rather than after the button, because a free side door would be a
+different code path and a result from a different path would tell you nothing about the one
+your automation uses. Test runs are marked, and excluded from both your verification rate and
+our own figures, so testing cannot make either of us look better than we are.
+
+**The site moves now, carefully.** One motion language rather than scattered effects: content
+settles in, controls respond, disclosures expand, pages cross-fade. It adds no JavaScript at
+all, and anyone who asks their system for reduced motion gets none of it. Two things
+deliberately do not move: the large verdict readout, because a verdict that fades in reads as
+an effect rather than as a finding, and this page, which tells you nothing is animated and is
+held to that by a test.
 
 **Not yet true.** Live customer payments, because that needs the owner's approval, and live
 objects in the real Stripe account; the decision page lists each with its evidence. A paying
