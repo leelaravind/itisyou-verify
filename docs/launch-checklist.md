@@ -3,7 +3,7 @@
 Supersedes `docs/launch-plan.md`. One owner, one status, one next action, one closing
 evidence per item. Updated in place; no second copy anywhere.
 
-**Now:** 12:45 UTC · **Allowance resets:** 13:45 UTC · **Remaining:** ~1h00m
+**Now:** 07:55 UTC, 21 Sept · **Allowance resets:** 13:45 UTC · **Remaining:** new allowance day
 
 Status: `done` · `active` · `blocked` · `queued`
 
@@ -89,6 +89,7 @@ Status: `done` · `active` · `blocked` · `queued`
 | CSRF cookie set on every principal-resolving response (enrol → confirm form) | `b553e71` | `35507634839` (with `f2b7d18`) | production + staging 11:45Z (`2a0ae6f4`) | found from the owner's first code on production (11:10Z) being refused as a CSRF mismatch; OWNER-917/918; owner's confirmation on the fixed build still pending |
 | BILL-614 fixture expiry (time bomb at 10:00Z today) | `f2b7d18` | yes | yes | CI `35507354304` failed on it at 11:20Z on a commit that had not touched refunds; the local gate refused the same; fixture now relative to the real clock |
 | Connect page: Resend webhook address rendered from `webhook_path_id` | `e35c2b8` (+ ledger `7a72c81`) | `35537183448` | staging 12:33Z; production 12:42Z (`495efcdd`) | production, the owner's customer tab: corrected callout rendered; staging, automation workspace's real Resend row: `data-webhook-url` rendered once with the deployment's prefix and a 43-character id; the sentence "does not exist in this deployment yet" absent. CUST-482 |
+| CSP `form-action` allows the redirect to Stripe Checkout / billing portal | this commit | pending | pending | found 07:40Z on the first production checkout: server answered 303 to Stripe (order `checkout_created`, session `cs_test_a1GoKH…`), Chrome enforced `form-action 'self'` on the post-redirect and stayed on the review page; the code comment asserted the opposite. CUST-483 pins the served header |
 
 ## Live figures (read from the databases at 07:47 UTC)
 
