@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "project": "itisyou-verify",
-  "generated_at": "2026-09-20T11:50:00Z",
+  "generated_at": "2026-09-21T08:05:00Z",
   "note": "Structured record of what was decided, built and verified. Observable facts and short decision rationales only — never reasoning traces, private prompts, credentials or customer data. Unknown values stay null rather than being guessed.",
   "events": [
     {
@@ -1412,6 +1412,47 @@
       ],
       "limitations": "The owner has not yet confirmed a code on the fixed build, so no session on production carries mfa_verified_at and no consequential owner action has run there. The proof that bootstrap is closed after first use rests on the code order and AUTH-427 until the owner makes one more attempt with the real token. Live payments: NOT READY, 7 of 13 requirements fail, recorded with evidence in docs/live-payment-approval.md.",
       "next_step": "Owner confirms a code; lead verifies the stamp from the tables, creates the isolated test workspace with the owner, proves bootstrap is closed, then drives the production-origin sandbox checkout."
+    },
+    {
+      "event_id": "EVT-0048",
+      "timestamp": "2026-09-21T07:57:00Z",
+      "milestone_id": "M-BILLING",
+      "task_id": "T-PRODUCTION-CHECKOUT",
+      "agent_role": "lead",
+      "model_id": "claude-fable-5-1",
+      "status": "externally_confirmed",
+      "goal": "Complete a sandbox checkout that originates from production, in the owner's isolated test workspace, and prove activation, exactly-once allowance, replay refusal and customer access there.",
+      "inputs": [
+        "the owner's instruction that staging tests are not production checkout evidence",
+        "the owner's test workspace created through the owner panel the day before"
+      ],
+      "changed_artifacts": [
+        "apps/app/src/index.ts",
+        "tests/integration/customer/csp-form-action.test.ts",
+        "apps/app/src/routes/app/onboardingPages.ts",
+        "apps/app/src/routes/app/port.ts",
+        "apps/app/src/db/customerPort.ts",
+        "apps/app/src/db/connections.ts",
+        "docs/live-payment-approval.md",
+        "docs/launch-checklist.md"
+      ],
+      "commit_sha": "953e9c5",
+      "decision_summary": "The path to a production checkout ran through the product's own routes and two of our own defects. The owner connected HubSpot (ready at once) and Resend (testing, as designed until a signed callback). The connect page told every customer the Resend webhook address did not exist in this deployment; it existed, so the page now renders the connection's address (e35c2b8) and the endpoint was created in the owner's Resend account; one real email through the same account delivered two signed events and the connection went ready. Mapping and outcome were saved through their forms; the review page resolved the price server-side and showed the checkout control. The click created the order and the Checkout Session in the sandbox and the server answered 303 to Stripe - and the browser stayed put, because our own CSP said form-action self and Chrome enforces that on the redirect that follows a form post, while the comment beside the directive asserted the opposite. The directive now names Stripe's two hosts (953e9c5). The owner then paid with Stripe's test card; three signed events processed, the subscription went active, one 500-run entitlement was written, a resend from Stripe answered duplicate true and changed nothing, and the customer pages showed the state.",
+      "alternatives_considered": [
+        "Count the staging checkout as production evidence, which the owner had ruled out and which would have hidden both defects.",
+        "Add a GET resume link to work around the blocked redirect, which would have shipped a workaround for a header we control."
+      ],
+      "decision_reason": "Every blocker on the way was ours and each was a customer-facing failure, not a test artefact: a false sentence on the connect page and a security header that silently ate the one redirect the business depends on. Fixing the cause and pinning it with a test on the served header is cheaper than any workaround and leaves the policy strict everywhere else.",
+      "test_evidence_refs": [
+        "production: order ord_01M31E6KYED181BAC8307E46E9 checkout_created 07:34:32Z -> active 07:54:12Z; session cs_test_a1GoKH…",
+        "production webhook_receipts: evt_1UI23E1v0rNNhRrqSjNFzyrZ, …7za5mUeS, …quWT1T5PZ processed 07:54:12Z; resend of checkout.session.completed 07:56:56Z answered received true, duplicate true",
+        "production entitlements: one row ent_01M31FAN27EB0A90C116D0434C 500/0/0, updated_at 07:54:12.706Z before and after the replay; subscriptions one row active",
+        "owner's customer session: /app/billing/return active with the checkout reference; /app/billing Status active; /app/usage 0/500",
+        "CUST-483 asserts the served CSP form-action; CUST-482 asserts the connect page renders the real webhook address",
+        "Resend connection ready after msg_3Jd18Dx… and msg_3Jd188b… signed callbacks 07:32:49-50Z"
+      ],
+      "limitations": "Sandbox only: Stripe test mode, the sandbox account, the owner's own synthetic workspace. Live payments remain NOT READY (6 of 13 requirements fail, recorded with evidence). The Resend card still renders a successful save under a 'There is a problem' header, which the owner read as a rejection; not yet fixed.",
+      "next_step": "Owner decides L5 (legal identity values) and L6 (VAT position); lead adds L7 payment alerts and fixes the Resend card's message tone; then the live objects in the parent Stripe account, per the approval pack."
     }
   ]
 }
