@@ -5,7 +5,24 @@ dashboard and the repository actually show at that time. Nothing here is switche
 charges stay disabled until the owner approves the configuration in §4, and §4 is only
 executable once every FAIL in §1 is closed.
 
-**Decision now: NOT READY, 3 of 13 requirements FAIL** (updated 21 September 2026, 14:00 UTC).
+**Decision now: NOT READY, 3 of 13 requirements FAIL** (updated 21 September 2026, 14:00 UTC;
+structure and verdict re-validated at 17:50 UTC against production `9563df87e6fe`).
+
+What the re-validation checked, rather than assumed. The count is right: thirteen requirements
+(P1 to P5, L1 to L8), three FAIL, and all three are the owner's to authorise, in the order
+given. The PASS rows that could have drifted since `d11c271654bd` were re-read on the live
+site rather than trusted:
+
+- `/terms` still carries the real legal identity, and returns zero occurrences of
+  TODO_OWNER_INPUT, of "Not yet published", and of the todo attribute.
+- `/pricing` still says we are not VAT-registered, and the old sentence "calculated and added
+  by our payment provider" returns zero occurrences.
+- `STRIPE_MODE` is `test` in every environment block of `apps/app/wrangler.jsonc`.
+- Production holds one subscription and none in live mode, and both live-payment alert kinds
+  hold zero rows, which is exactly the state L7 says is correct while live payments are off.
+
+Nothing moved. The verdict stands because the three FAILs are unchanged and unchangeable by
+anyone here.
 
 L5, L6 and L7 moved to PASS and are deployed and read back from production at commit
 `d11c271654bd`. What remains is the three that are the owner's to authorise, in order: **L2** a
