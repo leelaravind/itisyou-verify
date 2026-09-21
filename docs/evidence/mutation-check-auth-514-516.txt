@@ -1,0 +1,57 @@
+Mutation check: does the role guard actually carry AUTH-514 and AUTH-515?
+
+NOTE ON IDS. This run happened after the cases were rewritten and before they were
+renumbered, so the original file recorded them as AUTH-478/479/480 and was named for those.
+The ids were changed because AUTH-480 was ALREADY TAKEN by a refund case in
+tests/integration/db/ownerRefund.test.ts, which docs/live-payment-approval.md cites as P5
+evidence: a reader following this file to "AUTH-480" would have landed on a refund test.
+The ids below are the ones the tests carry today. Renamed and corrected 21 September 2026
+after a meta-audit flagged the collision.
+Run 21 September 2026 against commit c3c736d plus the rewritten AUTH cases.
+
+Method
+------
+Removed the four lines added to `orderSummary()` in apps/app/src/db/customerPort.ts:
+
+      if (scope.role !== 'workspace_admin') {
+        blockers.push(
+          'Only a workspace admin can subscribe. Your role in this workspace is viewer, so this is not yours to buy.',
+        );
+      }
+
+...then ran tests/integration/customer/checkout-control.test.ts unchanged, then restored
+the file from a byte-for-byte backup and re-ran.
+
+Result WITHOUT the guard  (2 failed | 12 passed)
+------------------------------------------------
+  x AUTH-514  a workspace viewer is shown no checkout control on a workspace that is
+              otherwise ready
+      AssertionError: a viewer is offered a form that reaches checkout:
+      expected '\n              <input type="hidden" ...' to be null
+
+  x AUTH-515  a viewer posting the checkout route with a valid session and CSRF pair is
+              refused on role, calls Stripe zero times and creates no order
+      AssertionError: the request did not reach checkout authorisation:
+      expected 303 to be 503
+
+  v AUTH-516  the same fixture and the same request DO reach Stripe for a workspace admin
+
+The 303 is the vulnerability itself, reproduced: a workspace_viewer holding a valid
+session and a valid double-submit CSRF pair was redirected onward to Stripe Checkout for
+a workspace they may only read. AUTH-516 passing throughout is what makes the other two
+mean something: the fixture is genuinely eligible to buy, so the refusal is about the
+role and not about an unbuyable workspace.
+
+Result WITH the guard restored
+------------------------------
+  14 passed (14), which includes AUTH-514 (no form), AUTH-515 (503, the specific role
+  sentence, zero Stripe calls, zero order rows) and AUTH-516 (303 to checkout.stripe.com,
+  one Stripe call, one order row).
+
+Why the first version of AUTH-515 was rejected
+----------------------------------------------
+It posted an empty body with no CSRF token and asserted only that the response was not a
+303. `withSession` refuses on CSRF before the handler runs, so that assertion passed
+whether or not any role check existed anywhere: it proved the CSRF guard and claimed to
+prove authorisation. The owner rejected it. The version above sends the request a
+viewer's browser would actually send and asserts the refusal that comes back out.

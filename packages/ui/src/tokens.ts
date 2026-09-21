@@ -231,6 +231,21 @@ export const TYPE = {
   body: '1rem',
   small: '0.875rem',
   micro: '0.75rem',
+  /**
+   * The mono "figure" ranks — a computed number a reader is meant to register at a glance:
+   * a dashboard score, a run count, a plan price. Before this scale existed each one
+   * hard-coded its own rem value (2.25rem, 2rem, 2.5rem, 1.75rem) with no relationship
+   * between them, which is the same defect rule 2 at the top of this file names for prose
+   * versus mono generally, one level down: four numbers that all mean "this is the
+   * headline figure" and do not agree on how large that is. The four values below are
+   * exactly the ones already rendered — nothing on screen moves — so this is the token
+   * layer catching up to a scale that was already there by accident and naming it on
+   * purpose, not a redesign.
+   */
+  figureXs: '1.75rem',
+  figureSm: '2rem',
+  figure: '2.25rem',
+  figureLg: '2.5rem',
 } as const;
 
 /** 4px base. Named by step so a component never invents an in-between value. */

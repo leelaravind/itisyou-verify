@@ -457,15 +457,22 @@ forms, and stops at the checkout step because that step needs two connected prov
 asserting that the page states a reason rather than dead-ending.
 
 **The design exclusions are now enforced by tests, not by good intentions.** The owner gave a
-list of visual devices this product may not use. Nine of them were shipped: a gradient
-headline, a blurred orb behind two panels, drop shadows, a glass header, soft rounded corners,
-an excluded typeface in the font stack, a pure-white surface, coloured left-border callouts,
-and two dead custom properties. Every one had arrived with a comment explaining why the
-approved design wanted it, which is the point: each was defensible alone, and the list was
-nobody's job. They were removed at the token and stylesheet layer so the fix reaches all
-nineteen screens at once, and six new cases now assert each device is absent from the whole
-stylesheet. Three older cases had been written to hold two of those devices in place, and now
-assert the opposite.
+list of twenty-four visual devices this product may not use. Eight of them were shipped: a
+gradient headline, a blurred orb behind two panels, drop shadows, a glass header, soft rounded
+corners, an excluded typeface in the font stack, a pure-white surface, and coloured
+left-border callouts. Every one had arrived with a comment explaining why the approved design
+wanted it, which is the point: each was defensible alone, and the list was nobody's job. They
+were removed at the token and stylesheet layer so the fix reaches all nineteen screens at
+once. Five new cases assert a device is absent from the whole stylesheet, and two more check
+what a reader actually sees on five rendered pages. Three older cases had been written to hold
+two of those devices in place, and now assert the opposite.
+
+This paragraph said "nine of them" and "six new cases … absent from the whole stylesheet"
+until a later audit counted both. Nine included two dead custom properties, which are residue
+rather than one of the twenty-four; and of the seven cases, only five are stylesheet-wide. The
+same audit found two breaches the original count had missed, em dashes in copy and a
+three-column card grid on the security page, both since fixed. A paragraph about enforcing a
+list is worth very little if the count in it was never checked.
 
 **Not yet true.** Live customer payments, because that needs the owner's approval, and live
 objects in the real Stripe account; the decision page lists each with its evidence. A paying

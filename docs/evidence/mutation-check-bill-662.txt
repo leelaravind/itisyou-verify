@@ -1,0 +1,51 @@
+Mutation check: do the payment-alert cases actually test the live/test GATE?
+Run 21 September 2026, prompted by an independent meta-audit finding.
+
+The finding
+-----------
+docs/live-payment-approval.md cited BILL-654..661 as evidence for the claim that the owner
+alerts "fire only on event.livemode". The meta-auditor pointed out that every one of those
+eight fixtures ties config.environment and event.livemode together: scene('live') always
+sends livemode:true and scene('test') always sends livemode:false. So the eight would stay
+green if the gate were rewritten to read the deployment environment instead of the signed
+field. The tests were not wrong. The claim about what they proved was.
+
+BILL-662 was added to drive the two apart: a deployment configured 'live', an event whose
+signed livemode is false, handleStripeEvent called directly (the webhook route refuses a
+mode mismatch with 400 before the handler runs, via providerModeMatches, and that is a
+different guard).
+
+Method
+------
+Rewrote the gate in apps/app/src/billing/events.ts at both sites:
+
+    -  if (event.livemode) {
+    +  if (deps.config.environment === 'live') {
+
+...then ran tests/integration/billing/owner-alerts.test.ts unchanged, then restored the
+file from a byte-for-byte backup and re-ran.
+
+Result WITH the wrong gate  (1 failed | 8 passed)
+--------------------------------------------------
+  v BILL-654  a live-mode checkout sends exactly one spending_decision alert
+  v BILL-655  a redelivery of the same live event still sends exactly one alert
+  v BILL-656  the same checkout under two different event ids still sends exactly one
+  v BILL-657  a test-mode checkout sends zero owner alerts
+  x BILL-662  the gate reads the SIGNED livemode flag, not the deployment environment
+  v BILL-658  a live-mode renewal failure sends exactly one critical_incident alert
+  v BILL-659  a second, distinct retry event for the SAME invoice sends no further alert
+  v BILL-660  a DIFFERENT invoice on the same subscription earns its own alert
+  v BILL-661  a test-mode renewal failure sends zero owner alerts
+
+All eight original cases passed against a gate reading the wrong field. Exactly one case
+caught it, and it is the one added because of the audit. This is the finding reproduced
+rather than argued about.
+
+Result WITH the gate restored
+-----------------------------
+  9 passed (9).
+
+What this changes in the record
+-------------------------------
+The L7 evidence cell in docs/live-payment-approval.md now cites BILL-662 for the livemode
+property and states plainly that the other eight do not prove it.

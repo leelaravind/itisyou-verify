@@ -5,12 +5,20 @@
  *
  * Every page this Worker serves is rendered per request and is `no-store` or short-lived,
  * so the HTML round trip cannot be avoided. A separate stylesheet would therefore add a
- * second, render-blocking round trip to save re-sending a sheet that measures **16,881
- * bytes raw, 3,928 gzipped and 3,416 brotli** (measured, not estimated — see
+ * second, render-blocking round trip to save re-sending a sheet that measures **36,587
+ * bytes raw and 7,030 gzipped** (measured 21 September 2026, not estimated — see
  * `tests/unit/ui/tokens.test.ts`, case CUST-004). Cloudflare compresses responses, so the
- * cost of inlining is about 3.4KB on the wire per page, comfortably inside the initial
- * congestion window along with the HTML. For a site whose first job is to be understood in
- * fifteen seconds, one request beats two.
+ * cost of inlining is about 7KB on the wire per page, still inside the initial congestion
+ * window along with the HTML. For a site whose first job is to be understood in fifteen
+ * seconds, one request beats two.
+ *
+ * This paragraph said "16,881 bytes raw, 3,928 gzipped and 3,416 brotli" until 21
+ * September 2026, and had been wrong for some time: the sheet had roughly doubled as the
+ * story styles and the composition layer were added, and nobody re-measured. CUST-004
+ * asserts the CEILING, not the figure, so it passed throughout and the stale number sat
+ * here being trusted. Worth noticing as a pattern rather than a typo: a measured claim in
+ * a comment decays silently unless something re-measures it, which is why the budget is a
+ * test and this sentence carries its date.
  *
  * The constant is exported rather than hidden so that if the sheet ever grows past roughly
  * 10KB compressed it can be moved to `public/app.<hash>.css` with an immutable cache header
@@ -85,6 +93,10 @@ const BASE = `
   --t-body:${TYPE.body};
   --t-small:${TYPE.small};
   --t-micro:${TYPE.micro};
+  --t-figure-xs:${TYPE.figureXs};
+  --t-figure-sm:${TYPE.figureSm};
+  --t-figure:${TYPE.figure};
+  --t-figure-lg:${TYPE.figureLg};
   --s1:${SPACE.x1};--s2:${SPACE.x2};--s3:${SPACE.x3};--s4:${SPACE.x4};
   --s6:${SPACE.x6};--s8:${SPACE.x8};--s12:${SPACE.x12};--s16:${SPACE.x16};--s24:${SPACE.x24};
   --r-control:${RADIUS.control};
@@ -129,6 +141,7 @@ a:hover{text-decoration-thickness:2px}
 @media (min-width:52rem){.wrap{padding-inline:var(--s8)}}
 .measure{max-width:var(--w-measure)}
 .stack>*+*{margin-top:var(--s4)}
+.stack-xs>*+*{margin-top:var(--s1)}
 .stack-sm>*+*{margin-top:var(--s2)}
 .stack-lg>*+*{margin-top:var(--s8)}
 .section{padding-block:var(--s12)}
@@ -200,7 +213,7 @@ a:hover{text-decoration-thickness:2px}
 .display__lead{color:var(--c-muted)}
 .accent{color:var(--c-ink)}
 @media (forced-colors:active){.display__lead,.accent{color:CanvasText}}
-.lede{font-size:1.0625rem;color:var(--c-muted);margin:0}
+.lede{font-size:1.0625rem;line-height:1.5;color:var(--c-muted);margin:0}
 .small{font-size:var(--t-small)}
 .muted{color:var(--c-muted)}
 .faint{color:var(--c-faint)}
@@ -242,7 +255,7 @@ a:hover{text-decoration-thickness:2px}
 .brand__mark{font-family:var(--f-mono);letter-spacing:0.14em;font-size:var(--t-small);text-transform:uppercase}
 .brand__name{letter-spacing:-0.02em}
 .nav{display:flex;flex-wrap:wrap;gap:var(--s2) var(--s4);align-items:center;font-size:var(--t-small)}
-.nav a{text-decoration:none;color:var(--c-muted)}
+.nav a{text-decoration:none;color:var(--c-muted);transition:color .12s ease}
 .nav a:hover,.nav a[aria-current]{color:var(--c-ink);text-decoration:underline;text-decoration-thickness:1px}
 .nav a[aria-current]{font-weight:600}
 .foot{border-top:1px solid var(--c-rule);margin-top:var(--s16);padding-block:var(--s8);font-size:var(--t-small);color:var(--c-muted)}
@@ -333,9 +346,13 @@ a:hover{text-decoration-thickness:2px}
   font:inherit;font-size:var(--t-small);font-weight:560;line-height:1.2;
   padding:0.6rem var(--s4);min-height:2.75rem;border-radius:var(--r-control);
   border:1px solid var(--c-ink);background:var(--c-surface);color:var(--c-ink);
-  text-decoration:none;cursor:pointer;transition:background-color .12s ease,color .12s ease;
+  text-decoration:none;cursor:pointer;
+  transition:background-color .12s ease,color .12s ease,border-color .12s ease,transform .08s ease;
 }
 .btn:hover{background:var(--c-sunken);text-decoration:none}
+/* A single pixel of press feedback on activation -- a real state change, not a bounce, and
+   gone entirely under reduced motion along with every other transition in this sheet. */
+.btn:active{transform:translateY(1px)}
 .btn--primary{background:var(--c-ink);color:var(--c-on-ink);border-color:var(--c-ink)}
 .btn--primary:hover{background:var(--c-muted);border-color:var(--c-muted)}
 .btn--quiet{border-color:var(--c-field-border);color:var(--c-muted);background:transparent}
@@ -426,6 +443,26 @@ a:hover{text-decoration-thickness:2px}
    takes the dash, matching the story page's precedent for a thing that is not settled. */
 .callout--todo{border-top-color:var(--c-unverified);border-top-style:dashed;background:var(--c-unverified-tint)}
 .callout--todo .callout__body{color:var(--c-ink)}
+/* A compact callout: title and body run on one line, sized for a sentence rather than a
+   paragraph. Same tone rule along the top, same tones -- only the density changes. */
+.callout--compact{display:flex;flex-wrap:wrap;align-items:baseline;gap:var(--s1) var(--s2);padding:var(--s3) var(--s4)}
+.callout--compact .callout__title{margin:0}
+.callout--compact .callout__body{margin:0}
+.callout--compact .callout__body>*+*{margin-top:0}
+/* Secondary explanation behind a native details element, collapsed by default -- for the
+   extra sentence that is not something every reader needs, instead of stacking it as
+   another full paragraph in .callout__body. The one-line summary stays in the flow either
+   way; only what follows it is optional. The marker rotates rather than swaps glyph, which
+   a transition can animate smoothly and a content swap cannot; reduced motion neutralises
+   it the same way it neutralises the spinner, through the universal reset below. */
+.callout__detail{flex-basis:100%;margin-top:var(--s1)}
+.callout__detail summary{cursor:pointer;font-size:var(--t-small);font-weight:600;color:var(--c-muted);list-style:none;display:inline-flex;align-items:center;gap:0.35em}
+.callout__detail summary::-webkit-details-marker{display:none}
+.callout__detail summary::before{content:"\\203A";display:inline-block;font-family:var(--f-mono);transition:transform .15s ease}
+.callout__detail[open] summary::before{transform:rotate(90deg)}
+.callout__detail summary:hover{color:var(--c-ink)}
+.callout__detail-body{padding-top:var(--s2);font-size:var(--t-small);color:var(--c-muted)}
+.callout__detail-body>*+*{margin-top:var(--s2)}
 
 /* ---- forms --------------------------------------------------------------- */
 .fieldset{border:1px solid var(--c-rule);border-radius:var(--r-container);padding:var(--s4);margin:0}
@@ -444,13 +481,25 @@ a:hover{text-decoration-thickness:2px}
   padding:0.6rem var(--s3);min-height:2.75rem;
   color:var(--c-ink);background:var(--c-surface);
   border:1px solid var(--c-field-border);border-radius:var(--r-control);
+  transition:border-color .12s ease,background-color .12s ease;
 }
 .textarea{min-height:7rem;resize:vertical}
 .input--mono{font-family:var(--f-mono)}
 .input[aria-invalid="true"],.select[aria-invalid="true"],.textarea[aria-invalid="true"]{border-color:var(--c-failed);border-width:2px}
 .input::placeholder,.textarea::placeholder{color:var(--c-faint)}
+/* Disabled was missing entirely: a control with no rule for it renders in the browser's
+   own default, which does not agree with this palette in either theme. Muted rather than
+   faded to near-invisible -- a disabled field is still information ("this is not yours to
+   edit right now"), not a control that has stopped existing. */
+.input:disabled,.select:disabled,.textarea:disabled{
+  background:var(--c-sunken);color:var(--c-muted);cursor:not-allowed;
+}
+.input:disabled::placeholder,.textarea:disabled::placeholder{color:var(--c-faint)}
+.field:has(:disabled) .field__label{color:var(--c-muted)}
 .check{display:flex;gap:var(--s2);align-items:flex-start;font-size:var(--t-small)}
 .check input{margin-top:0.25rem;width:1.1rem;height:1.1rem;accent-color:var(--c-ink);flex:0 0 auto}
+.check input:disabled{cursor:not-allowed}
+.check:has(input:disabled){color:var(--c-muted)}
 
 /* ---- table --------------------------------------------------------------- */
 .tablewrap{
@@ -468,14 +517,30 @@ a:hover{text-decoration-thickness:2px}
 .table td.num,.table th.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
 
 /* ---- states -------------------------------------------------------------- */
-.state{border:1px dashed var(--c-rule-strong);border-radius:var(--r-container);padding:var(--s8) var(--s4);text-align:center;background:var(--c-surface)}
+/* A neutral empty state looks neutral. It used to share its dashed edge with
+   .badge--unverified and .callout--todo, and in this vocabulary a dash means one specific
+   thing -- "we looked, and this is not settled" -- which "there are no runs yet" is not.
+   Error keeps the loudest treatment it already had; loading keeps its plain solid edge;
+   the base case gets the same ordinary hairline every other neutral container uses, so a
+   reader who has never seen an error page cannot mistake this one for a milder version of
+   it. */
+.state{border:1px solid var(--c-rule);border-radius:var(--r-container);padding:var(--s8) var(--s4);text-align:center;background:var(--c-surface)}
 .state__title{font-size:var(--t-h3);margin:0 0 var(--s2)}
 .state__body{color:var(--c-muted);margin:0 auto;max-width:34rem;font-size:var(--t-small)}
 .state__actions{margin-top:var(--s4);display:flex;gap:var(--s3);justify-content:center;flex-wrap:wrap}
-.state--error{border-style:solid;border-color:var(--c-failed);background:var(--c-failed-tint);text-align:left}
+.state--error{border-color:var(--c-failed);background:var(--c-failed-tint);text-align:left}
 .state--error .state__body{margin:0;max-width:none;color:var(--c-ink)}
-.state--loading{border-style:solid}
 .state--loading .state__title{color:var(--c-muted)}
+/* The loading spinner: a rotating partial ring beside the title, and the one legitimate
+   animation in this stylesheet (RESIL-911 says why, and checks that nothing else adds a
+   second one). It carries no colour and no status glyph, so it cannot be mistaken for a
+   verdict -- aria-live="polite" and aria-busy="true" on the container are the real signal;
+   the spinner only makes "this is still moving" visible before a reader gets that far.
+   Reduced motion needs no extra rule here: the reset a few lines above this sheet's root
+   block matches every element, this one included, and one iteration at .01ms lands back at
+   its start angle, which is indistinguishable from never having moved. */
+.spinner{flex:0 0 auto;vertical-align:-0.2em;transform-origin:50% 50%;animation:spin .9s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
 
 /* ---- breadcrumb & pagination --------------------------------------------- */
 .crumbs{font-size:var(--t-small)}
@@ -497,7 +562,7 @@ a:hover{text-decoration-thickness:2px}
 .health{display:grid;gap:var(--s4)}
 .health>*{min-width:0}
 @media (min-width:46rem){.health{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
-.score{font-family:var(--f-mono);font-size:2.25rem;font-weight:600;line-height:1;letter-spacing:-0.02em;margin:0}
+.score{font-family:var(--f-mono);font-size:var(--t-figure);font-weight:600;line-height:1;letter-spacing:-0.02em;margin:0}
 .score--none{font-family:var(--f-sans);font-size:var(--t-h2);font-weight:640;letter-spacing:-0.015em}
 .meter{height:6px;border-radius:3px;background:var(--c-sunken);overflow:hidden;margin-top:var(--s3)}
 .meter__fill{height:100%;background:var(--c-verified);width:0}
@@ -581,7 +646,7 @@ a:hover{text-decoration-thickness:2px}
 
 /* ---- price --------------------------------------------------------------- */
 .price{display:flex;align-items:baseline;gap:var(--s2);flex-wrap:wrap}
-.price__amount{font-family:var(--f-mono);font-size:2.5rem;font-weight:600;letter-spacing:-0.03em;line-height:1}
+.price__amount{font-family:var(--f-mono);font-size:var(--t-figure-lg);font-weight:600;letter-spacing:-0.03em;line-height:1}
 .price__period{color:var(--c-muted);font-size:var(--t-small)}
 
 /* ---- screen composition: how it works, demo, security --------------------- */
@@ -756,7 +821,7 @@ a:hover{text-decoration-thickness:2px}
 .count-grid{display:grid;gap:var(--s3);grid-template-columns:repeat(2,minmax(0,1fr))}
 .count-grid>*{min-width:0}
 @media (min-width:64rem){.count-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
-.count{font-family:var(--f-mono);font-size:2rem;font-weight:600;line-height:1;letter-spacing:-0.02em;font-variant-numeric:tabular-nums;margin:0}
+.count{font-family:var(--f-mono);font-size:var(--t-figure-sm);font-weight:600;line-height:1;letter-spacing:-0.02em;font-variant-numeric:tabular-nums;margin:0}
 .count__noun{font-family:var(--f-sans);font-size:var(--t-small);font-weight:400;color:var(--c-muted);letter-spacing:0;margin-left:var(--s2)}
 /* A metric whose value is a sentence rather than a figure (a setting that has not been
    made yet) is set at body weight, so the tile reads as a note and not as a number. */

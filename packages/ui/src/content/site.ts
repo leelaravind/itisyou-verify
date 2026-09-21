@@ -58,11 +58,25 @@ export const STANDING_LIMITATIONS_PARAGRAPH =
  *
  * Added 2026-09-19 after an internal audit found the defect pattern "correct code,
  * thoroughly tested, reached by nothing" in the parts of the system that turn a signed
- * event into a checked, paid-for run. Specifically, as of this writing: there is no
- * mounted route that receives a customer's signed event at all, the Resend webhook route
- * exists but is not mounted, nothing on a live request path consults the plan allowance or
- * a failed-payment state, and the payment-recovery day-8 sweep and subscription
- * reconciliation are both written but never invoked by the scheduler.
+ * event into a checked, paid-for run.
+ *
+ * **That list is corrected here, 21 September 2026, because every item on it had become
+ * false and this comment was still being read as current.** It said there was no mounted
+ * route receiving a signed event, that the Resend webhook route existed but was not
+ * mounted, that nothing on a live request path consulted the allowance or a failed-payment
+ * state, and that the recovery sweep and subscription reconciliation were never invoked by
+ * the scheduler. All five are now wired: `apps/app/src/index.ts` mounts
+ * `POST /api/v1/events` (answered by `money/eventsRoute.ts`) and the Resend webhook, and
+ * `money/maintenance.ts` reaches `reconcileAllowancePeriods` from the scheduler tick.
+ *
+ * Found by an independent meta-audit looking for exactly this: two other file headers
+ * carrying the same stale sentence were corrected on 21 September and this one, the header
+ * of the constant that drives the **public** notice, was missed. A stale reason inside the
+ * files that guard against stale reasons is the defect itself, and being the third copy is
+ * not an excuse.
+ *
+ * What the notice below still says, and what remains true, is narrower: live payments are
+ * switched off until the owner turns them on, and public signup is closed.
  *
  * This notice exists so that every page describing how the product works can stay up —
  * the design is real and the description is honest — without implying a stranger reading

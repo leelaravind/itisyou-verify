@@ -34,6 +34,8 @@ export interface FieldOptions {
   readonly options?: readonly SelectOption[];
   readonly rows?: number;
   readonly readonly?: boolean;
+  /** Not `readonly`: a disabled control is not submitted at all, and says so visually. */
+  readonly disabled?: boolean;
   readonly pattern?: string;
   readonly maxlength?: number;
 }
@@ -58,6 +60,7 @@ export function Field(options: FieldOptions): Html {
     'aria-invalid': hasError ? 'true' : null,
     'aria-describedby': describedBy.length > 0 ? describedBy : null,
     readonly: options.readonly === true,
+    disabled: options.disabled === true,
   } as const;
 
   let field: Html;
@@ -118,6 +121,7 @@ export interface CheckboxOptions {
   readonly value?: string;
   readonly checked?: boolean;
   readonly error?: string | null;
+  readonly disabled?: boolean;
 }
 
 export function Checkbox(options: CheckboxOptions): Html {
@@ -132,6 +136,7 @@ export function Checkbox(options: CheckboxOptions): Html {
           name: options.name,
           value: options.value ?? 'yes',
           checked: options.checked === true,
+          disabled: options.disabled === true,
           'aria-invalid': hasError ? 'true' : null,
           'aria-describedby': hasError ? `${id}-error` : null,
         })}

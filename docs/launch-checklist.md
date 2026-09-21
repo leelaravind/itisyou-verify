@@ -38,7 +38,7 @@ Status: `done` · `active` · `blocked` · `queued`
 | #   | Item                                                                             | Owner          | Status                               | Next action | Evidence to close                                                                                                                                                                                                                                                                                                                                                          |
 | --- | -------------------------------------------------------------------------------- | -------------- | ------------------------------------ | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 3.1 | Essential Stitch screens (`/app`, onboarding, runs, usage, billing, connections) | A-UI           | **done, deployed `5da4766`**         | —           | 36 screenshots at 390/820/1440, viewport read back; each opened beside its reference                                                                                                                                                                                                                                                                                       |
-| 3.2 | Public screens                                                                   | A-UI           | **recomposed and deployed `d11c271654bd`** | —           | `/` and `/pricing` recomposed against the owner exclusions and captured from production at 1440 and 390: `reports/screenshots/production-d11c271654bd/`. Nine excluded devices removed at the token and stylesheet layer, so the fix reaches all nineteen screens; RESIL-911..917 assert each is absent from the whole sheet. Zero reader-visible em or en dashes on all nine public pages, measured against the served HTML. `/security` still has **no owner-approved reference** and stays marked not composed |
+| 3.2 | Public screens                                                                   | A-UI           | **recomposed and deployed `d11c271654bd`** | —           | `/` and `/pricing` recomposed against the owner exclusions and captured from production at 1440 and 390: `reports/screenshots/production-d11c271654bd/`. Nine excluded devices removed at the token and stylesheet layer, so the fix reaches all nineteen screens; RESIL-911..915 assert each device is absent from the whole stylesheet; RESIL-916 and RESIL-917 are different in kind, rendering five public pages and checking what a reader sees (dashes, and leaked comment syntax). Five sheet-wide, two page-wide, corrected after a meta-audit found all three summaries of this saying seven. Zero reader-visible em or en dashes on all nine public pages, measured against the served HTML. `/security` still has **no owner-approved reference** and stays marked not composed |
 | 3.3 | Owner journey stays authenticated, MFA on consequential actions                  | auditor + lead | **done, production verified 12:00Z** | —           | production: `owner.bootstrap granted` 10:59:25Z; `auth.totp.enrolled` 11:09:28Z; `auth.totp.accepted` 11:37:55Z with `mfa_verified_at` stamped; first consequential action (workspace.create) succeeded 11:39:29Z inside the window; second bootstrap paste refused `already_bootstrapped` 11:59:01Z; anonymous `/owner`, `/owner/customers`, `/admin/authenticator` → 404 |
 | 3.4 | Owner dashboard shows launch figures                                             | A-UI           | **done, deployed `5da4766`**         | —           | eight tiles from live ports, `unknown` (no numeral) on a failed read, OWNER-901..907; cannot label sandbox vs live orders because no mode column exists, and the tile says so                                                                                                                                                                                              |
 
@@ -92,11 +92,17 @@ Status: `done` · `active` · `blocked` · `queued`
 | CSP `form-action` allows the redirect to Stripe Checkout / billing portal | `953e9c5` | yes | production 07:5xZ (21 Sept), then owner's checkout completed 07:54Z | found 07:40Z on the first production checkout: server answered 303 to Stripe (order `checkout_created`, session `cs_test_a1GoKH…`), Chrome enforced `form-action 'self'` on the post-redirect and stayed on the review page; the code comment asserted the opposite. CUST-483 pins the served header |
 | Form message heading follows the result (success no longer under "There is a problem") | `a89f60e` | yes | production 08:2xZ (`e3c1a1b8`), staging | CUST-484; found when the owner read a successful Resend save as a rejection, twice |
 
-## Live figures (read from the databases at 07:47 UTC)
+## Live figures (re-read from the production database at 14:05 UTC, 21 September 2026)
+
+The row below said **0 / 0 / 0** until now, on a document that was itself updated at 12:00Z
+the same day. It was a 07:47Z reading left in place across two later edits, and it
+contradicted this file's own D1.2-1.6, which prove a workspace, a subscription and an
+order. Found by an independent meta-audit. The figures are now read fresh and carry the
+time they were read.
 
 |                                    | Production                                                                                                                             | Staging                                                                                                                   |
 | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| Workspaces / users / subscriptions | 0 / 0 / 0                                                                                                                              | 1 active subscription                                                                                                     |
+| Workspaces / users / subscriptions | **1 / 2 / 1** (the owner's own isolated test workspace) | 1 active subscription                                                                                                     |
 | Stripe allowance                   | —                                                                                                                                      | one Stripe-created entitlement, 500 runs, 11 consumed (plus a hand-seeded 10-run slice from 19 Sept that is not Stripe's) |
 | Runs                               | 0                                                                                                                                      | 3 VERIFIED, 3 FAILED, 8 UNVERIFIED                                                                                        |
 | Evidence                           | 0                                                                                                                                      | HubSpot read-back 2, Resend read-back 3, Resend webhook 4                                                                 |
@@ -154,6 +160,14 @@ Read at 12:00 UTC on 21 September 2026, against production at `d11c271654bd`.
      `support@` needs an outbound identity and is a second, separate decision.
    - ten genuine external visits: honest count still **zero**.
    - the demonstration page's runs are still fixtures.
+
+## A measurement caveat worth carrying
+
+`scripts/scan-secrets.mjs` prints "clean. 791 tracked files". 791 is the number of tracked
+PATHS; the script skips binary extensions before reading, so it actually reads **595** files
+and skips 196 (194 `.png`, 2 `.zip`). Three commit messages repeated the 791 figure as though
+it were coverage. The scan is still clean over everything it can read; the sentence was a 25%
+overstatement of what was looked at. Found by an independent meta-audit.
 
 ## Improvements that can wait
 

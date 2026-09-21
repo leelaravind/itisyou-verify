@@ -9,7 +9,7 @@
  * which is the same rule A03's `next_step: null` follows.
  */
 import { attrs, html, type Html } from '../html.js';
-import { iconAlert } from './icons.js';
+import { iconAlert, iconSpinner } from './icons.js';
 
 export interface StateOptions {
   readonly title: string;
@@ -68,10 +68,16 @@ export interface LoadingStateOptions {
  * (this product checks on a schedule, so "we are still looking" is a real page state, not
  * a spinner covering a network request). `aria-live="polite"` rather than `alert`: a
  * pending result is not urgent.
+ *
+ * The rotating glyph beside the title is reinforcement, not the signal: `aria-live` and
+ * `aria-busy` on the container are what actually say "this is still moving" to someone who
+ * cannot see it, and the glyph is `aria-hidden`. It carries no colour and is not one of the
+ * four status glyphs, so it cannot be read as a verdict about evidence — only as "we have
+ * not reached one yet".
  */
 export function LoadingState(options: LoadingStateOptions): Html {
   return html`<div class="state state--loading" aria-live="polite" aria-busy="true">
-    <p class="state__title">${options.title}</p>
+    <p class="state__title">${iconSpinner()} ${options.title}</p>
     <p class="state__body">${options.body}</p>
   </div>`;
 }

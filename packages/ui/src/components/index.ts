@@ -9,7 +9,14 @@ export {
   UnavailableAction,
   type UnavailableActionOptions,
 } from './activation.js';
-export { Card, Callout, type CardOptions, type CalloutOptions, type CalloutTone } from './card.js';
+export {
+  Card,
+  Callout,
+  type CardOptions,
+  type CalloutOptions,
+  type CalloutTone,
+  type CalloutDetail,
+} from './card.js';
 export {
   Field,
   Fieldset,
@@ -46,6 +53,7 @@ export {
   iconDash,
   iconExternal,
   iconLimit,
+  iconSpinner,
   glyphFor,
   type GlyphName,
 } from './icons.js';

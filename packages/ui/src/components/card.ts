@@ -46,11 +46,31 @@ export function Card(options: CardOptions): Html {
 
 export type CalloutTone = 'note' | 'limit' | 'warn' | 'todo';
 
+export interface CalloutDetail {
+  /** The always-visible line. Plain text; it is the disclosure's accessible name. */
+  readonly summary: string;
+  readonly body: Html;
+}
+
 export interface CalloutOptions {
   readonly tone?: CalloutTone;
   readonly title?: string;
   readonly body: Html;
   readonly id?: string;
+  /**
+   * Compact rendering: the title and body run on one line, sized for a sentence rather
+   * than a paragraph. Use it where the full-size callout would otherwise be the only thing
+   * on the page stacking short, warning-shaped paragraphs.
+   */
+  readonly compact?: boolean;
+  /**
+   * Secondary explanation behind a native `<details>`, collapsed by default. For a fact
+   * that is not something every reader needs, instead of another full paragraph in the
+   * body: works with JavaScript off, is keyboard operable by default, and never hides
+   * anything the tone itself requires to be seen (a `limit` callout's coverage sentence
+   * still belongs in `body`, never in here).
+   */
+  readonly detail?: CalloutDetail;
 }
 
 /**
@@ -95,10 +115,23 @@ export function Callout(options: CalloutOptions): Html {
   const titleIcon =
     tone === 'warn' || tone === 'todo' ? iconAlert() : tone === 'limit' ? iconLimit() : null;
   const title = options.title ?? TONE_TITLE[tone] ?? undefined;
+  const compact = options.compact === true;
   return html`<aside
-    ${attrs({ class: cx('callout', `callout--${tone}`), id: options.id ?? null, 'data-tone': tone })}
+    ${attrs({
+      class: cx('callout', `callout--${tone}`, compact ? 'callout--compact' : ''),
+      id: options.id ?? null,
+      'data-tone': tone,
+    })}
   >
     ${title === undefined ? null : html`<p class="callout__title">${titleIcon}${title}</p>`}
     <div class="callout__body">${options.body}</div>
+    ${
+      options.detail === undefined
+        ? null
+        : html`<details class="callout__detail">
+            <summary>${options.detail.summary}</summary>
+            <div class="callout__detail-body">${options.detail.body}</div>
+          </details>`
+    }
   </aside>`;
 }

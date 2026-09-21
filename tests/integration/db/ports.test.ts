@@ -193,9 +193,16 @@ describe('CustomerDataPort against D1', () => {
     expect(proof.blockedReason).not.toBeNull();
     expect(proof.results).toEqual([]);
 
-    const portal = await port.billingPortalLink();
-    expect(portal.href).toBeNull();
+    // Availability, which asks Stripe nothing, and the opening, which would. Both must
+    // refuse here and both must say why: the split exists because the GET render used to
+    // mint a real single-use portal session just to decide whether to draw a button.
+    const portal = await port.billingPortalAvailability();
+    expect(portal.canOpen).toBe(false);
     expect(portal.reason).not.toBeNull();
+
+    const opened = await port.openBillingPortal();
+    expect(opened.href).toBeNull();
+    expect(opened.reason).not.toBeNull();
 
     const link = await port.requestSignInLink('ada@example.com');
     expect(link.ok).toBe(false);

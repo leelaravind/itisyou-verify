@@ -1001,12 +1001,55 @@ export function createAppRoutes(resolve: PortResolver = syntheticResolver): Hono
           csrfToken: session.csrfToken,
           body: BillingPage({
             activation: await port.activation(),
-            portal: await port.billingPortalLink(),
+            // Availability, not a link. This GET no longer creates a Stripe session.
+            portal: await port.billingPortalAvailability(),
+            csrfToken: session.csrfToken,
             checkoutCancelled: c.req.query('checkout') === 'cancelled',
           }),
         }),
       ),
     ),
+  );
+
+  /**
+   * Open the billing portal: one fresh Stripe session per authorised click.
+   *
+   * A POST, so it runs through `withSession`'s CSRF check and cannot be triggered by a
+   * link, a prefetch, an image tag or a crawler. That matters more here than usual: the
+   * response body is a redirect to a bearer-secret URL, and a GET that mints one could be
+   * fired by anything that touches the page.
+   *
+   * The URL goes straight into the `Location` of a 303 and nowhere else. It is not logged,
+   * not stored, not counted and never rendered, which is the second half of the defect
+   * this route replaces: the old control put it in an anchor on an authenticated page.
+   *
+   * `port.openBillingPortal` repeats the authorisation check rather than trusting that the
+   * page drew a button, because the page is not what protects this route.
+   */
+  routes.post('/billing/portal', async (c) =>
+    withSession(c, async (port, session) => {
+      const opened = await port.openBillingPortal();
+      if (opened.href !== null) return c.redirect(opened.href, 303);
+      // Refused or Stripe failed: re-render the page the customer was on, carrying the
+      // reason, rather than a bare error. 503 because nothing of theirs is wrong.
+      return page(
+        c,
+        shell(port, {
+          title: 'Billing',
+          path: '/app/billing',
+          accountLabel: maskedAccountLabel(session.email),
+          csrfToken: session.csrfToken,
+          body: BillingPage({
+            activation: await port.activation(),
+            portal: await port.billingPortalAvailability(),
+            csrfToken: session.csrfToken,
+            checkoutCancelled: false,
+            portalProblem: opened.reason,
+          }),
+        }),
+        { status: 503 },
+      );
+    }),
   );
 
   routes.get('/cancel', async (c) =>
@@ -1018,7 +1061,10 @@ export function createAppRoutes(resolve: PortResolver = syntheticResolver): Hono
           path: '/app/cancel',
           accountLabel: maskedAccountLabel(session.email),
           csrfToken: session.csrfToken,
-          body: CancelPage({ portal: await port.billingPortalLink() }),
+          body: CancelPage({
+            portal: await port.billingPortalAvailability(),
+            csrfToken: session.csrfToken,
+          }),
         }),
       ),
     ),
