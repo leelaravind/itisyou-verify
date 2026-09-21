@@ -78,7 +78,7 @@ export function Disclosure(options: DisclosureOptions): Html {
     ${attrs({ class: 'disc', id: options.id ?? null, open: options.open === true })}
   >
     <summary class="disc__summary">${options.summary}</summary>
-    <div class="disc__body">${options.body}</div>
+    <div class="disc__body"><div class="disc__body__inner">${options.body}</div></div>
   </details>`;
 }
 
