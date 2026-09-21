@@ -21,15 +21,36 @@ live-payment decision) → `docs/handover-evidence.md` (one page of sourced clai
 | Commits after `a89f60e`     | `61139dc`, `bdd55fa`: documentation only; no code or public asset changed, so no deploy is pending             |
 | Last CI run used to release | `gh run list` — releases require the CI artefact `release-gate-<fullsha>` for HEAD (see §6)                    |
 
-**Release procedure that works** (all four traps hit this weekend are avoided by it):
-`git status --short` must print nothing → `rm -rf reports && mkdir reports` →
-`gh run download <runId> -n release-gate-$(git rev-parse HEAD) -D reports` →
-`node scripts/release.mjs --env production` → `--env staging` → `rm -rf reports` →
-`curl -s https://verify.itisyou.app/health`. Wrangler commands run from `apps/app`. The gate
-runs the whole suite locally and refuses a dirty tree, a stale story copy
-(`apps/app/public/development-story.md` must equal `docs/development-story.md`) and any
-Playwright failure. A `release_deployed:<env>:<sha12>` Telegram message goes to the owner once
-per deployed commit (proof: a `notification_deliveries` row).
+**Release procedure that works** (all four traps hit this weekend are avoided by it).
+Nothing in it deletes evidence: each release keeps its own artefact under
+`reports/release-gate/<sha12>/`, and `--gate-artefact` points the script at it, so a later
+release never overwrites or removes an earlier one. `reports/` is git-ignored, so keeping it
+cannot dirty the tree and cannot break the gate.
+
+```
+SHA=$(git rev-parse HEAD); SHORT=${SHA:0:12}
+git status --short                                   # must print nothing
+mkdir -p reports/release-gate/$SHORT
+gh run download <runId> -n release-gate-$SHA -D reports/release-gate/$SHORT
+node scripts/release.mjs --env staging    --gate-artefact reports/release-gate/$SHORT/release-gate.json
+node scripts/release.mjs --env production --gate-artefact reports/release-gate/$SHORT/release-gate.json
+curl -s https://verify.itisyou.app/health
+```
+
+Staging first, then production, with the same artefact and therefore the same candidate.
+`node scripts/release.mjs --check-gate-artefact --gate-artefact <path>` answers "would this
+artefact let this commit reach production" in a second, without deploying anything.
+
+The earlier version of this procedure ran `rm -rf reports` before and after every release.
+That threw away the gate artefact, the vitest and Playwright results and the served HTML
+captured for the rendered claim scan: exactly the evidence a release is supposed to leave
+behind. Removed on 21 September 2026 at the owner's instruction.
+
+Wrangler commands run from `apps/app`. The gate runs the whole suite locally and refuses a
+dirty tree, a stale story copy (`apps/app/public/development-story.md` must equal
+`docs/development-story.md`) and any Playwright failure. A `release_deployed:<env>:<sha12>`
+Telegram message goes to the owner once per deployed commit (proof: a
+`notification_deliveries` row).
 
 ## 2. Completed requirements, with where the evidence is
 

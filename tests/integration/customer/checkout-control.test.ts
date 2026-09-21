@@ -140,65 +140,179 @@ describe('the review page offers a control that reaches checkout', () => {
    * `submitConnectionCredentials`. It was not the rule for `createCheckout`, which
    * refuses only on `orderSummary().ready`, and `orderSummary` had never consulted a
    * role at all. So on a workspace that was otherwise ready to buy, a `workspace_viewer`
-   * was shown a live "Continue to secure checkout" submit button and pressing it created
+   * was shown a live "Continue to secure checkout" submit button, and pressing it created
    * a real Stripe Checkout Session for a workspace they may only read.
    *
    * Fixed as a blocker inside `orderSummary` rather than as a second guard inside
-   * `createCheckout`, so the page and the route read the same answer. These two cases
-   * assert both ends of that: nothing to click, and nothing that works if you build the
-   * request by hand anyway.
+   * `createCheckout`, so the page and the route read one answer.
+   *
+   * ## Why AUTH-515 is built the way it is
+   *
+   * Its first version posted an empty body with no CSRF token and asserted the response
+   * was not a 303. That passes whether or not any role check exists, because
+   * `withSession` refuses on CSRF before the handler runs: it was proving the CSRF guard
+   * and claiming to prove authorisation. The owner rejected it, correctly.
+   *
+   * So the request below is the one a viewer's browser would actually send: a real
+   * session cookie, the double-submit CSRF cookie read back from a real response, the
+   * same value echoed in the form field, and an `Origin` header. It reaches the handler,
+   * and the assertion is on the specific role sentence coming back out of it.
+   *
+   * AUTH-516 is the control that makes the other two mean something: the same fixture,
+   * the same request, one column of one row different, reaching Stripe. Without it,
+   * "Stripe was never called" is equally consistent with a fixture that could never have
+   * bought anything.
    */
-  it('AUTH-478 a workspace viewer is shown no checkout control on a workspace that is otherwise ready', async () => {
-    connectBoth(h, ws);
-    expect(checkoutForm(await reviewPage(h, ws)), 'the fixture is not a ready order').not.toBeNull();
 
+  /** A `Set-Cookie` line's value for a name, from a real response. Never invented. */
+  function cookieValueFrom(response: Response, name: string): string {
+    const lines =
+      typeof (response.headers as { getSetCookie?: () => string[] }).getSetCookie === 'function'
+        ? (response.headers as unknown as { getSetCookie: () => string[] }).getSetCookie()
+        : [response.headers.get('set-cookie') ?? ''];
+    for (const line of lines) {
+      const match = new RegExp(`${name}=([^;]+)`).exec(line);
+      if (match?.[1] !== undefined && match[1] !== '') return match[1];
+    }
+    throw new Error(`no ${name} cookie was set on that response`);
+  }
+
+  /**
+   * The double-submit pair, obtained the way a browser obtains it.
+   *
+   * `withSession` calls `setCsrfCookie(c, session.csrfToken)` on every authenticated
+   * response including GETs, so any `/app` page hands the browser the value. The form
+   * field carries the same value, which is what makes it a double submit, so echoing the
+   * cookie is exactly what the rendered page does. Nothing here is fabricated: a
+   * fabricated token would prove only that the check can be fooled by the test.
+   */
+  async function csrfPairFor(h: TestDb, ws: SeededWorkspace): Promise<string> {
+    const response = (await worker.fetch(
+      new Request(`${BASE}/app/onboarding/review`, {
+        headers: { cookie: await signedInCookie(h, ws) },
+      }),
+      envFor(h),
+      ctx,
+    )) as Response;
+    expect(response.status, 'the review page must render before a token can be read').toBe(200);
+    return cookieValueFrom(response, 'verify_csrf');
+  }
+
+  /** A fetch that answers as Stripe would and counts what it was asked. */
+  function stripeCounting(calls: { n: number }): typeof fetch {
+    return (async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      if (url.includes('stripe.com')) calls.n += 1;
+      if (url.includes('/checkout/sessions')) {
+        return new Response(
+          JSON.stringify({
+            id: 'cs_test_auth',
+            object: 'checkout.session',
+            url: 'https://checkout.stripe.com/c/pay/cs_test_auth',
+            livemode: false,
+            status: 'open',
+            client_reference_id: null,
+            customer: 'cus_test_auth',
+            subscription: null,
+            payment_status: 'unpaid',
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        );
+      }
+      return new Response(
+        JSON.stringify({ id: 'cus_test_auth', object: 'customer', livemode: false }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      );
+    }) as typeof fetch;
+  }
+
+  /** POST the checkout route as a browser would, with a real CSRF pair. */
+  async function postCheckout(
+    h: TestDb,
+    ws: SeededWorkspace,
+    calls: { n: number },
+  ): Promise<{ readonly status: number; readonly location: string | null; readonly body: string }> {
+    const token = await csrfPairFor(h, ws);
+    const sessionCookie = await signedInCookie(h, ws);
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = stripeCounting(calls);
+    try {
+      const response = (await worker.fetch(
+        new Request(`${BASE}/app/onboarding/checkout`, {
+          method: 'POST',
+          headers: {
+            cookie: `${sessionCookie}; __Host-verify_csrf=${token}`,
+            'content-type': 'application/x-www-form-urlencoded',
+            origin: BASE,
+          },
+          body: new URLSearchParams({ csrf_token: token }).toString(),
+        }),
+        envFor(h),
+        ctx,
+      )) as Response;
+      const location = response.headers.get('location');
+      const body = response.status >= 300 && response.status < 400 ? '' : await response.text();
+      return { status: response.status, location, body };
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  }
+
+  function orderCount(h: TestDb, ws: SeededWorkspace): number {
+    return (
+      h.raw.prepare('SELECT COUNT(*) AS n FROM orders WHERE workspace_id = ?').get(ws.workspaceId) as {
+        n: number;
+      }
+    ).n;
+  }
+
+  function demoteToViewer(h: TestDb, ws: SeededWorkspace): void {
     h.raw
       .prepare("UPDATE memberships SET role = 'workspace_viewer' WHERE workspace_id = ?")
       .run(ws.workspaceId);
+  }
+
+  it('AUTH-514 a workspace viewer is shown no checkout control on a workspace that is otherwise ready', async () => {
+    connectBoth(h, ws);
+    expect(checkoutForm(await reviewPage(h, ws)), 'the fixture is not a ready order').not.toBeNull();
+
+    demoteToViewer(h, ws);
 
     const body = await reviewPage(h, ws);
     expect(checkoutForm(body), 'a viewer is offered a form that reaches checkout').toBeNull();
     expect(body).toContain('Only a workspace admin can subscribe');
   });
 
-  it('AUTH-479 and posting the checkout route by hand as a viewer creates no session', async () => {
+  it('AUTH-515 a viewer posting the checkout route with a valid session and CSRF pair is refused on role, calls Stripe zero times and creates no order', async () => {
     connectBoth(h, ws);
-    h.raw
-      .prepare("UPDATE memberships SET role = 'workspace_viewer' WHERE workspace_id = ?")
-      .run(ws.workspaceId);
+    demoteToViewer(h, ws);
+    const calls = { n: 0 };
 
-    // Any call to Stripe at all would be the defect: the refusal has to happen before it.
-    let stripeCalls = 0;
-    const realFetch = globalThis.fetch;
-    globalThis.fetch = (async (input: RequestInfo | URL) => {
-      if (String(input).includes('stripe.com')) stripeCalls += 1;
-      return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } });
-    }) as typeof fetch;
-    try {
-      const response = (await worker.fetch(
-        new Request(`${BASE}/app/onboarding/checkout`, {
-          method: 'POST',
-          headers: {
-            cookie: await signedInCookie(h, ws),
-            'content-type': 'application/x-www-form-urlencoded',
-            origin: BASE,
-          },
-          body: '',
-        }),
-        envFor(h),
-        ctx,
-      )) as Response;
-      // 403 from the CSRF check or a refusal from the port: either is a refusal, and what
-      // matters is that no Checkout Session exists and Stripe was never called.
-      expect(response.status).not.toBe(303);
-    } finally {
-      globalThis.fetch = realFetch;
-    }
-    expect(stripeCalls, 'Stripe was called for a viewer').toBe(0);
-    const orders = h.raw
-      .prepare('SELECT COUNT(*) AS n FROM orders WHERE workspace_id = ?')
-      .get(ws.workspaceId) as { n: number };
-    expect(orders.n, 'an order row was created for a viewer').toBe(0);
+    const result = await postCheckout(h, ws, calls);
+
+    // It reached the handler rather than being turned away at the CSRF gate: the refusal
+    // is the route's own 503 re-render of the review step, not a 403.
+    expect(result.status, 'the request did not reach checkout authorisation').toBe(503);
+    expect(result.location, 'a viewer was redirected to a payment page').toBeNull();
+    // The specific refusal, not merely "something went wrong".
+    expect(result.body).toContain('Only a workspace admin can subscribe');
+    expect(result.body).toContain('No checkout session was created and no card was charged');
+    expect(calls.n, 'Stripe was called for a viewer').toBe(0);
+    expect(orderCount(h, ws), 'an order row was created for a viewer').toBe(0);
+  });
+
+  it('AUTH-516 the same fixture and the same request DO reach Stripe for a workspace admin, so the refusal above is about the role', async () => {
+    connectBoth(h, ws);
+    const calls = { n: 0 };
+
+    const result = await postCheckout(h, ws, calls);
+
+    expect(result.status, 'an admin was not sent onward to checkout').toBe(303);
+    expect(result.location ?? '', 'the redirect does not go to Stripe').toContain(
+      'checkout.stripe.com',
+    );
+    expect(calls.n, 'the admin path never reached Stripe').toBeGreaterThan(0);
+    expect(orderCount(h, ws), 'no order was recorded for the admin').toBe(1);
   });
 
   it('CONN-478 the control leaves when a connection does, because the server would refuse', async () => {
