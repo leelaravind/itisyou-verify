@@ -45,41 +45,57 @@ function declarationsFor(selector: string): string {
 const count = (markup: string, needle: string): number => markup.split(needle).length - 1;
 
 describe('the landing page composition', () => {
-  it('CUST-701 the hero is seven to five: the notice spans both columns, then copy beside the evidence card', async () => {
+  it('CUST-701 the hero is copy at a headline measure, then the comparison at full width', async () => {
     /*
-     * This case asserted a centred single column until 21 September 2026. The centred hero
-     * was the reference's, and it put the claim rule -- the argument the page is making --
-     * below a full-height column of centred prose, under the fold on a 1440x900 laptop. It
-     * is now beside the headline, in the narrower of two columns.
+     * Three arrangements, and the reason for the third is measurable rather than a taste.
      *
-     * The document order is the part that must not move, and is asserted below rather than
-     * the visual arrangement: the notice is read before the headline, the headline before
-     * the first call to action. CUST-121 depends on that and so does a screen reader.
+     * Until 21 September 2026 this was the reference's centred single column, which put the
+     * claim rule -- the argument the page is making -- under the fold on a 1440x900 laptop.
+     * It then became a seven-to-five split, copy beside a compressed three-line rule.
+     *
+     * The split broke when the rule grew into the full comparison it should always have
+     * been. In a five-of-twelve track the two mono columns are about 215 pixels each, so
+     * values wrapped mid-token: "sent to a**@exa / mple.te / st". Measured, not guessed.
+     * The copy now takes a headline measure and the comparison takes the full width under
+     * it, where its columns are about 550 pixels and every value sets on one line.
+     *
+     * The document order is the part that must not move, and is what is asserted: the
+     * notice is read before the headline, the headline before the first call to action,
+     * and the evidence after both. CUST-121 depends on that and so does a screen reader.
      */
     const markup = await render(HomePage());
     expect(markup, 'the hero is no longer a centred column').not.toContain('stack center');
-    expect(markup).toContain('<div class="grid grid-7-5 grid-wide-gap">');
+    // No split: one column of copy, then the comparison.
+    expect(markup, 'the hero went back to a split that cannot hold the comparison').not.toContain(
+      'grid-7-5 grid-wide-gap',
+    );
+    expect(markup).toContain('<div class="stack measure-wide">');
 
     const notice = markup.indexOf('data-activation-notice');
-    const split = markup.indexOf('<div class="grid grid-7-5 grid-wide-gap">');
     const headline = markup.indexOf('<h1 class="display">');
     const firstCta = markup.indexOf('class="btn btn--primary"');
-    const evidence = markup.indexOf('data-claim-rule="FAILED"');
-    for (const at of [notice, split, headline, firstCta, evidence]) expect(at).toBeGreaterThan(-1);
-    // The notice is outside the split and above it: it qualifies both columns, so it may
-    // not sit in one of them.
-    expect(notice).toBeLessThan(split);
-    expect(split).toBeLessThan(headline);
+    const evidence = markup.indexOf('data-evidence-diff="FAILED"');
+    for (const at of [notice, headline, firstCta, evidence]) expect(at).toBeGreaterThan(-1);
+    expect(notice).toBeLessThan(headline);
     expect(headline).toBeLessThan(firstCta);
     expect(firstCta).toBeLessThan(evidence);
-    // The two columns are the only two children of the split, and the evidence is in the
-    // second: one column collapses to one column on a phone, which is the ladder below.
-    expect(CSS).toContain(
-      '@media (min-width:60rem){.grid-7-5{grid-template-columns:minmax(0,7fr) minmax(0,5fr);align-items:start}}',
+
+    // The comparison is the full device, not the compressed one: both sources, the verdict,
+    // and the checks that produced it.
+    expect(markup).toContain('What the automation reported');
+    expect(markup).toContain('What we retrieved ourselves');
+    expect(count(markup, 'data-check-outcome=')).toBe(3);
+    // Its columns sit side by side only once the viewport is well past the point where two
+    // mono columns fit at all, and stack below that rather than wrapping mid-value.
+    expect(CSS).toContain('@media (min-width:75rem){');
+    expect(declarationsFor('.ediff__cols')).toContain('grid-template-columns:minmax(0,1fr)');
+    // The headline measure is a real rule rather than a class nothing styles.
+    expect(declarationsFor('.measure-wide'), '.measure-wide is not in the stylesheet').toContain(
+      'max-width',
     );
     // The centred-hero helpers are gone rather than merely unused, so nothing can reach
     // for them and quietly centre a section again.
-    for (const selector of ['.center', '.hero-card', '.hero-copy']) {
+    for (const selector of ['.center', '.hero-card', '.hero-copy', '.hero-split']) {
       expect(declarationsFor(selector), `${selector} is still in the stylesheet`).toBe('');
     }
     // Both button rows stack full width below phone-landscape width, as drawn.
@@ -159,8 +175,19 @@ describe('the landing page composition', () => {
     // qualifies step 3, then the link to the long version.
     const stepsEnd = markup.indexOf('</ol>', steps);
     const stepSlice = markup.slice(steps, stepsEnd);
-    expect(count(stepSlice, '<li>')).toBe(3);
+    // Three steps, counted by their headings rather than by list items: each step now also
+    // carries a short block of the shape it involves, and those lines are list items too.
+    expect(count(stepSlice, '<h3>')).toBe(3);
     expect(stepSlice, 'the steps are cards again').not.toContain('step-card');
+    // The shape blocks are the real field names, not decoration, and they are not drawn as
+    // a terminal: no prompt, no caret, no window chrome.
+    expect(count(stepSlice, 'class="snip"')).toBe(3);
+    expect(stepSlice).toContain('correlation_id');
+    for (const forbidden of ['terminal', 'prompt', 'caret', '$ ']) {
+      expect(stepSlice, `the shape block is dressed as a terminal: ${forbidden}`).not.toContain(
+        forbidden,
+      );
+    }
     const proof = markup.indexOf('data-provider-proof-notice');
     expect(proof).toBeGreaterThan(stepsEnd);
     expect(markup.indexOf('href="/how-it-works"', proof)).toBeGreaterThan(proof);
@@ -239,7 +266,7 @@ describe('the pricing page composition', () => {
     expect(declarationsFor('.summary>div')).toContain('justify-content:space-between');
   });
 
-  it('CUST-707 below the grid the page carries the four results as cards, the questions two abreast, then the standing limitations', async () => {
+  it('CUST-707 below the grid the page carries the four results as cards, the questions as ruled rows in one column, then the standing limitations', async () => {
     const markup = await render(PricingPage());
     const grid = markup.indexOf('<div class="grid grid-7-5">');
     const results = markup.indexOf('<div class="grid grid-4">');

@@ -34,7 +34,7 @@ import {
   ButtonRow,
   ActivationNotice,
   ProviderProofNotice,
-  ClaimRule,
+  EvidenceDiff,
   StatusBadge,
   html,
   type Html,
@@ -82,8 +82,8 @@ function hero(): Html {
            headline, form an intention, and only then learn we cannot serve them. It spans
            the full width rather than sitting in a column: it qualifies both of them. -->
       ${ActivationNotice()}
-      <div class="grid grid-7-5 grid-wide-gap">
-        <div class="stack">
+      <div class="stack-lg">
+        <div class="stack measure-wide">
           <p class="eyebrow">Independent verification of one automation</p>
           <!-- The accent falls on the clause that is the product's argument, which is a
                decision made in the content module rather than by where a span sits here. -->
@@ -103,18 +103,43 @@ function hero(): Html {
           </div>
           ${planLine()}
         </div>
-        <div class="stack-sm">
-          ${ClaimRule({
+        <div>
+          ${EvidenceDiff({
+            caption: 'Synthetic example',
+            reference: 'enq_0000000000000001',
+            reported: [
+              { key: 'contact', value: 'created' },
+              { key: 'ack email', value: 'sent to a**@example.test' },
+              { key: 'http', value: '200, workflow completed' },
+            ],
+            retrieved: [
+              { key: 'contact', value: 'crm-rec-1, created 30s after the enquiry' },
+              { key: 'ack email', value: 'a**@example.test, status bounced' },
+              { key: 'read at', value: '2026-09-20 11:50 UTC' },
+            ],
             status: 'FAILED',
-            claim:
-              'enquiry enq_0000000000000001 → contact created, acknowledgement sent to a**@example.test',
-            observed:
-              'contact crm-rec-1 created 30s after the enquiry; acknowledgement to a**@example.test status "bounced"',
+            verdict:
+              'The contact exists and carries the right correlation value. The acknowledgement did not reach the address the enquiry named, so this run failed.',
+            checks: [
+              {
+                label: 'The CRM record exists',
+                outcome: 'pass',
+                detail: 'read back from HubSpot, not from the automation report',
+              },
+              {
+                label: 'It carries the enquiry correlation value',
+                outcome: 'pass',
+                detail: 'verify_correlation_id = enq_0000000000000001',
+              },
+              {
+                label: 'The acknowledgement reached the recipient',
+                outcome: 'fail',
+                detail: 'Resend message outcome: bounced',
+              },
+            ],
+            footnote:
+              'A synthetic example. The same record, read back from HubSpot and Resend, is what decides the verdict, not the automation own report.',
           })}
-          <p class="micro">
-            A synthetic example. The same record, read back from HubSpot and Resend, is what decides the
-            verdict, not the automation's own report.
-          </p>
         </div>
       </div>
     </div>
@@ -177,6 +202,12 @@ function howItWorks(): Html {
           (step) => html`<li>
             <h3>${step.title}</h3>
             <p>${step.description}</p>
+            <div class="snip">
+              <p class="snip__caption">${step.shape.caption}</p>
+              <ul class="snip__lines">
+                ${step.shape.lines.map((line) => html`<li>${line}</li>`)}
+              </ul>
+            </div>
           </li>`,
         )}
       </ol>

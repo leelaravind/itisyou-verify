@@ -146,7 +146,12 @@ a:hover{text-decoration-thickness:2px}
    view-transition pseudo-elements, so they get their own explicit reduced-motion rule. */
 @view-transition{navigation:auto}
 @media (prefers-reduced-motion:reduce){
-  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
+  /* Delay is zeroed too, and that is not tidiness. The entrance animation starts from
+     opacity 0 with a stagger of up to 120ms, so a reset that shortens the DURATION but
+     leaves the DELAY hands a reduced-motion reader an element that is still invisible when
+     the delay begins: the fourth status card measured opacity 0 on a rendered page. Content
+     must never be waiting on a timer to become visible. */
+  *,*::before,*::after{animation-duration:.01ms!important;animation-delay:0ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;transition-delay:0ms!important;scroll-behavior:auto!important}
   ::view-transition-group(*),::view-transition-old(*),::view-transition-new(*){animation:none!important}
 }
 
@@ -154,6 +159,9 @@ a:hover{text-decoration-thickness:2px}
 .wrap{width:100%;max-width:var(--w-wide);margin-inline:auto;padding-inline:var(--s4)}
 @media (min-width:52rem){.wrap{padding-inline:var(--s8)}}
 .measure{max-width:var(--w-measure)}
+/* A measure for a hero: wider than reading prose, because a display headline set to the
+   body measure breaks into five short lines. */
+.measure-wide{max-width:46rem}
 .stack>*+*{margin-top:var(--s4)}
 .stack-xs>*+*{margin-top:var(--s1)}
 .stack-sm>*+*{margin-top:var(--s2)}
@@ -312,6 +320,55 @@ a:hover{text-decoration-thickness:2px}
 .claimrule__split{display:flex;align-items:center;gap:var(--s3);margin-block:var(--s4)}
 .claimrule__split::before,.claimrule__split::after{content:"";flex:1 1 auto;border-top:1px solid var(--c-rule-strong)}
 .claimrule__verdict{flex:0 0 auto}
+
+/* ---- a shape, shown rather than described ------------------------------- */
+/* Not a terminal and not a code editor: no window chrome, no traffic lights, no prompt,
+   no caret. A ruled block of aligned mono, which is what the thing being shown actually
+   looks like. It scrolls inside itself rather than pushing the page sideways. */
+.snip{margin-top:var(--s3);border:1px solid var(--c-rule);border-top:2px solid var(--c-rule-strong);background:var(--c-sunken);padding:var(--s3) var(--s4);overflow-x:auto}
+.snip__caption{margin:0 0 var(--s2);font-family:var(--f-mono);font-size:var(--t-micro);text-transform:uppercase;letter-spacing:0.1em;color:var(--c-faint)}
+.snip__lines{list-style:none;margin:0;padding:0}
+.snip__lines li{font-family:var(--f-mono);font-size:var(--t-micro);line-height:1.7;white-space:pre;color:var(--c-muted)}
+
+/* ---- the claim rule at full size: reported beside retrieved ---------------- */
+/* The home page has room for the comparison the product is actually about, so it shows
+   it rather than a compressed three-line version. Two ruled columns, because reported and
+   retrieved are the same fact from two sources and the eye should run across them. Square,
+   ruled, unshadowed: the reference used a rounded frame and a drop shadow and neither is
+   what makes it read. It stacks to one column below the medium breakpoint, where side by
+   side would be two columns of four mono characters each. */
+.ediff{margin:0;border:1px solid var(--c-rule-strong);background:var(--c-surface)}
+.ediff__head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:var(--s2);padding:var(--s3) var(--s4);border-bottom:1px solid var(--c-rule-strong);background:var(--c-sunken)}
+.ediff__caption{font-family:var(--f-mono);font-size:var(--t-micro);text-transform:uppercase;letter-spacing:0.1em;color:var(--c-muted)}
+.ediff__ref{font-size:var(--t-micro);color:var(--c-faint);word-break:break-all}
+.ediff__cols{display:grid;grid-template-columns:minmax(0,1fr)}
+.ediff__col{padding:var(--s4);border-top:1px solid var(--c-rule)}
+.ediff__col:first-child{border-top:0}
+.ediff__collabel{font-family:var(--f-mono);font-size:var(--t-micro);text-transform:uppercase;letter-spacing:0.1em;color:var(--c-faint);margin:0 0 var(--s3)}
+.ediff__lines{margin:0;display:grid;gap:var(--s2)}
+.ediff__line{display:grid;grid-template-columns:minmax(0,7rem) minmax(0,1fr);gap:var(--s3);align-items:baseline}
+.ediff__line dt{font-family:var(--f-mono);font-size:var(--t-micro);color:var(--c-faint);text-transform:uppercase;letter-spacing:0.06em}
+.ediff__line dd{margin:0;font-family:var(--f-mono);font-size:var(--t-small);word-break:break-word}
+.ediff__col[data-ediff-col="reported"] .ediff__line dd{color:var(--c-muted)}
+.ediff__verdict{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s3);padding:var(--s4);border-top:1px solid var(--c-rule-strong);border-bottom:1px solid var(--c-rule)}
+.ediff__verdicttext{margin:0;font-size:var(--t-small);max-width:52ch}
+.ediff__checks{list-style:none;margin:0;padding:0}
+.ediff__check{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:var(--s1) var(--s3);padding:var(--s3) var(--s4);border-top:1px solid var(--c-rule)}
+.ediff__check:first-child{border-top:0}
+.ediff__checklabel{font-size:var(--t-small)}
+.ediff__checkdetail{grid-column:1;font-size:var(--t-micro);color:var(--c-faint)}
+.ediff__checkmark{grid-column:2;grid-row:1 / span 2;align-self:center;font-size:var(--t-micro);text-transform:uppercase;letter-spacing:0.08em;color:var(--c-muted)}
+.ediff__check[data-check-outcome="fail"] .ediff__checkmark{color:var(--c-failed)}
+.ediff__check[data-check-outcome="pass"] .ediff__checkmark{color:var(--c-verified)}
+.ediff__check[data-check-outcome="unchecked"] .ediff__checkmark{color:var(--c-unverified)}
+.ediff__note{margin:0;padding:var(--s3) var(--s4);border-top:1px solid var(--c-rule);font-size:var(--t-micro);color:var(--c-muted)}
+/* 75rem, not 52: this device sits in a seven-of-twelve track, so the viewport has to be
+   well past the point where two mono columns fit the PAGE before they fit the TRACK. */
+@media (min-width:75rem){
+  .ediff__cols{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+  .ediff__col{border-top:0;border-left:1px solid var(--c-rule)}
+  .ediff__col:first-child{border-left:0}
+}
 
 /* ---- the comparator: the claim rule's multi-field, two-column sibling ------- */
 /* Specified in design/MAPPING.md §8 and built from that specification, not from any
@@ -849,6 +906,10 @@ a:hover{text-decoration-thickness:2px}
    grid the design is drawn on. One column until desktop width; the summary follows
    the plan there, so the reason the control is unavailable is read after the plan. */
 @media (min-width:60rem){.grid-7-5{grid-template-columns:minmax(0,7fr) minmax(0,5fr);align-items:start}}
+/* Copy in the narrower track, evidence in the wider one. The evidence device carries two
+   mono columns and needs the room more than a headline does; at 5-7 the headline still sets
+   on three comfortable lines and the comparison stops wrapping one word to a line. */
+@media (min-width:60rem){.grid-5-7{grid-template-columns:minmax(0,5fr) minmax(0,7fr);align-items:start}}
 
 /* The allowance as a bar of metrics inside a sunken panel: a small label over a
    large value. auto-fit lets five tiles fall from a row to pairs to a stack without

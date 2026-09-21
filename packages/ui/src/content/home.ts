@@ -20,6 +20,19 @@ export interface HomeStep {
   readonly step: 1 | 2 | 3;
   readonly title: string;
   readonly description: string;
+  /**
+   * The shape this step actually involves, shown rather than described.
+   *
+   * Every line is a real field name from the schema the product uses, not a decorative
+   * code sample: a reader who is deciding whether this fits their automation can see the
+   * exact thing they would be sending or setting. Nothing here is a terminal, a prompt or
+   * an animated typing effect, which the exclusions rule out and which would also be
+   * pretending the page is doing something it is not.
+   */
+  readonly shape: {
+    readonly caption: string;
+    readonly lines: readonly string[];
+  };
 }
 
 /** The three-step explanation: connect, define the expected result, receive evidence. */
@@ -29,18 +42,43 @@ export const HOME_HOW_IT_WORKS: readonly HomeStep[] = [
     title: 'Connect HubSpot and Resend',
     description:
       'Give us read access to your HubSpot contacts and to the Resend account your acknowledgement emails go through. We never ask for write access, and we never fetch a URL you supply: only the two connected providers.',
+    shape: {
+      caption: 'What we ask for',
+      lines: [
+        'hubspot   crm.objects.contacts.read',
+        'resend    read message outcomes',
+        'write     never requested',
+      ],
+    },
   },
   {
     step: 2,
     title: 'Define the expected result',
     description:
       'Tell us which HubSpot property carries your correlation value, and set the checks that must be true: the record exists with the right value, the email reached the right recipient, the status reached the point you need. Your automation sends us one signed message per enquiry naming what it expects: that message is a trigger, never proof on its own.',
+    shape: {
+      caption: 'One signed event per enquiry',
+      lines: [
+        'event_id        one per enquiry, counted once',
+        'correlation_id  the value on the CRM record',
+        'expected        crm_record_id, email_message_id,',
+        '                email_recipient',
+      ],
+    },
   },
   {
     step: 3,
     title: 'Receive the evidence',
     description:
       'We read the record and the email status back ourselves and tell you verified, failed, unverified or pending, with the reason for each check and the evidence attached. No fifth status, no silent guessing.',
+    shape: {
+      caption: 'What comes back',
+      lines: [
+        'status     VERIFIED | FAILED | UNVERIFIED | PENDING',
+        'checks     each one met, not met, or not checked',
+        'evidence   what we read, and when we read it',
+      ],
+    },
   },
 ];
 

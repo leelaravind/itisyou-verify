@@ -334,3 +334,87 @@ export function ClaimRule(options: ClaimRuleOptions): Html {
     <p class="claimrule__value">${options.observed ?? 'no value retrieved'}</p>
   </div>`;
 }
+
+export interface EvidenceLine {
+  /** The mono label on the left of the line, e.g. "contact". */
+  readonly key: string;
+  readonly value: string;
+}
+
+export interface EvidenceCheck {
+  readonly label: string;
+  readonly outcome: 'pass' | 'fail' | 'unchecked';
+  /** Why, in a clause. Rendered in mono beside the outcome. */
+  readonly detail: string;
+}
+
+export interface EvidenceDiffOptions {
+  readonly caption: string;
+  /** The correlation value or run id this comparison is about. Mono, top right. */
+  readonly reference: string;
+  readonly reported: readonly EvidenceLine[];
+  readonly retrieved: readonly EvidenceLine[];
+  readonly status: StatusKey;
+  /** One sentence naming what decided it. */
+  readonly verdict: string;
+  readonly checks: readonly EvidenceCheck[];
+  /** Said under the device, in the reader's own register. */
+  readonly footnote?: string;
+}
+
+/**
+ * The claim rule at full size: what was reported beside what was retrieved, then the
+ * verdict and the checks that produced it.
+ *
+ * `ClaimRule` compresses this to three lines for a place with no room. This is the version
+ * for a place that has room, and the home page is the place: the comparison IS the product,
+ * and a visitor who reads nothing else should be able to read this and know what they would
+ * be buying. Two ruled columns rather than one stacked pair, because "reported" and
+ * "retrieved" are the same fact from two sources and the eye should be able to run across
+ * them rather than remember the first while reading the second.
+ *
+ * Square, ruled, no shadow, no rounded corner: the owner's exclusions hold here as
+ * everywhere. The reference's version of this device used a drop shadow and a rounded
+ * frame, and neither is what makes it read well.
+ */
+export function EvidenceDiff(options: EvidenceDiffOptions): Html {
+  const column = (label: string, lines: readonly EvidenceLine[], kind: string): Html =>
+    html`<div class="ediff__col" data-ediff-col="${kind}">
+      <p class="ediff__collabel">${label}</p>
+      <dl class="ediff__lines">
+        ${lines.map(
+          (line) => html`<div class="ediff__line">
+            <dt>${line.key}</dt>
+            <dd>${line.value}</dd>
+          </div>`,
+        )}
+      </dl>
+    </div>`;
+
+  return html`<figure class="ediff" data-evidence-diff="${options.status}">
+    <figcaption class="ediff__head">
+      <span class="ediff__caption">${options.caption}</span>
+      <span class="ediff__ref mono">${options.reference}</span>
+    </figcaption>
+    <div class="ediff__cols">
+      ${column('What the automation reported', options.reported, 'reported')}
+      ${column('What we retrieved ourselves', options.retrieved, 'retrieved')}
+    </div>
+    <div class="ediff__verdict">
+      ${StatusBadge({ status: options.status })}
+      <p class="ediff__verdicttext">${options.verdict}</p>
+    </div>
+    <ul class="ediff__checks">
+      ${options.checks.map(
+        (check) => html`<li class="ediff__check" data-check-outcome="${check.outcome}">
+          <span class="ediff__checklabel">${check.label}</span>
+          <span class="ediff__checkdetail mono">${check.detail}</span>
+          <span class="ediff__checkmark mono">${
+            check.outcome === 'pass' ? 'met' : check.outcome === 'fail' ? 'not met' : 'not checked'
+          }</span>
+        </li>`,
+      )}
+    </ul>
+    ${options.footnote === undefined ? null : html`<p class="ediff__note">${options.footnote}</p>`}
+  </figure>`;
+}
