@@ -262,7 +262,9 @@ function PaymentRecoveryDisclosure(): Html {
  * (`design/stitch/screens/batch-02/.../pricing_policy_itisyou_verify`): a left-aligned
  * page head; a main grid split seven to five, with the plan card and the payment-failure
  * policy in the wider column and the purchase summary in the narrower one; then the four
- * results as a row of cards, the questions two abreast, and the standing limitations.
+ * results as a row of cards, the questions as ruled rows in one column, and the standing
+ * limitations. The reference sets the questions two abreast; ours has five, which leaves an
+ * orphan, and a reader scanning for one question reads a single column faster.
  *
  * The plan card carries the price in its head, opposite the plan name, and the allowance
  * as a bar of metrics rather than a table. Every figure is the frozen contract's; the

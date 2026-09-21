@@ -250,9 +250,23 @@ describe("the owner's design exclusions hold in the served stylesheet", () => {
      * `border-left:0` precisely so a callout sits flush inside the frame, and a rule that
      * takes an edge away cannot be the device the exclusion names.
      */
-    const leftRules = [...CSS.matchAll(/border-left(?:-color|-width|-style)?:([^;}]+)/g)]
-      .map((m) => (m[1] ?? '').trim())
-      .filter((value) => !/^(?:0(?:px)?|none)$/.test(value));
+    /*
+     * One carve-out, narrow and named: a hairline BETWEEN two grid cells. The comparison
+     * device on the home page puts "what was reported" beside "what we retrieved", and the
+     * line between them is the same hairline a table draws between two columns, not an
+     * accent bar on the leading edge of a block. It is 1px of `--c-rule`, the neutral rule
+     * colour, it carries no tone, and it exists only while the two columns are side by
+     * side. Everything else stays forbidden, including any coloured or thick left edge on
+     * this selector: the value is pinned, not just the selector.
+     */
+    const DIVIDER = { selector: '.ediff__col', value: '1px solid var(--c-rule)' };
+    const leftRules = [...CSS.matchAll(/([^{}]+)\{[^}]*?border-left(?:-color|-width|-style)?:([^;}]+)/g)]
+      .map((m) => ({ selector: (m[1] ?? '').trim(), value: (m[2] ?? '').trim() }))
+      .filter((rule) => !/^(?:0(?:px)?|none)$/.test(rule.value))
+      .filter(
+        (rule) => !(rule.selector.endsWith(DIVIDER.selector) && rule.value === DIVIDER.value),
+      )
+      .map((rule) => `${rule.selector} => ${rule.value}`);
     expect(leftRules, 'a left-edge rule is back in the stylesheet').toEqual([]);
     // And the replacement is really there, on the callout base rather than on one tone.
     expect(CSS).toMatch(/\.callout\{[^}]*border-top-width:3px/);
@@ -279,5 +293,33 @@ describe("the owner's design exclusions hold in the served stylesheet", () => {
       suppressors.map(([, selector]) => (selector ?? '').trim()),
       'a rule removes the callout tone rule again',
     ).toEqual([]);
+  });
+
+  it('RESIL-918 the reduced-motion reset zeroes the delay too, so no staggered element is left invisible', () => {
+    /*
+     * Found on a rendered page, not by reading this file: the fourth status card on the
+     * home page measured opacity 0 with reduced motion requested.
+     *
+     * The entrance animation starts from opacity 0 and the four cards are staggered by up
+     * to 120ms. The reset shortened the DURATION to 0.01ms and left the DELAY alone, so for
+     * those 120ms the card sat at its from-state: invisible, to exactly the reader who asked
+     * for less motion. Content must never be waiting on a timer to become visible, so the
+     * reset now zeroes delay as well, on both animation and transition.
+     */
+    const at = CSS.indexOf('@media (prefers-reduced-motion:reduce){');
+    expect(at, 'the reduced-motion block is gone').toBeGreaterThan(-1);
+    const block = CSS.slice(at, CSS.indexOf('\n}', at));
+    for (const declaration of [
+      'animation-duration:.01ms!important',
+      'animation-delay:0ms!important',
+      'transition-duration:.01ms!important',
+      'transition-delay:0ms!important',
+    ]) {
+      expect(block, declaration + ' is missing from the reduced-motion reset').toContain(declaration);
+    }
+
+    // And the thing that made it matter: something really is staggered, so the reset is not
+    // guarding a case that cannot happen.
+    expect(CSS).toMatch(/animation-delay:[1-9][0-9]*ms/);
   });
 });

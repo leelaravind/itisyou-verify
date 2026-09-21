@@ -48458,6 +48458,23 @@
       "risk": "A cached or locally reused session would hand a customer a spent URL; a live-mode object arriving at a test-mode deployment would hand them somebody else’s billing account.",
       "setup": "Two openings, the second answered with livemode true.",
       "expected": "Two requests are made and the live-mode response is rejected with a StripeError."
+    },
+    {
+      "id": "RESIL-918",
+      "category": "accessibility_resilience",
+      "level": "unit",
+      "requirement": "the reduced-motion reset zeroes animation and transition delay, not only duration",
+      "risk": "The entrance animation starts at opacity 0 and the status cards are staggered by up to 120ms. A reset that shortens duration but leaves delay hands a reduced-motion reader an element that is invisible until the delay elapses: the fourth status card on the home page measured opacity 0 on a rendered page. Content must never wait on a timer to be visible.",
+      "risk_source": "case",
+      "setup": "Read the prefers-reduced-motion block out of the served stylesheet.",
+      "expected": "It zeroes animation-delay and transition-delay as well as both durations, and something in the sheet really is staggered.",
+      "owner_agent": "A05",
+      "implementation_ref": "tests/unit/ui/design-exclusions.test.ts",
+      "provider_backed": false,
+      "status": "passing",
+      "runner": "vitest",
+      "area": "tests/unit/ui/design-exclusions.test.ts",
+      "countable": true
     }
   ]
 }
