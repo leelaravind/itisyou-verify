@@ -438,7 +438,7 @@ export class SyntheticCustomerDataPort implements CustomerDataPort {
       fieldErrors: {},
       message:
         `That looks like a ${input.provider} credential, but nothing was sent to ${input.provider} and nothing was stored. ` +
-        'This workspace is running on synthetic data, so we cannot check the credential against the provider — and we are not going to mark the connection working on our own say-so.',
+        'This workspace is running on synthetic data, so we cannot check the credential against the provider, and we are not going to mark the connection working on our own say-so.',
       redirectTo: null,
     };
   }
@@ -549,7 +549,7 @@ export class SyntheticCustomerDataPort implements CustomerDataPort {
     for (const connection of await this.connections()) {
       if (connection.status !== 'ready') {
         blockers.push(
-          `${connection.displayName} is not connected and ready — its status is "${connection.status}".`,
+          `${connection.displayName} is not connected and ready: its status is "${connection.status}".`,
         );
       }
     }
@@ -569,7 +569,7 @@ export class SyntheticCustomerDataPort implements CustomerDataPort {
   async createCheckout(): Promise<WriteResult> {
     state.checkoutAttempted = true;
     return fail(
-      'No checkout session was created and no card was charged. This workspace is running on synthetic data and is not connected to Stripe. When billing lands, this button hands you to Stripe hosted Checkout — card details never reach us.',
+      'No checkout session was created and no card was charged. This workspace is running on synthetic data and is not connected to Stripe. When billing lands, this button hands you to Stripe hosted Checkout: card details never reach us.',
     );
   }
 
@@ -689,7 +689,7 @@ export class SyntheticCustomerDataPort implements CustomerDataPort {
       ok: true,
       fieldErrors: {},
       message:
-        'Your message was recorded in this browser session only. Nothing was sent to anybody — this workspace is running on synthetic data and the support queue is not connected yet.',
+        'Your message was recorded in this browser session only. Nothing was sent to anybody: this workspace is running on synthetic data and the support queue is not connected yet.',
       redirectTo: null,
       reference,
     };

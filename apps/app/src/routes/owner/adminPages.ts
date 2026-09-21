@@ -136,7 +136,7 @@ export function AdminLoginPage(options: LoginPageOptions): Html {
       headingLevel: 2,
       body: html`<p class="measure">
           Opening the link signs you in. Before anything that changes money, access or what the public sees,
-          you will be asked for a six-digit code from your authenticator app — and again if more than fifteen
+          you will be asked for a six-digit code from your authenticator app, and again if more than fifteen
           minutes have passed since the last one.
         </p>
         <p class="measure small muted">
@@ -237,7 +237,7 @@ export function BootstrapPage(options: BootstrapPageOptions): Html {
         <li>Your user row is marked as the platform owner.</li>
         <li>An audit entry records that it happened, and when.</li>
         <li>
-          This page stops working. Not because the secret was deleted — because an owner now exists, and the
+          This page stops working. Not because the secret was deleted, because an owner now exists, and the
           code refuses while one does. You do not have to remember to tidy anything up.
         </li>
       </ul>`,

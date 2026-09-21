@@ -26,7 +26,7 @@ export const PLAN_ALLOWANCE: readonly PricingAllowanceLine[] = [
 ];
 
 /** What happens once the monthly run allowance is used. No surprise overage. */
-export const PLAN_AT_ALLOWANCE = `Once you reach ${LIMITS.PLAN_RUNS_PER_PERIOD} runs in a billing period, we stop accepting new events for that workflow until your next period starts. We do not charge you for going over, and we do not silently keep running and bill you afterwards — you get a plain notice that the period's allowance is used.`;
+export const PLAN_AT_ALLOWANCE = `Once you reach ${LIMITS.PLAN_RUNS_PER_PERIOD} runs in a billing period, we stop accepting new events for that workflow until your next period starts. We do not charge you for going over, and we do not silently keep running and bill you afterwards; you get a plain notice that the period's allowance is used.`;
 
 export const PLAN_RENEWAL_WORDING =
   'Your plan renews automatically each month at the same price, on the date you first subscribed, until you cancel.';

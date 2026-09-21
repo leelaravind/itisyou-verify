@@ -54,7 +54,7 @@ export function maskDisplayValue(value: string | null): string | null {
 /** The stripe that sits between the header and the content on every synthetic page. */
 export function syntheticStripe(): Html {
   return html`<p class="synthetic__stripe" role="note">
-    Synthetic data — nothing on this page is a real customer, record or message
+    Synthetic data: nothing on this page is a real customer, record or message
   </p>`;
 }
 
@@ -139,7 +139,7 @@ function runDetail(run: DemoRun): Html {
     ${
       run.results.length > 1
         ? Comparator({
-            caption: `Enquiry ${run.correlationId} — ${maskDisplayValue(run.summary) ?? ''}`,
+            caption: `Enquiry ${run.correlationId} · ${maskDisplayValue(run.summary) ?? ''}`,
             detail: `Checked ${formatInstant(run.decidedAt)} · window closed ${formatInstant(run.deadlineAt)}`,
             rows,
             verdict: run.status as StatusKey,
@@ -317,8 +317,8 @@ export function DemoPage(): Html {
           tone: 'limit',
           title: 'Read the two amber results carefully',
           body: html`<p>
-              "Unverified" is not a failure. It means we could not retrieve the evidence — in this example the
-              HubSpot authorisation had expired — so we are telling you we could not look, rather than guessing.
+              "Unverified" is not a failure. It means we could not retrieve the evidence, in this example the
+              HubSpot authorisation had expired, so we are telling you we could not look, rather than guessing.
             </p>
             <p>
               "Pending" means the agreed completion window is still open. Neither of them is a verdict about
@@ -340,7 +340,7 @@ export function DemoPage(): Html {
             These are the checks a real workspace gets from its onboarding form, produced by the same
             code. This page performs no check a customer's workflow could not. The last one compares
             the address the acknowledgement actually went to with the address this enquiry named, after
-            lowercasing and trimming — and without stripping <span class="mono">+tags</span>, so an
+            lowercasing and trimming, and without stripping <span class="mono">+tags</span>, so an
             address the sender controls does not stand in for the enquirer's.
           </p>
           <p>

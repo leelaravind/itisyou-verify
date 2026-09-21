@@ -209,7 +209,7 @@ export function WorkspacePage(options: WorkspacePageOptions): Html {
           <dd>
             ${
               workflow.mapping.correlationProperty === ''
-                ? html`<span class="small muted">Not set — nothing can be matched back to an enquiry yet</span>`
+                ? html`<span class="small muted">Not set: nothing can be matched back to an enquiry yet</span>`
                 : html`<span class="mono">${workflow.mapping.correlationProperty}</span>`
             }
           </dd>
@@ -242,7 +242,7 @@ export function WorkspacePage(options: WorkspacePageOptions): Html {
           empty: EmptyState({
             title: 'No runs received yet',
             body:
-              'Nothing has reached us for this workflow. That is not a pass — an empty workspace is not a ' +
+              'Nothing has reached us for this workflow. That is not a pass: an empty workspace is not a ' +
               'verified one. If you expected enquiries by now, your automation may not be sending us events.',
             actions: [
               Button({

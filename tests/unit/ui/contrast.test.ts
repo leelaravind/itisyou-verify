@@ -195,7 +195,10 @@ describe('palette contrast', () => {
       ['light', 'muted', 'paper', 6.94],
       ['light', 'faint', 'paper', 4.96],
       ['light', 'faint', 'sunken', 4.55],
-      ['light', 'faint', 'surface', 5.48],
+      // 5.29, not 5.48: `surface` moved from #FFFFFF to #FAFBFC when the owner's
+      // exclusion on pure-white backgrounds was applied. Still AA, and the number moved
+      // with the colour, which is what this case exists to force.
+      ['light', 'faint', 'surface', 5.29],
       ['light', 'verified', 'paper', 5.97],
       ['light', 'verified', 'tintVerified', 5.72],
       ['light', 'failed', 'paper', 6.62],
@@ -205,7 +208,7 @@ describe('palette contrast', () => {
       ['light', 'pending', 'paper', 7.4],
       ['light', 'pending', 'tintPending', 6.94],
       ['light', 'fieldBorder', 'paper', 3.88],
-      ['light', 'fieldBorder', 'surface', 4.28],
+      ['light', 'fieldBorder', 'surface', 4.14],
       ['light', 'focus', 'paper', 5.29],
       // Recomputed when the dark palette became the owner-approved Stitch system. These
       // moved together with the comment in tokens.ts, which is the whole point of this

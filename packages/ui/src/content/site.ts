@@ -37,7 +37,7 @@ export const STATUS_DEFINITIONS: readonly StatusDefinition[] = [
     status: 'UNVERIFIED',
     label: 'Unverified',
     description:
-      'We could not get a clear answer — access, correlation or evidence was missing or ambiguous. This is not a pass and not a failure.',
+      'We could not get a clear answer: access, correlation or evidence was missing or ambiguous. This is not a pass and not a failure.',
   },
   {
     status: 'PENDING',

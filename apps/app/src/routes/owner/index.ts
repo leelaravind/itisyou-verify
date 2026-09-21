@@ -183,7 +183,7 @@ export class UnwiredOwnerAuth implements OwnerAuthPort {
       ok: false,
       dependency:
         'Two-factor checking is not wired to this deployment yet, so this code cannot be verified. Nothing has been ' +
-        'accepted — you have not been let through on a guess.',
+        'accepted: you have not been let through on a guess.',
     };
   }
 
@@ -1193,7 +1193,7 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
               title: 'Shown once, and only once',
               body: html`<p>
                   This code is not stored anywhere we can read it back. If you leave this page without using it,
-                  open a new pairing — do not go looking for it.
+                  open a new pairing; do not go looking for it.
                 </p>
                 <p class="mono" data-pairing-code="true">${outcome.invitation.code}</p>
                 <p class="small">
@@ -1317,7 +1317,7 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
               `That approval was granted for ${approval.action_type}, which does not authorise replacing the ` +
               'running code. Nothing has been restored and the approval has not been used. No approval type on ' +
               'this deployment binds to a deployment id, so there is at present nothing that can authorise a ' +
-              'restore from this page — that is a missing action type, not a mistake you made.',
+              'restore from this page: that is a missing action type, not a mistake you made.',
             redirectTo: null,
             dependency: null,
           },
@@ -1346,7 +1346,7 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
             'The approval stands, but the release cannot be queued yet: the release job refuses to be created ' +
             'without a bound approval id, and the runner port this panel calls does not carry one. Nothing has ' +
             'been restored, nothing has been recorded against that deployment, and the approval has not been ' +
-            'used — so it is still there when this can actually run. `wrangler rollback` from a machine with ' +
+            'used, so it is still there when this can actually run. `wrangler rollback` from a machine with ' +
             'deploy access does the same job today.',
         },
         'Restore deployment',

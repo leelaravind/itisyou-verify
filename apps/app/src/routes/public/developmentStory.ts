@@ -138,7 +138,7 @@ export function DevelopmentStoryPage(options: DevelopmentStoryOptions): Html {
       ${EmptyState({
         title: 'Not yet published',
         body:
-          'The development story has not been written yet. When it is, it will appear here in full — ' +
+          'The development story has not been written yet. When it is, it will appear here in full, ' +
           'including the parts that did not work. We would rather show an empty page than a placeholder ' +
           'that reads like a finished account.',
         actions: [],

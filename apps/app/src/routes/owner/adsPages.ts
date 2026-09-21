@@ -185,7 +185,7 @@ export function ApprovalsPage(options: {
     ${PageHead({
       eyebrow: 'Approvals',
       title: 'What you have approved',
-      lede: 'Each approval records exactly what action, at exactly what amount, by whom and when — and stops applying if any of it changes.',
+      lede: 'Each approval records exactly what action, at exactly what amount, by whom and when, and stops applying if any of it changes.',
     })}
 
     ${Callout({
@@ -194,7 +194,7 @@ export function ApprovalsPage(options: {
       body: html`<p>
         Approving a £15.00 campaign does not approve a £15.01 one. The approval is bound to a fingerprint of
         the whole payload, so changing a budget, a date, an audience or a word of the ad text makes it stop
-        applying — you will be asked again rather than the change slipping through.
+        applying; you will be asked again rather than the change slipping through.
       </p>`,
     })}
 
@@ -270,7 +270,7 @@ export function ApprovalsPage(options: {
                     csrfToken: options.csrfToken,
                     body: Button({ label: 'Withdraw', variant: 'quiet', type: 'submit' }),
                   })
-                : html`<span class="muted micro">—</span>`,
+                : html`<span class="muted micro">none</span>`,
           },
         ],
         rows: options.approvals,

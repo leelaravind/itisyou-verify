@@ -12,7 +12,6 @@ import {
   CSS,
   CSS_BYTES,
   DARK,
-  ELEVATION,
   LIGHT,
   STATUS_PRESENTATION,
   THEME_SCRIPT,
@@ -124,21 +123,28 @@ describe('design tokens', () => {
     }
   });
 
-  it('RESIL-184 the sticky header survives, and keeps an opaque fallback', () => {
+  it('RESIL-184 the header is sticky and opaque, with no glass effect anywhere', () => {
     /*
-     * The first piece of Stitch composition rather than palette: the approved header is
-     * fixed with a blurred backdrop, and that is the one element all nineteen screens
-     * share. Asserted because it is a single rule carrying a design decision, and because
-     * the translucent colour must never be the ONLY background declared -- a browser
-     * without colour mixing would then render a see-through header over scrolling text.
+     * This case used to assert the opposite half of the same rule: the approved header is
+     * translucent over a blurred backdrop, and the case held that in place along with an
+     * opaque fallback for engines without colour mixing.
+     *
+     * The owner's exclusions name glass effects and override a conflicting Stitch style,
+     * so the blur and the translucency are gone and the fallback has become the rule. The
+     * property worth asserting inverted with it, and is now the stronger of the two: a
+     * blur cannot creep back onto any surface, not merely onto this one.
+     *
+     * Sticky is kept and still asserted, because it is not a style decision. Fixed would
+     * take the header out of flow and leave every page needing compensating top padding.
      */
     expect(CSS, 'the header is no longer sticky').toMatch(/\.site\{[^}]*position:sticky/);
-    expect(CSS, 'no opaque fallback before the translucent value').toMatch(
-      /\.site\{[^}]*background:var\(--c-surface\)[^}]*background:color-mix/,
+    expect(CSS, 'the header background is not the opaque surface').toMatch(
+      /\.site\{[^}]*background:var\(--c-surface\);?\s*\}/,
     );
-    expect(CSS, 'the blur has no unsupported-browser guard').toContain(
-      '@supports not (backdrop-filter:blur(1px))',
-    );
+    expect(CSS, 'the header went translucent again').not.toContain('color-mix');
+    for (const banned of ['backdrop-filter', 'blur(']) {
+      expect(CSS, `${banned} is back in the stylesheet`).not.toContain(banned);
+    }
   });
 
   it('RESIL-185 the display sizes compute to the approved pixel values at both design widths', () => {
@@ -173,56 +179,71 @@ describe('design tokens', () => {
     expect(TYPE.h3, 'headline-sm is 18px').toBe('1.125rem');
   });
 
-  it('RESIL-186 cards carry elevation AND keep a border, so the edge survives without shadows', () => {
-    /*
-     * The approved design puts a shadow on every card; this interface had none at all. On
-     * the light palette that read as restraint. On the approved dark palette, where surface
-     * sits one shade above paper, a 1px hairline was doing all the work of separating a
-     * card from the page.
-     *
-     * The border is NOT replaced by the shadow, and that is the property worth asserting.
-     * Shadows are dropped entirely in forced-colors mode and under some high-contrast
-     * settings; a card whose only edge was a shadow would dissolve into the page for
-     * exactly the readers who need the edge most.
-     */
-    expect(CSS, 'cards have no elevation').toMatch(/\.card\{[^}]*box-shadow:var\(--e-rest\)/);
-    expect(CSS, 'cards lost their border').toMatch(/\.card\{[^}]*border:1px solid var\(--c-rule\)/);
-    expect(CSS, 'the sticky header has no elevation').toMatch(
-      /\.site\{[^}]*box-shadow:var\(--e-raised\)/,
-    );
-    // A dark palette makes a tinted shadow read as a glow. The designs use a glow
-    // deliberately and only on the primary call to action; on a card it would be wrong.
-    for (const value of [ELEVATION.rest, ELEVATION.raised]) {
-      expect(value, `${value} is not a neutral shadow`).toMatch(
-        /^(?:[^,]*rgba\(0,0,0,[\d.]+\),?\s*)+$/,
+  /*
+   * RESIL-186 and RESIL-187 used to assert the opposite of what they assert now, and the
+   * reversal is the point rather than an embarrassment.
+   *
+   * Both were written to hold a piece of the approved Stitch design in place: every card
+   * carries a `shadow-sm`, the hero headline is painted with a mint-to-cyan gradient
+   * clipped to the text. The owner's exclusion list names drop shadows and harsh gradients
+   * outright and says in terms that it overrides any conflicting Stitch style. So the
+   * cases now hold the exclusion in place instead, which is a stronger property than the
+   * one they replaced: an absence is checkable everywhere, where the old assertions only
+   * pinned two selectors.
+   *
+   * The engineering argument the old RESIL-186 made still has to be answered, and is:
+   * without a shadow, a dark-palette card is separated from the page by its border alone,
+   * so the border is now `--c-rule-strong` rather than `--c-rule`. That substitution is
+   * asserted below, because losing it would leave cards genuinely hard to see.
+   */
+  it('RESIL-186 no surface carries a drop shadow, and every container keeps a visible edge', () => {
+    expect(CSS, 'a box-shadow is back in the stylesheet').not.toContain('box-shadow');
+    expect(CSS, 'a drop-shadow filter is back in the stylesheet').not.toContain('drop-shadow');
+    // The edge that replaced it. A card, a panel and the results frame are the three
+    // surfaces that were relying on elevation.
+    for (const selector of ['.card', '.panel', '.results']) {
+      expect(
+        CSS,
+        `${selector} lost the stronger border that replaced its shadow`,
+      ).toMatch(new RegExp(`\\${selector}\\{[^}]*border:1px solid var\\(--c-rule-strong\\)`));
+    }
+    // And the strong rule really is the more visible of the two, on both palettes, or the
+    // substitution above is decoration rather than a fix.
+    for (const palette of [DARK, LIGHT]) {
+      expect(contrast(palette.ruleStrong, palette.surface)).toBeGreaterThan(
+        contrast(palette.rule, palette.surface),
       );
     }
   });
 
-  it('RESIL-187 the hero accent has a solid colour before the gradient, and is not a status colour', () => {
+  it('RESIL-187 the hero headline is emphasised by ink, not by a gradient or a brand colour', () => {
     /*
-     * `background-clip:text` paints the glyphs with the gradient and needs
-     * `color:transparent` to reveal it. If the gradient does not paint -- an old engine, a
-     * print stylesheet, forced colours -- transparent text on a dark ground is INVISIBLE,
-     * not merely unstyled. So the solid colour is declared first and unconditionally, the
-     * clip lives behind `@supports`, and forced-colors mode drops the gradient entirely.
+     * No gradient anywhere, and specifically none clipped to text: `background-clip:text`
+     * needs `color:transparent` to reveal the paint, so an engine that supports the clip
+     * and fails to paint renders the headline INVISIBLE rather than unstyled. Removing the
+     * device removes that failure mode with it.
      *
-     * The second half matters more on this product than the first. A green word in this
-     * interface carries a verdict. The accent uses Stitch's `primary` (#6ffbbe), which is a
-     * deliberate shade off `status-confirmed` (#4edea3) so the two never read as the same
-     * thing, and this asserts the headline can never be painted in the verdict colour.
+     * The emphasis that replaced it is `--c-muted` for the lead clause and `--c-ink` for
+     * the clause carrying the argument. It survives greyscale, forced colours and a failed
+     * font load, and it cannot be mistaken for a verdict: a green word in this interface
+     * means VERIFIED, and a headline painted in a brand colour a shade off it was always
+     * one glance away from reading as one.
      */
-    expect(CSS, 'the accent has no solid colour before the clip').toMatch(
-      /\.accent\{color:var\(--brand-1\)\}/,
+    for (const banned of ['linear-gradient', 'radial-gradient', 'conic-gradient', 'background-clip']) {
+      expect(CSS, `${banned} is back in the stylesheet`).not.toContain(banned);
+    }
+    expect(CSS, 'the lead clause is not set in the muted ink').toMatch(
+      /\.display__lead\{color:var\(--c-muted\)\}/,
     );
-    expect(CSS, 'the clip is not behind a support query').toContain(
-      '@supports (background-clip:text)',
+    expect(CSS, 'the accent clause is not set in the full ink').toMatch(
+      /\.accent\{color:var\(--c-ink\)\}/,
     );
     expect(CSS, 'forced colours are not handled').toMatch(
-      /@media \(forced-colors:active\)\{\.accent\{color:CanvasText/,
+      /@media \(forced-colors:active\)\{\.display__lead,\.accent\{color:CanvasText\}/,
     );
-    expect(BRAND.primary, 'the accent is the VERIFIED colour').not.toBe(DARK.verified);
-    // And it is still readable: measured on both surfaces it can appear on.
+    // The brand colours still exist and are still measured, because the focus ring is one
+    // of them. What they no longer do is paint a headline.
+    expect(BRAND.primary, 'the brand accent is the VERIFIED colour').not.toBe(DARK.verified);
     for (const ground of [DARK.paper, DARK.surface]) {
       expect(contrast(BRAND.primary, ground)).toBeGreaterThanOrEqual(4.5);
       expect(contrast(BRAND.secondary, ground)).toBeGreaterThanOrEqual(4.5);

@@ -275,7 +275,7 @@ export interface CoverageLike {
  */
 export function CoverageNotice(coverage: CoverageLike): Html {
   return html`<div ${attrs({ class: 'stack-sm', 'data-coverage-mode': coverage.mode })}>
-    <p class="eyebrow">Coverage — ${coverage.mode.replace(/_/g, ' ')}</p>
+    <p class="eyebrow">Coverage · ${coverage.mode.replace(/_/g, ' ')}</p>
     <p class="small"><strong>${coverage.headline}</strong></p>
     <p class="small muted">${coverage.detail}</p>
     ${

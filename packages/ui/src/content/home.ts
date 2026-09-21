@@ -28,13 +28,13 @@ export const HOME_HOW_IT_WORKS: readonly HomeStep[] = [
     step: 1,
     title: 'Connect HubSpot and Resend',
     description:
-      'Give us read access to your HubSpot contacts and to the Resend account your acknowledgement emails go through. We never ask for write access, and we never fetch a URL you supply — only the two connected providers.',
+      'Give us read access to your HubSpot contacts and to the Resend account your acknowledgement emails go through. We never ask for write access, and we never fetch a URL you supply: only the two connected providers.',
   },
   {
     step: 2,
     title: 'Define the expected result',
     description:
-      'Tell us which HubSpot property carries your correlation value, and set the checks that must be true: the record exists with the right value, the email reached the right recipient, the status reached the point you need. Your automation sends us one signed message per enquiry naming what it expects — that message is a trigger, never proof on its own.',
+      'Tell us which HubSpot property carries your correlation value, and set the checks that must be true: the record exists with the right value, the email reached the right recipient, the status reached the point you need. Your automation sends us one signed message per enquiry naming what it expects: that message is a trigger, never proof on its own.',
   },
   {
     step: 3,
@@ -72,7 +72,7 @@ export const HOME_WHAT_THIS_DOES_NOT_DO: readonly HomeExclusion[] = [
     // reason for buying is that silence should not be mistaken for success, is the worst
     // thing this product could say. See packages/domain/src/coverage.ts.
     heading: 'It does not detect a run that never started',
-    body: 'We only learn about an enquiry when your automation sends us an event. We cannot tell you that a run never started, because we have built no way to find enquiries your automation never reported. If it stops calling us we show nothing — not a pass, not a failure — and every result names the coverage we actually have.',
+    body: 'We only learn about an enquiry when your automation sends us an event. We cannot tell you that a run never started, because we have built no way to find enquiries your automation never reported. If it stops calling us we show nothing, not a pass, not a failure, and every result names the coverage we actually have.',
   },
   {
     heading: 'It is not instant',

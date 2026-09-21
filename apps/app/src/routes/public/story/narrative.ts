@@ -21,9 +21,9 @@ export interface Sourced {
 
 export const PROBLEM: Sourced & { readonly paragraphs: readonly string[] } = {
   paragraphs: [
-    'An automation platform tells you a run succeeded. That claim comes from the automation itself. If the step that was supposed to create a CRM record silently did nothing, or the acknowledgement email was accepted by the sending service and then bounced, the run still reports success — because from the automation’s point of view, it finished.',
+    'An automation platform tells you a run succeeded. That claim comes from the automation itself. If the step that was supposed to create a CRM record silently did nothing, or the acknowledgement email was accepted by the sending service and then bounced, the run still reports success, because from the automation’s point of view, it finished.',
     'The gap is not monitoring. Error alerts fire when something throws. This is about the cases where nothing throws and the outcome still is not there.',
-    'The idea: go and look. Read the CRM record back from the CRM. Read the email outcome back from the email provider. Check both against rules the customer set. Report what the evidence supports — and report honestly when the evidence is missing rather than guessing.',
+    'The idea: go and look. Read the CRM record back from the CRM. Read the email outcome back from the email provider. Check both against rules the customer set. Report what the evidence supports, and report honestly when the evidence is missing rather than guessing.',
   ],
   source: 'docs/development-story.md § The problem, § The idea',
 };
@@ -83,14 +83,14 @@ export const JOURNEY_STEPS: readonly JourneyStep[] = [
   },
   {
     title: 'We read the CRM record back, and the email outcome back',
-    body: 'We ask HubSpot ourselves for the record, and Resend for what happened to the message — or Resend calls us and we verify its signature. Both are independent of the automation that claimed success.',
+    body: 'We ask HubSpot ourselves for the record, and Resend for what happened to the message, or Resend calls us and we verify its signature. Both are independent of the automation that claimed success.',
     vocabulary: 'provider_readback · provider_webhook',
     source:
       'docs/development-story.md § The idea; packages/contracts/src/evidence.ts (EvidenceOrigin)',
   },
   {
     title: 'The customer’s rules are evaluated',
-    body: 'A closed set of typed operators — exists, equals, normalised_email_equals, occurred_within, provider_status_in, one_of — over an allowlisted set of fields. A general expression language was rejected because it would make the difference between "failed" and "could not be checked" impossible to prove. Two checks bind to the run’s own signed event — the enquiry reference and the expected recipient — as a closed reference, not an expression; that is what lets "the acknowledgement went to the address this enquiry named" be checked per run.',
+    body: 'A closed set of typed operators (exists, equals, normalised_email_equals, occurred_within, provider_status_in, one_of) over an allowlisted set of fields. A general expression language was rejected because it would make the difference between "failed" and "could not be checked" impossible to prove. Two checks bind to the run’s own signed event, the enquiry reference and the expected recipient, as a closed reference, not an expression; that is what lets "the acknowledgement went to the address this enquiry named" be checked per run.',
     vocabulary:
       'exists · equals · normalised_email_equals · occurred_within · provider_status_in · one_of',
     source: 'docs/development-story.md § Why the rule language is deliberately small; EVT-0002',
@@ -349,7 +349,7 @@ export const FAILURES: readonly Failure[] = [
     id: 'owner',
     title: 'The owner dashboard, readable by anyone',
     wentWrong:
-      'The in-memory owner data port defaulted its principal to a fully authenticated platform owner with recent MFA. Mounting the owner routes unconfigured therefore served the entire owner dashboard — overview, customers, approvals, controls, settings — to anonymous visitors on staging.',
+      'The in-memory owner data port defaulted its principal to a fully authenticated platform owner with recent MFA. Mounting the owner routes unconfigured therefore served the entire owner dashboard (overview, customers, approvals, controls, settings) to anonymous visitors on staging.',
     whyMissed:
       'In source it looks correct: the 404-not-403 rule is implemented and its tests pass, because every test constructs an anonymous principal explicitly. The default was what failed, and only a live request showed it. It was found by deploying and fetching /owner, not by reading code.',
     whatChanged:
@@ -360,11 +360,11 @@ export const FAILURES: readonly Failure[] = [
     id: 'meter',
     title: '33% that displayed as 100%',
     wentWrong:
-      'The demo page shows a workflow health card: a big "33%" with a progress bar underneath. The bar rendered full width and solid green. The markup was right the whole time — style="width:33%". A strict Content-Security-Policy added an hour earlier blocks inline style attributes, so the fill fell back to its default width, which is all of it.',
+      'The demo page shows a workflow health card: a big "33%" with a progress bar underneath. The bar rendered full width and solid green. The markup was right the whole time: style="width:33%". A strict Content-Security-Policy added an hour earlier blocks inline style attributes, so the fill fell back to its default width, which is all of it.',
     whyMissed:
       'Nothing in code review would have found it. The template was correct, the test asserted the template was correct, and the policy was correct in isolation. It took deploying the page and looking at a screenshot.',
     whatChanged:
-      'A first fix permitted inline style attributes as a named exception. That exception is gone: the computed width moved into a small set of predefined CSS classes and the policy went back to refusing inline style attributes entirely. The classes round down — 33% draws as 30, 99% as 95, only a true 100% fills the bar. The deployed header now reads style-src-attr ’none’. The structured record’s EVT-0010 still describes the exception stage and has no later event for its removal.',
+      'A first fix permitted inline style attributes as a named exception. That exception is gone: the computed width moved into a small set of predefined CSS classes and the policy went back to refusing inline style attributes entirely. The classes round down: 33% draws as 30, 99% as 95, only a true 100% fills the bar. The deployed header now reads style-src-attr ’none’. The structured record’s EVT-0010 still describes the exception stage and has no later event for its removal.',
     source:
       'docs/development-story.md § 33% that displayed as 100%; EVT-0010; commits ab4b345 and 7a3c0e1',
   },
@@ -372,11 +372,11 @@ export const FAILURES: readonly Failure[] = [
     id: 'emails',
     title: 'Three customer emails whose claims the code had falsified',
     wentWrong:
-      'A09 audited all twelve transactional templates with one lens: was this sentence true when written, and is it still true now? Three were not. payment_problem said "We have not suspended anything yet", which the approved recovery policy had made false — new runs pause from the first failed renewal. cancellation_confirmed promised access until the end of the paid period unconditionally, but a support-led cancellation can take effect immediately. deletion_scheduled promised to remove "your evidence, runs and workflow configuration" while deletion left workflows, connections and memberships in place.',
+      'A09 audited all twelve transactional templates with one lens: was this sentence true when written, and is it still true now? Three were not. payment_problem said "We have not suspended anything yet", which the approved recovery policy had made false: new runs pause from the first failed renewal. cancellation_confirmed promised access until the end of the paid period unconditionally, but a support-led cancellation can take effect immediately. deletion_scheduled promised to remove "your evidence, runs and workflow configuration" while deletion left workflows, connections and memberships in place.',
     whyMissed:
       'Each sentence was true when it was written. The code around it changed and the prose did not; nothing checked a template against the behaviour it described.',
     whatChanged:
-      'The payment subject now leads with the consequence; days remaining are a parameter, not a literal. The cancellation email requires an explicit timing with a branch for each. Deletion was fixed by deleting the rows, not by softening the sentence — and the one row deliberately kept (the user, who may belong to another workspace) is now stated to the customer rather than silently done. The remaining nine templates were checked against the code that backs them.',
+      'The payment subject now leads with the consequence; days remaining are a parameter, not a literal. The cancellation email requires an explicit timing with a branch for each. Deletion was fixed by deleting the rows, not by softening the sentence, and the one row deliberately kept (the user, who may belong to another workspace) is now stated to the customer rather than silently done. The remaining nine templates were checked against the code that backs them.',
     source: 'commit 3673ea8',
   },
   {
@@ -395,11 +395,11 @@ export const FAILURES: readonly Failure[] = [
     id: 'push',
     title: 'Push protection caught us',
     wentWrong:
-      'GitHub’s push protection blocked a push because test fixtures were shaped like real API keys. They were synthetic — all zeros — but shape is what a scanner sees.',
+      'GitHub’s push protection blocked a push because test fixtures were shaped like real API keys. They were synthetic, all zeros, but shape is what a scanner sees.',
     whyMissed:
       'It was not missed; the control worked. The risk was in how the team responded to it.',
     whatChanged:
-      'The fixtures were rewritten so they are assembled at runtime and no credential-shaped literal is committed. The alternative — clicking "allow this secret" — would have trained us to dismiss the one warning that will one day be real.',
+      'The fixtures were rewritten so they are assembled at runtime and no credential-shaped literal is committed. The alternative, clicking "allow this secret", would have trained us to dismiss the one warning that will one day be real.',
     source: 'docs/development-story.md § Push protection caught us; EVT-0004',
   },
   {
@@ -418,7 +418,7 @@ export const FAILURES: readonly Failure[] = [
     wentWrong:
       'The tenant-scope source scan reported customer-facing prose as unscoped SQL. The payment-recovery notice says you can update your card and mentions runs and evidence, which a case-insensitive keyword match read as an unscoped query on customer tables.',
     whyMissed:
-      'It was a false positive rather than a miss — but a security check that fires on English gets muted, and a muted check protects nothing.',
+      'It was a false positive rather than a miss, but a security check that fires on English gets muted, and a muted check protects nothing.',
     whatChanged:
       'The detector now requires a verb and a clause, both uppercase, and a paired check fails the build on any lowercase SQL verb in the data layer. Measured rather than assumed: across 285 string literals the old rule detected 121 statements and the new rule detects exactly the same 121.',
     source: 'EVT-0012',
@@ -427,7 +427,7 @@ export const FAILURES: readonly Failure[] = [
     id: 'haiku',
     title: 'The cheapest model invented a URL',
     wentWrong:
-      'The cheapest tier produced the public-repository contribution docs and issue forms. It worked, and it hallucinated the repository URL in the security contact link — an address that does not exist.',
+      'The cheapest tier produced the public-repository contribution docs and issue forms. It worked, and it hallucinated the repository URL in the security contact link: an address that does not exist.',
     whyMissed:
       'The output was confident and plausible, and "validated" was accepted at face value until the link was actually resolved. That is the tier’s real failure mode: right about the shape of a thing, wrong in a detail nobody would notice until it mattered.',
     whatChanged:
@@ -438,20 +438,20 @@ export const FAILURES: readonly Failure[] = [
     id: 'drift',
     title: 'The story underselling its own fix',
     wentWrong:
-      'The prose story still described the CSP fix as "a narrow exception — inline style attributes are permitted" after the exception had been removed and the width had become a CSS class.',
+      'The prose story still described the CSP fix as "a narrow exception: inline style attributes are permitted" after the exception had been removed and the width had become a CSS class.',
     whyMissed:
       'The code moved on and the document did not. It was caught during a later audit of the deployed site against the documentation.',
     whatChanged:
-      'The paragraph was corrected. Underselling a fix is a smaller sin than the reverse, but it is the same class of drift — which is why this page reads the structured record at build time rather than keeping its own copy.',
+      'The paragraph was corrected. Underselling a fix is a smaller sin than the reverse, but it is the same class of drift, which is why this page reads the structured record at build time rather than keeping its own copy.',
     source: 'docs/development-story.md § 33% that displayed as 100% (closing note); commit 7a3c0e1',
   },
   {
     id: 'return',
     title: 'A customer paid, and was returned to a 404',
     wentWrong:
-      'The first real payment completed on a deployment — the plan price, a sandbox card, through a checkout button that had not existed that morning. The provider took it and redirected the browser to the return path, which answered 404. The billing configuration had named that path, and a second one for a cancelled checkout, since the day it was written. Neither route existed.',
+      'The first real payment completed on a deployment: the plan price, a sandbox card, through a checkout button that had not existed that morning. The provider took it and redirected the browser to the return path, which answered 404. The billing configuration had named that path, and a second one for a cancelled checkout, since the day it was written. Neither route existed.',
     whyMissed:
-      'Every case drove the checkout request and asserted on the redirect it produced, so the journey ended at the provider’s front door and nothing followed the customer home. Correct code, thoroughly tested, reached by nothing — this codebase’s dominant defect, arriving at the worst moment it had available.',
+      'Every case drove the checkout request and asserted on the redirect it produced, so the journey ended at the provider’s front door and nothing followed the customer home. Correct code, thoroughly tested, reached by nothing: this codebase’s dominant defect, arriving at the worst moment it had available.',
     whatChanged:
       'The return route exists, and it deliberately does NOT say the subscription is active: it is reached the instant the provider redirects, which can be before any webhook has arrived, and on that day the webhook was being rejected for a signature mismatch. It says the payment was accepted, shows the real subscription state, and explains that a redirect is not evidence that anything was confirmed. The guarding case reads the return paths out of the billing configuration rather than retyping them, so it cannot pass while the configuration points somewhere else.',
     source: 'docs/development-story.md § A customer paid, and was returned to a 404; EVT-0036',
@@ -486,7 +486,7 @@ export const FAILURES: readonly Failure[] = [
     whyMissed:
       'Every case passed, because the palette was correct and reachable. Honouring the reader’s preference is the conventional and usually the right choice; what no case asserted was the outcome the change existed to produce.',
     whatChanged:
-      'The approved appearance is unconditional. The light palette is not deleted — it stays complete, stays measured by the contrast suite, and stays reachable through the explicit toggle — and the case now asserts the property it was written for, that neither palette may quietly become unreachable, rather than the mechanism it happened to use.',
+      'The approved appearance is unconditional. The light palette is not deleted: it stays complete, stays measured by the contrast suite, and stays reachable through the explicit toggle, and the case now asserts the property it was written for, that neither palette may quietly become unreachable, rather than the mechanism it happened to use.',
     source:
       'docs/development-story.md § An approved design almost nobody would have seen; EVT-0037',
   },
@@ -688,7 +688,7 @@ export const STANDING: readonly StandingItem[] = [
   },
   {
     heading: 'Not yet true',
-    body: 'Live customer payments, because that needs the owner’s approval and verified business details; one sandbox payment has completed end to end on a deployment. Ten genuine external visits: the counter now records them and the honest count is still zero. Per-screen layout against every approved design. What is no longer on this list, because it stopped being true on 20 September 2026: provider-backed evidence. Both connectors have now been run against real provider accounts and have supported, contradicted and failed to answer real runs — against our own accounts and our own synthetic records, which proves the providers answer us and not anything about your portal until you connect it. Advertising: a campaign is drafted within an approved budget, has never served an impression, and has spent nothing.',
+    body: 'Live customer payments, because that needs the owner’s approval and verified business details; one sandbox payment has completed end to end on a deployment. Ten genuine external visits: the counter now records them and the honest count is still zero. Per-screen layout against every approved design. What is no longer on this list, because it stopped being true on 20 September 2026: provider-backed evidence. Both connectors have now been run against real provider accounts and have supported, contradicted and failed to answer real runs, against our own accounts and our own synthetic records, which proves the providers answer us and not anything about your portal until you connect it. Advertising: a campaign is drafted within an approved budget, has never served an impression, and has spent nothing.',
     source: 'docs/development-story.md § Where it stands; docs/workflow-evidence.md',
   },
   {

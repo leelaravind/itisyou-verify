@@ -313,7 +313,7 @@ describe('forms and interaction', () => {
     const single = await render(
       Pagination({ newerHref: null, olderHref: null, shown: 3, noun: 'runs' }),
     );
-    expect(single).toContain('3 runs — this is all of them');
+    expect(single).toContain('3 runs, this is all of them');
     expect(single).not.toContain('<a');
   });
 

@@ -131,7 +131,7 @@ export function QualityPage(options: {
                   <input type="radio" id="suite-${suite.id}" name="suite_id" value="${suite.id}" required />
                   <label for="suite-${suite.id}">
                     <strong>${suite.label}</strong>
-                    <span class="micro muted"> — about ${suite.typicalMinutes} minutes</span><br />
+                    <span class="micro muted"> · about ${suite.typicalMinutes} minutes</span><br />
                     <span class="small">Proves: ${suite.proves}</span><br />
                     <span class="small muted">Does not prove: ${suite.doesNotProve}</span>
                   </label>
@@ -149,7 +149,7 @@ export function QualityPage(options: {
           options.artifactsUnavailableReason === null
             ? html`<div class="stack-sm">
                 <p class="small">
-                  These are the files the report script produces from a real run. They are behind your session —
+                  These are the files the report script produces from a real run. They are behind your session:
                   nothing here is public.
                 </p>
                 <ul class="stack-sm">
@@ -233,7 +233,7 @@ export function QualityPage(options: {
               header: 'Waiting on',
               cell: (run) =>
                 run.blockedReason === null
-                  ? html`<span class="muted">—</span>`
+                  ? html`<span class="muted">none</span>`
                   : html`<span class="small" data-dependency="true">${run.blockedReason}</span>`,
             },
           ],
@@ -307,7 +307,7 @@ export function CleanupPage(options: {
               Checkbox({
                 name: 'categories',
                 value: category.id,
-                label: `${category.label} — ${category.removes} Safe because ${category.safeBecause}`,
+                label: `${category.label}: ${category.removes} Safe because ${category.safeBecause}`,
               }),
             )}
           </fieldset>
@@ -326,7 +326,7 @@ export function InventoryCard(options: {
 }): Html {
   const inv = options.inventory;
   return Card({
-    title: `Inventory — ${inv.items.length} resource${inv.items.length === 1 ? '' : 's'}`,
+    title: `Inventory · ${inv.items.length} resource${inv.items.length === 1 ? '' : 's'}`,
     headingLevel: 2,
     aside: html`<span class="mono micro" data-inventory-hash="${inv.hash}">${inv.hash.slice(0, 16)}…</span>`,
     body: html`<div class="stack">
@@ -402,7 +402,7 @@ export function InventoryCard(options: {
               body: html`<ul class="stack-sm" data-excluded="true">
               ${inv.excluded.map(
                 (entry) =>
-                  html`<li><span class="mono micro">${entry.resourceId}</span> — ${entry.why}</li>`,
+                  html`<li><span class="mono micro">${entry.resourceId}</span> · ${entry.why}</li>`,
               )}
             </ul>`,
             })
@@ -490,7 +490,7 @@ export function ReportCard(options: { readonly report: CleanupReport }): Html {
             key: 'detail',
             header: 'Detail',
             cell: (r) =>
-              r.detail === null ? html`<span class="muted">—</span>` : html`${r.detail}`,
+              r.detail === null ? html`<span class="muted">none</span>` : html`${r.detail}`,
           },
         ],
         rows: report.resources,

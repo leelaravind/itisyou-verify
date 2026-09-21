@@ -102,7 +102,7 @@ export function HowItWorksPage(): Html {
         ${pageHead(
           'How it works',
           'Three steps, and the setup work each one really needs',
-          'This page is the long version. Nothing here is a summary of a feature we have not built — if a step sounds like work, it is work.',
+          'This page is the long version. Nothing here is a summary of a feature we have not built. If a step sounds like work, it is work.',
         )}
       </div>
       <div class="split">
@@ -123,11 +123,15 @@ export function HowItWorksPage(): Html {
           <h2>What setting this up actually involves</h2>
         </div>
       </div>
-      <!-- Still an ordered list: this is a real sequence. The cards are the reference's
-           three-across arrangement; the numbering is the same counter the steps list uses. -->
-      <ol class="step-cards grid grid-3">
+      <!-- The numbered list, not three cards across.
+           It was the reference's three-across arrangement, which is the generic
+           three-feature-card row the owner's exclusions name. The home page carries the
+           same three steps and was recomposed the same way on the same day, so a reader
+           who lands on the short version and clicks through to the long one meets the
+           same device twice rather than two arrangements of one idea. -->
+      <ol class="steps">
         ${HOME_HOW_IT_WORKS.map(
-          (step) => html`<li class="card step-card">
+          (step) => html`<li>
             <h3>${step.title}</h3>
             <p>${step.description}</p>
           </li>`,
@@ -223,21 +227,26 @@ function PaymentRecoveryDisclosure(): Html {
   return html`<section class="stack" data-payment-recovery>
     <h2>If a payment fails</h2>
     <p class="measure">${policy.headline}</p>
-    <div class="grid grid-2">
-      ${Card({
-        title: 'What pauses',
-        headingLevel: 3,
-        body: html`<ul class="stack-sm small muted">
+    <!-- Two ruled columns, not two cards in a stretched grid.
+         whatPauses has one line and whatStaysAvailable has six, so as equal-height cards
+         the left one drew a box two thirds empty, which reads as a panel that failed to
+         load rather than as good news. Each column is now sized by its own content under
+         a rule, and the contrast between one short list and one long one becomes the
+         point instead of a layout fault: very little stops.
+         (No backticks in this comment. It sits inside a template literal.) -->
+    <div class="grid grid-2 grid-top">
+      <div class="ruled-col">
+        <h3>What pauses</h3>
+        <ul class="stack-sm small muted">
           ${policy.whatPauses.map((line) => html`<li>${line}</li>`)}
-        </ul>`,
-      })}
-      ${Card({
-        title: 'What keeps working',
-        headingLevel: 3,
-        body: html`<ul class="stack-sm small muted">
+        </ul>
+      </div>
+      <div class="ruled-col">
+        <h3>What keeps working</h3>
+        <ul class="stack-sm small muted">
           ${policy.whatStaysAvailable.map((line) => html`<li>${line}</li>`)}
-        </ul>`,
-      })}
+        </ul>
+      </div>
     </div>
     ${Callout({
       tone: 'limit',
@@ -262,11 +271,22 @@ function PaymentRecoveryDisclosure(): Html {
 export function PricingPage(): Html {
   const runsIncluded = PLAN_ALLOWANCE.find((line) => line.label === 'Runs included');
   return html`<div class="wrap section stack-lg">
-    ${pageHead(
-      'Pricing',
-      'One plan, one workflow, no overage',
-      'The price is the price. If you use the whole allowance we stop accepting events rather than billing you more.',
-    )}
+    <!-- The head sits opposite the contract in one line, rather than alone above a third
+         of a screen of empty column. The lede is held to the reading measure, which is
+         why the space existed; the fix is to put something true in it rather than to
+         widen prose past the width it is readable at. Bottoms align, as every other
+         section head on the site does. -->
+    <div class="section-head">
+      ${pageHead(
+        'Pricing',
+        'One plan, one workflow, no overage',
+        'The price is the price. If you use the whole allowance we stop accepting events rather than billing you more.',
+      )}
+      <p class="micro mono">
+        ${PLAN_PRICE_DISPLAY} ${PLAN_BILLING_PERIOD} · ${LIMITS.PLAN_RUNS_PER_PERIOD} runs · one workflow ·
+        HubSpot and Resend
+      </p>
+    </div>
 
     ${ActivationNotice()}
 
@@ -295,7 +315,6 @@ export function PricingPage(): Html {
             </div>
           </div>`,
         })}
-        ${PaymentRecoveryDisclosure()}
       </div>
       <div class="stack">
         ${Card({
@@ -328,6 +347,14 @@ export function PricingPage(): Html {
         })}
       </div>
     </div>
+
+    <!-- Full width, below the grid, rather than stacked under the plan inside the wider
+         column. The plan card and the order summary finish within a few pixels of each
+         other, so the grid is balanced on its own; the payment-failure policy underneath
+         it was what made the left column run half a screen past the right and leave a
+         tall empty gutter beside it. Out here its two columns also get the full measure
+         instead of seven twelfths of it. -->
+    ${PaymentRecoveryDisclosure()}
 
     <section class="stack">
       <div class="section-head">

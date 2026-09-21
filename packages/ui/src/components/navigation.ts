@@ -53,7 +53,7 @@ export function Pagination(options: PaginationOptions): Html {
   const newer = safeHref(options.newerHref);
   const older = safeHref(options.olderHref);
   if (newer === null && older === null) {
-    return html`<p class="pager__status">${options.shown} ${options.noun} — this is all of them</p>`;
+    return html`<p class="pager__status">${options.shown} ${options.noun}, this is all of them</p>`;
   }
   return html`<nav class="pager" aria-label="${options.label ?? 'Pagination'}">
     ${

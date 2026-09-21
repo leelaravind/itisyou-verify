@@ -30,7 +30,7 @@ export function syntheticNotice(synthetic: boolean): Html | null {
     // One paragraph, deliberately. At 390px the two-paragraph version pushed the workspace
     // heading below the fold, which buries the thing the customer came for.
     body: html`<p>
-      Every workflow, run, connection and number on these pages is invented — nothing here reflects your own
+      Every workflow, run, connection and number on these pages is invented: nothing here reflects your own
       automation. The verdicts come from the real verification engine run against fixed synthetic evidence,
       so they are genuine answers about made-up facts. No provider, payment or support queue is connected.
     </p>`,
@@ -41,7 +41,7 @@ export function syntheticNotice(synthetic: boolean): Html | null {
 export function syntheticStripe(synthetic: boolean): Html | null {
   if (!synthetic) return null;
   return html`<p class="synthetic__stripe" role="note">
-    Synthetic data — not your workspace, not your runs
+    Synthetic data: not your workspace, not your runs
   </p>`;
 }
 

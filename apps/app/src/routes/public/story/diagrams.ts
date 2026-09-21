@@ -32,7 +32,7 @@ const VERDICT_BOXES = [
   },
   {
     tone: 'unverified',
-    lines: ['Unverified', 'we could not check — not a pass, not a failure'],
+    lines: ['Unverified', 'we could not check, not a pass, not a failure'],
     h: 44,
   },
   { tone: 'pending', lines: ['Pending', 'still inside the agreed completion window'], h: 44 },
@@ -269,7 +269,7 @@ export function SystemDiagram(): Html {
     y: 328,
     w: 168,
     h: 56,
-    lines: ['Cron trigger', 'every minute, production', 'only — staging has none'],
+    lines: ['Cron trigger', 'every minute, production', 'only, staging has none'],
     mono: true,
     tone: 'sunken',
   });

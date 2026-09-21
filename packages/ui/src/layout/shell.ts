@@ -76,7 +76,7 @@ export function Shell(options: ShellOptions): Html {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>${options.title} — ${PRODUCT_NAME}</title>
+    <title>${options.title} · ${PRODUCT_NAME}</title>
     ${
       options.description === undefined
         ? null

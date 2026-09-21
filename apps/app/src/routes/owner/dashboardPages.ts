@@ -268,7 +268,7 @@ export function OverviewPage(options: OverviewPageOptions): Html {
         : 'Figures as at the last refresh',
       body: html`<p>
           ${refreshed.label}. Anything showing <span class="mono">unknown</span> has not been measured on this
-          deployment — it is not zero, and you should not read it as zero.
+          deployment; it is not zero, and you should not read it as zero.
         </p>
         <p class="small">${NET_RECEIPTS_CAVEAT}</p>`,
     })}
@@ -475,7 +475,7 @@ export function CustomersPage(options: {
             cell: (row) =>
               row.eligible
                 ? html`<span class="micro">yes</span>`
-                : html`<span class="micro">no — ${row.ineligibleReason ?? 'reason not recorded'}</span>`,
+                : html`<span class="micro">no: ${row.ineligibleReason ?? 'reason not recorded'}</span>`,
           },
           {
             key: 'subscription',
@@ -554,7 +554,7 @@ export function CustomersPage(options: {
       title: 'Refunds',
       body: html`<p>
         A refund needs an approval bound to the exact amount and reason first. Grant one on the
-        <a href="/owner/approvals">approvals page</a>, then come back — an approval for £12.00 will not
+        <a href="/owner/approvals">approvals page</a>, then come back; an approval for £12.00 will not
         authorise £12.01.
       </p>`,
     })}
@@ -677,7 +677,7 @@ export function VerificationDetailPage(options: {
               (outage) =>
                 html`<li>
                   <strong>${outage.provider}</strong> from ${Instant(outage.from)} to
-                  ${outage.to === null ? html`<span class="muted">still going</span>` : Instant(outage.to)} —
+                  ${outage.to === null ? html`<span class="muted">still going</span>` : Instant(outage.to)}:
                   ${outage.detail}
                 </li>`,
             )}
@@ -727,7 +727,7 @@ export function ConnectionsPage(options: {
       title: 'No stored secret appears on this page',
       body: html`<p>
         The hints below are generated fresh when the page renders, from the account identifier the provider
-        returns — not from anything we hold. A stored credential is never read back out, and a mask of stored
+        returns, not from anything we hold. A stored credential is never read back out, and a mask of stored
         ciphertext would still be a read-back, so we do not do that either.
       </p>`,
     })}
@@ -779,7 +779,7 @@ export function ConnectionsPage(options: {
               confirm: 'revoke',
               body: html`<p class="small">
                   Revoking stops us reading this provider. Runs that needed it will report
-                  <strong>unverified</strong>, not failed — we will not claim a failure we cannot see.
+                  <strong>unverified</strong>, not failed: we will not claim a failure we cannot see.
                 </p>
                 ${Button({ label: 'Revoke', variant: 'danger', type: 'submit' })}`,
             })}

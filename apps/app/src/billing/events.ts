@@ -15,6 +15,26 @@
  * Field paths follow the **current** API shape and fall back to the legacy one:
  *  - period end lives on `items.data[0].current_period_end`, not on the subscription;
  *  - an invoice's subscription lives at `parent.subscription_details.subscription`.
+ *
+ * ## Owner alerts (requirement L7)
+ *
+ * Two owner alerts are built and sent from here, directly, rather than being returned in
+ * `EventOutcome` the way `payment_problem` is: `spending_decision` on a **live-mode**
+ * `checkout.session.completed`, and `critical_incident` on a **live-mode**
+ * `invoice.payment_failed`. Both go through `deps.sendOwnerAlert`, which is
+ * `notifications/telegram.ts`'s real `sendOwnerAlert` bound to a support data port and a
+ * transport — the same at-most-once-on-`notification_key` mechanism that already backs
+ * every notification in this codebase, including the order's own idempotency. Building a
+ * second dedup scheme for these two would be exactly the thing the brief warned against.
+ *
+ * **The live/test signal**: `event.livemode`, read directly off the verified event. By the
+ * time an event reaches this module, `routes/webhooks/stripe.ts` has already rejected any
+ * event whose `livemode` disagrees with `deps.config.environment` (`providerModeMatches`,
+ * step 4 of that route) — so in production the two can never disagree. Checking
+ * `event.livemode` here anyway, rather than `deps.config.environment === 'live'`, is
+ * defense in depth: it is the literal field Stripe signed, it needs no second lookup
+ * through `deps`, and it stays correct even for a caller that invokes `handleStripeEvent`
+ * directly and skips the route's gate (exactly what this file's own tests do).
  */
 import { rollover } from './entitlements';
 import type { AllowanceRecord, SubscriptionRecord } from './port';
@@ -32,6 +52,8 @@ import {
 } from './state';
 import { paymentRecoveryWindow } from './policy';
 import { paymentProblemNotification, type PaymentProblemNotification } from './recovery';
+import type { OwnerAlert } from '../notifications/telegram';
+import type { SendResult } from '../notifications/send';
 
 export interface StripeEventShape {
   readonly id: string;
@@ -40,6 +62,26 @@ export interface StripeEventShape {
   readonly livemode: boolean;
   readonly data: { readonly object: Record<string, unknown> };
 }
+
+/**
+ * `BillingRuntime` plus the one seam a money handler needs to ping the owner directly.
+ *
+ * `sendOwnerAlert` is `notifications/telegram.ts`'s function of the same name, already
+ * bound to a support data port and a transport by whoever assembles the runtime — this
+ * file never sees either. Optional, and absent is ordinary, the same contract
+ * `billingContact` already has on `BillingRuntime`: a deployment that has not wired owner
+ * alerts still processes every payment correctly and simply never pings the owner.
+ *
+ * Declared as an intersection here rather than as a field added to `BillingRuntime`
+ * itself, so this module's one new dependency does not have to be threaded through every
+ * other billing file that builds or consumes a `BillingRuntime`. Because the field is
+ * optional, a plain `BillingRuntime` — or `routes/webhooks/stripe.ts`'s
+ * `StripeWebhookDeps`, which extends it — already satisfies this type with nothing
+ * further; only a caller that wants the alerts sent needs to supply the function.
+ */
+export type BillingRuntimeWithOwnerAlerts = BillingRuntime & {
+  readonly sendOwnerAlert?: (alert: OwnerAlert) => Promise<SendResult>;
+};
 
 export interface EventOutcome {
   /** What the receipt should record. `ignored` is a success, not a failure. */
@@ -85,7 +127,7 @@ export const HANDLED_EVENT_TYPES: readonly string[] = Object.freeze([
 ]);
 
 export async function handleStripeEvent(
-  deps: BillingRuntime,
+  deps: BillingRuntimeWithOwnerAlerts,
   event: StripeEventShape,
 ): Promise<EventOutcome> {
   switch (event.type) {
@@ -114,7 +156,7 @@ export async function handleStripeEvent(
 // ---------------------------------------------------------------------------
 
 async function handleCheckoutCompleted(
-  deps: BillingRuntime,
+  deps: BillingRuntimeWithOwnerAlerts,
   event: StripeEventShape,
 ): Promise<EventOutcome> {
   const { config, data, gateway, now } = deps;
@@ -181,6 +223,28 @@ async function handleCheckoutCompleted(
         at,
       });
     }
+  }
+
+  // Requirement L7.1: the owner is told about live money, once per session/order. Keyed
+  // on the checkout session id — Stripe's own stable identifier for *this* checkout,
+  // present on every `checkout.session.completed` payload and unchanged across a
+  // redelivery of the same event — falling back to our own order id and then the
+  // workspace id so a malformed payload still produces a deterministic key rather than no
+  // key at all. `sendOwnerAlert` claims that key exactly once, the identical mechanism
+  // `orders.idempotency_key` already uses to make the order itself exactly-once, so this
+  // is not a second scheme: it is the same one, applied to a notification instead of a
+  // row.
+  if (event.livemode) {
+    await notifyOwner(
+      deps,
+      checkoutSpendingDecisionAlert({
+        workspaceId,
+        sessionId,
+        orderId: order?.id ?? null,
+        amountMinor: readNumber(session, 'amount_total'),
+        currency: readString(session, 'currency'),
+      }),
+    );
   }
 
   if (subscriptionId === null) {
@@ -414,7 +478,7 @@ async function handleInvoicePaid(
 }
 
 async function handleInvoicePaymentFailed(
-  deps: BillingRuntime,
+  deps: BillingRuntimeWithOwnerAlerts,
   event: StripeEventShape,
 ): Promise<EventOutcome> {
   const { config, data, now } = deps;
@@ -479,6 +543,32 @@ async function handleInvoicePaymentFailed(
         at,
       });
     }
+  }
+
+  // Requirement L7.2: the owner is told about a live payment failure — once per
+  // **invoice**, not once per attempt. Stripe's Smart Retries send `invoice.payment_failed`
+  // several times for the *same* invoice over the recovery window as it keeps trying the
+  // card, each delivery a distinct event id that the webhook-receipt layer does not
+  // deduplicate. Re-buzzing the owner's phone once per retry of a situation they already
+  // know about is exactly the alert fatigue `OWNER_ALERT_ROUTING` in `telegram.ts` exists
+  // to prevent ("every addition makes the previous six less likely to be read"), and it
+  // mirrors the customer-facing `payment_problem` notification below, which is likewise
+  // keyed so a second failure for the same unpaid situation sends nothing further. So the
+  // key is derived from the invoice id: every retry of THIS invoice collapses onto one
+  // alert, and a genuinely new invoice — the next billing cycle also failing — has its
+  // own id and earns its own alert. `notifications/telegram.ts`'s `sendOwnerAlert` is what
+  // enforces that, exactly once, the same mechanism every other notification here uses.
+  if (event.livemode) {
+    await notifyOwner(
+      deps,
+      invoicePaymentFailedIncidentAlert({
+        workspaceId,
+        invoiceId: readString(invoice, 'id'),
+        subscriptionRecordId: current?.id ?? stored?.id ?? null,
+        amountMinor: readNumber(invoice, 'amount_due') ?? readNumber(invoice, 'amount_paid'),
+        currency: readString(invoice, 'currency'),
+      }),
+    );
   }
 
   // Requirement 3: tell them the thing they care about — new runs are not being checked.
@@ -555,6 +645,104 @@ async function handleChargeRefunded(
     return ignored('refund_not_matched_locally', workspaceId, String(unmatched));
   }
   return processed('refund_state_updated', workspaceId, String(updated));
+}
+
+// ---------------------------------------------------------------------------
+// owner alerts (requirement L7)
+// ---------------------------------------------------------------------------
+
+/**
+ * Send one owner alert, never letting the attempt affect the money path.
+ *
+ * `deps.sendOwnerAlert` is the real `sendOwnerAlert` from `notifications/telegram.ts` and
+ * is documented never to throw — but this file's own contract, everywhere else it touches
+ * a notification, is that an announcement about money already committed must never turn
+ * into a 500 and a Stripe retry of an event that already succeeded. The `try` is that
+ * contract held even if the wiring one day disagrees with its own documentation.
+ */
+async function notifyOwner(deps: BillingRuntimeWithOwnerAlerts, alert: OwnerAlert): Promise<void> {
+  if (deps.sendOwnerAlert === undefined) return;
+  try {
+    await deps.sendOwnerAlert(alert);
+  } catch {
+    // Swallowed on purpose. See the docblock above.
+  }
+}
+
+/**
+ * Minor units to a human amount, e.g. `2900, 'gbp'` → `"29.00 GBP"`.
+ *
+ * `/ 100` assumes a two-decimal currency, which is safe here specifically: `PLAN.currency`
+ * is fixed to `'GBP'` (`config.ts`), so every amount this file ever formats is one this
+ * product itself priced, never an arbitrary currency a customer chose.
+ */
+function formatMinorAmount(amountMinor: number | null, currency: string | null): string {
+  if (amountMinor === null || currency === null) return 'amount unknown';
+  return `${(amountMinor / 100).toFixed(2)} ${currency.toUpperCase()}`;
+}
+
+/**
+ * Requirement L7.1: `spending_decision`, live-mode `checkout.session.completed` only.
+ *
+ * The notification key is keyed on the checkout session id first — Stripe's own stable
+ * identifier for this checkout, unchanged across a redelivery of the same event — then
+ * our own order id, then the workspace id, so a payload missing everything else still
+ * keys deterministically rather than falling through to no key at all.
+ *
+ * The message body never carries the raw session id: `notifications/telegram.ts`'s
+ * `guardOwnerMessage` treats an unlabelled 24+ character mixed-case blob as a possible
+ * credential or session id and refuses it outright, and Stripe's own session ids are
+ * exactly that shape. It carries our own order id instead, which is our opaque id format
+ * (`ord_` + 26 Crockford characters) and matches the guard's own reference exemption, or a
+ * plain sentence when no local order was linked — never a Stripe identifier, a customer
+ * email or a card detail, only the amount, the currency and a reference we hold.
+ */
+function checkoutSpendingDecisionAlert(params: {
+  readonly workspaceId: string;
+  readonly sessionId: string | null;
+  readonly orderId: string | null;
+  readonly amountMinor: number | null;
+  readonly currency: string | null;
+}): OwnerAlert {
+  const keyId = params.sessionId ?? params.orderId ?? params.workspaceId;
+  const orderRef = params.orderId ?? 'no local order linked';
+  return {
+    kind: 'spending_decision',
+    notificationKey: `spending_decision:checkout_session_completed:${keyId}`,
+    headline: 'Live checkout completed',
+    detail: `A live checkout session completed. Order ${orderRef}. Amount ${formatMinorAmount(params.amountMinor, params.currency)}.`,
+    workspaceId: params.workspaceId,
+  };
+}
+
+/**
+ * Requirement L7.2: `critical_incident`, live-mode `invoice.payment_failed` only.
+ *
+ * **Once per invoice, not once per attempt** — see the call site in
+ * `handleInvoicePaymentFailed` for why. The notification key is derived from the invoice
+ * id, which Stripe holds constant across every retry of the same unpaid invoice, then our
+ * own subscription row id, then the workspace id.
+ *
+ * As with the checkout alert, no Stripe-shaped identifier reaches the message body — only
+ * our own subscription row id (`sub_` + 26 Crockford characters, the guard's reference
+ * exemption) or a plain sentence, plus the amount and the currency.
+ */
+function invoicePaymentFailedIncidentAlert(params: {
+  readonly workspaceId: string;
+  readonly invoiceId: string | null;
+  readonly subscriptionRecordId: string | null;
+  readonly amountMinor: number | null;
+  readonly currency: string | null;
+}): OwnerAlert {
+  const keyId = params.invoiceId ?? params.subscriptionRecordId ?? params.workspaceId;
+  const subscriptionRef = params.subscriptionRecordId ?? 'no local subscription linked';
+  return {
+    kind: 'critical_incident',
+    notificationKey: `critical_incident:invoice_payment_failed:${keyId}`,
+    headline: 'Live payment failed',
+    detail: `A live renewal payment failed. Subscription ${subscriptionRef}. Amount ${formatMinorAmount(params.amountMinor, params.currency)}.`,
+    workspaceId: params.workspaceId,
+  };
 }
 
 // ---------------------------------------------------------------------------
