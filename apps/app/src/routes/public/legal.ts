@@ -99,7 +99,12 @@ export function TermsPage(): Html {
     </section>
 
     <section class="stack">
-      {/* claim-scan:allow a heading that denies holding a certification or offering a guarantee */}
+      <!-- The exemption below was written in JSX brace-and-star form, which is not a comment
+           inside a tagged template literal. It was being SERVED: /terms rendered the exemption
+           text as a visible line of prose above the heading it exempts, and had done since it
+           was written. An HTML comment is a comment here, and the marker has to sit on the
+           heading's own line or the one directly above it for the scanner to see it. -->
+      <!-- claim-scan:allow the heading names a certification and a guarantee in order to deny holding either -->
       <h2>No certification, and no guarantee of a result</h2>
       <p class="measure small muted">
         ${TodoOwnerInput({
