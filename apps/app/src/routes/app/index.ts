@@ -457,6 +457,8 @@ export function createAppRoutes(resolve: PortResolver = syntheticResolver): Hono
             usage,
             now: new Date(),
             canStartSetup: session.role === 'workspace_admin',
+            testOffer: await port.testVerificationOffer(),
+            csrfToken: session.csrfToken,
           }),
         }),
       );
@@ -863,6 +865,65 @@ export function createAppRoutes(resolve: PortResolver = syntheticResolver): Hono
   );
 
   /* ----------------------------------------------------- connections and usage */
+
+  /**
+   * Start a guided test verification.
+   *
+   * A POST for the same reason as the connection test, with one more: this one spends a run
+   * from the customer's allowance. A GET that did it could be fired by a prefetch and cost
+   * them money's worth of allowance without a press.
+   *
+   * On success it redirects to the run it created rather than rendering a result, because
+   * there is no result yet: the run is admitted PENDING and decided later by the scheduler
+   * reading the providers. Sending the customer to the run is sending them to the thing
+   * that will actually answer, and a page that claimed an outcome here would be inventing
+   * one.
+   */
+  routes.post('/test-verification', async (c) =>
+    withSession(c, async (port, session) => {
+      const body = await formBody(c);
+      const start = port.startTestVerification?.bind(port);
+      const result =
+        start === undefined
+          ? {
+              ok: false,
+              runId: null,
+              fieldErrors: {},
+              message: 'Test verifications are not available on this deployment.',
+            }
+          : await start({
+              crmRecordId: body['crmRecordId'] ?? '',
+              messageId: body['messageId'] ?? '',
+              expectedRecipient: body['expectedRecipient'] ?? '',
+              correlationValue: body['correlationValue'] ?? '',
+            });
+      if (result.ok && result.runId !== null) {
+        return c.redirect(`/app/runs/${encodeURIComponent(result.runId)}?started=test`, 303);
+      }
+      const workflow = await port.workflow();
+      return page(
+        c,
+        shell(port, {
+          title: 'Workspace',
+          path: '/app',
+          accountLabel: maskedAccountLabel(session.email),
+          csrfToken: session.csrfToken,
+          body: WorkspacePage({
+            workflow,
+            recentRuns: (await port.listRuns({ limit: 5 })).items,
+            connections: await port.connections(),
+            usage: await port.usage(),
+            now: new Date(),
+            canStartSetup: session.role === 'workspace_admin',
+            testOffer: await port.testVerificationOffer(),
+            csrfToken: session.csrfToken,
+            testSubmitted: result,
+          }),
+        }),
+        { status: 422 },
+      );
+    }),
+  );
 
   /**
    * Test one connection, now, against the provider.

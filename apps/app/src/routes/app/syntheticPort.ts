@@ -54,6 +54,7 @@ import {
 } from '../../../../../tests/fixtures/index.js';
 import { composeWorkflowRules } from '../../db/ruleCompiler.js';
 import type {
+  TestVerificationOffer,
   ActivationView,
   SigningKeyIssueResult,
   ConnectionCredentialsInput,
@@ -518,6 +519,26 @@ export class SyntheticCustomerDataPort implements CustomerDataPort {
     state.requireEmailDelivered = input.requireEmailDelivered;
     state.requireRecipientMatch = input.requireRecipientMatch;
     return ok('/app/onboarding/proof');
+  }
+
+  /**
+   * The demo workspace cannot start one, and says why rather than pretending.
+   *
+   * A test verification is admitted through the real path and decided by reading real
+   * providers. This workspace has neither: no allowance to draw from and no connected
+   * account to read. Offering the form here and fabricating a verdict would be the exact
+   * thing the feature is built to refuse.
+   */
+  async testVerificationOffer(): Promise<TestVerificationOffer> {
+    return {
+      canStart: false,
+      reason:
+        'This workspace is running on synthetic data, with no allowance and no connected provider, so there is nothing real to check a test against. A test verification here could only be a fabrication.',
+      consumesAllowance: true,
+      runsRemaining: 0,
+      runsIncluded: LIMITS.PLAN_RUNS_PER_PERIOD,
+      correlationProperty: '',
+    };
   }
 
   async runProof(): Promise<ProofRunView> {

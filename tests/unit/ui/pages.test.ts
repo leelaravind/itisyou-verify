@@ -195,6 +195,9 @@ describe('customer pages', () => {
     const port = new SyntheticCustomerDataPort();
     const markup = await render(
       WorkspacePage({
+      testOffer: { canStart: false, reason: null, consumesAllowance: true, runsRemaining: 0, runsIncluded: 500, correlationProperty: 'verify_correlation_id' },
+      csrfToken: null,
+
         canStartSetup: true,
         workflow: await port.workflow(),
         recentRuns: (await port.listRuns({ limit: 5 })).items,
@@ -212,6 +215,9 @@ describe('customer pages', () => {
   it('CUST-057 a workspace with no runs at all shows the headline, never a bar', async () => {
     const markup = await render(
       WorkspacePage({
+      testOffer: { canStart: false, reason: null, consumesAllowance: true, runsRemaining: 0, runsIncluded: 500, correlationProperty: 'verify_correlation_id' },
+      csrfToken: null,
+
         canStartSetup: true,
         workflow: {
           id: 'wf_1',
@@ -254,6 +260,9 @@ describe('customer pages', () => {
   it('CUST-058 a hostile workflow name is escaped on the workspace heading', async () => {
     const markup = await render(
       WorkspacePage({
+      testOffer: { canStart: false, reason: null, consumesAllowance: true, runsRemaining: 0, runsIncluded: 500, correlationProperty: 'verify_correlation_id' },
+      csrfToken: null,
+
         canStartSetup: true,
         workflow: {
           id: 'wf_1',

@@ -72,6 +72,9 @@ async function workspace(): Promise<string> {
   const p = port();
   return render(
     WorkspacePage({
+      testOffer: { canStart: false, reason: null, consumesAllowance: true, runsRemaining: 0, runsIncluded: 500, correlationProperty: 'verify_correlation_id' },
+      csrfToken: null,
+
         canStartSetup: true,
       workflow: await p.workflow(),
       recentRuns: (await p.listRuns({ limit: 5 })).items,

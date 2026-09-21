@@ -19,6 +19,10 @@
  * the reference, whose copy carries a payment state, a price and a plan that are not ours.
  */
 import {
+  Callout,
+  CsrfField,
+  Field,
+  Fieldset,
   SETUP_UNAVAILABLE_VIEWER_REASON,
   SETUP_UNAVAILABLE_VIEWER_WHEN,
   UnavailableAction,
@@ -41,9 +45,23 @@ import {
   type StatusKey,
 } from '@verify/ui';
 import { describeCoverage, detectInactivity, summariseWorkflowHealth } from '@verify/domain';
-import { connectionPresentation, pageHead, runCountCards, runTally, runTotal } from './chrome.js';
+import {
+  connectionPresentation,
+  formMessage,
+  pageHead,
+  runCountCards,
+  runTally,
+  runTotal,
+} from './chrome.js';
 import { formatDuration, formatInstant } from '../public/shared.js';
-import type { ConnectionView, RunListItem, UsageView, WorkflowDetail } from './port.js';
+import type {
+  ConnectionView,
+  RunListItem,
+  TestVerificationOffer,
+  TestVerificationResult,
+  UsageView,
+  WorkflowDetail,
+} from './port.js';
 
 export interface WorkspacePageOptions {
   readonly workflow: WorkflowDetail | null;
@@ -62,6 +80,124 @@ export interface WorkspacePageOptions {
    * every caller now has to say which reader it is rendering for.
    */
   readonly canStartSetup: boolean;
+  /** What a test verification would cost, and whether one can be started at all. */
+  readonly testOffer: TestVerificationOffer;
+  readonly csrfToken: string | null;
+  /** The outcome of a submitted test form, when this render came from one. */
+  readonly testSubmitted?: TestVerificationResult | null;
+}
+
+/**
+ * Run a test verification: the guided form, and what it costs, stated before it starts.
+ *
+ * ## Why the cost is above the form rather than under it
+ *
+ * It spends one run from the monthly allowance, because it is admitted through the same
+ * path a real enquiry takes. A customer should know that before they fill four fields in,
+ * not after pressing the button, so the count sits above the inputs with the number
+ * remaining.
+ *
+ * ## What the copy must keep saying
+ *
+ * Three things, and none is decoration:
+ *
+ *  - every field names something that ALREADY EXISTS. We create no CRM record and send no
+ *    email, and the connectors have no write path to do either with.
+ *  - the result is whatever the evidence says. A test can come back FAILED or UNVERIFIED
+ *    and that is the feature working, not the feature breaking.
+ *  - passing proves the rules and the providers. It proves NOTHING about whether the
+ *    customer's automation reports enquiries to us, because this event came from this
+ *    form. That is the one inference somebody would most like to draw from a green tick,
+ *    so it is refused in the same breath.
+ */
+function testVerification(options: WorkspacePageOptions): Html {
+  const offer = options.testOffer;
+  const submitted = options.testSubmitted ?? null;
+  const errors = submitted?.fieldErrors ?? {};
+  return html`<section class="stack" aria-labelledby="test-verification-heading" data-test-verification>
+    <div class="section-head">
+      <div class="section-head__text">
+        <p class="eyebrow">Check it end to end</p>
+        <h2 id="test-verification-heading">Run a test verification</h2>
+      </div>
+      <p class="small muted">
+        One enquiry you describe, checked by the same engine and the same provider reads that decide a
+        real one.
+      </p>
+    </div>
+
+    ${submitted === null || submitted.ok ? null : formMessage(submitted.message, 'warn')}
+
+    ${Callout({
+      tone: 'limit',
+      title: offer.consumesAllowance
+        ? `This uses one of your ${String(offer.runsIncluded)} runs, and ${String(offer.runsRemaining)} remain`
+        : 'This does not use your allowance',
+      body: html`<p>
+        It is admitted exactly like an enquiry from your automation, so it costs the same: one run. We
+        did not build a free side door, because a result from a different path would tell you nothing
+        about the path your automation actually uses.
+      </p>`,
+    })}
+
+    ${
+      !offer.canStart
+        ? UnavailableAction({
+            label: 'Run a test verification',
+            reason: offer.reason ?? 'A test verification cannot be started right now.',
+          })
+        : html`<form method="post" action="/app/test-verification" class="stack">
+            ${CsrfField(options.csrfToken)}
+            ${Fieldset({
+              legend: 'The enquiry to check',
+              hint: 'Every value names something that already exists. We create nothing and send nothing.',
+              body: html`${Field({
+                name: 'crmRecordId',
+                label: 'An existing CRM record id',
+                hint: 'A contact already in HubSpot. We read it; we never create or edit one.',
+                required: true,
+                error: errors['crmRecordId'] ?? null,
+              })}
+              ${Field({
+                name: 'correlationValue',
+                label: `The value in ${offer.correlationProperty}`,
+                hint: 'What that record carries in your correlation property. This is how we match the record back to the enquiry.',
+                required: true,
+                error: errors['correlationValue'] ?? null,
+              })}
+              ${Field({
+                name: 'messageId',
+                label: 'An existing message id',
+                hint: 'The provider id of an acknowledgement that was already sent. We read its delivery events; we never send mail.',
+                required: true,
+                error: errors['messageId'] ?? null,
+              })}
+              ${Field({
+                name: 'expectedRecipient',
+                label: 'The address it should have reached',
+                control: 'email',
+                hint: 'Checked after we bind the message, so the right message delivered to the wrong address is a contradiction rather than a miss.',
+                required: true,
+                error: errors['expectedRecipient'] ?? null,
+              })}`,
+            })}
+            ${ButtonRow([
+              Button({ label: 'Run a test verification', variant: 'primary', type: 'submit' }),
+            ])}
+          </form>`
+    }
+
+    ${Callout({
+      tone: 'limit',
+      title: 'What a pass here would and would not prove',
+      body: html`<p>
+        A pass proves your rules are right and that we can read your providers. It proves nothing about
+        whether your automation reports its enquiries to us, because this one came from the form above
+        rather than from your automation. It can also come back failed or unverified: that is the check
+        working, not the check breaking.
+      </p>`,
+    })}
+  </section>`;
 }
 
 /**
@@ -216,6 +352,12 @@ export function WorkspacePage(options: WorkspacePageOptions): Html {
         </div>
       </dl>
     </section>
+
+    <!-- The next useful action, above the figures.
+         A workspace whose numbers are all zero gives a customer nothing to do. This is
+         the one action that turns an empty dashboard into an answer, so it sits before
+         the readouts rather than at the bottom of the page. -->
+    ${testVerification(options)}
 
     <div class="health">
       ${Card({ title: 'Verification rate', headingLevel: 2, body: HealthReadout(health) })}
