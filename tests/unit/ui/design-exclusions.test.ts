@@ -161,6 +161,36 @@ describe("the owner's design exclusions hold in the served stylesheet", () => {
     }
   });
 
+  it('RESIL-917 no public page shows a reader the syntax of a source comment', async () => {
+    /*
+     * Found on the served /terms on 21 September 2026, and it had been there since the
+     * line was written: an exemption marker for `scripts/scan-claims.mjs` had been put in
+     * JSX brace-and-star form inside an `html` tagged template. That is not a comment
+     * here. The template's literal parts are raw HTML, so the whole marker, including the
+     * word "claim-scan:allow" and its reason, was rendered as a visible line of prose
+     * directly above the heading it was exempting.
+     *
+     * The class of bug is a comment convention from another framework surviving into a
+     * stack that does not have it, which no typecheck or lint catches because the result
+     * is a valid string. So the assertion is on what a reader sees, and it covers the
+     * three comment forms that could arrive the same way. Real HTML comments are stripped
+     * first, because those ARE comments here and are invisible on the page.
+     */
+    const pages: readonly (readonly [string, string])[] = [
+      ['/', await render(HomePage())],
+      ['/pricing', await render(PricingPage())],
+      ['/how-it-works', await render(HowItWorksPage())],
+      ['/demo', await render(DemoPage())],
+      ['/security', await render(SecurityPage())],
+    ];
+    for (const [path, markup] of pages) {
+      const visible = markup.replace(/<!--[\s\S]*?-->/g, ' ').replace(/<[^>]*>/g, ' ');
+      for (const form of ['{/*', '*/}', '/**', 'claim-scan:allow', 'secret-scan:allow']) {
+        expect(visible, `${path} shows a reader ${form}`).not.toContain(form);
+      }
+    }
+  });
+
   it('RESIL-915 a toned block is ruled along its top, never down its left edge', () => {
     /*
      * "No coloured left-border callouts". The callout, the UNVERIFIED follow-up line and

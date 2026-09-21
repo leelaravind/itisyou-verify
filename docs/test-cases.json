@@ -41038,6 +41038,23 @@
       "countable": true
     },
     {
+      "id": "RESIL-917",
+      "category": "accessibility_resilience",
+      "level": "unit",
+      "requirement": "no public page shows a reader the syntax of a source comment",
+      "risk": "An exemption marker for scan-claims.mjs was written in JSX brace-and-star form inside an html tagged template, where it is not a comment. The whole marker, including its stated reason, was served as a visible line of prose on /terms directly above the heading it exempted, and had been since the line was written. No typecheck or lint catches it, because the result is a valid string.",
+      "risk_source": "area",
+      "setup": "render the five public pages, strip real HTML comments and tags, then look for comment syntax in what is left",
+      "expected": "none of the five pages shows a reader a JSX comment opener or closer, a JSDoc opener, or either of the two scanner exemption markers",
+      "owner_agent": "A05",
+      "implementation_ref": "tests/unit/ui/design-exclusions.test.ts:164",
+      "provider_backed": false,
+      "status": "passing",
+      "runner": "vitest",
+      "area": "the owner's design exclusions hold in the served stylesheet",
+      "countable": true
+    },
+    {
       "id": "SEC-001",
       "category": "api_security_privacy",
       "level": "unit",
