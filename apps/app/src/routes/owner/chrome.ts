@@ -104,7 +104,7 @@ export function OwnerLayout(options: OwnerPageOptions): Html {
       <p class="small">
         Administrative pages are marked <span class="mono">noindex</span>. That asks search engines not to list
         them; it is tidiness, not protection. What actually keeps this page private is your session, your
-        platform-owner flag and your recent two-factor check — every page checks all three on every request.
+        platform-owner flag and your recent two-factor check: every page checks all three on every request.
       </p>
       <p class="small">
         <a href="/owner">Overview</a> · <a href="/owner/controls">Controls</a> ·

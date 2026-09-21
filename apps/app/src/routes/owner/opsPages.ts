@@ -97,7 +97,7 @@ export function OperationsPage(options: {
                 title: 'Nothing is listening',
                 body: html`<p>${runner.unavailableReason}</p>
                 <p class="small">
-                  Jobs you queue are saved. They are not lost, and they are not done — they will run when a
+                  Jobs you queue are saved. They are not lost, and they are not done: they will run when a
                   runner is paired. Anything on this page showing a queue is waiting on that.
                 </p>`,
               })
@@ -132,7 +132,7 @@ export function OperationsPage(options: {
       body: html`<div class="stack-sm">
         <p class="measure small">
           These are whole jobs the runner knows how to do, chosen from a fixed list. Nothing you type here
-          reaches a machine — you pick a job, and the runner maps it to a recipe compiled into it.
+          reaches a machine: you pick a job, and the runner maps it to a recipe compiled into it.
         </p>
         <div class="btn-row">
           ${ActionForm({
@@ -147,7 +147,7 @@ export function OperationsPage(options: {
           })}
         </div>
         <p class="micro muted">
-          With no runner connected the job is still written down and waits. It is a queue, not a pretence —
+          With no runner connected the job is still written down and waits. It is a queue, not a pretence:
           the row below will say what it is waiting for.
         </p>
       </div>`,
@@ -185,7 +185,7 @@ export function OperationsPage(options: {
           title: 'You are the retry',
           body: html`<p>
             We send each message at most once. If something died halfway through a send, the row below is left
-            behind and <strong>nothing will try again on its own</strong> — that is deliberate, because a second
+            behind and <strong>nothing will try again on its own</strong>: that is deliberate, because a second
             "your data has been deleted" email is worse than a missing one. It does mean that anything listed
             here only gets dealt with because you dealt with it. Resend by hand, after you have checked what
             actually happened. Anything older than
@@ -235,7 +235,7 @@ export function OperationsPage(options: {
                 ],
                 rows: options.view.notifications.stuck,
                 empty: html`<p class="muted">
-                Nothing is stuck. This was actually checked — it is not an empty list from a read that did not run.
+                Nothing is stuck. This was actually checked; it is not an empty list from a read that did not run.
               </p>`,
               })
             : Callout({
@@ -270,7 +270,7 @@ export function OperationsPage(options: {
             header: 'Waiting on',
             cell: (job) =>
               job.blockedReason === null
-                ? html`<span class="muted">—</span>`
+                ? html`<span class="muted">none</span>`
                 : html`${job.blockedReason}`,
           },
         ],
@@ -362,7 +362,7 @@ export function OperationsPage(options: {
         confirm: 'restore',
         body: html`<p class="measure">
             Rolling back replaces the running code with an earlier deployment. Anything that has been written
-            to the database since then stays written — a rollback undoes code, not data, and a schema change
+            to the database since then stays written: a rollback undoes code, not data, and a schema change
             made since then is not reversed.
           </p>
           ${Field({
@@ -448,12 +448,12 @@ export function ControlsPage(options: {
       title: 'These never stop working',
       body: html`<p>
           Whatever you pause, a customer can still cancel their plan and still reach support. That is not a
-          convention we are being careful about — the code refuses to suspend these paths, and a test proves
+          convention we are being careful about: the code refuses to suspend these paths, and a test proves
           it with every switch on at once.
         </p>
         <ul class="stack-sm" data-protected-paths="true">
           ${PROTECTED_PATHS.map(
-            (p) => html`<li><span class="mono">${p.path}</span> — ${p.why}</li>`,
+            (p) => html`<li><span class="mono">${p.path}</span> · ${p.why}</li>`,
           )}
         </ul>`,
     })}
@@ -559,7 +559,7 @@ export function SettingsPage(options: SettingsPageOptions): Html {
             title: 'Your business details are not filled in',
             body: html`<p>
               The public terms and privacy pages have to carry a real trading name and a real address. Nobody
-              on the build team knows yours, and we will not invent one — the pages currently show
+              on the build team knows yours, and we will not invent one: the pages currently show
               <span class="mono">${TODO_OWNER_INPUT}</span> where these belong.
             </p>
             <p class="small">Still needed: ${pending.join(', ')}.</p>`,
@@ -663,7 +663,7 @@ export function SettingsPage(options: SettingsPageOptions): Html {
           label: 'Payment provider price id',
           mono: true,
           value: options.pricing.stripePriceId,
-          hint: 'Leave empty until commerce is configured. A price typed here is never charged — the provider holds the real one.',
+          hint: 'Leave empty until commerce is configured. A price typed here is never charged: the provider holds the real one.',
           error: error('stripePriceId'),
         })}
         ${Button({ label: 'Save pricing', variant: 'primary', type: 'submit' })}
@@ -700,7 +700,7 @@ export function SettingsPage(options: SettingsPageOptions): Html {
         })}
         ${Checkbox({
           name: 'onVerificationFailure',
-          label: 'Any verification fails (noisy — off by default)',
+          label: 'Any verification fails (noisy, off by default)',
           checked: options.notifications.onVerificationFailure,
         })}
         ${Field({
@@ -721,7 +721,7 @@ export function SettingsPage(options: SettingsPageOptions): Html {
         <input type="hidden" name="csrf_token" value="${options.csrfToken ?? ''}" />
         <p class="small">
           Shortening one of these takes effect immediately. Lengthening one applies only to things collected
-          afterwards — we already told customers the shorter figure, and we are not going to quietly keep
+          afterwards: we already told customers the shorter figure, and we are not going to quietly keep
           their data longer than we said.
         </p>
         ${(
@@ -797,8 +797,8 @@ export function SettingsPage(options: SettingsPageOptions): Html {
           control: 'select',
           value: options.accessMode,
           options: [
-            { value: 'PUBLIC_LOGIN', label: 'Public login — the sign-in link is shown' },
-            { value: 'RESTRICTED_ENTRY', label: 'Restricted entry — the sign-in link is hidden' },
+            { value: 'PUBLIC_LOGIN', label: 'Public login: the sign-in link is shown' },
+            { value: 'RESTRICTED_ENTRY', label: 'Restricted entry: the sign-in link is hidden' },
           ],
         })}
         ${Callout({

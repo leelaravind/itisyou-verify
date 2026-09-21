@@ -78,7 +78,7 @@ export function RunListPage(options: RunListPageOptions): Html {
       items.length === 0
         ? EmptyState({
             title: 'No runs received yet',
-            body: 'Nothing has reached us for this workflow. That is not a pass — if you expected enquiries by now, your automation may not be sending us events.',
+            body: 'Nothing has reached us for this workflow. That is not a pass: if you expected enquiries by now, your automation may not be sending us events.',
             actions: [Button({ label: 'Check your setup', href: '/app/onboarding/activation' })],
           })
         : html`<div class="stack">
@@ -289,7 +289,7 @@ export function RunDetailPage(options: RunDetailPageOptions): Html {
     ${
       run.results.length > 1
         ? Comparator({
-            caption: `Enquiry ${run.correlationId} — ${maskValues(run.workflowName) ?? run.workflowName}`,
+            caption: `Enquiry ${run.correlationId} · ${maskValues(run.workflowName) ?? run.workflowName}`,
             detail: `Last observed ${formatInstant(run.observedAt)} · window closed ${formatInstant(run.deadlineAt)}`,
             rows: comparatorRows,
             verdict: run.status as StatusKey,

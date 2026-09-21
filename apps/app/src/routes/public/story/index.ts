@@ -26,7 +26,7 @@ storyRoutes.get(STORY_VISUAL_PATH, (c) =>
     PublicLayout({
       title: 'How this was built, in pictures',
       description:
-        'A visual development story drawn from the project’s own structured record: a dated timeline, the customer journey, the system and its twelve specialist roles, every decision with its alternatives, the failures, and the real numbers — with unknowns marked unknown.',
+        'A visual development story drawn from the project’s own structured record: a dated timeline, the customer journey, the system and its twelve specialist roles, every decision with its alternatives, the failures, and the real numbers, with unknowns marked unknown.',
       path: STORY_VISUAL_PATH,
       body: StoryVisualPage(),
     }),

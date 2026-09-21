@@ -65,7 +65,7 @@ publicRoutes.get('/', (c) =>
        * So the state of the service travels with the description. CUST-336.
        */
       description:
-        'ITISYOU Verify is built to read your HubSpot record and Resend email status back itself and tell you what the evidence shows. One workflow, four results, no guessing — and not yet accepting live traffic, so nothing is on sale today.',
+        'ITISYOU Verify is built to read your HubSpot record and Resend email status back itself and tell you what the evidence shows. One workflow, four results, no guessing, and not yet accepting live traffic, so nothing is on sale today.',
       path: '/',
       body: HomePage(),
     }),
@@ -113,7 +113,7 @@ publicRoutes.get('/demo', (c) =>
     PublicLayout({
       title: 'Worked example',
       description:
-        'A labelled synthetic workspace showing four real verification runs — verified, failed, pending and unverified — produced by the live verification engine against synthetic evidence.',
+        'A labelled synthetic workspace showing four real verification runs, verified, failed, pending and unverified, produced by the live verification engine against synthetic evidence.',
       path: '/demo',
       beforeMain: syntheticStripe(),
       body: DemoPage(),

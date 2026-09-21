@@ -54,7 +54,7 @@ export const DATA_FLOW: readonly DataFlowStage[] = [
     order: 4,
     stage: 'Resend',
     description:
-      'We read message status events back from your connected Resend account to check whether the acknowledgement email reached the point your rules require. Resend is also the service we use to send our own transactional emails to you — sign-in links, failure notices, deletion confirmations.',
+      'We read message status events back from your connected Resend account to check whether the acknowledgement email reached the point your rules require. Resend is also the service we use to send our own transactional emails to you: sign-in links, failure notices, deletion confirmations.',
   },
   {
     order: 5,
@@ -80,7 +80,7 @@ export const EVIDENCE_RETENTION_NOTE = `Evidence we retrieve from HubSpot and Re
  * in substance.
  */
 export const BACKUP_NOTE =
-  'Our database is backed up. A backup taken before a deletion still contains the deleted data until that backup expires on its own schedule — we do not rewrite backups to remove individual records, because doing that reliably is not something we can honestly promise. We would rather say this than claim data is gone from everywhere the moment you ask.';
+  'Our database is backed up. A backup taken before a deletion still contains the deleted data until that backup expires on its own schedule; we do not rewrite backups to remove individual records, because doing that reliably is not something we can honestly promise. We would rather say this than claim data is gone from everywhere the moment you ask.';
 
 export interface Subprocessor {
   readonly name: string;

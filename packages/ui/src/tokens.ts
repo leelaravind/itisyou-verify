@@ -53,7 +53,7 @@ export const ASSERTION_TO_STATUS: Readonly<Record<AssertionKey, StatusKey>> = {
  * Measured against `paper` (#F1F4F6) unless noted:
  *   ink        16.48:1  AAA body
  *   muted       6.94:1  AA  body
- *   faint       4.96:1  AA  body (4.55:1 on `sunken`, 5.48:1 on `surface` — AA on all three)
+ *   faint       4.96:1  AA  body (4.55:1 on `sunken`, 5.29:1 on `surface` — AA on all three)
  *
  *               `faint` was #5E6C78 until 2026-09-19. That value measured 4.49:1 on
  *               `sunken` and this comment called it "still AA". It is not: AA body text
@@ -68,7 +68,7 @@ export const ASSERTION_TO_STATUS: Readonly<Record<AssertionKey, StatusKey>> = {
  *   failed      6.62:1  AA  (6.20:1 on its own tint)
  *   unverified  6.42:1  AA  (6.15:1 on its own tint)
  *   pending     7.40:1  AAA (6.94:1 on its own tint)
- *   fieldBorder 3.88:1 on paper, 4.28:1 on surface — clears the 3:1 required of a UI
+ *   fieldBorder 3.88:1 on paper, 4.14:1 on surface — clears the 3:1 required of a UI
  *               component boundary by WCAG 1.4.11
  *   focus       5.29:1 on paper — clears 3:1 for a non-text indicator with room to spare
  *   `rule` and `ruleStrong` are decorative hairlines carrying no information; they are
@@ -76,7 +76,12 @@ export const ASSERTION_TO_STATUS: Readonly<Record<AssertionKey, StatusKey>> = {
  */
 export const LIGHT = {
   paper: '#F1F4F6',
-  surface: '#FFFFFF',
+  /* Off-white, not #FFFFFF: the owner's exclusions say no pure-white backgrounds, and
+     this token is the background of every card, panel, table frame and the header. The
+     shift is small on purpose. It is enough that no surface on the page is pure white,
+     and small enough that every contrast ratio measured against `surface` above still
+     holds with room to spare. */
+  surface: '#FAFBFC',
   sunken: '#E5EBEF',
   ink: '#10161C',
   muted: '#48555F',
@@ -177,15 +182,21 @@ export const FONT = {
    * Prose. Everything a person at this company wrote.
    *
    * The approved Stitch system specifies Plus Jakarta Sans for headings and Inter for
-   * body. Both are NAMED FIRST and neither is fetched: the stack falls through to the
-   * system UI face when they are not installed locally. That is deliberate and the reason
-   * is on the privacy page -- a `fonts.gstatic.com` request would make Google a
-   * subprocessor we have not declared, and a Worker that inlines its whole stylesheet
-   * should not then block first paint on a third-party host. Self-hosting them as Worker
-   * assets is the honest way to get the exact faces and is not done yet; until it is, this
-   * renders in the system face rather than pretending otherwise.
+   * body. Inter has been removed from the stack: the owner's exclusions name it, and the
+   * exclusions override a conflicting Stitch style. It was only the second entry, which
+   * made it easy to read as harmless, and that is exactly what it was not: a stack is a
+   * list of faces the page WILL render in, so on any machine with Inter installed, which
+   * is a great many developer machines, the excluded face is what a reader actually saw.
+   *
+   * Plus Jakarta Sans is NAMED FIRST and is not fetched: the stack falls through to the
+   * system UI face when it is not installed locally. That is deliberate and the reason is
+   * on the privacy page -- a `fonts.gstatic.com` request would make Google a subprocessor
+   * we have not declared, and a Worker that inlines its whole stylesheet should not then
+   * block first paint on a third-party host. Self-hosting it as a Worker asset is the
+   * honest way to get the exact face and is not done yet; until it is, this renders in the
+   * system face rather than pretending otherwise.
    */
-  sans: '"Plus Jakarta Sans", Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI Variable Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+  sans: '"Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI Variable Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
   /** Evidence. Everything a machine produced: values, ids, timestamps, status labels. */
   mono: '"JetBrains Mono", ui-monospace, "Cascadia Mono", "Cascadia Code", "SF Mono", "Roboto Mono", Menlo, Consolas, "Liberation Mono", monospace',
 } as const;
@@ -236,15 +247,26 @@ export const SPACE = {
 } as const;
 
 /**
- * Corner radii. These already matched the approved scale and are now labelled with it:
- * Stitch's `rounded.DEFAULT` is 0.25rem and `rounded.lg` is 0.5rem, which is what these
- * two were. Nothing changed; the comment stops the next person re-deriving it.
+ * Corner radii.
+ *
+ * `control` is Stitch's `rounded.DEFAULT` and is kept: a 4px corner on a button, an input
+ * or a badge is how a control says it is a control, and nothing in the owner's exclusions
+ * is about controls.
+ *
+ * `container` was Stitch's `rounded.lg`, 8px, and is now 0. The owner's exclusions name
+ * "soft rounded cards", and an 8px corner over a translucent surface with a drop shadow
+ * under it is precisely that shape. The exclusions override a conflicting reference style,
+ * so the reference loses. A square container also makes the hairline rule the only edge a
+ * card has, which is the honest version of what the border was already doing.
+ *
+ * Deliberately a token and not a search-and-replace: every container on nineteen screens
+ * reads this one value, so the decision is in one place and cannot half-apply.
  */
 export const RADIUS = {
   /** Controls: inputs, buttons, badges. Stitch `rounded.DEFAULT`. */
   control: '4px',
-  /** Containers: cards, callouts, tables. Stitch `rounded.lg`. */
-  container: '8px',
+  /** Containers: cards, callouts, tables. Square, by the owner's exclusion. */
+  container: '0',
 } as const;
 
 /**
@@ -274,30 +296,25 @@ export const BRAND = {
   secondary: '#4cd7f6',
 } as const;
 
-/**
- * Elevation — the piece of the approved design this interface did not have at all.
+/*
+ * Elevation was here, and has been removed. 21 September 2026.
  *
- * The Stitch screens put `shadow-sm` on cards and `shadow-lg` on the surfaces that sit
- * above them, and the header carries `0 1px 8px rgba(0,0,0,0.04)`. Our interface was
- * entirely flat: a card was a 1px rule and nothing else. On the light palette that read as
- * deliberate restraint; on the approved dark palette, where `surface` (#1c2029) sits only
- * a shade above `paper` (#0f131c), a hairline is doing all the work of separating a card
- * from the page and it is not enough.
+ * The Stitch screens put `shadow-sm` on cards and `shadow-lg` on the surfaces above them,
+ * and this interface adopted both. The owner's exclusions say "no drop shadows", and they
+ * override a conflicting reference style, so the shadows go.
  *
- * Both values are pure black at low alpha rather than a tinted shadow, because the palette
- * is dark and a coloured shadow on a dark ground reads as a glow — which the designs do use
- * deliberately, on the primary call to action only, and which would be wrong on every card.
+ * The argument the removed token made was real and has to be answered rather than
+ * ignored: on the dark palette `surface` (#1c2029) sits only a shade above `paper`
+ * (#0f131c), so a hairline was carrying the whole job of separating a card from the page,
+ * and a shadow was helping it. The answer is not a shadow, because shadow was never the
+ * dependable half of that pair: it disappears in forced-colors mode and under several
+ * high-contrast settings, so a card had to survive without it anyway. Containers now take
+ * `--c-rule-strong` instead of `--c-rule` for their border, which is the same separation
+ * done with the signal that does not vanish.
  *
- * The border stays. Shadow is the secondary signal here, not the primary one: it disappears
- * in forced-colors mode and under some high-contrast settings, and a card must still have
- * an edge when it does.
+ * Nothing imports ELEVATION any more. If a shadow is ever wanted again it needs the
+ * owner's exclusion list changed first, not a token added back quietly.
  */
-export const ELEVATION = {
-  /** Cards and other resting surfaces. Stitch `shadow-sm`. */
-  rest: '0 1px 2px rgba(0,0,0,0.28), 0 1px 8px rgba(0,0,0,0.16)',
-  /** Surfaces that sit above the page: the sticky header. */
-  raised: '0 1px 8px rgba(0,0,0,0.24)',
-} as const;
 
 export const LAYOUT = {
   /** Reading measure for prose. Roughly 68 characters at the body size. */

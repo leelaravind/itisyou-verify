@@ -81,7 +81,7 @@ export function ConnectionsPage(options: {
       ${pageHead({
         eyebrow: 'Connections',
         title: 'Connection health',
-        lede: 'When a connection is unhealthy we cannot read evidence through it. Runs that need it show as unverified with the reason — never as a false pass, and never as a failure we cannot evidence.',
+        lede: 'When a connection is unhealthy we cannot read evidence through it. Runs that need it show as unverified with the reason, never as a false pass, and never as a failure we cannot evidence.',
       })}
       ${options.connections.length === 0 ? null : connectionTally(options.connections)}
     </div>
@@ -172,7 +172,7 @@ export function UsagePage(usage: UsageView, counts: RunCountsView | null = null)
       ${pageHead({
         eyebrow: 'Usage',
         title: 'Runs used this period',
-        lede: `Your plan includes ${String(LIMITS.PLAN_RUNS_PER_PERIOD)} runs a month. We do not charge overage — when the allowance is used we stop accepting events until the next period.`,
+        lede: `Your plan includes ${String(LIMITS.PLAN_RUNS_PER_PERIOD)} runs a month. We do not charge overage: when the allowance is used we stop accepting events until the next period.`,
       })}
       <!--
         Not "Period start". The usage method on the customer port says plainly that it
@@ -224,7 +224,7 @@ export function UsagePage(usage: UsageView, counts: RunCountsView | null = null)
                 title: 'What counts as a run',
                 body: html`<p>
                 One signed event, for one enquiry, counted once. Sending the same event id again returns the
-                existing run rather than starting — or charging for — a second one.
+                existing run rather than starting, or charging for, a second one.
               </p>`,
               })
         }
@@ -271,7 +271,7 @@ export function SupportFormPage(options: {
       succeeded
         ? Callout({
             tone: 'note',
-            title: `Message recorded — reference ${options.submitted?.reference ?? 'none'}`,
+            title: `Message recorded · reference ${options.submitted?.reference ?? 'none'}`,
             body: html`<p>${options.submitted?.message ?? ''}</p>`,
           })
         : formMessage(options.submitted?.message ?? null, options.submitted?.ok ? 'note' : 'warn')

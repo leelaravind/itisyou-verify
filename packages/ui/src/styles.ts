@@ -21,9 +21,7 @@
  * site ships is a nine-line theme toggle that is purely additive.
  */
 import {
-  BRAND,
   DARK,
-  ELEVATION,
   FONT,
   LAYOUT,
   LIGHT,
@@ -89,10 +87,6 @@ const BASE = `
   --t-micro:${TYPE.micro};
   --s1:${SPACE.x1};--s2:${SPACE.x2};--s3:${SPACE.x3};--s4:${SPACE.x4};
   --s6:${SPACE.x6};--s8:${SPACE.x8};--s12:${SPACE.x12};--s16:${SPACE.x16};--s24:${SPACE.x24};
-  --brand-1:${BRAND.primary};
-  --brand-2:${BRAND.secondary};
-  --e-rest:${ELEVATION.rest};
-  --e-raised:${ELEVATION.raised};
   --r-control:${RADIUS.control};
   --r-container:${RADIUS.container};
   --w-measure:${LAYOUT.measure};
@@ -160,6 +154,15 @@ a:hover{text-decoration-thickness:2px}
 @media (min-width:64rem){.grid-4{grid-template-columns:repeat(4,minmax(0,1fr))}}
 /* Utilities, so no component has to reach for an inline style attribute. */
 .grid-center{align-items:center}
+/* Columns sized by their own content rather than stretched to the tallest.
+   A grid of two lists where one has one item and the other has six used to draw two
+   equal boxes, the shorter one two thirds empty, which reads as a panel that failed to
+   load. */
+.grid-top{align-items:start}
+/* A column headed by a rule instead of boxed in a card. The rule is the same 2px the
+   status cards wear, so a headed column looks like a headed column everywhere. */
+.ruled-col{border-top:2px solid var(--c-rule-strong);padding-top:var(--s3)}
+.ruled-col>h3{margin:0 0 var(--s2)}
 .grid-wide-gap{gap:var(--s12)}
 .band{background:var(--c-surface);border-block:1px solid var(--c-rule)}
 .pad-top{padding-top:var(--s6)}
@@ -176,17 +179,21 @@ a:hover{text-decoration-thickness:2px}
   letter-spacing:0.1em;color:var(--c-muted);margin:0;font-weight:500;
 }
 .display{font-size:var(--t-display);font-weight:700;line-height:1.143;letter-spacing:-0.03em;margin:0}
-/* The hero accent from the approved design. Colour is set FIRST and unconditionally: with
-   background-clip:text the text is painted by the gradient, so a browser that supports the
-   clip but fails to paint would render nothing at all. The solid colour is what remains. */
-.accent{color:var(--brand-1)}
-@supports (background-clip:text) or (-webkit-background-clip:text){
-  .accent{
-    background-image:linear-gradient(100deg,var(--brand-1),var(--brand-2));
-    -webkit-background-clip:text;background-clip:text;color:transparent;
-  }
-}
-@media (forced-colors:active){.accent{color:CanvasText;background-image:none}}
+/* The hero headline's emphasis, done with weight of ink rather than with colour.
+ *
+ * It was a mint-to-cyan linear-gradient clipped to the accent clause, taken from the
+ * approved design. The owner's exclusions name "harsh gradients" and "neon" palettes and
+ * override a conflicting reference style, and a #6ffbbe-to-#4cd7f6 sweep across a display
+ * headline on a near-black ground is both.
+ *
+ * What replaces it is not "the gradient minus the gradient". The sentence has two clauses
+ * and the second one is the argument, so the first is set in the muted ink and the second
+ * in the full ink: the headline starts quieter and lands on the claim. That is a real
+ * hierarchy, it survives greyscale, forced colours and a failed font load, and it needs no
+ * colour at all. Nothing here is the only carrier of meaning either way. */
+.display__lead{color:var(--c-muted)}
+.accent{color:var(--c-ink)}
+@media (forced-colors:active){.display__lead,.accent{color:CanvasText}}
 .lede{font-size:1.0625rem;color:var(--c-muted);margin:0}
 .small{font-size:var(--t-small)}
 .muted{color:var(--c-muted)}
@@ -200,36 +207,28 @@ a:hover{text-decoration-thickness:2px}
   padding:var(--s2) var(--s4);text-decoration:none;
 }
 .skip:focus{top:var(--s2)}
-/* The header sticks, and is translucent over what scrolls beneath it.
+/* The header sticks, and is opaque.
  *
- * This is the first piece of Stitch COMPOSITION rather than palette, taken from the
- * approved header treatment (fixed, a blurred backdrop, a hairline shadow) and applied to
- * the one element every screen shares. Nineteen designs, one rule, and no page markup
- * touched -- the same reason the colours were done at the token layer.
+ * It was translucent over a 12px backdrop blur with a shadow under it, taken from the
+ * approved header treatment. That is a glass effect and a drop shadow, both of which the
+ * owner's exclusions name, and the exclusions override a conflicting reference style.
  *
- * Sticky rather than fixed: fixed removes the header from flow and every page would need
- * compensating top padding, which is nineteen chances to get a scroll position wrong.
- * Sticky keeps the document height honest.
+ * Sticky rather than fixed is kept, and is not a style decision: fixed removes the header
+ * from flow and every page would need compensating top padding, which is nineteen chances
+ * to get a scroll position wrong. Sticky keeps the document height honest.
  *
- * The blur is progressive. Where it is unsupported the background stays the flat surface
- * colour, which is exactly what this rule replaced, so nothing depends on it. The colour is
- * given BOTH as an opaque fallback and as a translucent value, in that order, so a browser
- * without colour mixing keeps a readable header rather than a see-through one.
+ * The opaque surface plus a hairline is what the blur was decorating. It also removes the
+ * two failure modes the blur carried: unreadable header text where the backdrop filter is
+ * unsupported and the colour mix falls through, and the repaint cost of blurring a live
+ * backdrop on every scroll frame on a phone.
  *
  * (No backticks in this comment. It sits inside the CSS template literal, and one has now
  * closed that template three times in a single day.)
  */
 .site{
   position:sticky;top:0;z-index:30;
-  border-bottom:1px solid var(--c-rule);
+  border-bottom:1px solid var(--c-rule-strong);
   background:var(--c-surface);
-  background:color-mix(in srgb, var(--c-surface) 82%, transparent);
-  box-shadow:var(--e-raised);
-  backdrop-filter:blur(12px);
-  -webkit-backdrop-filter:blur(12px);
-}
-@supports not (backdrop-filter:blur(1px)){
-  .site{background:var(--c-surface)}
 }
 .site__inner{display:flex;flex-wrap:wrap;gap:var(--s3) var(--s6);align-items:center;justify-content:space-between;padding-block:var(--s3)}
 .brand{display:inline-flex;align-items:baseline;gap:0.45em;text-decoration:none;font-weight:600}
@@ -263,7 +262,13 @@ a:hover{text-decoration-thickness:2px}
 .margin-row__gutter .badge__glyph{margin-top:0.1em}
 @media (min-width:40rem){
   .margin-row{grid-template-columns:var(--w-margin) minmax(0,1fr);gap:var(--s6);align-items:start}
+  /* A prose heading in the gutter rather than a badge. 7.5rem fits "Unverified"; it does
+     not fit "It does not detect a run that never started", which is the shape of every
+     heading in the home page's exclusions. The wider track is the reading measure of a
+     heading, not a guess. */
+  .margin-row--wide{grid-template-columns:minmax(0,18rem) minmax(0,1fr)}
 }
+.margin-row--wide h3{font-size:var(--t-body);letter-spacing:-0.005em}
 
 /* ---- the claim rule: this product's whole argument, as one device --------- */
 .claimrule{border:1px solid var(--c-rule);border-radius:var(--r-container);background:var(--c-surface);padding:var(--s4)}
@@ -335,7 +340,7 @@ a:hover{text-decoration-thickness:2px}
 .btn-row{display:flex;flex-wrap:wrap;gap:var(--s3);align-items:center}
 
 /* ---- cards --------------------------------------------------------------- */
-.card{border:1px solid var(--c-rule);border-radius:var(--r-container);background:var(--c-surface);padding:var(--s4);box-shadow:var(--e-rest)}
+.card{border:1px solid var(--c-rule-strong);border-radius:var(--r-container);background:var(--c-surface);padding:var(--s4)}
 @media (min-width:46rem){.card{padding:var(--s6)}}
 .card__head{display:flex;flex-wrap:wrap;gap:var(--s2) var(--s4);align-items:baseline;justify-content:space-between;margin-bottom:var(--s3)}
 .card__title{font-size:var(--t-h3);margin:0}
@@ -380,26 +385,40 @@ a:hover{text-decoration-thickness:2px}
 .badge--pending{color:var(--c-pending);background:var(--c-pending-tint)}
 .badge--lg{font-size:var(--t-small);padding:0.42rem 0.7rem}
 /* The follow-up line an UNVERIFIED headline verdict must carry: what could not be checked,
-   and why. In the flow, at body size, never behind a control. */
-.verdict-gap{font-size:var(--t-small);margin:0;padding-left:var(--s3);border-left:2px dashed var(--c-unverified)}
+   and why. In the flow, at body size, never behind a control.
+
+   The rule is along the top, not the left. It was a dashed left border in the unverified
+   amber, which is the coloured-left-border device the owner's exclusions name; the dash
+   and the hue both survive the move, so nothing that carried meaning was lost. */
+.verdict-gap{font-size:var(--t-small);margin:0;padding-top:var(--s2);border-top:2px dashed var(--c-unverified)}
 .verdict-gap+.verdict-gap{margin-top:var(--s2)}
 
 /* ---- callout ------------------------------------------------------------- */
-.callout{border:1px solid var(--c-rule);border-left-width:3px;border-radius:var(--r-control);background:var(--c-surface);padding:var(--s4)}
+/* The tone rule runs along the TOP.
+ *
+ * It was a 3px coloured left border, which the owner's exclusions name outright, and the
+ * exclusions override a conflicting reference style. Moving it to the top rather than
+ * deleting it keeps every property the left border was carrying: the tone is still a
+ * colour, the todo tone is still the only dashed one, and the tint behind the body is
+ * untouched, so none of the contrast measurements move. It also makes a callout look like
+ * a status card, which is the same idea drawn the same way for once.
+ *
+ * Square, like every other container: RADIUS.container is 0. */
+.callout{border:1px solid var(--c-rule);border-top-width:3px;border-radius:var(--r-container);background:var(--c-surface);padding:var(--s4)}
 .callout__title{font-size:var(--t-small);font-weight:640;margin:0 0 var(--s1);display:flex;gap:0.5em;align-items:center}
 .callout__body{font-size:var(--t-small);color:var(--c-muted);margin:0}
 .callout__body>*+*{margin-top:var(--s2)}
-.callout--limit{border-left-color:var(--c-unverified);background:var(--c-unverified-tint)}
+.callout--limit{border-top-color:var(--c-unverified);background:var(--c-unverified-tint)}
 .callout--limit .callout__body{color:var(--c-ink)}
-.callout--warn{border-left-color:var(--c-failed);background:var(--c-failed-tint)}
+.callout--warn{border-top-color:var(--c-failed);background:var(--c-failed-tint)}
 .callout--warn .callout__body{color:var(--c-ink)}
-.callout--note{border-left-color:var(--c-rule-strong)}
+.callout--note{border-top-color:var(--c-rule-strong)}
 /* A dashed edge, not a second amber. The limit and todo tones were pixel-identical: same
    border colour, same tint, and only an invisible data-tone between them. They mean
    opposite things — "this product cannot do that, permanently" versus "the owner has not
    written this yet" — so one of them has to be separable without reading the hue. Todo
    takes the dash, matching the story page's precedent for a thing that is not settled. */
-.callout--todo{border-left-color:var(--c-unverified);border-left-style:dashed;background:var(--c-unverified-tint)}
+.callout--todo{border-top-color:var(--c-unverified);border-top-style:dashed;background:var(--c-unverified-tint)}
 .callout--todo .callout__body{color:var(--c-ink)}
 
 /* ---- forms --------------------------------------------------------------- */
@@ -561,23 +580,23 @@ a:hover{text-decoration-thickness:2px}
 
 /* ---- screen composition: how it works, demo, security --------------------- */
 /* The composition layer for the three public explainer screens, translated from the
-   approved how-it-works / demonstration reference: a framed hero panel with an ambient
-   accent and a two-pane split inside it, a section head with a mono meta bar on the right,
+   approved how-it-works / demonstration reference: a framed hero panel with a two-pane
+   split inside it, a section head with a mono meta bar on the right,
    a framed results panel with a bar above the table and a tally below it, tiles inside a
    panel for the four statuses, a ruled reading column for the exclusions, and a closing
    band for the calls to action. Layout only. Every word inside these boxes comes from the
    content module or an existing route, never from the reference markup, which carries
    claims this business does not make.
    (No backticks in this comment. It sits inside the CSS template literal.) */
-.panel{position:relative;overflow:hidden;background:var(--c-surface);border:1px solid var(--c-rule);border-radius:var(--r-container);padding:var(--s4);box-shadow:var(--e-rest)}
+.panel{position:relative;overflow:hidden;background:var(--c-surface);border:1px solid var(--c-rule-strong);border-radius:var(--r-container);padding:var(--s4)}
 @media (min-width:46rem){.panel{padding:var(--s8)}}
 .panel>*{position:relative;z-index:1}
 .panel>*+*{margin-top:var(--s6)}
-/* The ambient accent is decorative, sits behind the content, and is lifted out of the
-   way by the z-index on the children above rather than by trusting paint order. It is
-   removed under forced colours, where a translucent blob is noise. */
-.panel--hero::before{content:"";position:absolute;z-index:0;right:-6rem;top:-6rem;width:22rem;height:22rem;border-radius:50%;background:var(--brand-1);opacity:.07;filter:blur(56px);pointer-events:none}
-@media (forced-colors:active){.panel--hero::before{display:none}}
+/* The panel's children keep position:relative and z-index:1 from the rule above. That
+   pairing existed to lift them clear of an ambient accent blob behind them, which was a
+   radial orb and has been removed under the owner's exclusions. The z-index is kept
+   because .panel is still a positioned, overflowing container and its children should not
+   depend on paint order; it costs nothing and removing it is a separate question. */
 .panel__intro{max-width:48rem}
 .panel__intro>*+*{margin-top:var(--s2)}
 /* Two panes side by side from the desktop breakpoint, stacked below it. */
@@ -599,7 +618,7 @@ a:hover{text-decoration-thickness:2px}
 .meta-bar b{font-weight:500;color:var(--c-ink)}
 /* The framed results panel: a callout above the table, the table, a bar below it. The
    table keeps its own scroll region and loses only the frame it would otherwise double. */
-.results{background:var(--c-surface);border:1px solid var(--c-rule);border-radius:var(--r-container);overflow:hidden;box-shadow:var(--e-raised)}
+.results{background:var(--c-surface);border:1px solid var(--c-rule-strong);border-radius:var(--r-container);overflow:hidden}
 .results>*+*{margin-top:0}
 .results>.callout{border-radius:0;border-top:0;border-right:0;border-bottom:1px solid var(--c-rule)}
 .results>.tablewrap{border:0;border-radius:0}
@@ -640,9 +659,13 @@ a:hover{text-decoration-thickness:2px}
 .faq p{margin:0;color:var(--c-muted);font-size:var(--t-small)}
 /* The pricing screen lays its questions out two abreast at tablet width and above. The
    list keeps its own class so the single-column FAQ page is untouched. */
-.faq-grid .faq{border-top:0;display:grid;gap:var(--s4)}
-.faq-grid .faq>div{border:1px solid var(--c-rule);border-radius:var(--r-container);background:var(--c-surface);padding:var(--s4);margin:0}
-@media (min-width:46rem){.faq-grid .faq{grid-template-columns:repeat(2,minmax(0,1fr))}}
+/* The questions as ruled rows in one column, not a two-across grid of cards.
+   Five answers in two columns leaves an orphan, the cards were the soft rounded kind the
+   owner's exclusions name, and a reader scanning for one question reads a single column
+   faster than a grid. The hairline between rows is the only separator each needs. */
+.faq-grid .faq{border-top:0;display:grid;gap:0}
+.faq-grid .faq>div{border:0;border-top:1px solid var(--c-rule);background:none;padding:var(--s6) 0;margin:0}
+.faq-grid .faq>div:first-child{border-top:0;padding-top:0}
 
 /* ---- composition: the landing and pricing screens ------------------------ */
 /* Per-screen COMPOSITION from the approved designs, as utilities rather than page
@@ -661,11 +684,6 @@ a:hover{text-decoration-thickness:2px}
    evidence card full width beneath the calls to action rather than beside the copy.
    Text inside the card and inside any callout stays left-aligned: a verdict is read,
    not admired. */
-.center{text-align:center}
-.center .measure,.center .hero-copy,.center .btn-row{margin-inline:auto}
-.center .btn-row{justify-content:center}
-.hero-copy{max-width:52rem}
-.hero-card{max-width:64rem;margin-inline:auto;text-align:left}
 /* Below phone-landscape width the two calls to action stack full width, as drawn. */
 @media (max-width:39.99rem){
   .btn-row--stack{flex-direction:column;align-items:stretch}
@@ -741,7 +759,7 @@ a:hover{text-decoration-thickness:2px}
 .status-card .section-head .tally{padding-top:var(--s1)}
 
 /* An empty state inside a results frame loses the frame it would otherwise double. */
-.results>.state{border:0;border-radius:0;box-shadow:none}
+.results>.state{border:0;border-radius:0}
 .results__bar>p{margin:0}
 
 /* A table that stacks into records below phone-landscape width, the way the phone
@@ -762,10 +780,15 @@ a:hover{text-decoration-thickness:2px}
 /* ---- the pre-checkout disclosure ----------------------------------------- */
 .disclosure{border:1px solid var(--c-rule);border-radius:var(--r-container);background:var(--c-surface);padding:var(--s4)}
 @media (min-width:46rem){.disclosure{padding:var(--s6)}}
+/* The one sentence a buyer must have read before the charge. Its rule is along the top,
+   like every other toned block on the site: it was a 3px left border, and although the
+   colour was neutral ink rather than a status hue, it was still the coloured-left-border
+   device the owner's exclusions name, and leaving one instance of it behind would be the
+   version of this fix that fails the next time somebody copies the pattern. */
 .disclosure__must{
   font-size:1.0625rem;font-weight:560;line-height:1.5;margin:0 0 var(--s4);
-  padding:var(--s4);border-left:3px solid var(--c-ink);background:var(--c-sunken);
-  border-radius:var(--r-control);
+  padding:var(--s4);border-top:3px solid var(--c-ink);background:var(--c-sunken);
+  border-radius:var(--r-container);
 }
 .disclosure__section{border-top:1px solid var(--c-rule);padding-top:var(--s4);margin-top:var(--s4)}
 .disclosure__section h4{font-size:var(--t-h3);margin:0 0 var(--s2)}

@@ -65,10 +65,19 @@ describe('how it works — composition', () => {
     expect(markup.match(/id="faq-different-from-automation-error-alerts"/g)?.length).toBe(1);
   });
 
-  it('CUST-802 the three steps are an ordered list of three cards, three across, still numbered', async () => {
+  it('CUST-802 the three steps are a numbered ordered list, matching the home page, not a card row', async () => {
+    /*
+     * Three cards across until 21 September 2026, which is the generic three-feature-card
+     * row the owner's exclusions name. The home page carries the same three steps and was
+     * recomposed the same day, so the assertion here is deliberately the same shape as
+     * CUST-703's: one device, asserted in both places it appears.
+     */
     const markup = await render(HowItWorksPage());
-    expect(markup).toContain('<ol class="step-cards grid grid-3">');
-    expect(markup.match(/<li class="card step-card">/g)?.length).toBe(3);
+    expect(markup).toContain('<ol class="steps">');
+    const steps = markup.indexOf('<ol class="steps">');
+    const stepsEnd = markup.indexOf('</ol>', steps);
+    expect(markup.slice(steps, stepsEnd).match(/<li>/g)?.length).toBe(3);
+    expect(markup.slice(steps, stepsEnd), 'the steps are cards again').not.toContain('step-card');
     // Order is the content module's order — connect, define, receive — and unchanged.
     const connect = markup.indexOf('<h3>Connect HubSpot and Resend</h3>');
     const define = markup.indexOf('<h3>Define the expected result</h3>');

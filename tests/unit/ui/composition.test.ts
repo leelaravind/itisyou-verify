@@ -45,31 +45,49 @@ function declarationsFor(selector: string): string {
 const count = (markup: string, needle: string): number => markup.split(needle).length - 1;
 
 describe('the landing page composition', () => {
-  it('CUST-701 the hero is one centred column: notice, copy, calls to action, then the evidence card full width', async () => {
+  it('CUST-701 the hero is seven to five: the notice spans both columns, then copy beside the evidence card', async () => {
+    /*
+     * This case asserted a centred single column until 21 September 2026. The centred hero
+     * was the reference's, and it put the claim rule -- the argument the page is making --
+     * below a full-height column of centred prose, under the fold on a 1440x900 laptop. It
+     * is now beside the headline, in the narrower of two columns.
+     *
+     * The document order is the part that must not move, and is asserted below rather than
+     * the visual arrangement: the notice is read before the headline, the headline before
+     * the first call to action. CUST-121 depends on that and so does a screen reader.
+     */
     const markup = await render(HomePage());
-    expect(markup).toContain('<div class="wrap stack center">');
+    expect(markup, 'the hero is no longer a centred column').not.toContain('stack center');
+    expect(markup).toContain('<div class="grid grid-7-5 grid-wide-gap">');
 
     const notice = markup.indexOf('data-activation-notice');
+    const split = markup.indexOf('<div class="grid grid-7-5 grid-wide-gap">');
     const headline = markup.indexOf('<h1 class="display">');
     const firstCta = markup.indexOf('class="btn btn--primary"');
     const evidence = markup.indexOf('data-claim-rule="FAILED"');
-    for (const at of [notice, headline, firstCta, evidence]) expect(at).toBeGreaterThan(-1);
-    // Notice before headline before the first call to action before the evidence card:
-    // the order the design draws, and the order CUST-121 already relies on.
-    expect(notice).toBeLessThan(headline);
+    for (const at of [notice, split, headline, firstCta, evidence]) expect(at).toBeGreaterThan(-1);
+    // The notice is outside the split and above it: it qualifies both columns, so it may
+    // not sit in one of them.
+    expect(notice).toBeLessThan(split);
+    expect(split).toBeLessThan(headline);
     expect(headline).toBeLessThan(firstCta);
     expect(firstCta).toBeLessThan(evidence);
-    // The evidence card is wrapped so it stays left-aligned inside a centred section.
-    expect(markup.lastIndexOf('<div class="hero-card stack-sm">', evidence)).toBeGreaterThan(firstCta);
-    expect(declarationsFor('.center')).toBe('text-align:center');
-    expect(declarationsFor('.hero-card')).toContain('text-align:left');
-    expect(declarationsFor('.hero-card')).toContain('margin-inline:auto');
+    // The two columns are the only two children of the split, and the evidence is in the
+    // second: one column collapses to one column on a phone, which is the ladder below.
+    expect(CSS).toContain(
+      '@media (min-width:60rem){.grid-7-5{grid-template-columns:minmax(0,7fr) minmax(0,5fr);align-items:start}}',
+    );
+    // The centred-hero helpers are gone rather than merely unused, so nothing can reach
+    // for them and quietly centre a section again.
+    for (const selector of ['.center', '.hero-card', '.hero-copy']) {
+      expect(declarationsFor(selector), `${selector} is still in the stylesheet`).toBe('');
+    }
     // Both button rows stack full width below phone-landscape width, as drawn.
     expect(count(markup, 'class="btn-row btn-row--stack"')).toBe(2);
     expect(CSS).toContain(
       '@media (max-width:39.99rem){.btn-row--stack{flex-direction:column;align-items:stretch}.btn-row--stack .btn{width:100%}}',
     );
-    // The notice's own text is intact inside the new wrapper.
+    // The notice's own text is intact.
     expect(text(markup)).toContain(SERVICE_ACTIVATION_NOTICE.headline);
   });
 
@@ -100,7 +118,18 @@ describe('the landing page composition', () => {
     expect(declarationsFor('.status-card')).toContain('border-top:2px solid var(--c-rule-strong)');
   });
 
-  it('CUST-703 sections follow the approved order — hero, results band, exclusions as a card grid, three step cards, closing — and the proof notice follows the steps', async () => {
+  it('CUST-703 sections follow the approved order, the exclusions are ruled rows and the steps a numbered list, and the proof notice follows the steps', async () => {
+    /*
+     * The ORDER is the reference's and is unchanged, because the order is an argument:
+     * what we report, what we do not do, what setting it up involves, what you need first.
+     *
+     * The two DEVICES changed on 21 September 2026. The exclusions were five cards in a
+     * three-across grid, which is a generic three-feature-card row with an orphan row of
+     * two under it, and the steps were three more cards. Both are named in the owner's
+     * exclusions, which override a conflicting reference style. This case now asserts the
+     * replacements, and asserts the card grids are absent, so neither can come back by
+     * someone re-reading the reference and "fixing" the page towards it.
+     */
     const markup = await render(HomePage());
     const order = [
       'Independent verification of one automation',
@@ -116,23 +145,28 @@ describe('the landing page composition', () => {
     for (let i = 1; i < positions.length; i += 1) {
       expect(positions[i], order[i]).toBeGreaterThan(positions[i - 1] as number);
     }
-    // The exclusions: three across at desktop, one card per item, none dropped.
+    // The exclusions: ruled rows in the wide evidence margin, one per item, none dropped.
     const exclusions = markup.indexOf('>What this does not do<');
-    const steps = markup.indexOf('<ol class="step-cards grid grid-3">');
+    const steps = markup.indexOf('<ol class="steps">');
     expect(steps).toBeGreaterThan(exclusions);
     const exclusionSlice = markup.slice(exclusions, steps);
-    expect(exclusionSlice).toContain('<div class="grid grid-3">');
-    expect(count(exclusionSlice, 'class="card__title"')).toBe(5);
+    expect(exclusionSlice).toContain('<div data-exclusions>');
+    expect(count(exclusionSlice, 'class="margin-row margin-row--wide"')).toBe(5);
+    expect(exclusionSlice, 'the exclusions are cards again').not.toContain('class="card');
+    expect(exclusionSlice, 'the exclusions are a three-across grid again').not.toContain('grid-3');
     expect(exclusionSlice).toContain('It does not detect a run that never started<');
-    // The three steps: an ordered list of exactly three cards, then the notice that
+    // The three steps: an ordered list of exactly three, no cards, then the notice that
     // qualifies step 3, then the link to the long version.
     const stepsEnd = markup.indexOf('</ol>', steps);
-    expect(count(markup.slice(steps, stepsEnd), '<li class="card step-card">')).toBe(3);
+    const stepSlice = markup.slice(steps, stepsEnd);
+    expect(count(stepSlice, '<li>')).toBe(3);
+    expect(stepSlice, 'the steps are cards again').not.toContain('step-card');
     const proof = markup.indexOf('data-provider-proof-notice');
     expect(proof).toBeGreaterThan(stepsEnd);
     expect(markup.indexOf('href="/how-it-works"', proof)).toBeGreaterThan(proof);
-    // Three columns only where three columns of prose are readable; the base grid rule.
-    expect(CSS).toContain('@media (min-width:60rem){.grid-3{grid-template-columns:repeat(3,minmax(0,1fr))}}');
+    // The gutter is wide enough for a prose heading. 7.5rem fits a badge and not a
+    // sentence, and this is the rule that keeps the two apart.
+    expect(CSS).toContain('.margin-row--wide{grid-template-columns:minmax(0,18rem) minmax(0,1fr)}');
   });
 
   it('CUST-704 the plan line under the hero and under the closing is the contract, stated once each and never a second figure', async () => {
@@ -146,7 +180,7 @@ describe('the landing page composition', () => {
 });
 
 describe('the pricing page composition', () => {
-  it('CUST-705 the main grid is seven to five: plan and payment policy in the wider column, the order summary and the unavailable control in the narrower', async () => {
+  it('CUST-705 the main grid is seven to five: the plan in the wider column, the order summary and the unavailable control in the narrower, and the payment policy below both', async () => {
     const markup = await render(PricingPage());
     const grid = markup.indexOf('<div class="grid grid-7-5">');
     expect(grid).toBeGreaterThan(-1);
@@ -156,10 +190,19 @@ describe('the pricing page composition', () => {
     const summary = markup.indexOf('<dl class="summary">');
     const control = markup.indexOf('data-unavailable');
     for (const at of [policy, summary, control]) expect(at).toBeGreaterThan(grid);
-    // Left column is emitted first: the policy sits before the summary, and the control
-    // sits inside the summary's card, after its rows.
-    expect(policy).toBeLessThan(summary);
+    /*
+     * The payment-failure policy left the wider column on 21 September 2026 and now sits
+     * below the whole grid. Inside it, the left column ran roughly half a screen past the
+     * right and left a tall empty gutter beside it; the plan card and the order summary
+     * finish within a few pixels of each other, so the grid balances on its own.
+     *
+     * So the order asserted is summary, then control inside that summary's card, then the
+     * policy after both. Reading order is unchanged for anything that matters: a buyer
+     * still meets the plan, then the price, then the reason the control is unavailable,
+     * before the failure policy.
+     */
     expect(summary).toBeLessThan(control);
+    expect(control).toBeLessThan(policy);
     // The price is in the plan card's head, opposite the plan name.
     const head = markup.indexOf('<div class="card__head">', grid);
     const headEnd = markup.indexOf('</div>', markup.indexOf('price__period', head));
@@ -209,9 +252,20 @@ describe('the pricing page composition', () => {
     expect(cards).toEqual(['verified', 'failed', 'unverified', 'pending']);
     const faqSlice = markup.slice(faq, limitations);
     expect(count(faqSlice, 'id="faq-')).toBe(5);
-    expect(CSS).toContain('@media (min-width:46rem){.faq-grid .faq{grid-template-columns:repeat(2,minmax(0,1fr))}}');
-    // The single-column FAQ list elsewhere is untouched: the grid applies only under the wrapper.
-    expect(count(CSS, '.faq-grid .faq{')).toBe(2);
+    /*
+     * The questions were two abreast in bordered cards. Five answers in two columns leaves
+     * an orphan, and the cards were the soft rounded kind the owner's exclusions name, so
+     * they are one ruled column now. The assertion inverted with the layout: no grid
+     * columns, no border, no background, just a hairline between each answer and the next,
+     * and the first row has no rule above it because the heading is already above it.
+     */
+    expect(CSS, 'the questions are a two-column grid again').not.toContain(
+      '@media (min-width:46rem){.faq-grid .faq{grid-template-columns:repeat(2,minmax(0,1fr))}}',
+    );
+    expect(CSS).toContain('.faq-grid .faq>div{border:0;border-top:1px solid var(--c-rule)');
+    expect(CSS).toContain('.faq-grid .faq>div:first-child{border-top:0;padding-top:0}');
+    // The single-column FAQ list elsewhere is untouched: the rules apply only under the wrapper.
+    expect(count(CSS, '.faq-grid .faq{')).toBe(1);
     expect(declarationsFor('.faq{')).toBe('');
     expect(declarationsFor('.faq')).toBe('border-top:1px solid var(--c-rule)');
   });

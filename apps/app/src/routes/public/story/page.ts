@@ -132,7 +132,7 @@ function spanLabel(events: readonly StoryEvent[]): string {
   const last = stamps[stamps.length - 1] ?? '';
   const firstDay = dayOf(first);
   const lastDay = dayOf(last);
-  return firstDay === lastDay ? firstDay : `${firstDay} – ${lastDay}`;
+  return firstDay === lastDay ? firstDay : `${firstDay} to ${lastDay}`;
 }
 
 function toTimelineEntry(event: StoryEvent): TimelineEntry {
@@ -246,7 +246,7 @@ function journeySection(runs: readonly JourneyRun[]): Html {
 
     ${Callout({
       tone: 'limit',
-      title: 'What absence means — the line between "wrong" and "unknown"',
+      title: 'What absence means: the line between "wrong" and "unknown"',
       body: html`<ul class="dcard__list" data-absence-rules>
           ${ABSENCE_RULES.rules.map((rule) => html`<li>${rule}</li>`)}
         </ul>
@@ -257,7 +257,7 @@ function journeySection(runs: readonly JourneyRun[]): Html {
       <h3>Four real verdicts about invented evidence</h3>
       <p class="small muted measure">
         These rows are produced by running the live verification engine over fixed synthetic
-        fixtures — the same runs the <a href="/demo">worked example</a> shows. No customer, no
+        fixtures, the same runs the <a href="/demo">worked example</a> shows. No customer, no
         database, no provider call. They are here because a diagram can only claim what the engine
         would actually decide.
       </p>
@@ -306,7 +306,7 @@ function timelineSection(record: StoryRecord): Html {
       'timeline',
       'Milestone timeline',
       `${String(events.length)} recorded events, ${span}`,
-      'Each event carries exactly the status the structured record gives it — no stronger.',
+      'Each event carries exactly the status the structured record gives it, no stronger.',
     )}
     <div class="row" data-status-counts>
       ${present.map(
@@ -500,7 +500,7 @@ function evidenceSection(): Html {
 
 function standingSection(): Html {
   return html`<section class="story-section stack" id="standing" aria-labelledby="standing-heading">
-    ${sectionHead('standing', 'Where it stands', 'Built, live, and not yet true — kept separate')}
+    ${sectionHead('standing', 'Where it stands', 'Built, live, and not yet true: kept separate')}
     <div class="grid grid-2">
       ${STANDING.map(
         (item) =>
@@ -520,7 +520,7 @@ function standingSection(): Html {
         the honest version is per provider rather than one sentence covering three. Resend has
         run live: a deployment holds one provider read-back and two signed provider webhooks
         from a real Resend account, and they produced one VERIFIED run and two UNVERIFIED ones.
-        HubSpot is connected and has produced no evidence at all — connected is not proven, and
+        HubSpot is connected and has produced no evidence at all; connected is not proven, and
         this page will not let the first stand in for the second. Stripe has taken one sandbox
         payment through the deployed service; live charges are disabled.
       </p>`,
@@ -545,7 +545,7 @@ function provenanceSection(): Html {
       </p>
       <p class="small">
         <strong>Produced by the real engine.</strong> The four verdicts in the journey table are
-        computed by the verification engine over synthetic fixtures when this page is built — real
+        computed by the verification engine over synthetic fixtures when this page is built: real
         decisions about invented facts.
       </p>
       <p class="small">
@@ -590,7 +590,7 @@ export function StoryVisualPage(options: StoryVisualPageOptions = {}): Html {
   return html`<div class="wrap section stack-lg" data-story-visual>
     <div class="stack">
       <div class="stack-sm">
-        <p class="eyebrow">Development story — visual</p>
+        <p class="eyebrow">Development story · visual</p>
         <h1>How ITISYOU Verify works, and how it was built</h1>
         <p class="lede measure">
           For a reader who is not an engineer: what the product does, in pictures drawn from the

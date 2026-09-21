@@ -8,19 +8,30 @@
  *
  * ## Composition
  *
- * The section order, column counts and hero structure follow the approved landing design
- * (`design/stitch/screens/batch-02/.../itisyou_verify_ground_truth_automation_verification_for_agencies`):
- * a centred single-column hero with the evidence card full width beneath the calls to
- * action; the four statuses as a row of four cards inside a band; a card grid of the
- * exclusions; the three steps as a row of three cards with the qualifying notice as a
- * banner beneath; and a centred closing call to action. What was NOT taken from that
- * file is any of its copy: it carries prices, a trial, a certification and named
- * competitors that are not ours. Layout only. `scripts/scan-claims.mjs` is the gate.
+ * Recomposed on 21 September 2026. The section order still follows the approved landing
+ * design (`design/stitch/screens/batch-02/.../itisyou_verify_ground_truth_automation_verification_for_agencies`)
+ * because the order is an argument and the order is sound: what we report, what we do not
+ * do, what setting it up involves, what you need before you start. Three of its *devices*
+ * are gone, because the owner's exclusions override a conflicting reference style and
+ * these conflicted:
+ *
+ *  - the centred single column became a seven-to-five split, copy beside evidence. A
+ *    centred hero with a centred lede and centred buttons is the shape every template
+ *    ships with, and it pushed the one thing on this page worth reading first, the claim
+ *    rule, below the fold on a laptop.
+ *  - the exclusions were five cards in a three-across grid, which is a generic
+ *    three-feature-card row with an orphan row under it. They are now ruled rows in the
+ *    evidence margin, the same device the workspace and run pages use for a finding.
+ *  - the three steps were three cards. They are now the numbered `.steps` list the
+ *    how-it-works page already uses, so a step looks the same wherever it is read.
+ *
+ * What was NOT taken from the reference is any of its copy: it carries prices, a trial, a
+ * certification and named competitors that are not ours. Layout only.
+ * `scripts/scan-claims.mjs` is the gate.
  */
 import {
   Button,
   ButtonRow,
-  Card,
   ActivationNotice,
   ProviderProofNotice,
   ClaimRule,
@@ -55,47 +66,56 @@ function planLine(): Html {
  * shown are the same synthetic enquiry the demo page uses, so a visitor who clicks through
  * meets something they recognise.
  *
- * One centred column, as drawn: eyebrow, headline, subhead, the two calls to action, the
- * plan line, and then the evidence card at full width. The card and the notice keep
- * left-aligned text inside a centred section.
+ * Left-aligned, seven to five: eyebrow, headline, subhead, the two calls to action and the
+ * plan line in the wider column; the evidence card in the narrower one, beside them rather
+ * than below. The notice spans both, above everything, because it qualifies both.
+ *
+ * The split is the point. The claim rule is the argument this page is making, and under a
+ * centred hero it sat below a full-height column of centred prose, which on a 1440 by 900
+ * laptop put it under the fold. Beside the headline it is the second thing a reader's eye
+ * lands on, which is where it belongs.
  */
 function hero(): Html {
   return html`<section class="section">
-    <div class="wrap stack center">
+    <div class="wrap stack-lg">
       <!-- Before the first call to action, deliberately. A visitor must not read the
-           headline, form an intention, and only then learn we cannot serve them. -->
-      <div class="hero-card">${ActivationNotice()}</div>
-      <div class="stack hero-copy">
-        <p class="eyebrow">Independent verification of one automation</p>
-        <!-- The accent falls on the clause that is the product's argument, which is a
-             decision made in the content module rather than by where a span sits here. -->
-        <h1 class="display">
-          ${HOME_HEADLINE_LEAD} <span class="accent">${HOME_HEADLINE_ACCENT}</span>
-        </h1>
-        <p class="lede measure">${HOME_SUBHEAD}</p>
-        <div class="btn-row btn-row--stack">
-          ${Button({
-            label: 'See a worked example',
-            href: '/demo',
-            variant: 'primary',
-            icon: iconArrow(),
-          })}
-          ${Button({ label: 'How it works', href: '/how-it-works', variant: 'quiet' })}
+           headline, form an intention, and only then learn we cannot serve them. It spans
+           the full width rather than sitting in a column: it qualifies both of them. -->
+      ${ActivationNotice()}
+      <div class="grid grid-7-5 grid-wide-gap">
+        <div class="stack">
+          <p class="eyebrow">Independent verification of one automation</p>
+          <!-- The accent falls on the clause that is the product's argument, which is a
+               decision made in the content module rather than by where a span sits here. -->
+          <h1 class="display">
+            <span class="display__lead">${HOME_HEADLINE_LEAD}</span>
+            <span class="accent">${HOME_HEADLINE_ACCENT}</span>
+          </h1>
+          <p class="lede measure">${HOME_SUBHEAD}</p>
+          <div class="btn-row btn-row--stack">
+            ${Button({
+              label: 'See a worked example',
+              href: '/demo',
+              variant: 'primary',
+              icon: iconArrow(),
+            })}
+            ${Button({ label: 'How it works', href: '/how-it-works', variant: 'quiet' })}
+          </div>
+          ${planLine()}
         </div>
-        ${planLine()}
-      </div>
-      <div class="hero-card stack-sm">
-        ${ClaimRule({
-          status: 'FAILED',
-          claim:
-            'enquiry enq_0000000000000001 → contact created, acknowledgement sent to a**@example.test',
-          observed:
-            'contact crm-rec-1 created 30s after the enquiry; acknowledgement to a**@example.test status "bounced"',
-        })}
-        <p class="micro">
-          A synthetic example. The same record, read back from HubSpot and Resend, is what decides the
-          verdict — not the automation's own report.
-        </p>
+        <div class="stack-sm">
+          ${ClaimRule({
+            status: 'FAILED',
+            claim:
+              'enquiry enq_0000000000000001 → contact created, acknowledgement sent to a**@example.test',
+            observed:
+              'contact crm-rec-1 created 30s after the enquiry; acknowledgement to a**@example.test status "bounced"',
+          })}
+          <p class="micro">
+            A synthetic example. The same record, read back from HubSpot and Resend, is what decides the
+            verdict, not the automation's own report.
+          </p>
+        </div>
       </div>
     </div>
   </section>`;
@@ -144,16 +164,17 @@ function statuses(): Html {
 function howItWorks(): Html {
   return html`<section class="section">
     <div class="wrap stack-lg">
-      <div class="stack-sm center">
+      <div class="stack-sm">
         <p class="eyebrow">Three steps</p>
         <h2>What setting this up actually involves</h2>
       </div>
-      <!-- Three cards in a row at desktop width, one under another below it. Still an
-           ordered list: the number on each card is the counter, not decoration. The same
-           card row the how-it-works screen uses, so a step looks the same on both. -->
-      <ol class="step-cards grid grid-3">
+      <!-- The numbered list, not three cards across. It is a real sequence: step 2 cannot
+           be done before step 1, and a row of equal cards says the opposite. Each step
+           takes a hairline above it and its number in the gutter, which is the same
+           device the how-it-works page uses, so a step looks the same wherever it is read. -->
+      <ol class="steps">
         ${HOME_HOW_IT_WORKS.map(
-          (step) => html`<li class="card step-card">
+          (step) => html`<li>
             <h3>${step.title}</h3>
             <p>${step.description}</p>
           </li>`,
@@ -189,13 +210,19 @@ function exclusions(): Html {
           <h2>What this does not do</h2>
         </div>
       </div>
-      <div class="grid grid-3">
-        ${HOME_WHAT_THIS_DOES_NOT_DO.map((item) =>
-          Card({
-            title: item.heading,
-            headingLevel: 3,
-            body: html`<p class="small muted">${item.body}</p>`,
-          }),
+      <!-- Ruled rows in the evidence margin, not a grid of cards.
+           Five items in a three-across grid leaves an orphan row of two, and a row of
+           equal cards is the arrangement the owner's exclusions name outright. The margin
+           is this interface's own device for "here is a finding, here is what it means",
+           which is exactly the shape of each of these: a boundary, and why it is there.
+           It also lets a reader scan the five headings down one column without their eye
+           tracking back across a grid. -->
+      <div data-exclusions>
+        ${HOME_WHAT_THIS_DOES_NOT_DO.map(
+          (item) => html`<div class="margin-row margin-row--wide">
+            <div class="margin-row__gutter"><h3>${item.heading}</h3></div>
+            <p class="small muted">${item.body}</p>
+          </div>`,
         )}
       </div>
     </div>
@@ -203,15 +230,19 @@ function exclusions(): Html {
 }
 
 /**
- * The closing call to action, centred as drawn: a heading, its answer, the two controls,
- * and the plan line. The heading and answer are the FAQ entry a buyer needs before
- * starting, which was already the copy here.
+ * The closing call to action: a heading, its answer, the two controls, and the plan line.
+ * The heading and answer are the FAQ entry a buyer needs before starting, which was
+ * already the copy here.
+ *
+ * Left-aligned now, like every other section. It was centred, and a centred block of
+ * prose at the foot of a left-aligned page reads as a different page's footer rather than
+ * as this page's conclusion.
  */
 function closing(): Html {
   const before = findFaq('what-do-i-need-before-starting');
   return html`<section class="section">
-    <div class="wrap stack center">
-      <div class="stack-sm hero-copy">
+    <div class="wrap stack">
+      <div class="stack-sm">
         <h2>${before.question}</h2>
         <p class="small muted measure">${before.answer}</p>
       </div>

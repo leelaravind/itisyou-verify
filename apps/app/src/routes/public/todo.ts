@@ -36,7 +36,7 @@ export function TodoOwnerInput(options: TodoOptions): Html {
   }
   const qualifier = options.value.replace(/^TODO_OWNER_INPUT\s*(—|-)?\s*/, '').trim();
   return html`<span class="stack-sm" data-todo-owner-input="${options.field}">
-    <strong class="mono">Not yet published — ${options.field}</strong>
+    <strong class="mono">Not yet published · ${options.field}</strong>
     <span class="small">
       This detail has not been supplied by the business owner yet. It is a UK sole trader and the
       registered details are coming. We are showing the gap rather than filling it with a placeholder that

@@ -137,7 +137,7 @@ export function CompatibilityPage(
     href: '/app/onboarding/compatibility',
     eyebrow: 'Step 1 of 7',
     title: 'Can we verify your setup?',
-    lede: 'Version one checks exactly one workflow shape, using exactly two providers. Read this before you connect anything — if your automation does something else, we cannot verify it yet.',
+    lede: 'Version one checks exactly one workflow shape, using exactly two providers. Read this before you connect anything: if your automation does something else, we cannot verify it yet.',
     aside: entries.length === 0 ? null : compatibilityTally(entries),
     body: html`<div class="stack-lg">
       ${ActivationNotice()}
@@ -455,7 +455,7 @@ export function ConnectPage(options: ConnectPageOptions): Html {
               tone: 'limit',
               body: html`<p>
               You can carry on setting up while a connection is unfinished, but runs that need it will
-              show as unverified until it is working — not as failures, and never as passes.
+              show as unverified until it is working, not as failures, and never as passes.
             </p>`,
             })
       }
@@ -468,7 +468,7 @@ export function ConnectPage(options: ConnectPageOptions): Html {
               title: 'No providers to connect',
               body:
                 'We could not list the providers this workflow needs. That is a fault on our side, not ' +
-                'something you have done — nothing about your setup has changed. Try again shortly, and ' +
+                'something you have done; nothing about your setup has changed. Try again shortly, and ' +
                 'tell us if it keeps happening.',
               actions: [
                 Button({ label: 'Contact support', href: '/app/support', variant: 'quiet' }),
@@ -579,7 +579,7 @@ export function OutcomePage(options: OutcomePageOptions): Html {
     href: '/app/onboarding/outcome',
     eyebrow: 'Step 4 of 7',
     title: 'What has to be true for this to count as done?',
-    lede: 'These are the checks we will make against evidence we read back ourselves. At least one must be required — with nothing required, a verified result would not mean anything.',
+    lede: 'These are the checks we will make against evidence we read back ourselves. At least one must be required: with nothing required, a verified result would not mean anything.',
     body: html`<div class="stack-lg">
       <!-- The approved workflow-configuration screen opens with the four results as a strip
            of tiles, each with its meaning, before any rule is written. The words are the
@@ -874,7 +874,7 @@ export function ReviewPage(options: ReviewPageOptions): Html {
       <div class="grid grid-7-5">
       <div class="stack">
       ${Card({
-        title: `${order.planName} — ${order.priceDisplay} ${order.billingPeriod}`,
+        title: `${order.planName} · ${order.priceDisplay} ${order.billingPeriod}`,
         headingLevel: 2,
         body: html`<div class="stack">
           ${Table({
@@ -1140,15 +1140,15 @@ export function ActivationPage(
             hex is HMAC-SHA-256 over <code>t.body</code> under your secret.
           </p>
           <p class="small muted">
-            The signing key proves the event came from you. It does not make the event true — we still go and
+            The signing key proves the event came from you. It does not make the event true: we still go and
             read the evidence ourselves.
           </p>
           <p class="small muted">
-            Include <code>expected.email_message_id</code> — the id your sending provider returned when it sent
+            Include <code>expected.email_message_id</code>, the id your sending provider returned when it sent
             the acknowledgement. It is what ties a delivery event to <em>this</em> enquiry. Without it we cannot
             tell which enquiry a delivery belongs to, because two enquiries from the same customer share an
             email address, so the email checks stay unknown and the run finishes as
-            <strong>unverified</strong> rather than verified. That is the honest answer, not a fault — but it is
+            <strong>unverified</strong> rather than verified. That is the honest answer, not a fault, but it is
             avoidable, and it is the one field worth going back to your automation for.
           </p>
         </div>`,

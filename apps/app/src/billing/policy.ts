@@ -74,7 +74,7 @@ export const PAYMENT_RECOVERY_POLICY: PaymentRecoveryPolicy = Object.freeze({
   ]),
   afterWindow: `After ${PAYMENT_RECOVERY_DAYS} unpaid days, verification stays paused and the subscription is marked unpaid. It is not cancelled for you, and it does not quietly start again.`,
   dataHandling:
-    'Nothing of yours is deleted because of a missed payment. Retention follows our published policy and nothing else — see docs/privacy-retention.md.',
+    'Nothing of yours is deleted because of a missed payment. Retention follows our published policy and nothing else. See docs/privacy-retention.md.',
 });
 
 /**
@@ -99,7 +99,7 @@ export const PRE_CHECKOUT_DISCLOSURE: PreCheckoutDisclosure = Object.freeze({
   currency: PLAN.currency,
   runsPerPeriod: PLAN.runsPerPeriod,
   interval: 'month',
-  allowanceBehaviour: `${LIMITS.PLAN_RUNS_PER_PERIOD} runs a month. At the limit we stop accepting new runs — we never charge you more than £29 without you choosing to. Unused runs do not carry over.`,
+  allowanceBehaviour: `${LIMITS.PLAN_RUNS_PER_PERIOD} runs a month. At the limit we stop accepting new runs. We never charge you more than £29 without you choosing to. Unused runs do not carry over.`,
   cancellationBehaviour:
     'Cancel any time. By default you keep the period you have already paid for, and you are not charged again.',
   recovery: PAYMENT_RECOVERY_POLICY,
@@ -277,7 +277,7 @@ export function recoveryStatement(window: PaymentRecoveryWindow): string {
       return `We could not take your last payment, so we have paused checking new runs. Your workspace, your history and your evidence are all still here, and you can update your card or cancel at any time. You have ${window.daysRemaining} day${window.daysRemaining === 1 ? '' : 's'} to fix it before the subscription is marked unpaid.`;
     case 'window_elapsed':
     case 'suspended_unpaid':
-      return 'We could not take your last payment within the recovery window, so checking new runs is suspended and the subscription is marked unpaid. Nothing has been deleted and nothing has been cancelled — you can still sign in, read your history, export your data, update your card or cancel.';
+      return 'We could not take your last payment within the recovery window, so checking new runs is suspended and the subscription is marked unpaid. Nothing has been deleted and nothing has been cancelled: you can still sign in, read your history, export your data, update your card or cancel.';
     case 'not_applicable':
     default:
       return 'There is no payment problem on this workspace.';
