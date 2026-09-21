@@ -8,6 +8,7 @@
  * sentence a person can act on.
  */
 import {
+  Callout,
   AssertionBadge,
   AssertionRow,
   Button,
@@ -239,6 +240,24 @@ export function RunDetailPage(options: RunDetailPageOptions): Html {
         <li>Last observed <b>${formatInstant(run.observedAt)}</b></li>
       </ul>
     </div>
+
+    <!-- A test run said so only in "Source type: owner_test", four cards down. An independent
+         verifier read this page and could not tell it from customer traffic, which is the
+         confusion this product exists to refuse: a figure you cannot place is worse than no
+         figure. It is named here, in words, above the verdict. -->
+    ${
+      run.sourceType !== 'owner_test'
+        ? null
+        : Callout({
+            tone: 'note',
+            title: 'You started this one',
+            body: html`<p data-test-run-notice>
+              This is a test verification you ran from your workspace, not an enquiry your automation
+              reported. It cost one run from your allowance and is left out of your verification rate, so
+              it cannot make your figures look better or worse than they are.
+            </p>`,
+          })
+    }
 
     <!-- The verdict band. The shared status card as a section: the rule along its top is the
          verdict's colour (dashed for UNVERIFIED, like its badge), and the badge inside

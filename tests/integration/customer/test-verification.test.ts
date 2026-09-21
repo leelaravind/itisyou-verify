@@ -163,6 +163,30 @@ describe('the guided test verification', () => {
     expect(event.source).toBe('owner_test');
   });
 
+  it('VERIFY-566 the run page says in words that this was a test the customer started', async () => {
+    /*
+     * An independent verifier read a finished run page and could not tell it from customer
+     * traffic: the only marker was the field value "Source type: owner_test", four cards
+     * down. A figure you cannot place is worse than no figure, which is the confusion this
+     * product exists to refuse, so it is named in words above the verdict.
+     */
+    const session = await ready();
+    await start(session);
+    const created = runRows(session)[0] as Record<string, unknown>;
+    const served = await getSignedIn(session, `/app/runs/${String(created['id'])}`);
+    expect(served.status).toBe(200);
+
+    expect(served.html, 'the run page does not say it was a test').toContain('data-test-run-notice');
+    const text = visibleText(served.html);
+    expect(text).toContain('This is a test verification you ran from your workspace');
+    expect(text).toContain('left out of your verification rate');
+
+    // And it appears BEFORE the verdict, not four cards below it.
+    expect(served.html.indexOf('data-test-run-notice')).toBeLessThan(
+      served.html.indexOf('data-run-verdict'),
+    );
+  });
+
   it('VERIFY-563 the run is marked synthetic and is excluded from both run counts', async () => {
     const session = await ready();
     await start(session);
