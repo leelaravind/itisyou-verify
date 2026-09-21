@@ -15,6 +15,7 @@ import {
   ButtonRow,
   Breadcrumb,
   Callout,
+  Disclosure,
   Card,
   SETUP_UNAVAILABLE_VIEWER_REASON,
   SETUP_UNAVAILABLE_VIEWER_WHEN,
@@ -233,26 +234,23 @@ export function ConnectionsPage(options: {
                     <dd>${formatInstant(connection.lastCheckedAt)}</dd>
                   </dl>
                 </div>
-                <!--
-                  Every call this application can make with that credential, listed rather
-                  than summarised. The method and path come from the connector's own frozen
-                  operation table, so this cannot drift from what the code can do: CONN-524
-                  fails if an operation is added without a purpose. "We only ever read" is a
-                  claim; this is the list behind it, and the list is exhaustive because the
-                  connector builds every URL from that table and can construct no other.
-                -->
+<!-- Derived from the connector's own frozen operation table, so it cannot drift
+                     from what the code can do (CONN-524). Behind a disclosure: it is the
+                     proof for "we only ever read", not something to read every visit. -->
                 ${
                   readsFor(connection.provider).length === 0
                     ? null
-                    : html`<div class="snip" data-provider-reads="${connection.provider}">
-                        <p class="snip__caption">Every call we can make with this key</p>
-                        <ul class="snip__lines">
-                          ${readsFor(connection.provider).map(
-                            (read) => html`<li>${read.call}</li>
-                              <li class="snip__why">${read.purpose}</li>`,
-                          )}
-                        </ul>
-                      </div>`
+                    : Disclosure({
+                        summary: `Every call we can make with this ${connection.displayName} key`,
+                        body: html`<div class="snip" data-provider-reads="${connection.provider}">
+                          <ul class="snip__lines">
+                            ${readsFor(connection.provider).map(
+                              (read) => html`<li>${read.call}</li>
+                                <li class="snip__why">${read.purpose}</li>`,
+                            )}
+                          </ul>
+                        </div>`,
+                      })
                 }
                 <!-- Test connection, beside the provider it tests.
                      A form rather than a link: each press costs a real outbound call to
