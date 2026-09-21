@@ -336,7 +336,7 @@ function connectCard(connection: ConnectionView, options: ConnectPageOptions): H
 
     ${permissionNotice(guide)}
 
-    ${mine ? formMessage(options.submitted?.message ?? null) : null}
+    ${mine ? formMessage(options.submitted?.message ?? null, options.submitted?.ok ? 'note' : 'warn') : null}
     ${
       options.canSubmitCredentials
         ? null
@@ -479,7 +479,7 @@ export function MappingPage(options: MappingPageOptions): Html {
     lede: 'We match a HubSpot record to an enquiry by a value your automation writes onto the record. Tell us which property holds it. If nothing does yet, this is the change you have to make first.',
     body: html`<form method="post" action="/app/onboarding/mapping" class="stack-lg">
       ${CsrfField(options.csrfToken)}
-      ${formMessage(options.submitted?.message ?? null)}
+      ${formMessage(options.submitted?.message ?? null, options.submitted?.ok ? 'note' : 'warn')}
       <!-- The approved workflow-configuration screen sets the rule in the wider column and
            the facts it is chosen from in a pane beside it. The pane lists what the port can
            see; it is absent, not empty, when the port can see nothing. -->
@@ -573,7 +573,7 @@ export function OutcomePage(options: OutcomePageOptions): Html {
 
       <form method="post" action="/app/onboarding/outcome" class="stack-lg">
       ${CsrfField(options.csrfToken)}
-      ${formMessage(options.submitted?.message ?? null)}
+      ${formMessage(options.submitted?.message ?? null, options.submitted?.ok ? 'note' : 'warn')}
 
       <!-- The checks in the wider column, the timing and the coverage mode stacked in the
            narrower one, as the reference lays out its rule rows beside its settling window. -->
@@ -837,7 +837,7 @@ export function ReviewPage(options: ReviewPageOptions): Html {
     title: 'What you are buying',
     lede: 'The price is resolved on our side, not sent from your browser. Card details never reach us.',
     body: html`<div class="stack-lg">
-      ${formMessage(options.submitted?.message ?? null)}
+      ${formMessage(options.submitted?.message ?? null, options.submitted?.ok ? 'note' : 'warn')}
 
       <!-- Composition follows the approved checkout-review screen: what is being bought and
            the disclosure in the wider left column, the order and its control in the

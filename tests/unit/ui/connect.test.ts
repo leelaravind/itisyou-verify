@@ -233,3 +233,50 @@ describe('the connect card', () => {
     expect(markup).toContain('disabled');
   });
 });
+
+describe('the message under a credentials form wears the tone of what happened', () => {
+  /**
+   * On 21 September 2026 the owner pasted a working Resend key and its webhook secret on
+   * production. The port saved both and said so -- "That Resend token works and we have
+   * saved it. The connection is not finished yet" -- and the page put that sentence under
+   * the heading "There is a problem", because `formMessage` defaulted every message to
+   * `warn`. The owner read it as a rejection, twice. A success is a note; a refusal is a
+   * warning; the heading follows the result, never a default.
+   */
+  it('CUST-484 a successful save renders as a note, a refusal as a problem', async () => {
+    const saved = await render(
+      ConnectPage({
+        connections: [connection({ status: 'testing' })],
+        csrfToken: 'token',
+        submitted: {
+          ok: true,
+          fieldErrors: {},
+          message:
+            'That Resend token works and we have saved it. The connection is not finished yet.',
+          redirectTo: null,
+        },
+        submittedProvider: 'resend',
+        canSubmitCredentials: true,
+      }),
+    );
+    expect(saved).toContain('we have saved it');
+    expect(saved).not.toContain('There is a problem');
+
+    const refused = await render(
+      ConnectPage({
+        connections: [connection({ status: 'not_connected' })],
+        csrfToken: 'token',
+        submitted: {
+          ok: false,
+          fieldErrors: {},
+          message: 'Resend did not accept that key. Nothing was stored.',
+          redirectTo: null,
+        },
+        submittedProvider: 'resend',
+        canSubmitCredentials: true,
+      }),
+    );
+    expect(refused).toContain('Nothing was stored');
+    expect(refused).toContain('There is a problem');
+  });
+});
