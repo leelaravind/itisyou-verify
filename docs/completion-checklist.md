@@ -13,7 +13,7 @@ Status vocabulary, used strictly:
 - **verified** — acceptance criteria met, evidence exists and is named
 - **deployed** — verified AND serving from production at a named commit
 
-Production and staging both serve `c1fc3c4b5c52` as of 17:09 UTC. No percentages appear in
+Production and staging both serve `c2972fb85489` as of 17:35 UTC. No percentages appear in
 this file, deliberately.
 
 ## A. Visual completion
@@ -62,7 +62,7 @@ nine-line theme toggle.
 | B1 | Connection test, three findings | coordinator | API access, webhook readiness and workflow verification reported separately; credential untouched | `docs/evidence/staging-verification-0d2f06c17fdb.txt` | deployed |
 | B2 | Guided test verification to a settled verdict | coordinator + independent verifier | Real admission path; reaches a settled verdict; UNVERIFIED is a valid outcome; the run is nameable in the shared run list | Re-proved at the CURRENT commit: `docs/evidence/staging-verification-5b21ed2f70ab.txt`. An independent agent seeded its own session and exercised it end to end without my script: 303 to a PENDING run, settled UNVERIFIED at 17:25Z before its deadline, honest per-check CONNECTION_UNAVAILABLE lines, allowance 19 to 20, and a run id indistinguishable in shape from the other 22. Its verdict: PIPELINE REAL, yes | deployed |
 | B3 | Allowance accounting | coordinator | Exactly one run consumed per test, and the charge attributable to a named run | Measured serially at the current commit: 20 to 21 with exactly one new run id, `run_01M32G2MWE20CEF724EB8C4640`. An earlier reading moved by two because a second agent was exercising the same shared synthetic workspace; proved by the third run carrying that agent's own correlation value | deployed |
-| B4 | Synthetic separation | coordinator | Test runs excluded from the workspace rate and the owner total | VERIFY-563; `/app/usage` states it | deployed |
+| B4 | Synthetic separation | coordinator | Test runs excluded from the workspace rate and the owner total, AND a reader can tell a test run from customer traffic on the run itself | VERIFY-563 and VERIFY-566. A verifier could not tell them apart when the only marker was a field value four cards down; the run page now names it above the verdict, live and read back | deployed |
 | B5 | Billing portal, fresh session per opening | coordinator | Two openings produce two different Stripe sessions | BILL-675/676; staging evidence section 5 | deployed |
 | B6 | Viewer permissions | coordinator | All three actions refused at the route, naming the role | staging evidence section 6 | deployed |
 | B7 | Payment alert delivery | Agent C | Test mode alerts nobody; a live checkout alerts once however many times Stripe redelivers it; a failed charge alerts once per INVOICE, so Smart Retries of the same invoice collapse into that one alert and a new failed invoice raises its own | `docs/evidence/functional-closure.txt`: both raise paths sit inside `if (event.livemode)` (`billing/events.ts:238,562`); idempotency is a UNIQUE `notification_key` claimed in `notifications/send.ts`, keyed on the checkout session id for the payment alert and on the invoice id for the failure alert; BILL-657..662 separate live from test. 9 of 9 passing | verified |
