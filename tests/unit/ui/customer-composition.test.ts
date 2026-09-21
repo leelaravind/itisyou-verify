@@ -72,6 +72,7 @@ async function workspace(): Promise<string> {
   const p = port();
   return render(
     WorkspacePage({
+        canStartSetup: true,
       workflow: await p.workflow(),
       recentRuns: (await p.listRuns({ limit: 5 })).items,
       connections: await p.connections(),
@@ -484,7 +485,7 @@ describe('the onboarding composition', () => {
 
     // Compatibility: each provider's requirements in a pane inside its card, both providers,
     // stacked in the wider column of the seven-to-five grid (CUST-952 pins the rest).
-    const compatibility = await render(CompatibilityPage(await p.connectorCompatibility()));
+    const compatibility = await render(CompatibilityPage(await p.connectorCompatibility(), { canContinue: true }));
     expect(count(compatibility, '<div class="pane">')).toBe(2);
     const compatibilityGrid = compatibility.indexOf('<div class="grid grid-7-5">');
     expect(compatibilityGrid).toBeGreaterThan(-1);
@@ -514,7 +515,7 @@ describe('the reference copy stays in the reference', () => {
           }),
         ),
       ],
-      ['/app/onboarding/compatibility', await render(CompatibilityPage(await p.connectorCompatibility()))],
+      ['/app/onboarding/compatibility', await render(CompatibilityPage(await p.connectorCompatibility(), { canContinue: true }))],
       [
         '/app/onboarding/mapping',
         await render(MappingPage({ workflow, csrfToken: CSRF, submitted: null, value: '' })),

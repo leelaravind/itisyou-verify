@@ -2,9 +2,8 @@
  * Factual skeleton for terms, privacy, refund and subprocessor pages.
  *
  * This is data for A05/A09 to render, not finished legal text, and it is not legal
- * advice. Anything marked TODO_OWNER_INPUT is a placeholder the business owner must fill
- * in before publishing — never invent a company registration, address, VAT number or
- * certification in its place.
+ * advice. The owner-identity fields below are the real, owner-confirmed values (see
+ * docs/SESSION_HANDOVER.md section 4); none of it is invented.
  *
  * The retention period is read from `LIMITS`, never retyped: the privacy page already
  * renders the constant a paragraph below this note, and two numbers that must agree are
@@ -13,16 +12,16 @@
 import { LIMITS } from '@verify/contracts';
 
 export const OWNER_LEGAL_IDENTITY = {
-  registeredBusinessName: 'TODO_OWNER_INPUT',
-  registeredAddress: 'TODO_OWNER_INPUT',
-  companyRegistrationNumber: 'TODO_OWNER_INPUT',
-  vatNumber: 'TODO_OWNER_INPUT',
+  registeredBusinessName: 'Leela Aravind Karlapudi, trading as ITISYOU',
+  registeredAddress: 'Lytchett House, 13 Freeland Park, Wareham Road, Poole, Dorset, BH16 6FA, United Kingdom',
+  companyRegistrationNumber: 'Not applicable (sole trader)',
+  vatNumber: 'Not VAT-registered',
   /** e.g. sole trader, limited company. Owner must state this; never assumed. */
-  legalStructure: 'TODO_OWNER_INPUT',
+  legalStructure: 'Sole trader',
   // claim-scan:allow the control that forbids certification claims must name one to be readable
   /** Any claimed certification (e.g. ISO 27001) must be TODO until actually held and evidenced. */
-  certifications: 'TODO_OWNER_INPUT — none held unless the owner supplies evidence',
-  contactEmailForLegalNotices: 'TODO_OWNER_INPUT',
+  certifications: 'None',
+  contactEmailForLegalNotices: 'support@itisyou.app',
 } as const;
 
 export interface DataFlowStage {
@@ -120,7 +119,5 @@ export const SUBPROCESSORS: readonly Subprocessor[] = [
 ] as const;
 
 export const REFUND_POLICY_SUMMARY =
-  'You can cancel at any time from the billing portal; cancelling stops the next renewal and you keep access for the rest of the period already paid for. We do not offer partial refunds for the unused part of a billing period unless required by law. TODO_OWNER_INPUT: state here if the owner wants to offer any discretionary refund policy beyond what is legally required.';
+  'You can cancel at any time from the billing portal; cancelling stops the next renewal and you keep access for the rest of the period already paid for. We do not offer partial refunds for the unused part of a billing period unless required by law.';
 
-export const TERMS_SKELETON_NOTE =
-  'This is a factual skeleton, not finished terms of service. It must be reviewed by the business owner (and, if the owner chooses, a solicitor) before publishing, and every TODO_OWNER_INPUT field above must be filled in with real, verifiable information — never a placeholder company registration, address, VAT number or certification.';

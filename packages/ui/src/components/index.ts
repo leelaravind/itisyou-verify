@@ -2,6 +2,8 @@ export { Button, ButtonRow, type ButtonOptions, type ButtonVariant } from './but
 export {
   ACTIVATION_UNAVAILABLE_REASON,
   ACTIVATION_UNAVAILABLE_WHEN,
+  SETUP_UNAVAILABLE_VIEWER_REASON,
+  SETUP_UNAVAILABLE_VIEWER_WHEN,
   ActivationNotice,
   ProviderProofNotice,
   UnavailableAction,

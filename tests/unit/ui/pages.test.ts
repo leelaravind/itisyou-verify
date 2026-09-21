@@ -118,26 +118,29 @@ describe('public pages', () => {
     expect(markup).toContain('wf_demo@v1');
   });
 
-  it('CUST-050 every TODO_OWNER_INPUT placeholder is visible on the legal pages, never silently dropped', async () => {
+  it('CUST-050 the real owner-confirmed identity renders on the legal pages, with no placeholder left', async () => {
     for (const body of [TermsPage(), PrivacyPage()]) {
       const markup = await render(body);
-      expect(markup).toContain('Not yet published — registeredBusinessName');
-      expect(markup).toContain('Not yet published — registeredAddress');
-      expect(markup).toContain('Not yet published — vatNumber');
-      expect(markup).toContain('data-todo-owner-input="companyRegistrationNumber"');
-      // The raw marker never leaks as a *value*. It appears exactly once on these pages, in
-      // A01's own skeleton note explaining the convention — which is the one place it helps.
-      expect((markup.match(/TODO_OWNER_INPUT/g) ?? []).length).toBe(1);
-      expect(markup).not.toMatch(/<dd>[\s\S]{0,200}TODO_OWNER_INPUT/);
+      expect(markup).toContain('Leela Aravind Karlapudi, trading as ITISYOU');
+      expect(markup).toContain(
+        'Lytchett House, 13 Freeland Park, Wareham Road, Poole, Dorset, BH16 6FA, United Kingdom',
+      );
+      expect(markup).toContain('Not applicable (sole trader)');
+      expect(markup).toContain('Not VAT-registered');
+      expect(markup).toContain('Sole trader');
+      // No TODO marker leaks anywhere now that every owner-identity field is real.
+      expect(markup).not.toContain('TODO_OWNER_INPUT');
+      expect(markup).not.toContain('Not yet published');
     }
   });
 
-  it('CUST-051 the refunds page surfaces the refund policy placeholder rather than implying a policy exists', async () => {
+  it('CUST-051 the refunds page states the plain legal-minimum refund position, with no placeholder', async () => {
     const markup = await render(RefundsPage());
     expect(markup).toContain('Refund policy');
     expect(markup).toContain(
-      'TODO_OWNER_INPUT: state here if the owner wants to offer any discretionary',
+      'We do not offer partial refunds for the unused part of a billing period unless required by law.',
     );
+    expect(markup).not.toContain('TODO_OWNER_INPUT');
   });
 
   it('CUST-052 the status page publishes no uptime figure and no green tick', async () => {
@@ -149,10 +152,10 @@ describe('public pages', () => {
     expect(markup).not.toMatch(/\b99\.9\d*%/);
   });
 
-  it('CUST-053 the public support page shows the missing contact address as a gap, not an invented one', async () => {
+  it('CUST-053 the public support page shows the real contact address now that the owner has supplied one', async () => {
     const markup = await render(SupportPage());
-    expect(markup).toContain('Not yet published — contactEmailForLegalNotices');
-    expect(markup).not.toMatch(/support@[a-z]/i);
+    expect(markup).toContain('support@itisyou.app');
+    expect(markup).not.toContain('Not yet published — contactEmailForLegalNotices');
   });
 
   it('CUST-054 the development story renders an honest empty state when the document is not published', async () => {
@@ -181,6 +184,7 @@ describe('customer pages', () => {
     const port = new SyntheticCustomerDataPort();
     const markup = await render(
       WorkspacePage({
+        canStartSetup: true,
         workflow: await port.workflow(),
         recentRuns: (await port.listRuns({ limit: 5 })).items,
         connections: await port.connections(),
@@ -197,6 +201,7 @@ describe('customer pages', () => {
   it('CUST-057 a workspace with no runs at all shows the headline, never a bar', async () => {
     const markup = await render(
       WorkspacePage({
+        canStartSetup: true,
         workflow: {
           id: 'wf_1',
           name: 'Quiet workflow',
@@ -238,6 +243,7 @@ describe('customer pages', () => {
   it('CUST-058 a hostile workflow name is escaped on the workspace heading', async () => {
     const markup = await render(
       WorkspacePage({
+        canStartSetup: true,
         workflow: {
           id: 'wf_1',
           name: '<script>alert("wf")</script>',

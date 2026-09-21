@@ -456,6 +456,7 @@ export function createAppRoutes(resolve: PortResolver = syntheticResolver): Hono
             connections,
             usage,
             now: new Date(),
+            canStartSetup: session.role === 'workspace_admin',
           }),
         }),
       );
@@ -473,7 +474,9 @@ export function createAppRoutes(resolve: PortResolver = syntheticResolver): Hono
           path: '/app/onboarding/compatibility',
           accountLabel: maskedAccountLabel(session.email),
           csrfToken: session.csrfToken,
-          body: CompatibilityPage(await port.connectorCompatibility()),
+          body: CompatibilityPage(await port.connectorCompatibility(), {
+            canContinue: session.role === 'workspace_admin',
+          }),
         }),
       ),
     ),

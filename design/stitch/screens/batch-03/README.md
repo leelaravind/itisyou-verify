@@ -1,13 +1,29 @@
-# batch-03 — checkpoint record, no exports yet
+# batch-03 — retrieval DONE, nothing new existed to export
 
 Written 21 September 2026, 08:35 UTC, by the session that closed D1 (`claude-68`).
+Updated 2026-09-21 by the session that ran task R10 ("Stitch batch-03 retrieval").
+
+## Retrieval result (2026-09-21)
+
+**DONE.** Project `12603262649263949929` ("ITISYOU Verify Landing Page") was queried via
+`mcp__stitch__get_project` and `mcp__stitch__list_screens`. It reports 20 screens (plus 3
+design-system assets = 23 screen instances total, matching the project's
+`updateTime` of `2026-09-21T08:21:31Z`). All 20 screens and all 3 design-system assets
+match, one-to-one by title/count, what is already on disk in
+`screens/batch-02/stitch_itisyou_verify_landing_page/` and recorded in
+`design/stitch/INVENTORY.md`.
+
+**Count listed: 20 screens. Count newly exported: 0.** Nothing new existed to export —
+the "two running Stitch generations" this directory's original note worried about either
+never landed as new screens, or landed as updates to screens whose titles/ids match ones
+batch-02 already covers. No new `.html` files were written under this directory; see
+`INDEX.md` in this same folder for the full screen-by-screen diff and the ids checked.
 
 ## What this directory holds
 
-Nothing but this file. That is the honest state, recorded so the next session does not
-generate duplicates or assume something was saved here.
+This `README.md` and `INDEX.md`. No screen exports — see above for why.
 
-## Why it is empty
+## Why it was empty before this retrieval
 
 The owner asked this session to "finish or safely checkpoint the two running Stitch
 generations". This session never started a Stitch generation and has no Stitch MCP tools

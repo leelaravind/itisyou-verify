@@ -19,10 +19,11 @@
  * the reference, whose copy carries a payment state, a price and a plan that are not ours.
  */
 import {
-  ACTIVATION_UNAVAILABLE_REASON,
-  ACTIVATION_UNAVAILABLE_WHEN,
+  SETUP_UNAVAILABLE_VIEWER_REASON,
+  SETUP_UNAVAILABLE_VIEWER_WHEN,
   UnavailableAction,
   Button,
+  ButtonRow,
   Card,
   EmptyState,
   LoadingState,
@@ -51,6 +52,16 @@ export interface WorkspacePageOptions {
   readonly usage: UsageView;
   /** Injected so the page is deterministic in tests and never reads a clock itself. */
   readonly now: Date;
+  /**
+   * Whether this reader may actually start the setup, decided by the same rule the server
+   * decides it by: `session.role === 'workspace_admin'`, which is what
+   * `customerPort.saveFieldMapping` and `submitConnectionCredentials` already refuse on.
+   *
+   * It is a required option rather than one with a default. The bug this replaces was a
+   * hard-coded `false`, and a default is the same hard-coded answer with a longer fuse:
+   * every caller now has to say which reader it is rendering for.
+   */
+  readonly canStartSetup: boolean;
 }
 
 /**
@@ -92,11 +103,35 @@ export function WorkspacePage(options: WorkspacePageOptions): Html {
         title: 'No workflow set up yet',
         lede: 'Nothing is being checked. An empty workspace is not a passing workspace.',
       })}
-      ${UnavailableAction({
-        label: 'Start the setup',
-        reason: ACTIVATION_UNAVAILABLE_REASON,
-        whenBack: ACTIVATION_UNAVAILABLE_WHEN,
-      })}
+      <!--
+        The way back into the product.
+
+        This rendered an inert notice unconditionally until 21 September 2026, which meant
+        a paying customer sitting inside their own workspace could not reach step 1 of
+        their own setup from the one page that is meant to send them there. The setup
+        routes worked the whole time; only the door was missing, and the reason it gave
+        ("we are not taking payment or activating new workspaces yet") was about buying the
+        product, not about using the one you have already got.
+
+        The condition is now the server's own: a workspace admin gets a real link, a viewer
+        gets the sentence the port would have answered them with anyway. Nothing here can
+        offer a step the server would then refuse.
+      -->
+      ${
+        options.canStartSetup
+          ? ButtonRow([
+              Button({
+                label: 'Start the setup',
+                href: '/app/onboarding/compatibility',
+                variant: 'primary',
+              }),
+            ])
+          : UnavailableAction({
+              label: 'Start the setup',
+              reason: SETUP_UNAVAILABLE_VIEWER_REASON,
+              whenBack: SETUP_UNAVAILABLE_VIEWER_WHEN,
+            })
+      }
     </div>`;
   }
 

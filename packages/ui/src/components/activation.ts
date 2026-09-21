@@ -3,12 +3,14 @@
  *
  * ## Why this exists
  *
- * `POST /api/v1/events` — the endpoint a customer's automation calls, the mechanism this
- * product is named for — is not mounted. Verified against the running Worker, not inferred
- * from a comment: a live `wrangler dev` answers it with 404, and the entry point mounts
- * only `/app`, `/api/v1/runner` and `/`. Nothing a customer sends can reach us, so
- * everything downstream of the intake is unreachable from outside.
+ * This comment used to open by stating that `POST /api/v1/events` was not mounted. It is
+ * mounted now: `apps/app/src/index.ts` routes it and `apps/app/src/money/eventsRoute.ts`
+ * answers it. Leaving the old sentence standing would have been the very defect this
+ * module exists to prevent, one level down, so it is corrected rather than kept for
+ * history.
  *
+ * What is still true, and is what the notice now says, is narrower: live payments are
+ * switched off until the owner turns them on separately, and public signup is closed.
  * While that holds, a page that invites a stranger to hand over a card is making a claim
  * the system cannot honour. The description stays up, because the description is true and
  * the checking logic behind it is real and tested. The transaction comes down.
@@ -104,3 +106,24 @@ export const ACTIVATION_UNAVAILABLE_REASON =
 /** What we can honestly say about when it returns, which is not a date. */
 export const ACTIVATION_UNAVAILABLE_WHEN =
   'This comes back when the notice above comes down. We would rather leave it visibly closed than take money for something we cannot yet deliver.';
+
+/**
+ * Why the setup path is closed to *this* reader, when it is closed for a reason about them
+ * rather than about the deployment.
+ *
+ * ## Why this is not `ACTIVATION_UNAVAILABLE_REASON`
+ *
+ * That constant answers "why can nobody buy this yet": live payments are off and public
+ * signup is closed. Both are true, and neither is true of somebody who is already signed
+ * in to a workspace. Rendering it to them said "nothing here is broken on your side" while
+ * standing in front of a path that works, which is the one thing the notice promised not to
+ * do. The server has always refused a viewer's write with its own sentence
+ * (`customerPort.saveFieldMapping`, `saveExpectedOutcome`, `submitConnectionCredentials`);
+ * this is that same refusal said before the attempt instead of after it.
+ */
+export const SETUP_UNAVAILABLE_VIEWER_REASON =
+  'Your role in this workspace is viewer. You can read everything here, but only a workspace admin can connect a provider or change a workflow, so the setup is not yours to run. Ask whoever invited you to this workspace.';
+
+/** Said to a viewer rather than a date, because nothing is scheduled to change for them. */
+export const SETUP_UNAVAILABLE_VIEWER_WHEN =
+  'This returns if your role is changed to workspace admin.';

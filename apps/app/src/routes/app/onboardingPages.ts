@@ -7,8 +7,8 @@
  * completed with a keyboard alone.
  */
 import {
-  ACTIVATION_UNAVAILABLE_REASON,
-  ACTIVATION_UNAVAILABLE_WHEN,
+  SETUP_UNAVAILABLE_VIEWER_REASON,
+  SETUP_UNAVAILABLE_VIEWER_WHEN,
   ActivationNotice,
   AssertionRow,
   Button,
@@ -119,7 +119,19 @@ function compatibilityTally(entries: readonly ConnectorCompatibility[]): Html {
   </ul>`;
 }
 
-export function CompatibilityPage(entries: readonly ConnectorCompatibility[]): Html {
+export interface CompatibilityPageOptions {
+  /**
+   * Whether this reader may go on to connect a provider. Same rule the server uses:
+   * `session.role === 'workspace_admin'`, which is what `submitConnectionCredentials`
+   * refuses on. Required, not defaulted, for the reason given on `WorkspacePageOptions`.
+   */
+  readonly canContinue: boolean;
+}
+
+export function CompatibilityPage(
+  entries: readonly ConnectorCompatibility[],
+  options: CompatibilityPageOptions,
+): Html {
   const blocked = entries.filter((entry) => !entry.supported);
   return stepShell({
     href: '/app/onboarding/compatibility',
@@ -177,12 +189,28 @@ export function CompatibilityPage(entries: readonly ConnectorCompatibility[]): H
             </p>`,
           })}
 
-          ${UnavailableAction({
-            label: 'These all apply — continue',
-            reason: ACTIVATION_UNAVAILABLE_REASON,
-            whenBack: ACTIVATION_UNAVAILABLE_WHEN,
-          })}
-          ${ButtonRow([Button({ label: 'Read the setup requirements', href: '/how-it-works', variant: 'quiet' })])}
+          <!-- Step 1 of 7 has to lead to step 2 or it is not a step. See the note on the
+               workspace page's "Start the setup": the same unconditional takedown stood
+               here, giving a reason about buying the product to somebody already inside a
+               workspace. A workspace admin now gets the real link; a viewer gets the
+               sentence the port would answer their first write with. -->
+          ${
+            options.canContinue
+              ? ButtonRow([
+                  Button({
+                    label: 'These all apply, continue',
+                    href: '/app/onboarding/connect',
+                    variant: 'primary',
+                  }),
+                  Button({ label: 'Read the setup requirements', href: '/how-it-works', variant: 'quiet' }),
+                ])
+              : html`${UnavailableAction({
+                  label: 'These all apply, continue',
+                  reason: SETUP_UNAVAILABLE_VIEWER_REASON,
+                  whenBack: SETUP_UNAVAILABLE_VIEWER_WHEN,
+                })}
+                ${ButtonRow([Button({ label: 'Read the setup requirements', href: '/how-it-works', variant: 'quiet' })])}`
+          }
         </div>
       </div>
     </div>`,

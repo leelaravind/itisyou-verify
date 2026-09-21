@@ -4,14 +4,20 @@
  *
  * Why these exist, stated plainly so nobody deletes them for being inconvenient:
  *
- * `POST /api/v1/events` — the intake this product is named for — is not mounted. Verified
- * directly rather than from a doc comment: `grep 'app.route(' apps/app/src/index.ts` shows
- * `/app`, `/api/v1/runner` and `/` only, and a live `wrangler dev` answers
- * `POST /api/v1/events` with **404**. So nothing a customer's automation sends can reach
- * us, and every step downstream of that is unreachable from outside.
+ * This header used to say that `POST /api/v1/events` was not mounted. It is mounted:
+ * `apps/app/src/index.ts` routes it and `apps/app/src/money/eventsRoute.ts` answers it.
+ * The sentence is corrected here rather than left as history, because a stale reason in
+ * the file that guards against stale reasons is the defect itself.
  *
+ * What is still true is narrower, and is what the notice now says: live payments are
+ * switched off until the owner turns them on separately, and public signup is closed.
  * While that is true, a page that invites a stranger to hand over a card is making a claim
  * the system cannot honour. These cases keep the description up and the transaction down.
+ *
+ * One thing they deliberately no longer do is hold the *customer's own* setup shut. That
+ * gate was about buying the product and it was being applied to people already inside a
+ * workspace; CUST-126/146 and CUST-128/147 now split each of those by the condition the
+ * server itself enforces, `session.role === 'workspace_admin'`.
  *
  * Delete them when the notice stops being true — not when it stops being convenient.
  */
@@ -42,10 +48,10 @@ function text(markup: string): string {
 
 const collapse = (value: string): string => value.replace(/\s+/g, ' ').trim();
 
-async function compatibility(): Promise<string> {
+async function compatibility(canContinue: boolean): Promise<string> {
   resetSyntheticState();
   const port = new SyntheticCustomerDataPort();
-  return render(CompatibilityPage(await port.connectorCompatibility()));
+  return render(CompatibilityPage(await port.connectorCompatibility(), { canContinue }));
 }
 
 async function review(): Promise<string> {
@@ -89,7 +95,9 @@ describe('the service activation notice', () => {
   });
 
   it('CUST-123 the onboarding entry point carries it too', async () => {
-    const markup = await compatibility();
+    // The admin direction: the banner is about buying, so it stands even where the step
+    // is fully open to the reader.
+    const markup = await compatibility(true);
     expect(text(markup)).toContain(collapse(SERVICE_ACTIVATION_NOTICE.headline));
     expect(text(markup)).toContain(collapse(SERVICE_ACTIVATION_NOTICE.body));
     expect((markup.match(/data-activation-notice/g) ?? []).length).toBe(1);
@@ -125,11 +133,27 @@ describe('the activation path is disabled, visibly', () => {
     expect(markup).toMatch(/data-unavailable[\s\S]{0,600}not taking payment/);
   });
 
-  it('CUST-126 the onboarding entry point cannot be continued past, and says why', async () => {
-    const markup = await compatibility();
+  /*
+   * These two used to be one case asserting the entry point was closed to everybody. It
+   * was closed for the wrong reason: the activation gate is about buying the product, and
+   * this step is inside a workspace somebody already has. The case is now split by the
+   * condition the server itself enforces, so neither direction can be satisfied by
+   * hard-coding the answer the other one wants.
+   */
+  it('CUST-126 the onboarding entry point cannot be continued past by a viewer, and says why', async () => {
+    const markup = await compatibility(false);
     expect(markup).not.toMatch(/<a[^>]*href="\/app\/onboarding\/connect"/);
     expect(markup).toContain('data-unavailable');
     expect(text(markup)).toContain('These all apply');
+    expect(text(markup)).toContain('Your role in this workspace is viewer');
+  });
+
+  it('CUST-146 the onboarding entry point leads to the connect step for a workspace admin', async () => {
+    const markup = await compatibility(true);
+    expect(markup).toMatch(/<a[^>]*href="\/app\/onboarding\/connect"/);
+    expect(markup).not.toContain('data-unavailable="These all apply, continue"');
+    // The activation banner stays: it is about buying, and it is still true.
+    expect(markup).toContain('data-activation-notice');
   });
 
   it('CUST-127 the checkout button is not merely styled disabled — it cannot be submitted', async () => {
@@ -142,8 +166,8 @@ describe('the activation path is disabled, visibly', () => {
     expect(text(markup)).toContain('Continue to secure checkout');
   });
 
-  it('CUST-128 the workspace does not invite someone to start a setup that cannot finish', async () => {
-    const markup = await render(
+  async function emptyWorkspace(canStartSetup: boolean): Promise<string> {
+    return await render(
       WorkspacePage({
         workflow: null,
         recentRuns: [],
@@ -157,10 +181,23 @@ describe('the activation path is disabled, visibly', () => {
           subscriptionStatus: null,
         },
         now: new Date('2026-03-01T12:00:00.000Z'),
+        canStartSetup,
       }),
     );
+  }
+
+  it('CUST-128 the workspace does not invite a viewer to start a setup they cannot run', async () => {
+    const markup = await emptyWorkspace(false);
     expect(markup).not.toMatch(/<a[^>]*href="\/app\/onboarding\/compatibility"/);
     expect(markup).toContain('data-unavailable');
+    expect(text(markup)).toContain('Your role in this workspace is viewer');
+  });
+
+  it('CUST-147 the workspace sends a workspace admin to the first setup step', async () => {
+    const markup = await emptyWorkspace(true);
+    expect(markup).toMatch(/<a[^>]*href="\/app\/onboarding\/compatibility"/);
+    expect(markup).not.toContain('data-unavailable');
+    expect(text(markup)).toContain('Start the setup');
   });
 
   it('CUST-129 the informational site is preserved — how it works, the price, and the demo all still render', async () => {
