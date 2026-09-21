@@ -132,6 +132,8 @@ describe('the connect card', () => {
   it('CUST-114 the same honesty holds on the connections page, not just during onboarding', async () => {
     const markup = await render(
       ConnectionsPage({
+      canTest: true,
+      tested: null,
         connections: [
           connection({ status: 'testing' }),
           connection({ provider: 'hubspot', displayName: 'HubSpot', status: 'ready' }),

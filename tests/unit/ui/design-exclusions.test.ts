@@ -64,15 +64,24 @@ const BANNED: readonly (readonly [string, readonly string[]])[] = [
  * purposeful motion -- short content transitions, disclosure expansion, loading feedback,
  * action-completion feedback, tasteful hover transitions -- and a bare `@keyframes` needle
  * cannot tell a genuine one of those from an ornament. It is checked below instead, more
- * precisely than a substring ban could manage: exactly one `@keyframes` rule may exist
- * (`spin`, the rotation on `LoadingState`'s glyph -- see
- * `packages/ui/src/components/icons.ts` and `.spinner` in the stylesheet, which is real
- * "this is still being checked" feedback, not decoration), nothing may declare a second
- * one, and every `animation:` value in the sheet must be either `none` (the
- * reduced-motion reset, still the opposite of the thing being excluded) or that same
- * spin. Perpetual motion untied to a real waiting state, flashing, animated arrows and
- * bouncing decorations are exactly as forbidden as they were; this file no longer
- * confuses "declares a keyframe" with "is decoration".
+ * precisely than a substring ban could manage: exactly two `@keyframes` rules may exist, each
+ * named, each with a stated reason it is not decoration --
+ *
+ *   `spin`  the rotation on LoadingState's glyph -- see packages/ui/src/components/icons.ts
+ *           and .spinner in the stylesheet. Runs only while aria-busy is genuinely true; it
+ *           is real "this is still being checked" feedback.
+ *   `enter` a small opacity-and-translateY settle on a page's own content boxes (.card,
+ *           .panel, .status-card and the rest -- see the "entrance settle" section of
+ *           styles.ts). It plays exactly once, when the content first paints, and is finished
+ *           in 220ms -- well under a reader's time to start reading. It is not perpetual, not
+ *           re-triggered by scrolling (nothing here observes scroll position), and it is tied
+ *           to the same real event the spinner is tied to: this content just arrived.
+ *
+ * -- nothing may declare a third, and every `animation:` value in the sheet must be `none`
+ * (the reduced-motion reset, still the opposite of the thing being excluded) or one of those
+ * two. Perpetual motion untied to a real waiting state, flashing, animated arrows and
+ * bouncing decorations are exactly as forbidden as they were; this file no longer confuses
+ * "declares a keyframe" with "is decoration".
  */
 describe("the owner's design exclusions hold in the served stylesheet", () => {
   it('RESIL-911 no excluded visual device appears anywhere in the stylesheet', () => {
@@ -81,21 +90,21 @@ describe("the owner's design exclusions hold in the served stylesheet", () => {
         expect(CSS, `${device}: "${needle}" is in the stylesheet`).not.toContain(needle);
       }
     }
-    // Exactly one @keyframes rule may exist: the loading spinner's rotation. A second one
-    // would be motion somebody added for its own sake, which is exactly what this case
-    // exists to catch.
+    // Exactly two @keyframes rules may exist: the loading spinner's rotation and the
+    // one-shot content entrance settle. A third would be motion somebody added for its own
+    // sake, which is exactly what this case exists to catch.
     const keyframeNames = [...CSS.matchAll(/@keyframes\s+([a-zA-Z0-9_-]+)/g)].map((m) => m[1]);
     expect(
       keyframeNames,
-      'the stylesheet does not declare exactly the one allowed @keyframes rule',
-    ).toEqual(['spin']);
-    // Every `animation:` in the sheet must be the reduced-motion reset or the loading
-    // spin. Anything else is motion somebody added for its own sake.
+      'the stylesheet does not declare exactly the two allowed @keyframes rules',
+    ).toEqual(['spin', 'enter']);
+    // Every `animation:` in the sheet must be the reduced-motion reset, the loading spin or
+    // the entrance settle. Anything else is motion somebody added for its own sake.
     const animations = [...CSS.matchAll(/animation:([^;}!]+)/g)].map((m) => (m[1] ?? '').trim());
     for (const value of animations) {
       expect(
-        value === 'none' || /^spin\b/.test(value),
-        `animation:${value} is neither the reduced-motion reset nor the loading spin`,
+        value === 'none' || /^spin\b/.test(value) || /^enter\b/.test(value),
+        `animation:${value} is none of the reduced-motion reset, the loading spin or the entrance settle`,
       ).toBe(true);
     }
   });

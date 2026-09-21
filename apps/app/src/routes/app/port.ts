@@ -295,6 +295,53 @@ export interface SupportResult extends WriteResult {
 }
 
 /** A pasted credential, on its way to A04's `establishConnection`. */
+/**
+ * What a "Test connection" actually established, split into the three things a customer
+ * could otherwise read as one.
+ *
+ * The split is the point. A provider answering our API call proves the credential is live
+ * and scoped correctly. It does NOT prove the webhook is wired, and neither of those proves
+ * the customer's own automation sends us events, which is the only thing that makes a
+ * workflow verifiable. Collapsing the three into one green tick would be the product
+ * telling exactly the kind of lie it exists to catch in other people's systems.
+ */
+export interface ConnectionTestResult {
+  readonly provider: ProviderKey;
+  readonly displayName: string;
+  /** Did the provider answer our read with this credential, right now. */
+  readonly apiAccess: 'ok' | 'failed' | 'not_checked';
+  /**
+   * Has a correctly signed callback from this provider ever been received.
+   *
+   * `not_applicable` for HubSpot, which we poll rather than receive. Never inferred from
+   * the API check: a token that reads is not a webhook that arrives.
+   */
+  readonly webhookReadiness: 'received' | 'never_received' | 'not_applicable';
+  /**
+   * Always `not_checked`, and it is a field rather than a comment so the page cannot
+   * quietly stop saying it. Nothing in a connection test can tell a customer their own
+   * automation reports enquiries to us.
+   */
+  readonly workflowVerification: 'not_checked';
+  readonly status: ConnectionStatus;
+  /** ISO instant the check ran. Rendered as "last checked". */
+  readonly checkedAt: string;
+  /** Plain language, from the connector, about what was found. */
+  readonly summary: string;
+  /** Something the customer can do, or null when there is nothing useful to say. */
+  readonly nextStep: string | null;
+  /**
+   * True when the stored credential was left exactly as it was.
+   *
+   * A provider being unreachable is our problem or theirs, never evidence that the
+   * customer's key is bad, so an outage must not cost them a re-paste. This says so out
+   * loud on the page.
+   */
+  readonly credentialsPreserved: boolean;
+  /** Set when the check could not be run at all, rather than run and failed. */
+  readonly blockedReason: string | null;
+}
+
 export interface ConnectionCredentialsInput {
   readonly provider: ProviderKey;
   /** Never echoed back to the page, never logged, never stored unsealed. */
@@ -353,6 +400,17 @@ export interface CustomerDataPort {
    * rejected must never leave a half-connected row behind.
    */
   submitConnectionCredentials?(input: ConnectionCredentialsInput): Promise<WriteResult>;
+
+  /**
+   * Re-check a stored connection against the provider, now, on the customer's request.
+   *
+   * `revalidateConnection` has existed in `@verify/connectors` since the connector work and
+   * was called from nowhere: exported, tested, unreachable. That is this codebase's own
+   * named defect pattern, and the customer-visible cost of it was that a connection could
+   * rot (a revoked token, a swapped portal) with no way for anybody to find out until a run
+   * failed. This is the reachable end of it.
+   */
+  testConnection?(provider: ProviderKey): Promise<ConnectionTestResult>;
 
   workflow(): Promise<WorkflowDetail | null>;
   workflows(): Promise<readonly WorkflowSummary[]>;

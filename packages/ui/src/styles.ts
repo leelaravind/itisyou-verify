@@ -33,6 +33,7 @@ import {
   FONT,
   LAYOUT,
   LIGHT,
+  MOTION,
   RADIUS,
   SPACE,
   TYPE,
@@ -101,6 +102,10 @@ const BASE = `
   --s6:${SPACE.x6};--s8:${SPACE.x8};--s12:${SPACE.x12};--s16:${SPACE.x16};--s24:${SPACE.x24};
   --r-control:${RADIUS.control};
   --r-container:${RADIUS.container};
+  --dur-fast:${MOTION.fast};
+  --dur-base:${MOTION.base};
+  --ease:${MOTION.ease};
+  --motion-rise:${MOTION.rise};
   --w-measure:${LAYOUT.measure};
   --w-wide:${LAYOUT.wide};
   --w-margin:${LAYOUT.margin};
@@ -128,12 +133,21 @@ img,svg{max-width:100%}
 hr{border:0;border-top:1px solid var(--c-rule);margin:0}
 code,kbd,samp{font-family:var(--f-mono);font-size:0.9em}
 
-a{color:var(--c-ink);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:0.18em}
+a{color:var(--c-ink);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:0.18em;transition:text-decoration-thickness var(--dur-fast) var(--ease)}
 a:hover{text-decoration-thickness:2px}
 
 :focus-visible{outline:2px solid var(--c-focus);outline-offset:2px;border-radius:2px}
+/* Cross-page smoothness, CSS only: the browser crossfades the outgoing and incoming
+   document on every same-origin navigation, so a loading state giving way to a result reads
+   as one continuous page rather than a hard cut. No JavaScript, no per-element wiring, and
+   an engine without support simply ignores the rule and navigates exactly as it does today --
+   the definition of a progressive enhancement. IMPORTANT: the universal reduced-motion reset
+   below matches ordinary elements only; it does not reach the browser-generated
+   view-transition pseudo-elements, so they get their own explicit reduced-motion rule. */
+@view-transition{navigation:auto}
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
+  ::view-transition-group(*),::view-transition-old(*),::view-transition-new(*){animation:none!important}
 }
 
 /* ---- layout primitives -------------------------------------------------- */
@@ -255,7 +269,7 @@ a:hover{text-decoration-thickness:2px}
 .brand__mark{font-family:var(--f-mono);letter-spacing:0.14em;font-size:var(--t-small);text-transform:uppercase}
 .brand__name{letter-spacing:-0.02em}
 .nav{display:flex;flex-wrap:wrap;gap:var(--s2) var(--s4);align-items:center;font-size:var(--t-small)}
-.nav a{text-decoration:none;color:var(--c-muted);transition:color .12s ease}
+.nav a{text-decoration:none;color:var(--c-muted);transition:color var(--dur-fast) var(--ease)}
 .nav a:hover,.nav a[aria-current]{color:var(--c-ink);text-decoration:underline;text-decoration-thickness:1px}
 .nav a[aria-current]{font-weight:600}
 .foot{border-top:1px solid var(--c-rule);margin-top:var(--s16);padding-block:var(--s8);font-size:var(--t-small);color:var(--c-muted)}
@@ -312,6 +326,8 @@ a:hover{text-decoration-thickness:2px}
 .compare__table th,.compare__table td{text-align:left;vertical-align:top;padding:var(--s3) var(--s4);border-bottom:1px solid var(--c-rule)}
 .compare__table thead th{font-family:var(--f-mono);font-size:var(--t-micro);text-transform:uppercase;letter-spacing:0.08em;color:var(--c-muted);font-weight:600;white-space:nowrap}
 .compare__table tbody tr:last-child th,.compare__table tbody tr:last-child td{border-bottom:0}
+.compare__table tbody tr{transition:background-color var(--dur-fast) var(--ease)}
+.compare__table tbody tr:hover{background:var(--c-sunken)}
 .compare__field{display:flex;flex-direction:column;gap:var(--s1);align-items:flex-start;font-weight:600}
 .compare__field .badge{white-space:normal;text-align:left;align-items:flex-start}
 /* Machine output is mono and tabular, so two values differing in one digit misalign visibly. */
@@ -347,7 +363,7 @@ a:hover{text-decoration-thickness:2px}
   padding:0.6rem var(--s4);min-height:2.75rem;border-radius:var(--r-control);
   border:1px solid var(--c-ink);background:var(--c-surface);color:var(--c-ink);
   text-decoration:none;cursor:pointer;
-  transition:background-color .12s ease,color .12s ease,border-color .12s ease,transform .08s ease;
+  transition:background-color var(--dur-fast) var(--ease),color var(--dur-fast) var(--ease),border-color var(--dur-fast) var(--ease),transform var(--dur-fast) var(--ease);
 }
 .btn:hover{background:var(--c-sunken);text-decoration:none}
 /* A single pixel of press feedback on activation -- a real state change, not a bounce, and
@@ -458,11 +474,25 @@ a:hover{text-decoration-thickness:2px}
 .callout__detail{flex-basis:100%;margin-top:var(--s1)}
 .callout__detail summary{cursor:pointer;font-size:var(--t-small);font-weight:600;color:var(--c-muted);list-style:none;display:inline-flex;align-items:center;gap:0.35em}
 .callout__detail summary::-webkit-details-marker{display:none}
-.callout__detail summary::before{content:"\\203A";display:inline-block;font-family:var(--f-mono);transition:transform .15s ease}
+.callout__detail summary::before{content:"\\203A";display:inline-block;font-family:var(--f-mono);transition:transform var(--dur-fast) var(--ease)}
 .callout__detail[open] summary::before{transform:rotate(90deg)}
 .callout__detail summary:hover{color:var(--c-ink)}
-.callout__detail-body{padding-top:var(--s2);font-size:var(--t-small);color:var(--c-muted)}
-.callout__detail-body>*+*{margin-top:var(--s2)}
+/* Smooth disclosure, CSS only. grid-template-rows animates 0fr to 1fr on the body, not a
+   height transition: height is not compositor-friendly and 0 to auto cannot be interpolated
+   at all without interpolate-size, which is not yet reliable enough to depend on. The row's
+   min size only collapses to zero because the inner wrapper carries overflow:hidden -- a
+   grid item's automatic minimum size resolves to zero only once overflow is something other
+   than visible -- so without that inner wrapper the row would refuse to shrink below its
+   content's height and nothing would visibly move.
+   Visibility is toggled, not transitioned: closed content must never be reachable by Tab,
+   and open content must be reachable the instant the open attribute is true, with no delay a
+   reduced-motion reset would need to separately neutralise. This author rule overrides the
+   details element's own default hidden state for the second child, which is how a native,
+   JavaScript-free disclosure keeps working with CSS turned off. */
+.callout__detail-body{display:grid;grid-template-rows:0fr;visibility:hidden;transition:grid-template-rows var(--dur-base) var(--ease)}
+.callout__detail-body__inner{overflow:hidden;padding-top:var(--s2);font-size:var(--t-small);color:var(--c-muted)}
+.callout__detail-body__inner>*+*{margin-top:var(--s2)}
+.callout__detail[open]>.callout__detail-body{grid-template-rows:1fr;visibility:visible}
 
 /* ---- forms --------------------------------------------------------------- */
 .fieldset{border:1px solid var(--c-rule);border-radius:var(--r-container);padding:var(--s4);margin:0}
@@ -481,7 +511,7 @@ a:hover{text-decoration-thickness:2px}
   padding:0.6rem var(--s3);min-height:2.75rem;
   color:var(--c-ink);background:var(--c-surface);
   border:1px solid var(--c-field-border);border-radius:var(--r-control);
-  transition:border-color .12s ease,background-color .12s ease;
+  transition:border-color var(--dur-fast) var(--ease),background-color var(--dur-fast) var(--ease);
 }
 .textarea{min-height:7rem;resize:vertical}
 .input--mono{font-family:var(--f-mono)}
@@ -515,6 +545,12 @@ a:hover{text-decoration-thickness:2px}
 }
 .table tbody tr:last-child td{border-bottom:0}
 .table td.num,.table th.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+/* A row under the pointer gets a physical hint that it is the one being read, whether or
+   not any cell in it is a link -- the same reason a spreadsheet highlights the active row.
+   Background-color, not a border or a shadow, so nothing here shifts layout or repaints
+   more than the row itself. */
+.table tbody tr{transition:background-color var(--dur-fast) var(--ease)}
+.table tbody tr:hover{background:var(--c-sunken)}
 
 /* ---- states -------------------------------------------------------------- */
 /* A neutral empty state looks neutral. It used to share its dashed edge with
@@ -541,6 +577,31 @@ a:hover{text-decoration-thickness:2px}
    its start angle, which is indistinguishable from never having moved. */
 .spinner{flex:0 0 auto;vertical-align:-0.2em;transform-origin:50% 50%;animation:spin .9s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
+
+/* ---- entrance settle ------------------------------------------------------ */
+/* The second, and only other, @keyframes rule in this sheet (RESIL-911 names both and says
+   why neither is decoration). This one runs once, when a page's content boxes first paint --
+   never on scroll, because nothing here is watching scroll position, and it finishes in
+   var(--dur-base) which is well under the time a reader takes to start reading. It is tied to
+   a real event (this content just arrived, on a fresh page load or a fresh navigation), the
+   same bar the spinner and the loading state have to clear. Opacity and transform only, so it
+   costs the compositor a layer and nothing else. The four-tile and four-card groups (the
+   product's whole vocabulary, drawn as exactly four) get a small nth-child stagger capped at
+   three steps, so the fourth item is never more than 120ms behind the first. */
+@keyframes enter{from{opacity:0;transform:translateY(var(--motion-rise))}to{opacity:1;transform:none}}
+/* Containers only. The large verdict readout, badge--lg, was in this list and is
+   deliberately not: a verdict that fades in reads as an effect rather than as a finding.
+   The panel it sits in may settle; the verdict inside it is there at full weight from the
+   first painted frame. That distinction is the product's whole argument, so it is worth one
+   removed selector. CUST-427 holds it.
+   (No backticks in this comment. It sits inside the CSS template literal, and adding a pair
+   here is exactly how this file has been broken five times now, including by me.) */
+.panel,.claimrule,.compare,.results,.disclosure,.synthetic,.card,.callout,.state,.status-card,.tile{
+  animation:enter var(--dur-base) var(--ease) both;
+}
+.status-card:nth-child(2),.tile:nth-child(2){animation-delay:40ms}
+.status-card:nth-child(3),.tile:nth-child(3){animation-delay:80ms}
+.status-card:nth-child(4),.tile:nth-child(4){animation-delay:120ms}
 
 /* ---- breadcrumb & pagination --------------------------------------------- */
 .crumbs{font-size:var(--t-small)}

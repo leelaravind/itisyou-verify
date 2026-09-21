@@ -367,6 +367,29 @@ export const LAYOUT = {
   stackAt: '40rem',
 } as const;
 
+/**
+ * Motion. One shared curve, two durations, one entrance distance — so every transition and
+ * animation in the sheet reads as a single deliberate hand rather than a scatter of magic
+ * numbers. This is a forensic verification tool, not a landing page: motion here confirms
+ * that something happened, it does not perform.
+ *
+ *  - `fast` is for a control acknowledging a touch: a button, a link, a field border, a
+ *    disclosure marker. Quick enough to feel like a direct response, not a lag.
+ *  - `base` is for content: an entrance settle, a disclosure opening, a row of verdicts
+ *    appearing. Slower than `fast` because it is moving more, never because it is decorating.
+ *  - `ease` decelerates into its resting position and never overshoots. The same curve on a
+ *    120ms hover and a 220ms entrance is what makes the two read as one language rather than
+ *    two different libraries glued together.
+ *  - `rise` is how far an entering element travels. Small on purpose: a hint that content
+ *    settled into place, not a slide-in that makes the reader wait for it to arrive.
+ */
+export const MOTION = {
+  fast: '120ms',
+  base: '220ms',
+  ease: 'cubic-bezier(0.22,0.61,0.36,1)',
+  rise: '0.5rem',
+} as const;
+
 export interface StatusPresentation {
   readonly key: StatusKey;
   /** Sentence-case label shown to customers. Always rendered — colour is never the only cue. */

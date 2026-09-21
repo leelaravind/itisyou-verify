@@ -22,9 +22,16 @@ import type { CoverageMode, RunStatus, SubscriptionStatus } from '@verify/contra
 import { LIMITS, formatMoney, money } from '@verify/contracts';
 import { generateCsrfToken, maskToken, sha256Hex, stableStringify } from '@verify/security';
 import { AppError } from '@verify/contracts';
-import { establishConnection, type ProviderId } from '@verify/connectors';
+import {
+  CREDENTIAL_PURPOSE,
+  establishConnection,
+  openConnectionCredentials,
+  revalidateConnection,
+  type ProviderId,
+} from '@verify/connectors';
 import { scrubSecret, secretKeyIsUsable } from '@verify/connectors/stripe';
 import type {
+  ConnectionTestResult,
   ActivationView,
   ConnectionCredentialsInput,
   ConnectionView,
@@ -51,10 +58,11 @@ import type {
 import type { Env } from '../lib/context';
 import { ID_PREFIX, newId } from '../lib/ids';
 import { resolveSession, type ResolvedSession } from '../lib/session';
+import { consume } from '../lib/ratelimit';
 import { nowIso, toIso } from '../lib/time';
 import { issueWorkflowSigningKey, type IssuedSigningKey } from '../money/signingKeys';
 import { auditEvents } from './audit';
-import { connections } from './connections';
+import { connections, credentials, type CredentialEnvelopeRow } from './connections';
 import type { Db } from './d1';
 import { entitlements } from './entitlements';
 import { assertions, runs } from './runs';
@@ -240,6 +248,29 @@ export interface CustomerPortInput {
   readonly fetchImpl?: typeof fetch | undefined;
 }
 
+
+/**
+ * A stored credential row as the sealed envelope the connector layer expects.
+ *
+ * The row carries database columns the crypto layer has no business seeing, and the AAD is
+ * the field that binds a ciphertext to what it is for, so it is carried across verbatim
+ * rather than rebuilt. Rebuilding it would mean a mismatch decrypts to a tag failure
+ * instead of a clear refusal.
+ */
+function envelopeOf(row: CredentialEnvelopeRow): {
+  readonly ciphertext: string;
+  readonly nonce: string;
+  readonly aad: string;
+  readonly key_version: number;
+} {
+  return {
+    ciphertext: row.ciphertext,
+    nonce: row.nonce,
+    aad: row.aad,
+    key_version: row.key_version,
+  };
+}
+
 export class D1CustomerDataPort implements CustomerDataPort {
   readonly synthetic = false;
 
@@ -398,6 +429,181 @@ export class D1CustomerDataPort implements CustomerDataPort {
       supported: true,
       unsupportedReason: null,
     }));
+  }
+
+  /**
+   * Re-check one stored connection against the provider, on request.
+   *
+   * ## What this does and does not establish
+   *
+   * It makes the narrowest live read the connector offers and reports the answer. It says
+   * nothing about whether a webhook has ever arrived, and nothing at all about whether the
+   * customer's automation reports enquiries to us. Those are returned as separate fields
+   * rather than folded into one verdict, because "connected" meaning three different things
+   * is how a customer ends up believing a workflow is monitored when nothing is reaching us.
+   *
+   * ## Credentials survive an outage
+   *
+   * `revalidateConnection` answers `degraded` with `PROVIDER_UNAVAILABLE` when the provider
+   * cannot be reached, and this method writes that status without touching the stored
+   * credential. A provider being down is our problem or theirs; it is never evidence that
+   * the customer's key is bad, and making them re-paste a working key because HubSpot had a
+   * bad minute would be the product punishing them for somebody else's outage.
+   *
+   * ## Rate limited, per workspace and provider
+   *
+   * Each press is an outbound call to somebody else's API on our account. Six per five
+   * minutes is enough to work through a broken setup and not enough to be a way of hammering
+   * a provider through us.
+   */
+  async testConnection(provider: ProviderKey): Promise<ConnectionTestResult> {
+    const providerId: ProviderId = provider === 'resend' ? 'resend' : 'hubspot';
+    const displayName = PROVIDER_DETAIL[providerId].displayName;
+    const blocked = (reason: string): ConnectionTestResult => ({
+      provider,
+      displayName,
+      apiAccess: 'not_checked',
+      webhookReadiness: providerId === 'resend' ? 'never_received' : 'not_applicable',
+      workflowVerification: 'not_checked',
+      status: 'not_connected',
+      checkedAt: nowIso(this.#now),
+      summary: reason,
+      nextStep: null,
+      credentialsPreserved: true,
+      blockedReason: reason,
+    });
+
+    const scope = await this.#scope();
+    if (scope === null) return blocked('Sign in to test a connection.');
+    if (scope.role !== 'workspace_admin') {
+      return blocked(
+        `Only a workspace admin can test a connection. Your role in this workspace is viewer, so nothing was sent to ${displayName}.`,
+      );
+    }
+
+    const row = await connections.getByProvider(this.#db, scope.workspaceId, providerId);
+    if (row === null || row.revoked_at !== null) {
+      return blocked(
+        `There is no ${displayName} connection to test yet. Connect one first and this becomes useful.`,
+      );
+    }
+
+    const keyBase64 = this.#env.CREDENTIAL_KEY_V1;
+    if (keyBase64 === undefined || keyBase64.length === 0) {
+      return blocked(
+        `This deployment has no CREDENTIAL_KEY_V1 secret, so the stored credential cannot be opened to test it. That is our configuration, not something on your side. Nothing was sent to ${displayName}.`,
+      );
+    }
+
+    const decision = await consume(
+      this.#db,
+      `connection-test:${scope.workspaceId}:${providerId}`,
+      6,
+      300,
+      this.#now,
+    );
+    if (!decision.allowed) {
+      return blocked(
+        `That is a lot of checks in a short time. Wait a moment and try again; nothing was sent to ${displayName}.`,
+      );
+    }
+
+    const apiEnvelope = await credentials.activeForScope(
+      this.#db,
+      scope.workspaceId,
+      row.id,
+      CREDENTIAL_PURPOSE.API_TOKEN,
+    );
+    if (apiEnvelope === null) {
+      return blocked(
+        `This ${displayName} connection has no stored credential to test with. Paste the key again and it becomes testable.`,
+      );
+    }
+    const secretEnvelope =
+      providerId === 'resend'
+        ? await credentials.activeForScope(
+            this.#db,
+            scope.workspaceId,
+            row.id,
+            CREDENTIAL_PURPOSE.WEBHOOK_SECRET,
+          )
+        : null;
+
+    const opened = await openConnectionCredentials(
+      {
+        apiToken: envelopeOf(apiEnvelope),
+        ...(secretEnvelope === null ? {} : { webhookSecret: envelopeOf(secretEnvelope) }),
+      },
+      { workspaceId: scope.workspaceId, provider: providerId },
+      { keyBase64 },
+    );
+
+    const result = await revalidateConnection({
+      provider: providerId,
+      credentials: opened,
+      connection: {
+        provider: providerId,
+        account_id: row.external_account_id,
+        // Resolve identity live rather than trusting the stored value: a token quietly
+        // swapped for one pointing at a different account is exactly what this check is
+        // for, and trusting the stored id would hide it.
+        reverify_account: true,
+      },
+      now: this.#now,
+      ...(this.#fetchImpl === undefined ? {} : { fetchImpl: this.#fetchImpl }),
+    });
+
+    await connections.setStatus(this.#db, scope.workspaceId, row.id, {
+      status: result.status,
+      lastCheckAt: result.checkedAt,
+      lastErrorCode: result.lastErrorCode,
+    });
+
+    await auditEvents.record(this.#db, {
+      id: newId(ID_PREFIX.auditEvent, this.#now.getTime()),
+      actor: scope.userId,
+      actorKind: 'user',
+      workspaceId: scope.workspaceId,
+      action: 'connection.tested',
+      target: row.id,
+      occurredAt: nowIso(this.#now),
+      // The classification and the cost, never a credential and never a token value.
+      redactedMetadata: JSON.stringify({
+        provider: providerId,
+        status: result.status,
+        error_code: result.lastErrorCode,
+        account_changed: result.accountChanged,
+        calls_made: result.callsMade,
+      }),
+    });
+
+    // Webhook readiness is a stored fact about what has ARRIVED, never inferred from the
+    // API answering. HubSpot is polled, so it has no webhook to be ready.
+    const webhook = await this.#db
+      .prepare(`SELECT webhook_verified_at FROM connections WHERE workspace_id = ? AND id = ?`)
+      .bind(scope.workspaceId, row.id)
+      .first<{ webhook_verified_at: string | null }>();
+
+    return {
+      provider,
+      displayName,
+      apiAccess: result.lastErrorCode === null ? 'ok' : 'failed',
+      webhookReadiness:
+        providerId !== 'resend'
+          ? 'not_applicable'
+          : webhook?.webhook_verified_at != null
+            ? 'received'
+            : 'never_received',
+      workflowVerification: 'not_checked',
+      status: result.status,
+      checkedAt: result.checkedAt,
+      summary: result.summary,
+      nextStep: result.setupSteps[0]?.detail ?? null,
+      // Nothing in this method deletes or retires a credential, and the outage path is
+      // called out so the page can say so where it matters most.
+      credentialsPreserved: true,
+      blockedReason: null,
+    };
   }
 
   async connections(): Promise<readonly ConnectionView[]> {

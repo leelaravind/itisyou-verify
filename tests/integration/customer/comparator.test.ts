@@ -206,10 +206,66 @@ describe('an UNVERIFIED row is an absence with a stated reason, not a blank', ()
       expect(panel).not.toMatch(/\son[a-z]+="/);
       expect(panel).not.toContain('<script');
     }
-    // And the stylesheet gives the verdict no motion.
+    /*
+     * The stylesheet gives the VERDICT no motion.
+     *
+     * This asserted that no `.compare*` rule carried `animation` or `transition` at all.
+     * On 21 September 2026 the owner reversed the no-motion rule and asked for restrained
+     * motion, including hover transitions where they clarify interaction, and a row-hover
+     * highlight on a two-column comparison table is one of the clearest cases there is:
+     * it is how a reader keeps their place across "what was claimed" and "what we
+     * retrieved".
+     *
+     * So the ban narrows to what it was always about. A row may change its BACKGROUND on
+     * hover. Nothing that carries the verdict may move, fade, or be animated at all: not
+     * the badge, not the field, not the value, not the reason. A verdict that animates
+     * reads as an effect rather than as a finding, and on this product that is the whole
+     * argument.
+     */
     const css = (html.match(/<style[^>]*>([\s\S]*?)<\/style>/) ?? [])[1] ?? '';
     const compareRules = css.match(/\.compare[^{]*\{[^}]*\}/g) ?? [];
     expect(compareRules.length).toBeGreaterThan(3);
-    for (const rule of compareRules) expect(rule).not.toMatch(/animation|transition/);
+    for (const rule of compareRules) {
+      const selector = rule.slice(0, rule.indexOf('{'));
+      /*
+       * Split the selector list before judging it. A shared rule such as
+       * `.compare,.card,.callout{...}` is about the PANEL arriving, and reading the whole
+       * comma-separated string as one selector made any list containing a verdict class
+       * look like a verdict rule. What matters is whether the specific selector that
+       * brings `.compare` into scope is itself a verdict carrier.
+       */
+      const parts = selector.split(',').map((p) => p.trim());
+      const compareParts = parts.filter((p) => p.includes('.compare'));
+      const carriesVerdict = compareParts.some((p) =>
+        /__field|__value|__cell|__reason|\.badge/.test(p),
+      );
+      if (carriesVerdict) {
+        expect(rule, `a verdict-carrying rule animates: ${compareParts.join(', ')}`).not.toMatch(
+          /animation|transition/,
+        );
+        continue;
+      }
+      // Anywhere else in the comparator, motion is allowed but only on background-colour:
+      // never a transform or an opacity, which would move or fade evidence.
+      const declared = rule.match(/transition:([^;}]+)/)?.[1] ?? '';
+      if (declared !== '') {
+        expect(declared, `comparator motion is not limited to colour: ${selector}`).toMatch(
+          /^background-color\b/,
+        );
+      }
+      /*
+       * The container itself may settle in once when the page paints. That is the panel
+       * ARRIVING, which the owner asked for, and it is a different thing from the verdict
+       * moving: by the time a reader looks at the finding it is at full weight and has
+       * been since the first frame. The only animation permitted here is that entrance,
+       * named, so a second one cannot be added without this line noticing.
+       */
+      const animation = rule.match(/animation:([^;}]+)/)?.[1]?.trim() ?? '';
+      if (animation !== '') {
+        expect(animation, `an unexpected animation reached the comparator: ${selector}`).toMatch(
+          /^enter\b/,
+        );
+      }
+    }
   });
 });

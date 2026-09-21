@@ -15,6 +15,9 @@ import {
   Breadcrumb,
   Callout,
   Card,
+  SETUP_UNAVAILABLE_VIEWER_REASON,
+  SETUP_UNAVAILABLE_VIEWER_WHEN,
+  UnavailableAction,
   CsrfField,
   EmptyState,
   Field,
@@ -35,6 +38,7 @@ import {
 } from './chrome.js';
 import { formatInstant } from '../public/shared.js';
 import type {
+  ConnectionTestResult,
   ConnectionView,
   RunCountsView,
   SupportResult,
@@ -70,10 +74,93 @@ function connectionTally(connections: readonly ConnectionView[]): Html {
   </ul>`;
 }
 
+/**
+ * The three things a connection test establishes, drawn as three, never as one tick.
+ *
+ * A provider answering our API call proves the credential is live and scoped. It does not
+ * prove a webhook has ever arrived, and neither proves the customer's automation reports
+ * enquiries to us. One green "Connected" covering all three is how somebody ends up
+ * believing a workflow is monitored while nothing reaches us.
+ */
+function testFindings(result: ConnectionTestResult): Html {
+  const rows: readonly (readonly [string, StatusKey, string])[] = [
+    [
+      'API access',
+      result.apiAccess === 'ok' ? 'VERIFIED' : result.apiAccess === 'failed' ? 'FAILED' : 'UNVERIFIED',
+      result.apiAccess === 'ok'
+        ? 'The provider answered our read with this credential, just now.'
+        : result.apiAccess === 'failed'
+          ? 'The provider refused or could not answer our read.'
+          : 'Not checked.',
+    ],
+    [
+      'Webhook readiness',
+      result.webhookReadiness === 'received'
+        ? 'VERIFIED'
+        : result.webhookReadiness === 'not_applicable'
+          ? 'PENDING'
+          : 'UNVERIFIED',
+      result.webhookReadiness === 'received'
+        ? 'A correctly signed callback from this provider has been received and understood.'
+        : result.webhookReadiness === 'not_applicable'
+          ? 'This provider is polled rather than received, so there is no webhook to be ready.'
+          : 'No correctly signed callback has ever arrived. A stored signing secret is a promise that one will; it is not a record that one did.',
+    ],
+    [
+      'Workflow verification',
+      'UNVERIFIED',
+      'Not checked, and this button cannot check it. Whether your automation reports its enquiries to us is only observable from the events it sends, so a healthy connection tells you nothing about it.',
+    ],
+  ];
+  return html`<div class="stack-sm" data-test-findings="${result.provider}">
+    ${rows.map(
+      ([label, status, detail]) => html`<div class="margin-row">
+        <div class="margin-row__gutter">${StatusBadge({ status, label })}</div>
+        <p class="small muted">${detail}</p>
+      </div>`,
+    )}
+  </div>`;
+}
+
+/** What the last press of Test connection found, rendered on the card it belongs to. */
+function testOutcome(result: ConnectionTestResult): Html {
+  return html`<div
+    class="ruled-col stack-sm"
+    data-connection-test-result="${result.provider}"
+    aria-live="polite"
+  >
+    <h3>Checked ${formatInstant(result.checkedAt)}</h3>
+    ${
+      result.blockedReason === null
+        ? null
+        : formMessage(result.blockedReason, 'warn')
+    }
+    ${result.blockedReason !== null ? null : html`<p class="small">${result.summary}</p>`}
+    ${result.blockedReason !== null ? null : testFindings(result)}
+    ${
+      result.nextStep === null
+        ? null
+        : html`<p class="small"><strong>Next step.</strong> ${result.nextStep}</p>`
+    }
+    ${
+      result.credentialsPreserved
+        ? html`<p class="micro">
+            Your stored credential was not changed by this check. A provider we cannot reach is our
+            problem or theirs, never a reason to make you paste a working key again.
+          </p>`
+        : null
+    }
+  </div>`;
+}
+
 export function ConnectionsPage(options: {
   readonly connections: readonly ConnectionView[];
   readonly csrfToken: string | null;
   readonly submitted: WriteResult | null;
+  /** False for a viewer, and for a port that cannot test. The control says which. */
+  readonly canTest: boolean;
+  /** The result of the press that produced this render, if this render came from one. */
+  readonly tested: ConnectionTestResult | null;
 }): Html {
   return html`<div class="wrap section stack-lg">
     ${Breadcrumb([{ label: 'Workspace', href: '/app' }, { label: 'Connections' }])}
@@ -87,12 +174,28 @@ export function ConnectionsPage(options: {
     </div>
     ${formMessage(options.submitted?.message ?? null, options.submitted?.ok ? 'note' : 'warn')}
 
+    <!--
+      This notice said "We only ever read" and then "Neither connection grants permission
+      to create or edit a CRM record, or to send an email". The first half is true of us.
+      The second half was a claim about the CREDENTIAL, and for Resend it was false:
+      Resend publishes no read-only key, so the key a customer pastes is a full-access one
+      that CAN send mail from their domain and delete resources in their account. The
+      connect page already says so where the key is pasted; this page contradicted it.
+
+      What is true, and is what it says now, is a statement about our code rather than
+      about the permissions they handed us. The difference matters precisely because the
+      key is more powerful than we need: a customer deciding whether to trust us with it
+      deserves the accurate version.
+    -->
     ${Callout({
       tone: 'limit',
-      title: 'We only ever read',
+      title: 'What we do with these credentials',
       body: html`<p>
-        Neither connection grants permission to create or edit a CRM record, or to send an email. If a run
-        fails, fixing it is still yours to do.
+        Our code only ever reads. It has no path that creates or edits a CRM record, and no path that
+        sends an email. That is a fact about this application, not about the keys you gave us: Resend
+        publishes no read-only key, so the Resend credential is a full-access one that could send mail
+        from your domain if something else used it. We do not, and if a run fails, fixing it is still
+        yours to do.
       </p>`,
     })}
 
@@ -129,6 +232,35 @@ export function ConnectionsPage(options: {
                     <dd>${formatInstant(connection.lastCheckedAt)}</dd>
                   </dl>
                 </div>
+                <!-- Test connection, beside the provider it tests.
+                     A form rather than a link: each press costs a real outbound call to
+                     the customer's own provider account, so it must not be reachable by a
+                     prefetch, a crawler or a link preview, and it goes through the CSRF
+                     check like every other state-changing action here. The result renders
+                     on this card, below. -->
+                ${
+                  options.canTest
+                    ? html`<form method="post" action="/app/connections/test" class="stack-sm">
+                        ${CsrfField(options.csrfToken)}
+                        <input type="hidden" name="provider" value="${connection.provider}" />
+                        ${ButtonRow([
+                          Button({
+                            label: `Test ${connection.displayName} connection`,
+                            type: 'submit',
+                          }),
+                        ])}
+                      </form>`
+                    : UnavailableAction({
+                        label: `Test ${connection.displayName} connection`,
+                        reason: SETUP_UNAVAILABLE_VIEWER_REASON,
+                        whenBack: SETUP_UNAVAILABLE_VIEWER_WHEN,
+                      })
+                }
+                ${
+                  options.tested === null || options.tested.provider !== connection.provider
+                    ? null
+                    : testOutcome(options.tested)
+                }
                 ${connection.problem === null ? null : html`<p class="small">${connection.problem}</p>`}
                 ${
                   connection.nextStep === null

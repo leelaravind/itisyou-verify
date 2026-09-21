@@ -130,7 +130,9 @@ export function Callout(options: CalloutOptions): Html {
         ? null
         : html`<details class="callout__detail">
             <summary>${options.detail.summary}</summary>
-            <div class="callout__detail-body">${options.detail.body}</div>
+            <div class="callout__detail-body">
+              <div class="callout__detail-body__inner">${options.detail.body}</div>
+            </div>
           </details>`
     }
   </aside>`;
