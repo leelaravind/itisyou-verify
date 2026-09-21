@@ -55,3 +55,33 @@ Commit 954a5a71750fc096f307a173f3a0c67a8d99f3fe, 21 September 2026.
   render in this work came from the in-memory port through the real router. That needs the
   owner at /admin/login with a TOTP code, and a production session must not be seeded to
   stand in for it.
+
+=== 7. an auditor finding, and what it was worth ===
+
+  An independent auditor (cheap model, read-only) checked ten claims about this candidate
+  against the live site, the code, the images and the suite. Nine PASS. One FAIL, and it was
+  the right call on the evidence it had:
+
+    "the served HTML at reports/compare/served-customer/app-connections.html lacks the
+     data-provider-reads element entirely"
+
+  True of that file. The file was fetched from staging at 15:5xZ, BEFORE this candidate was
+  deployed, so it is a capture of the previous commit. The claim it appeared to contradict
+  was about the code that is live now.
+
+  Rather than argue, the artefact was replaced: staging re-seeded at 954a5a71750f, the page
+  re-fetched and re-captured. It now renders, for each provider, every call this application
+  can make with that credential and what each is for:
+
+    HubSpot   POST /oauth/v2/private-apps/get/access-token-info
+              GET  /crm/v3/objects/contacts/
+              POST /crm/v3/objects/contacts/search
+    Resend    GET  /emails/
+              GET  /domains
+
+  CONN-526 was added at the same time, because the auditor had found the real gap even if
+  its conclusion was wrong: nothing asserted the list reaches a PAGE. CONN-524 proves the
+  list agrees with the connectors own operation tables; CONN-526 proves it is rendered.
+  Mutation-checked: making the block unreachable fails it.
+
+  The seeded identities were revoked again afterwards (4 rows) and both cookies answer 401.

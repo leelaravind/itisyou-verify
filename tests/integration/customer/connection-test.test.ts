@@ -109,6 +109,25 @@ describe('testing a stored connection against the provider', () => {
     expect(served.html).toMatch(/<form[^>]*action="\/app\/connections\/test"[\s\S]*?type="submit"/);
   });
 
+  it('CONN-526 the page lists every call we can make with each credential, so the read-only claim has a list behind it', async () => {
+    /*
+     * The reachability half of CONN-524. That case proves the list agrees with the
+     * connectors own operation tables; this one proves the list reaches a page. A list
+     * derived correctly and rendered nowhere is the defect this product is named after.
+     */
+    open = await signedInWorkspace();
+    const served = await getSignedIn(open, '/app/connections');
+    expect(served.status).toBe(200);
+
+    expect(served.html, 'the call list is not rendered').toContain('data-provider-reads');
+    const text = visibleText(served.html);
+    expect(text).toContain('Every call we can make with this key');
+    // A real path from the HubSpot table and a real purpose beside it.
+    expect(text).toContain('/crm/v3/objects/contacts/');
+    expect(text).toContain('reads back the one contact an enquiry names');
+    // And nothing that sends mail, because no such operation exists to be listed.
+    expect(text, 'a send path is on the connections page').not.toContain('POST /emails');
+  });
   it('CONN-519 pressing it really calls the provider and records what came back', async () => {
     open = await signedInWorkspace();
     await connectHubSpot(open);
