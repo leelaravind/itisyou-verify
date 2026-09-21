@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "project": "itisyou-verify",
-  "generated_at": "2026-09-21T14:10:00Z",
+  "generated_at": "2026-09-21T15:30:00Z",
   "note": "Structured record of what was decided, built and verified. Observable facts and short decision rationales only — never reasoning traces, private prompts, credentials or customer data. Unknown values stay null rather than being guessed.",
   "events": [
     {
@@ -1996,6 +1996,45 @@
       ],
       "limitations": "The signed-in customer screens were verified on deployed staging, not re-exercised on production. The owner panel has still not been opened signed in, and has not been recomposed. A read-only count of production runs was refused by the same classifier and was not obtained another way.",
       "next_step": "The owner signs in at /admin/login so the owner panel can be walked through and then recomposed."
+    },
+    {
+      "event_id": "EVT-0060",
+      "timestamp": "2026-09-21T15:25:00Z",
+      "milestone_id": "M-DESIGN",
+      "task_id": "T-OWNER-PANEL",
+      "agent_role": "design",
+      "model_id": "claude-opus-5[1m]",
+      "status": "tested",
+      "goal": "Make the owner panel mean something by its colour, and stop it shouting the same paragraph on every page.",
+      "inputs": [
+        "the owner instruction that empty states be neutral and error styling be kept for actual problems",
+        "all thirteen owner screens rendered through the real router and read at three widths"
+      ],
+      "changed_artifacts": [
+        "apps/app/src/routes/owner/chrome.ts",
+        "apps/app/src/routes/owner/dashboardPages.ts",
+        "apps/app/src/routes/owner/opsPages.ts",
+        "apps/app/src/routes/owner/adminPages.ts",
+        "apps/app/src/routes/owner/qualityPages.ts",
+        "apps/app/src/routes/owner/index.ts",
+        "tests/unit/owner/panel-composition.test.ts"
+      ],
+      "commit_sha": "a6d3f81",
+      "decision_summary": "The panel drew fourteen different kinds of \"nothing is wrong\" in the colour it keeps for a failure: figures not measured yet, a maintenance runner nobody had paired, a check that had not run, a secret shown once after a successful enrolment, an evidence pack that does not exist on this deployment. One of those, DependencyNotice, carried a comment saying it is rendered instead of an error while rendering in the colour of one. Red everywhere is red nowhere, and this is the page where a real failure has to be noticed, so each was re-judged one at a time: a state of knowledge is now amber, a procedure is neutral, and a refusal, a failed synchronisation and a rejected action keep the red. The three longest notices lost their second and third paragraphs to a disclosure, which the callout already supported and none of these used. The launch strip repeated one freshness line on eight tiles; it now states the freshness most tiles share once and leaves a tile read at a different moment to speak for itself, which is the only case where the line is worth reading. The first version of that rule fired only when every label matched, which never happens, so it was replaced before it could be committed: unreachable code is the defect this product is named after.",
+      "alternatives_considered": [
+        "retoning by a blanket search and replace, rejected: four of the fourteen are genuine problems and would have been quietly demoted with the rest",
+        "collapsing every per-tile freshness line, rejected: the tile read at a different moment is the one the reader needs"
+      ],
+      "decision_reason": "A colour that means everything means nothing, and a page that repeats itself teaches the reader to skip it.",
+      "test_evidence_refs": [
+        "OWNER-919",
+        "OWNER-920",
+        "OWNER-921",
+        "OWNER-922",
+        "OWNER-923"
+      ],
+      "limitations": "Every render was against the in-memory port. Nobody has seen the panel signed in against production data, and nobody may seed a production session to stand in for that. The arrangement of the screens was already composed to the approved owner design and was not rebuilt.",
+      "next_step": "The owner signs in at /admin/login so the panel can be read against real figures."
     }
   ]
 }
