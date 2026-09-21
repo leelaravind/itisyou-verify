@@ -131,13 +131,31 @@ viewport, no screen blocked).
 | 6.9 | The verdict never animates         | **done**                        | `badge--lg` removed from the entrance list, and the development-story page stays wholly static because it tells readers "nothing is animated". CUST-427, DOC-111                                                                                                                                                                          |
 | 6.10| Independent auditor                | **done**                        | Ran against the pinned candidate on staging, on a cheap model, read-only. All seven checked items PASS; it found no weak assertion among the 20 new cases and judged the candidate fit to promote                                                                                                                                         |
 | 6.11| Staging deploy + verification      | **done**                        | `a904db086221` at 13:37Z, then `6fae121148ff` at 13:59Z before production; `docs/evidence/staging-verification-a904db086221.txt`, every check passed including all three viewer restrictions refusing at the ROUTE, not only in the UI                                                                                                                                                     |
-| 6.12| Production deploy                  | **done**                        | `6fae121148ff` deployed 14:00Z, staging first from the same gate artefact. The migration step that was refused at 13:0xZ ran and passed on this attempt; nothing was skipped and no flag was added. Served commit read back at 14:01Z. `docs/evidence/production-6fae121148ff.txt` |
+| 6.12| Production deploy                  | **done**                        | `6fae121148ff` deployed 14:00Z, then `4cf097ad5620` at 15:31Z carrying the visual pass, staging first from the same gate artefact. The migration step that was refused at 13:0xZ ran and passed on this attempt; nothing was skipped and no flag was added. Served commit read back at 14:01Z. `docs/evidence/production-6fae121148ff.txt` |
 | 6.13| Full customer and owner UI         | **done**                        | Customer screens recomposed and captured at three viewports. The OWNER panel is now recomposed to the same rules: error styling reserved for problems (14 callouts retoned, so a state of knowledge no longer wears the colour of a failure), long notices cut to one sentence with the rest in a disclosure, and the launch strip states a shared freshness once instead of eight times. 13 owner screens captured at 1440, 834 and 390, none overflowing. OWNER-919..923, mutation-checked. Its arrangement was already composed to the approved owner screen and was not rebuilt |
 | 6.14| Stitch: missing designs            | **not done, deliberately**      | The 20 approved references are all on disk and mapped. A generation run for the missing screens stalled after ~140k tokens and was stopped on the owner's cost instruction. `/security` still has no owner-approved reference                                                                                                              |
 
+## D7. The visual pass against the Stitch references (21 September 2026, afternoon)
+
+Added after the owner ruled that "15 of 19 composed" is not evidence that a screen matches its
+reference. One row per thing claimed. `docs/screen-checklist.md` carries the per-screen detail.
+
+| #   | Requirement | State | Evidence |
+| --- | --- | --- | --- |
+| 7.1 | References rendered properly, at our widths | **done** | The exported `screen.png` is a 351-pixel thumbnail; each reference `code.html` is now rendered in a real browser at 1440, 834 and 390 into `reports/compare/ref/` |
+| 7.2 | Home compared and implemented | **done, live** | The comparison device (`EvidenceDiff`) and the mono shape blocks; three arrangements tried and measured. CUST-701, CUST-703 |
+| 7.3 | Pricing compared | **done, nothing to change** | Four reference devices judged; each refusal has a stated reason in the screen checklist. One stale comment corrected |
+| 7.4 | Workspace compared and implemented | **done, live** | The four-field form moved behind a disclosure so the page answers its own question first; the allowance cost and the limitation stay in the flow, held by VERIFY-560 |
+| 7.5 | Owner dashboard compared and implemented | **done, live** | A rail at desktop width, the header nav below it, never both. OWNER-924, mutation-checked |
+| 7.6 | Reduced-motion defect found and fixed | **done, live** | The fourth status card rendered at opacity 0 for a reader who asked for less motion. RESIL-918 |
+| 7.7 | Billing portal defect found and fixed | **done, live** | A constant Stripe idempotency key replayed the first, spent session. BILL-675, BILL-676, and two openings on deployed staging now produce two different sessions |
+| 7.8 | Independent auditor on the visual work | **done** | Cheap model, read-only, ten claims: 8 PASS, 1 PARTIAL, 1 FAIL. Its one finding was acted on in part and refused in part, in writing |
+| 7.9 | Remaining screens compared | **NOT done** | Eleven screens are still marked pending in `docs/screen-checklist.md`: how-it-works, demo, support, the development story, five customer screens and five owner screens. Rendered and captured, not compared |
+| 7.10 | Owner panel seen signed in | **NOT done, owner only** | Every owner render in this work came from the in-memory port. Nobody has opened the panel against production data, and nobody may seed a production session to stand in for that |
+
 ## Launch blockers (only these stop a launch)
 
-Read at 14:01 UTC on 21 September 2026, against production at `6fae121148ff`.
+Read at 15:31 UTC on 21 September 2026, against production at `4cf097ad5620`.
 
 0. **CLEARED at 14:00Z, and left here rather than deleted.** For most of the afternoon this
    read "BLOCKED ON THE OWNER, and it is one command": the production release aborted because
