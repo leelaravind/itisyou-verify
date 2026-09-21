@@ -70,3 +70,33 @@ The owner alert channel is live right now. notification_deliveries carries 19
 milestone_reached rows, every one state=sent, the most recent at 2026-09-21 17:36Z, which is
 the release notification for this afternoon's deploy. The path that would carry a payment
 alert is therefore delivering today, not merely correct in the code.
+
+
+=== re-checked at 19:19Z, against production 9563df87e6fe ===
+
+  200  /admin/login, and the page really offers "Email me a link" (1 occurrence)
+  404  /owner        anonymous
+  401  /app          anonymous
+  /health            9563df87e6fe5ec05e0bc309e08372cf4e6aff37
+
+  Status text for the two items, read from docs/completion-checklist.md:
+    B9   "blocked on the owner, one action"
+    B10  "blocked on the owner, one dashboard check"
+
+  Nothing in the documents records either as done. The evidence columns describe what is
+  verified AROUND them, which is a different claim and is the accurate one.
+
+  An audit of these claims was started on a cheap model and hung for half an hour without
+  reaching its first check, almost certainly on the production database command it had been
+  warned might be refused. It was stopped rather than left running, the mechanical checks
+  above were run directly, and a tighter read-only agent was given the one question that
+  matters: whether any document overclaims B9 or B10.
+
+  That agent returned in 39 seconds with six tool calls: OVERCLAIMS, none. It quoted both
+  status strings back, noted that B10's acceptance criterion reads "Rule exists" while its
+  evidence column explicitly says the rule cannot be read from here, and judged section E of
+  the completion checklist specific enough to act on without a follow-up question.
+
+  The contrast is the useful part: the same question, asked with file reads only and a hard
+  call budget, cost 39 seconds. Asked with a database command in it, it cost half an hour and
+  returned nothing.
