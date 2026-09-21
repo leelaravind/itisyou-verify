@@ -1,0 +1,57 @@
+Production release and verification of the second comparison pass
+Commit 954a5a71750fc096f307a173f3a0c67a8d99f3fe, 21 September 2026.
+
+
+=== 1. release, staging first then production, one gate artefact ===
+
+  staging     16:05Z  complete, then verified signed in (below)
+  production  16:10Z  complete
+
+  curl -s https://verify.itisyou.app/health                          16:10Z
+    {"environment":"production","database":"reachable",
+     "commit":"954a5a71750fc096f307a173f3a0c67a8d99f3fe"}
+
+  The first read after the deploy still reported the previous commit; the second, seconds
+  later, reported this one. Worker propagation, not a failed release, and it is recorded
+  here because a single read is not proof.
+
+
+=== 2. the customer journey, re-verified on deployed staging at this commit ===
+
+  ALL CHECKS PASSED, including:
+    - the guided test verification followed through to a settled result
+    - the allowance moved 16 to 17: exactly one run
+    - two billing-portal openings produced two DIFFERENT Stripe sessions
+    - all three viewer restrictions refused at the route, naming the role
+
+
+=== 3. what this release changed, in the bytes production serves ===
+
+  /support        the FAQ answer rule now carries max-width:var(--w-measure)
+  /app/connections   every call we can make with each credential, with its purpose
+  /app/runs/:id      gaps sharing a reason are named in one line
+  /app/usage         a test verification costs a run and is left out of the result counts
+  /owner/customers   the runs column reads against the plan allowance
+
+
+=== 4. screens captured from production ===
+
+  39 full-page captures: 13 routes at 1440, 834 and 390. 0 with horizontal overflow.
+  Durable copies: docs/evidence/screenshots/production-954a5a71750f/ (JPEG, tracked).
+
+
+=== 5. temporary test sessions revoked, again ===
+
+  UPDATE sessions SET revoked_at = ... WHERE is_automation = 1 AND revoked_at IS NULL
+  rows_written: 2
+
+  Both cookies then answered 401 on GET /app, read from the deployed service. The local
+  file holding them was deleted. Nothing was seeded on production at any point.
+
+
+=== 6. what this does NOT show ===
+
+  The owner panel has still never been opened signed in on any deployment. Every owner
+  render in this work came from the in-memory port through the real router. That needs the
+  owner at /admin/login with a TOTP code, and a production session must not be seeded to
+  stand in for it.
