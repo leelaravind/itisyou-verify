@@ -93,13 +93,16 @@ export function OperationsPage(options: {
           runner.unavailableReason === null
             ? null
             : Callout({
-                tone: 'warn',
+                tone: 'limit',
                 title: 'Nothing is listening',
-                body: html`<p>${runner.unavailableReason}</p>
-                <p class="small">
-                  Jobs you queue are saved. They are not lost, and they are not done: they will run when a
-                  runner is paired. Anything on this page showing a queue is waiting on that.
-                </p>`,
+                body: html`<p>${runner.unavailableReason}</p>`,
+                detail: {
+                  summary: 'What happens to jobs meanwhile',
+                  body: html`<p class="small">
+                    Jobs you queue are saved. They are not lost, and they are not done: they will run when a
+                    runner is paired. Anything on this page showing a queue is waiting on that.
+                  </p>`,
+                },
               })
         }
         ${KeyValues([
@@ -239,7 +242,7 @@ export function OperationsPage(options: {
               </p>`,
               })
             : Callout({
-                tone: 'warn',
+                tone: 'limit',
                 title: 'Not checked',
                 body: html`<p data-dependency="true">${options.view.notifications.unavailableReason}</p>`,
               })
@@ -752,7 +755,7 @@ export function SettingsPage(options: SettingsPageOptions): Html {
       headingLevel: 2,
       body: html`<div class="stack-sm">
         ${Callout({
-          tone: 'warn',
+          tone: 'note',
           title: 'Raising a limit needs an approval',
           body: html`<p>
             This is the one setting here that can cost money, so it does not share the ordinary save button.

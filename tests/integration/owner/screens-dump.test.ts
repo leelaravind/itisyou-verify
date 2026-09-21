@@ -98,6 +98,23 @@ describe('screen dump for the owner screenshot pass', () => {
     // Every figure answered.
     write('owner-known', await serve(new KnownFiguresPort({ principal, now: () => NOW }), '/owner'));
 
+    // Every owner screen that answers a GET, so the panel can be seen whole rather than
+    // judged from two pages.
+    for (const [name, path] of [
+      ['owner-customers', '/owner/customers'],
+      ['owner-verification', '/owner/verification'],
+      ['owner-connections', '/owner/connections'],
+      ['owner-ads', '/owner/ads'],
+      ['owner-operations', '/owner/operations'],
+      ['owner-controls', '/owner/controls'],
+      ['owner-approvals', '/owner/approvals'],
+      ['owner-settings', '/owner/settings'],
+      ['owner-cleanup', '/owner/cleanup'],
+      ['admin-login', '/admin/login'],
+    ] as const) {
+      write(name, await serve(memory, path));
+    }
+
     for (const [name, path] of [
       ['home', '/'],
       ['pricing', '/pricing'],

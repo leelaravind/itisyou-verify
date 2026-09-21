@@ -62,12 +62,16 @@ export function OwnerLayout(options: OwnerPageOptions): Html {
   if (options.synthetic === true) {
     banners.push(
       Callout({
-        tone: 'warn',
+        tone: 'limit',
         title: 'These figures are placeholders',
-        body: html`<p>
-          This deployment is showing an in-memory stand-in, not your business. Every number, customer and
-          campaign below is invented. Nothing you press here reaches a provider, a card or an ad platform.
-        </p>`,
+        body: html`<p>Every number, customer and campaign below is invented.</p>`,
+        detail: {
+          summary: 'What that means for anything you press',
+          body: html`<p>
+            This deployment is showing an in-memory stand-in, not your business. Nothing you press here
+            reaches a provider, a card or an ad platform.
+          </p>`,
+        },
       }),
     );
   }
@@ -204,8 +208,10 @@ export function DependencyNotice(options: {
   readonly title: string;
   readonly detail: string;
 }): Html {
+  // Amber, not red: the doc comment above says this is rendered instead of an error, and a
+  // dependency drawn as a fault tells the owner to go and fix something that is not broken.
   return Callout({
-    tone: 'warn',
+    tone: 'limit',
     title: options.title,
     body: html`<p>${options.detail}</p>`,
   });
