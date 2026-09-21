@@ -48577,6 +48577,23 @@
       "runner": "vitest",
       "area": "tests/unit/owner/panel-composition.test.ts",
       "countable": true
+    },
+    {
+      "id": "CONN-526",
+      "category": "connector_contracts",
+      "level": "integration",
+      "requirement": "the connections page really renders the list of calls for each provider",
+      "risk": "CONN-524 proves the list agrees with the connectors own operation tables. A list derived correctly and rendered nowhere is the defect this product is named after, and this workstream has already found five of those.",
+      "risk_source": "case",
+      "setup": "Sign in and GET /app/connections.",
+      "expected": "data-provider-reads is present, the caption and a real HubSpot path and purpose are visible text, and POST /emails is absent.",
+      "owner_agent": "A03",
+      "implementation_ref": "tests/integration/customer/connection-test.test.ts",
+      "provider_backed": false,
+      "status": "passing",
+      "runner": "vitest",
+      "area": "tests/integration/customer/connection-test.test.ts",
+      "countable": true
     }
   ]
 }

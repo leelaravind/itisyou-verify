@@ -60,7 +60,7 @@ invisible card. Fixed and held by `RESIL-918`.
 | --- | --- | --- | --- | --- | --- |
 | `/app` workspace | `customer_dashboard_itisyou_verify` | yes | yes — see below | yes | not inspected |
 | `/app` mobile | `customer_dashboard_mobile_itisyou_verify` | yes | with the desktop | yes | not inspected |
-| `/app/connections` | `connections_evidence_sources_itisyou_verify` | yes | yes, see below | yes | not inspected |
+| `/app/connections` | `connections_evidence_sources_itisyou_verify` | yes | yes, see below | yes, re-captured at the live commit | PASS after correction |
 | `/app/runs`, `/app/runs/:id` | `run_details_evidence_itisyou_verify` | yes | yes, see below | yes | not inspected |
 | `/app/usage` | `reports_exports_itisyou_verify` | yes | yes, see below | yes | not inspected |
 | `/app/billing`, `/app/cancel` | `billing_cancellation_support_itisyou_verify` | yes | nothing to change | yes | not inspected |
