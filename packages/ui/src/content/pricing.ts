@@ -34,4 +34,4 @@ export const PLAN_RENEWAL_WORDING =
 export const PLAN_CANCELLATION_WORDING =
   'You can cancel at any time from the billing portal. Cancelling stops the next renewal; you keep access for the rest of the period you already paid for. We do not offer partial refunds for the unused part of a period unless required by law.';
 
-export const PLAN_TAXES_NOTE = `${PLAN_PRICE_DISPLAY} is the price shown at checkout; any tax required by law (for example VAT) is calculated and added by our payment provider based on your billing details, so the amount charged may be higher than the headline price.`;
+export const PLAN_TAXES_NOTE = `${PLAN_PRICE_DISPLAY} per month is the price you pay. We are not VAT-registered, so no VAT is charged. If you are buying from outside the UK, you may owe tax in your own country; that is yours to settle, and we do not calculate or collect it.`;

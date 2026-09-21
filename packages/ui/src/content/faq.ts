@@ -9,6 +9,7 @@
  * retention period would have left behind.
  */
 import { LIMITS } from '@verify/contracts';
+import { PLAN_PRICE_DISPLAY } from './pricing.js';
 
 export interface FaqEntry {
   readonly id: string;
@@ -127,8 +128,7 @@ export const FAQ_ENTRIES: readonly FaqEntry[] = [
   {
     id: 'tax-and-currency',
     question: 'Is tax included in the price?',
-    answer:
-      'The headline price is what you see at checkout before tax. Any tax required by law, such as VAT, is calculated and added by our payment provider based on your billing details, so the amount actually charged may be higher.',
+    answer: `The price is ${PLAN_PRICE_DISPLAY} per month. We are not VAT-registered, so no VAT is charged. If you are buying from outside the UK, you may owe tax in your own country; that is yours to settle, and we do not calculate or collect it.`,
   },
   {
     id: 'is-verification-live-today',

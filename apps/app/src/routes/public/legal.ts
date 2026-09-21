@@ -21,7 +21,6 @@ import {
   PLAN_TAXES_NOTE,
   REFUND_POLICY_SUMMARY,
   SUBPROCESSORS,
-  TERMS_SKELETON_NOTE,
 } from '@verify/ui';
 import { LIMITS } from '@verify/contracts';
 import { FaqList } from './faq.js';
@@ -48,14 +47,6 @@ const OWNER_FIELDS: readonly (readonly [string, string, string])[] = [
   ],
 ];
 
-function skeletonNotice(): Html {
-  return Callout({
-    tone: 'todo',
-    title: 'This page is incomplete, on purpose',
-    body: html`<p>${TERMS_SKELETON_NOTE}</p>`,
-  });
-}
-
 function pageHead(eyebrow: string, title: string, lede: string): Html {
   return html`<div class="stack-sm">
     <p class="eyebrow">${eyebrow}</p>
@@ -71,7 +62,6 @@ export function TermsPage(): Html {
       'Terms of service',
       'A factual skeleton describing what the service does, what it costs, and what it does not promise.',
     )}
-    ${skeletonNotice()}
 
     <section class="stack">
       <h2>Who you are contracting with</h2>
@@ -128,7 +118,6 @@ export function PrivacyPage(): Html {
       'What we hold, where it goes, and for how long',
       'Six places your data can reach, listed in order, including the one that only exists if you switch it on.',
     )}
-    ${skeletonNotice()}
 
     <section class="stack">
       <h2>Who is responsible for this data</h2>
@@ -182,7 +171,6 @@ export function RefundsPage(): Html {
       'How to stop paying, and what happens next',
       'Cancelling is one action in the billing portal, and it never needs to go through us.',
     )}
-    ${skeletonNotice()}
 
     <section class="stack">
       <h2>Cancelling</h2>

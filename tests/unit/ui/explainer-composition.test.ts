@@ -178,7 +178,8 @@ describe('security — composition', () => {
     const hero = markup.slice(heroStart, markup.indexOf('</section>', heroStart));
     expect(hero).toContain('<h1>Where your data goes, and who else touches it</h1>');
     expect(hero).toContain('<div class="split">');
-    expect(hero).toContain('data-todo-owner-input="certifications"');
+    expect(hero).toContain('<span class="mono">None</span>');
+    expect(hero).not.toContain('data-todo-owner-input="certifications"');
     expect(hero).toContain('data-provider-proof-notice');
     // Six stages, in order, as cards in an ordered list.
     expect(markup).toContain('<ol class="step-cards grid grid-3">');

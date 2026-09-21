@@ -214,7 +214,7 @@ describe('the compatibility step composition', () => {
     const entries = await p.connectorCompatibility();
     expect(entries.length).toBeGreaterThan(1);
     expect(entries.every((entry) => entry.supported)).toBe(true);
-    const markup = await render(CompatibilityPage(entries));
+    const markup = await render(CompatibilityPage(entries, { canContinue: false }));
 
     const head = markup.indexOf('<div class="section-head">');
     const tally = markup.indexOf('<ul class="tally" aria-label="Providers by state">', head);
@@ -267,7 +267,7 @@ describe('the compatibility step composition', () => {
     // could submit, nothing focusable, on the whole page.
     expect(markup).not.toMatch(/<form[\s>]/);
     expect(markup).not.toMatch(/<button[\s>]/);
-    expect(text(markup.slice(unavailable))).toContain('These all apply — continue');
+    expect(text(markup.slice(unavailable))).toContain('These all apply, continue');
 
     // One provider unsupported: the warn callout precedes the grid, its card wears the
     // label, and the tally counts it under that label with the failed badge — one each.
@@ -275,7 +275,7 @@ describe('the compatibility step composition', () => {
       entries[0]!,
       { ...entries[1]!, supported: false, unsupportedReason: 'A reason the port gave.' },
     ];
-    const blocked = await render(CompatibilityPage(mixed));
+    const blocked = await render(CompatibilityPage(mixed, { canContinue: false }));
     const warn = blocked.indexOf('>Something here is not supported<');
     expect(warn).toBeGreaterThan(-1);
     expect(warn).toBeLessThan(blocked.indexOf('<div class="grid grid-7-5">'));
@@ -290,7 +290,7 @@ describe('the compatibility step composition', () => {
     expect(count(mixedTally, '<span class="tally__count">1</span>')).toBe(2);
 
     // No providers: no tally and no cards, but the notice and the control still stand.
-    const none = await render(CompatibilityPage([]));
+    const none = await render(CompatibilityPage([], { canContinue: false }));
     expect(none).not.toContain('aria-label="Providers by state"');
     expect(none).not.toContain('<div class="pane">');
     expect(none).toContain('data-activation-notice');
@@ -315,7 +315,7 @@ describe('the reference copy stays in the reference', () => {
       ],
       [
         '/app/onboarding/compatibility',
-        await render(CompatibilityPage(await p.connectorCompatibility())),
+        await render(CompatibilityPage(await p.connectorCompatibility(), { canContinue: true })),
       ],
     ];
     for (const [path, markup] of pages) {

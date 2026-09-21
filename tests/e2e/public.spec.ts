@@ -83,14 +83,17 @@ test.describe('public journey', () => {
     expect(await page.locator('details').count()).toBe(0);
   });
 
-  test('CUST-072 the legal pages show every missing owner detail as a visible gap', async ({
+  test('CUST-072 the legal pages show the real, owner-confirmed identity, not a placeholder gap', async ({
     page,
   }) => {
     for (const path of ['/terms', '/privacy']) {
       await page.goto(path);
-      await expect(page.locator('[data-todo-owner-input="registeredAddress"]')).toBeVisible();
-      await expect(page.locator('[data-todo-owner-input="vatNumber"]')).toBeVisible();
-      await expect(page.getByText('Not yet published — companyRegistrationNumber')).toBeVisible();
+      await expect(
+        page.getByText('Lytchett House, 13 Freeland Park, Wareham Road, Poole, Dorset, BH16 6FA, United Kingdom'),
+      ).toBeVisible();
+      await expect(page.getByText('Not VAT-registered')).toBeVisible();
+      await expect(page.getByText('Not applicable (sole trader)')).toBeVisible();
+      await expect(page.locator('[data-todo-owner-input]')).toHaveCount(0);
     }
   });
 
