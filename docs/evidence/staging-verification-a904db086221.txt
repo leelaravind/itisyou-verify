@@ -1,0 +1,41 @@
+Staging verification of the new customer actions
+Run 21 September 2026 against DEPLOYED staging, commit a904db086221.
+Two seeded synthetic identities on ws_automation_test: one workspace_viewer, one workspace_admin.
+
+
+=== deployed staging https://verify-itisyou-staging.kpleelaaravind.workers.dev ===
+commit a904db086221139acf9dd706b1c9029b94fba4ef
+
+--- connection testing ---
+PASS  GET /app/connections as admin
+PASS    offers a Test connection form
+INFO  pressing Test connection answered 200
+PASS    the result names all three findings
+PASS    and refuses the workflow inference
+PASS    and says the credential was untouched
+
+--- the corrected read-only notice ---
+PASS    no longer claims the credential cannot send
+PASS    old absolute claim is gone
+
+--- guided test verification ---
+PASS  GET /app as admin
+PASS    the workspace offers a test verification
+INFO  the form is offered: true
+PASS    states the allowance cost or the reason it cannot start
+PASS    refuses the automation inference
+
+--- billing portal (fresh session per click) ---
+PASS  GET /app/billing as admin
+PASS    no Stripe URL is baked into the page
+INFO  the page offers the portal form: true
+
+--- viewer restrictions on all three ---
+PASS  viewer sees no Test connection form
+PASS    and the route refuses them
+PASS    naming the role
+PASS  viewer sees no test-verification form
+PASS  viewer is refused the billing portal
+
+ALL CHECKS PASSED
+

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "project": "itisyou-verify",
-  "generated_at": "2026-09-21T14:05:00Z",
+  "generated_at": "2026-09-21T13:50:00Z",
   "note": "Structured record of what was decided, built and verified. Observable facts and short decision rationales only — never reasoning traces, private prompts, credentials or customer data. Unknown values stay null rather than being guessed.",
   "events": [
     {
@@ -1847,6 +1847,121 @@
       ],
       "limitations": "Production remains STRIPE_MODE test with no live Stripe objects, so no payment alert has ever fired and both kinds hold zero rows. Advertising stays paused. The owner panel was verified on staging only: the seed script refuses production by design. Correction, 21 September 2026: this event originally listed artefacts that are not in d11c271. A meta-audit checked every changed_artifacts entry against git and found three events doing this. Moved out of the list and recorded here instead: docs/SESSION_HANDOVER.md (landed in bb28abe); docs/launch-checklist.md (landed in b27647e); docs/live-payment-approval.md (landed in b27647e).",
       "next_step": "Owner: the organic posts, the support routing rule, L2-L4, and the production owner-panel re-check."
+    },
+    {
+      "event_id": "EVT-0056",
+      "timestamp": "2026-09-21T13:20:00Z",
+      "milestone_id": "M-PROVIDERS",
+      "task_id": "T-CONNECTION-TEST",
+      "agent_role": "connectors",
+      "model_id": "claude-opus-5[1m]",
+      "status": "tested",
+      "goal": "Give a customer a way to find out whether a stored connection still works, before a run fails for a reason nobody can explain.",
+      "inputs": [
+        "the owner requirement for a Test connection control beside each provider",
+        "revalidateConnection, which had existed since the connector work and was called from nowhere"
+      ],
+      "changed_artifacts": [
+        "apps/app/src/db/customerPort.ts",
+        "apps/app/src/routes/app/index.ts",
+        "apps/app/src/routes/app/accountPages.ts",
+        "apps/app/src/routes/app/port.ts",
+        "tests/integration/customer/connection-test.test.ts"
+      ],
+      "commit_sha": "9e27b02",
+      "decision_summary": "revalidateConnection was exported, fully tested and unreachable: this codebase own named defect pattern, whose customer-visible cost was that a connection could rot through a revoked token or a swapped portal with nobody able to find out. It now has a reachable end at POST /app/connections/test, a form rather than a link because each press is an outbound call on the customer own provider account and a prefetch must not be able to spend it, rate limited to six in five minutes, admin only. The result is drawn as three findings rather than one tick: API access, webhook readiness, and workflow verification which is always not_checked and is a field on the result type so the page cannot stop saying it. A provider we cannot reach records degraded and touches no credential, because an outage is ours or theirs and must never cost a customer a re-paste. Separately the connections page claimed neither credential grants permission to send email; Resend publishes no read-only key, so that was false, and it now states what our code does instead.",
+      "alternatives_considered": [
+        "a link rather than a form, rejected: a crawler or a link preview would spend the customer provider rate limit",
+        "one combined health verdict, rejected: collapsing API access, webhook readiness and workflow verification into one tick is how somebody believes a workflow is monitored while nothing reaches us"
+      ],
+      "decision_reason": "A connection health check that cannot distinguish what it checked is a worse lie than no check at all.",
+      "test_evidence_refs": [
+        "CONN-518",
+        "CONN-519",
+        "CONN-520",
+        "CONN-521",
+        "CONN-522",
+        "CONN-523",
+        "AUTH-518"
+      ],
+      "limitations": "It cannot tell a customer anything about whether their own automation reports enquiries to us, and says so on the page. Verified on deployed staging, not on production, which has not been promoted.",
+      "next_step": "Give the customer a way to test the whole workflow, not just the connection."
+    },
+    {
+      "event_id": "EVT-0057",
+      "timestamp": "2026-09-21T13:30:00Z",
+      "milestone_id": "M-INTAKE",
+      "task_id": "T-TEST-VERIFICATION",
+      "agent_role": "A03 verification engine",
+      "model_id": "claude-opus-5[1m]",
+      "status": "tested",
+      "goal": "Let a customer check the whole pipeline end to end, without letting the feature flatter them.",
+      "inputs": [
+        "the owner requirement for a guided Run a test verification in the workspace",
+        "the real source-event schema, whose four fields the guided form maps onto exactly"
+      ],
+      "changed_artifacts": [
+        "apps/app/src/db/customerPort.ts",
+        "apps/app/src/db/ownerPort.ts",
+        "apps/app/src/db/runs.ts",
+        "apps/app/src/routes/app/workspacePage.ts",
+        "tests/integration/customer/test-verification.test.ts"
+      ],
+      "commit_sha": "a904db0",
+      "decision_summary": "The easy version of this is a simulator: four inputs, pretend, green tick, which would be the product committing the fault it sells the detection of. So it writes a genuine source event and admits it through sourceEvents.admitOnce, the same function the signed-event endpoint calls, and the real evaluator decides it against real provider reads. There is no verdict at submit time because there is no evidence yet: the run starts PENDING and the route redirects to it. It costs one run and says so above the fields, because admission is admission and a free side door would be a different code path. Three refusals are rendered rather than assumed: every input names something that already exists, the result can be failed or unverified, and a pass proves nothing about whether the automation reports enquiries. runs.is_synthetic had existed since the first migration and was read nowhere, so marking a test run would have been decoration; both the owner platform total and the workspace verification rate exclude it now.",
+      "alternatives_considered": [
+        "a free test that skips admission, rejected: a result from a different code path tells a customer nothing about the path their automation uses",
+        "setting is_synthetic without wiring the exclusions, rejected: a flag nothing reads is decoration, and the rate it would inflate is the one describing the customer own automation"
+      ],
+      "decision_reason": "A test that cannot come back failed is not a test.",
+      "test_evidence_refs": [
+        "VERIFY-560",
+        "VERIFY-561",
+        "VERIFY-562",
+        "VERIFY-563",
+        "VERIFY-564",
+        "VERIFY-565",
+        "AUTH-519"
+      ],
+      "limitations": "It proves the rules and the provider reads and nothing about the customer automation. Verified on deployed staging only. Production has not been promoted: the release aborted at a no-op migration step refused by a permission rule.",
+      "next_step": "Promote the candidate to production once the owner approves that one command."
+    },
+    {
+      "event_id": "EVT-0058",
+      "timestamp": "2026-09-21T13:37:00Z",
+      "milestone_id": "M-DESIGN",
+      "task_id": "T-MOTION",
+      "agent_role": "design",
+      "model_id": "claude-sonnet-5",
+      "status": "tested",
+      "goal": "Give the site one restrained, accessible motion language, after the owner reversed the earlier no-motion rule.",
+      "inputs": [
+        "the owner request for premium, smooth animation",
+        "the binding design exclusions, which still forbid decorative motion"
+      ],
+      "changed_artifacts": [
+        "packages/ui/src/tokens.ts",
+        "packages/ui/src/styles.ts",
+        "packages/ui/src/components/card.ts"
+      ],
+      "commit_sha": "9e27b02",
+      "decision_summary": "Two duration tokens, one easing curve and one rise distance, emitted as custom properties, so nothing is an ad hoc number. An entrance settle on containers, hover feedback on nav, buttons, fields and table rows, disclosure by grid-template-rows rather than height so it stays off the layout path, and a root crossfade between pages via view transitions. No new JavaScript at all. Reduced motion neutralises everything through the existing universal reset, with one explicit carve-out for the browser-generated view-transition pseudo-elements it structurally cannot reach. Two things deliberately do not move and both are the argument rather than taste: the large verdict readout, because a verdict that fades in reads as an effect rather than a finding, and the development-story page, which tells readers nothing is animated and has a case holding it to that.",
+      "alternatives_considered": [
+        "transition on height for disclosure, rejected: height is not compositor-friendly",
+        "animating the large verdict badge, rejected after it was added: it is the one element whose stillness is the product argument"
+      ],
+      "decision_reason": "Motion should help a reader notice that a state changed, and never suggest that a finding is an effect.",
+      "test_evidence_refs": [
+        "RESIL-911",
+        "RESIL-912",
+        "RESIL-913",
+        "RESIL-914",
+        "RESIL-915",
+        "CUST-427",
+        "DOC-111"
+      ],
+      "limitations": "Deployed to staging and verified there from the served stylesheet. Production has not been promoted.",
+      "next_step": "Nothing here; the owner panel remains uncomposed and is recorded as such."
     }
   ]
 }

@@ -111,9 +111,54 @@ time they were read.
 
 ---
 
+## D6 — The owner's 21 September requirements
+
+Candidate `a904db086221`: **deployed to staging and verified there**; production promotion
+is blocked on one permission approval (see blockers). Screens captured at 1440, 834 and 390
+in `reports/screenshots/staging-a904db086221/` (42 screens, no horizontal overflow at any
+viewport, no screen blocked).
+
+| #   | Requirement                        | Status                          | Evidence                                                                                                                                                                                                                                                                                                                                 |
+| --- | ---------------------------------- | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 6.1 | Test connection                    | **done, verified on staging**   | `POST /app/connections/test`, a form not a link, CSRF, rate limited 6 per 5 min, admin only. Wires `revalidateConnection`, which existed and was called from **nowhere**. CONN-518..523, AUTH-518. Verified on the deployed service: all three findings render, the credential survives an outage                                         |
+| 6.2 | API vs webhook vs workflow, split  | **done, verified on staging**   | Three findings drawn separately; `workflowVerification` is a field on the result type, always `not_checked`, so the page cannot stop saying it. CONN-520                                                                                                                                                                                 |
+| 6.3 | "We only ever read" corrected      | **done, verified on staging**   | The old copy claimed neither credential can send mail. Resend publishes no read-only key, so that was false. Now states what our CODE does and names the Resend full-access reality. CUST-903                                                                                                                                             |
+| 6.4 | Guided test verification           | **done, verified on staging**   | Four fields mapping 1:1 onto the real source-event schema, admitted through `sourceEvents.admitOnce`, decided by the real evaluator. Starts PENDING; no verdict invented. VERIFY-560..565, AUTH-519                                                                                                                                       |
+| 6.5 | Allowance explained before start   | **done, verified on staging**   | "This uses one of your 500 runs, and N remain", above the fields. It costs one because it takes the real admission path; a free side door would be a different code path. VERIFY-560                                                                                                                                                      |
+| 6.6 | Test runs labelled and excluded    | **done**                        | `is_synthetic` existed since the first migration and was read **nowhere**. Now excluded from the owner's platform total AND the workspace's own verification rate. VERIFY-563 asserts the filtered count is genuinely lower, so it cannot rot back into a flag nobody reads                                                                 |
+| 6.7 | Billing portal defect              | **done, verified on staging**   | Cause: the session was minted during the GET render and baked into an anchor, so it was spent before the click. Now one fresh session per click via POST. BILL-670..674, AUTH-517. Verified: the served page contains no `billing.stripe.com`                                                                                              |
+| 6.8 | Purposeful accessible animation    | **done, verified on staging**   | One motion language: 2 duration tokens, 1 easing curve, 1 rise. Entrance settle, hover feedback, `grid-template-rows` disclosure, `@view-transition` crossfade. **No new JavaScript.** `prefers-reduced-motion` neutralises all of it, with an explicit carve-out for view-transition pseudo-elements. RESIL-911..917                    |
+| 6.9 | The verdict never animates         | **done**                        | `badge--lg` removed from the entrance list, and the development-story page stays wholly static because it tells readers "nothing is animated". CUST-427, DOC-111                                                                                                                                                                          |
+| 6.10| Independent auditor                | **done**                        | Ran against the pinned candidate on staging, on a cheap model, read-only. All seven checked items PASS; it found no weak assertion among the 20 new cases and judged the candidate fit to promote                                                                                                                                         |
+| 6.11| Staging deploy + verification      | **done**                        | `a904db086221` at 13:37Z; `docs/evidence/staging-verification-a904db086221.txt`, every check passed including all three viewer restrictions refusing at the ROUTE, not only in the UI                                                                                                                                                     |
+| 6.12| Production deploy                  | **BLOCKED on the owner**        | Release aborted at the migration step by a permission rule, not a failure. `migrations list` reports "No migrations to apply!", so the step is a no-op. `scripts/release.mjs` has no skip flag: `--skip-tests` is refused for production and `--dry-run` deploys nothing. The command needing approval is in the blockers section below |
+| 6.13| Full customer and owner UI         | **partial**                     | The customer screens are recomposed, exclusion-clean and captured at three viewports. The OWNER panel has not been recomposed and is honestly not claimed: it renders and is exclusion-clean, but its layout is unchanged from before this work                                                                                            |
+| 6.14| Stitch: missing designs            | **not done, deliberately**      | The 20 approved references are all on disk and mapped. A generation run for the missing screens stalled after ~140k tokens and was stopped on the owner's cost instruction. `/security` still has no owner-approved reference                                                                                                              |
+
 ## Launch blockers (only these stop a launch)
 
 Read at 12:00 UTC on 21 September 2026, against production at `d11c271654bd`.
+
+0. **BLOCKED ON THE OWNER, and it is one command.** Candidate `a904db086221` is deployed
+   to staging, verified there, and audited as fit to promote. The production release aborted
+   at its migration step because the permission classifier refused:
+
+   ```
+   npx wrangler d1 migrations apply verify-itisyou-db-production --env production --remote
+   ```
+
+   It is a no-op: `wrangler d1 migrations list ... --remote` reports "No migrations to
+   apply!". `scripts/release.mjs` runs it unconditionally as a safety step and has no flag
+   to skip it (`--skip-tests` is refused for production, `--dry-run` deploys nothing), so
+   there is no legitimate in-script path around it and none was taken. Either approve that
+   command, or run from `H:/itisyou-verify`:
+
+   ```
+   node scripts/release.mjs --env production --gate-artefact reports/release-gate/a904db086221/release-gate.json
+   ```
+
+   Until then production serves `d11c271654bd` and the billing-portal fix, the connection
+   test and the guided test verification are **not live**.
 
 1. **Nothing on the sandbox payment path blocks a launch.** D1.1-1.6 are production verified
    (21 Sept 07:54-07:57Z). Live payments remain a separate, owner-gated decision.
