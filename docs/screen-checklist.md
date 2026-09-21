@@ -30,12 +30,12 @@ information sits beside what, and which devices earn their space.
 | --- | --- | --- | --- | --- | --- |
 | `/` home | `itisyou_verify_post_execution_readback_checks_for_automation_agencies` | yes | yes — see below | yes | PASS |
 | `/pricing` | `pricing_policy_itisyou_verify` | yes | nothing to change | yes | not inspected |
-| `/how-it-works` | `how_it_works_demonstration_itisyou_verify` | pending | — | — | pending |
-| `/demo` | `run_details_evidence_itisyou_verify` | pending | — | — | pending |
-| `/security` | none published | n/a | — | — | pending |
-| `/support` | `billing_cancellation_support_itisyou_verify` (part) | pending | — | — | pending |
-| `/terms`, `/privacy`, `/refunds` | none | n/a | — | — | pending |
-| `/development-story` | `visual_development_story_itisyou_verify` | pending | — | — | pending |
+| `/how-it-works` | `how_it_works_demonstration_itisyou_verify` | yes | answers measured | yes | not inspected |
+| `/demo` | `run_details_evidence_itisyou_verify` | yes | nothing to change | yes | not inspected |
+| `/security` | none published | n/a | nothing to change | yes | not inspected |
+| `/support` | `billing_cancellation_support_itisyou_verify` (part) | yes | yes, see below | yes | not inspected |
+| `/terms`, `/privacy`, `/refunds` | none | n/a | nothing to change | yes | not inspected |
+| `/development-story` | `visual_development_story_itisyou_verify` | yes | nothing to change | yes | not inspected |
 
 ### `/` home — differences found, and what was done about each
 
@@ -59,24 +59,24 @@ invisible card. Fixed and held by `RESIL-918`.
 | Screen | Reference | Compared | Implemented | Verified | Auditor |
 | --- | --- | --- | --- | --- | --- |
 | `/app` workspace | `customer_dashboard_itisyou_verify` | yes | yes — see below | yes | not inspected |
-| `/app` mobile | `customer_dashboard_mobile_itisyou_verify` | pending | — | — | pending |
-| `/app/connections` | `connections_evidence_sources_itisyou_verify` | pending | — | — | pending |
-| `/app/runs`, `/app/runs/:id` | `run_details_evidence_itisyou_verify` | pending | — | — | pending |
-| `/app/usage` | `reports_exports_itisyou_verify` | pending | — | — | pending |
-| `/app/billing`, `/app/cancel` | `billing_cancellation_support_itisyou_verify` | pending | — | — | pending |
-| `/app/sign-in` | `sign_in_welcome_itisyou_verify` (+ mobile) | pending | — | — | pending |
-| onboarding steps | `workflow_configuration_itisyou_verify`, `compatibility_proof_checkout_review_itisyou_verify` | pending | — | — | pending |
+| `/app` mobile | `customer_dashboard_mobile_itisyou_verify` | yes | with the desktop | yes | not inspected |
+| `/app/connections` | `connections_evidence_sources_itisyou_verify` | yes | yes, see below | yes | not inspected |
+| `/app/runs`, `/app/runs/:id` | `run_details_evidence_itisyou_verify` | yes | yes, see below | yes | not inspected |
+| `/app/usage` | `reports_exports_itisyou_verify` | yes | yes, see below | yes | not inspected |
+| `/app/billing`, `/app/cancel` | `billing_cancellation_support_itisyou_verify` | yes | nothing to change | yes | not inspected |
+| `/app/sign-in` | `sign_in_welcome_itisyou_verify` (+ mobile) | yes | nothing to change | yes | not inspected |
+| onboarding steps | `workflow_configuration_itisyou_verify`, `compatibility_proof_checkout_review_itisyou_verify` | yes | nothing to change | yes, four steps at three widths | not inspected |
 
 ## Owner screens
 
 | Screen | Reference | Compared | Implemented | Verified | Auditor |
 | --- | --- | --- | --- | --- | --- |
 | `/owner` overview | `owner_overview_itisyou_verify` | yes | yes — see below | yes, 13 screens | PASS |
-| `/owner/customers` | `owner_customer_incident_management_itisyou_verify` | pending | rail and tones only | yes, three widths | pending |
-| `/owner/approvals`, `/owner/ads` | `owner_approvals_campaigns_and_budget_...` | pending | rail and tones only | yes, three widths | pending |
-| `/owner/quality`, `/owner/cleanup` | `automated_testing_and_cleanup_centre_itisyou_verify` | pending | rail and tones only | yes, three widths | pending |
-| `/owner/operations`, `/owner/controls`, `/owner/settings`, `/owner/connections`, `/owner/verification` | none published | n/a | recomposed 21 Sept (tones, notices, freshness) | yes, 13 screens at three widths | pending |
-| `/admin/login` | none published | n/a | — | — | pending |
+| `/owner/customers` | `owner_customer_incident_management_itisyou_verify` | yes | runs against the allowance | yes, three widths | not inspected |
+| `/owner/approvals`, `/owner/ads` | `owner_approvals_campaigns_and_budget_...` | yes | nothing to change | yes, three widths | not inspected |
+| `/owner/quality`, `/owner/cleanup` | `automated_testing_and_cleanup_centre_itisyou_verify` | yes | nothing to change | yes, three widths | not inspected |
+| `/owner/operations`, `/owner/controls`, `/owner/settings`, `/owner/connections`, `/owner/verification` | none published | n/a | recomposed 21 Sept (tones, notices, freshness) | yes, 13 screens at three widths | PASS |
+| `/admin/login` | none published | n/a | nothing to change | yes, three widths | not inspected |
 
 ### `/pricing` — compared, and deliberately unchanged
 
@@ -129,6 +129,37 @@ and capturing it is not comparing it with its reference. Only `/owner` has been 
 `owner_customer_incident_management_itisyou_verify` and written down the differences. Marking
 those rows compared would be the exact substitution this file exists to stop: evidence that a
 screen exists, presented as evidence that it matches.
+
+### The second pass: the remaining screens
+
+Every reference below was rendered at 1440, 834 and 390 and read beside ours. Four screens
+changed; the rest were compared and left alone, which is a result and is recorded as one.
+
+| Screen | Difference | Judgement | Done |
+| --- | --- | --- | --- |
+| `/app/connections` | The reference lists, per provider, the exact endpoint it reads and the scopes it needs. Ours said "we only ever read" and stopped | Take it, and go further: the list is derived from the connector's own frozen operation table, so it cannot drift from what the code can do | Every call we can make, with what each is for, on the card for that provider. CONN-524 fails if an operation is added without a purpose; CONN-525 fails if anything that reads as a mutation appears |
+| `/app/runs/:id` | The reference states each check once. Ours printed the same forty-word blocked-reason paragraph twice, back to back, when one outage blocked two checks | Take the principle, keep our rule: nothing moves into a disclosure, because a reader who does not open one is the reader who treats amber as a soft failure | Gaps that share a reason are named together in one line. CUST-418 and CUST-419, mutation-checked |
+| `/app/usage` | Nothing structural | The page was already a meter, a result breakdown and a definition | One sentence added: a test verification costs a run and is left out of the result counts, so testing cannot move your figures. The two numbers on that page can legitimately differ and a reader should know why before they wonder |
+| `/support` | The reference groups its questions and measures them. Ours ran twenty answers at the full 1140px column, about 160 characters a line | Take the measure, refuse the grouping: these twenty are already in the author's order and a reader scanning for one question does better with one column | Answers take a reading measure; questions keep the full width so the list stays scannable |
+| `/how-it-works`, `/demo`, `/security`, `/development-story`, `/app/billing`, `/app/cancel`, `/app/sign-in`, `/app` mobile | Read beside their references | Nothing worth taking that the exclusions permit. The reference devices are mostly invented figures, rounded cards, gradients or integrations we do not have | unchanged |
+
+The onboarding steps were compared last. The reference is one dense configuration screen; ours
+asks one question per step behind a rail that marks where you are, which is the better shape for
+a seven-step setup somebody does once, and it was left alone.
+
+What remains uncompared: nothing. What remains unseen is the owner panel against production
+data, which needs the owner to sign in.
+
+
+### The owner screens, compared
+
+| Screen | Difference in the reference | Judgement | Done |
+| --- | --- | --- | --- |
+| `/owner/customers` | Each tenant row carries its run allowance as a figure and a bar, so the column answers "near the limit or not" rather than "how many" | Take the figure. The denominator is the plan constant because there is one plan | The column reads 4/500, and OWNER-925 asserts that denominator against the constant, so the day a per-workspace allowance exists this column has to come from the port instead |
+| `/owner/customers` | Tabs filtering by state, and a right-hand inspection panel for the selected tenant | Refuse for now. One workspace exists on this deployment: tabs over one row and an inspection panel for a selection of one are furniture rather than information | |
+| `/owner/approvals`, `/owner/ads` | A budget-consumption bar and a spend breakdown | Refuse. Every figure in that part of the reference is invented; ours are real and small, and £0.00 spent does not need a bar to be understood | |
+| `/owner/quality`, `/owner/cleanup` | An incident queue, a cluster topology and a worker pool | Refuse. We have no cluster, no worker pool and no incidents to queue. Drawing them would be the exact fault this product exists to report | |
+| `/admin/login` | No reference published | n/a | unchanged |
 
 ## What this checklist is not
 

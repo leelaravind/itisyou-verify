@@ -78,9 +78,32 @@ function verdictGaps(gaps: readonly VerdictGap[] | undefined): Html {
       Which check could not be completed was not recorded for this run, so we cannot name it here.
     </p>`;
   }
-  return html`${gaps.map(
-    (gap) => html`<p class="verdict-gap" data-verdict-gap>
-      Could not check <strong>${gap.label}</strong>: ${gap.reason}
+  /*
+   * Gaps that share a reason are stated once, with both labels.
+   *
+   * Nothing moves into a disclosure and nothing is shortened: the rule above still holds,
+   * because the reader who does not open a disclosure is the one who reads amber as a soft
+   * failure. What changes is that two checks blocked by the SAME outage stopped printing
+   * the same forty-word sentence twice in a row. On a run where both checks were blocked by
+   * one unreachable provider, the identical paragraph appeared back to back, and a
+   * paragraph repeated verbatim is one a reader learns to skip, which is the opposite of
+   * what it is there for.
+   */
+  const byReason = new Map<string, string[]>();
+  for (const gap of gaps) {
+    const labels = byReason.get(gap.reason);
+    if (labels === undefined) byReason.set(gap.reason, [gap.label]);
+    else labels.push(gap.label);
+  }
+  return html`${[...byReason.entries()].map(
+    ([reason, labels]) => html`<p class="verdict-gap" data-verdict-gap>
+      Could not check
+      ${labels.map(
+        (label, index) =>
+          html`${index === 0 ? '' : index === labels.length - 1 ? ' and ' : ', '}<strong
+              >${label}</strong
+            >`,
+      )}: ${reason}
     </p>`,
   )}`;
 }

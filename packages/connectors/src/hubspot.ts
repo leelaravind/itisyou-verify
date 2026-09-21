@@ -83,7 +83,7 @@ export const MAX_REQUESTED_PROPERTIES = 25;
  * are pure reads. There is no table entry that mutates a customer's CRM, and `hubspotCall`
  * cannot construct a request that is not in this table.
  */
-const HUBSPOT_OPERATIONS = Object.freeze({
+export const HUBSPOT_OPERATIONS = Object.freeze({
   token_info: Object.freeze({
     method: 'POST' as SafeMethod,
     path: '/oauth/v2/private-apps/get/access-token-info',

@@ -12,6 +12,7 @@
  *     no path in this file that prints a raw reason code — the view model carries sentences,
  *     not codes, and the port is what calls `explainAssertion`.
  */
+import { LIMITS } from '@verify/contracts';
 import {
   Button,
   Callout,
@@ -529,9 +530,24 @@ export function CustomersPage(options: {
           },
           {
             key: 'runs',
-            header: 'Runs',
+            /*
+             * Against the allowance, not on its own. A bare "4" says nothing about whether
+             * a customer is nowhere near their limit or about to hit it, and that is the
+             * only thing this column is read for. The denominator is the plan constant
+             * rather than a per-workspace figure, because there is one plan; if that ever
+             * stops being true this has to come from the port instead, and OWNER-925 is
+             * what will say so.
+             */
+            header: `Runs of ${String(LIMITS.PLAN_RUNS_PER_PERIOD)}`,
             numeric: true,
-            cell: (row) => UnknownAware(row.runsThisPeriod),
+            cell: (row) =>
+              row.runsThisPeriod === null
+                ? UnknownAware(row.runsThisPeriod)
+                : html`<span class="mono" data-customer-runs="${row.workspaceId}"
+                    >${String(row.runsThisPeriod)}<span class="muted"
+                      >/${String(LIMITS.PLAN_RUNS_PER_PERIOD)}</span
+                    ></span
+                  >`,
           },
           {
             key: 'actions',

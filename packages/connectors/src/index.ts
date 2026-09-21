@@ -153,3 +153,11 @@ export {
   type SetupField,
   type SetupInstruction,
 } from './setup.js';
+
+/* What each provider credential is actually used for, derived from the allowlists. */
+export {
+  HUBSPOT_READS,
+  RESEND_READS,
+  readsFor,
+  type ProviderRead,
+} from './reads.js';

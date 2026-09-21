@@ -9,6 +9,7 @@
  * under it. Nothing the reference says is on these pages — it names providers, an
  * encryption scheme, export formats and a retention period that are not ours.
  */
+import { readsFor } from '@verify/connectors';
 import {
   Button,
   ButtonRow,
@@ -232,6 +233,27 @@ export function ConnectionsPage(options: {
                     <dd>${formatInstant(connection.lastCheckedAt)}</dd>
                   </dl>
                 </div>
+                <!--
+                  Every call this application can make with that credential, listed rather
+                  than summarised. The method and path come from the connector's own frozen
+                  operation table, so this cannot drift from what the code can do: CONN-524
+                  fails if an operation is added without a purpose. "We only ever read" is a
+                  claim; this is the list behind it, and the list is exhaustive because the
+                  connector builds every URL from that table and can construct no other.
+                -->
+                ${
+                  readsFor(connection.provider).length === 0
+                    ? null
+                    : html`<div class="snip" data-provider-reads="${connection.provider}">
+                        <p class="snip__caption">Every call we can make with this key</p>
+                        <ul class="snip__lines">
+                          ${readsFor(connection.provider).map(
+                            (read) => html`<li>${read.call}</li>
+                              <li class="snip__why">${read.purpose}</li>`,
+                          )}
+                        </ul>
+                      </div>`
+                }
                 <!-- Test connection, beside the provider it tests.
                      A form rather than a link: each press costs a real outbound call to
                      the customer's own provider account, so it must not be reachable by a
@@ -357,6 +379,17 @@ export function UsagePage(usage: UsageView, counts: RunCountsView | null = null)
                 body: html`<p>
                 One signed event, for one enquiry, counted once. Sending the same event id again returns the
                 existing run rather than starting, or charging for, a second one.
+              </p>
+              <!--
+                Said here because the two figures on this page can legitimately differ and a
+                reader should know why before they wonder. A test verification is admitted
+                through the same door as a real enquiry, so it costs a run; it is excluded
+                from the result counts below, so starting one cannot move your figures in
+                either direction.
+              -->
+              <p data-test-runs-note>
+                A test verification you start from the workspace counts as a run too. It is left out of the
+                results below, so testing cannot make your figures look better or worse than they are.
               </p>`,
               })
         }
