@@ -1,0 +1,87 @@
+Production release and verification of the visual pass
+Commit 4cf097ad562068c2d5db04def4b86ccd2ae35c56, 21 September 2026.
+
+Application code identical to 0d2f06c17fdb, which is the commit the customer journey was
+verified against on deployed staging. 4cf097a adds documentation and evidence only.
+
+
+=== 1. release, staging first then production, one gate artefact ===
+
+  node scripts/release.mjs --env production --check-gate-artefact --gate-artefact ...
+    browser   15 passed, 0 failed, 0 flaky, 26 skipped
+    OK release gate artefact matches HEAD
+    release - gate artefact accepted for production. Nothing was deployed.
+
+  staging     15:30Z  complete
+  production  15:31Z  complete
+
+  An earlier attempt at this candidate ABORTED at the gate artefact step, and correctly:
+
+    1 browser case(s) FAILED in that CI run. The vitest accounting reports failing: 0
+    because it never reads the Playwright report - that is how this shipped once already.
+
+  CUST-068 could no longer click a header link, because the owner rail's rule hiding the
+  header navigation was unscoped and hid it on every public and customer page at desktop
+  width. Nothing was released around it. The rule was scoped to .has-rail, OWNER-924 was
+  extended to fail on the unscoped form, and the release ran again.
+
+  A separate staging attempt aborted at the database migration step with "Command failed".
+  Run directly, the same command answered "No migrations to apply!". The step is a no-op and
+  the refusal is intermittent; the release was retried unchanged and passed. No flag was
+  added and the step was not skipped.
+
+
+=== 2. served commit, read back independently of the release ===
+
+  curl -s https://verify.itisyou.app/health                          15:31Z
+    {"environment":"production","database":"reachable",
+     "commit":"4cf097ad562068c2d5db04def4b86ccd2ae35c56"}
+  curl -s https://verify-itisyou-staging.kpleelaaravind.workers.dev/health
+    the same commit
+
+
+=== 3. the visual work, counted in the bytes production serves ===
+
+  1  .ediff{                          the full reported-beside-retrieved comparison
+  1  .snip{                           the mono shape blocks in the three steps
+  2  .rail{                           the owner panel rail, and its hidden state
+  1  .has-rail .site .nav a{display:none}   scoped, so only a page with a rail is affected
+  1  .measure-wide{                   the headline measure
+  1  @media (min-width:75rem)         where the comparison columns go side by side
+  1  @media (min-width:78rem)         where the rail appears
+  1  animation-delay:0ms!important    the reduced-motion fix
+  1  transition-delay:0ms!important
+
+  And in the home page markup as served:
+  1  data-evidence-diff               the comparison is rendered, not just styled
+  3  class="snip"                     one shape per step
+  1  "What the automation reported"
+  2  correlation_id                   a real field name, not a decorative sample
+
+
+=== 4. anonymous behaviour, unchanged ===
+
+  200  /  /pricing        401  /app        404  /owner        200  /admin/login
+
+
+=== 5. screens captured from production ===
+
+  39 full-page captures: 13 routes at 1440, 834 and 390.
+  0 with horizontal overflow. 0 blocked; /app answers 401 by design and was captured so.
+  Durable copies: docs/evidence/screenshots/production-4cf097ad5620/ (JPEG, tracked).
+  Full-resolution PNGs: reports/screenshots/production-4cf097ad5620/ (git-ignored).
+
+  Comparison sheets, before beside the Stitch reference beside after, for the four priority
+  pages: reports/compare/sheets/ (git-ignored; sent to the owner in the session).
+
+
+=== 6. what this does NOT show ===
+
+  The signed-in customer and owner screens were NOT captured on production. That needs a
+  session, and seeding one on production is what the owner ruled out;
+  scripts/seed-automation-identity.mjs refuses --env production by design and that guard was
+  not weakened. The identical application code was exercised signed in, in both roles, on
+  deployed staging: docs/evidence/staging-verification-0d2f06c17fdb.txt.
+
+  The owner panel has still never been opened signed in, on any deployment, by anybody. Every
+  owner render in this work came from the in-memory port through the real router.

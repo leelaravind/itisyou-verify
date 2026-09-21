@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "project": "itisyou-verify",
-  "generated_at": "2026-09-21T15:30:00Z",
+  "generated_at": "2026-09-21T15:40:00Z",
   "note": "Structured record of what was decided, built and verified. Observable facts and short decision rationales only — never reasoning traces, private prompts, credentials or customer data. Unknown values stay null rather than being guessed.",
   "events": [
     {
@@ -2035,6 +2035,76 @@
       ],
       "limitations": "Every render was against the in-memory port. Nobody has seen the panel signed in against production data, and nobody may seed a production session to stand in for that. The arrangement of the screens was already composed to the approved owner design and was not rebuilt.",
       "next_step": "The owner signs in at /admin/login so the panel can be read against real figures."
+    },
+    {
+      "event_id": "EVT-0061",
+      "timestamp": "2026-09-21T15:10:00Z",
+      "milestone_id": "M-DESIGN",
+      "task_id": "T-VISUAL-PASS",
+      "agent_role": "design",
+      "model_id": "claude-opus-5[1m]",
+      "status": "tested",
+      "goal": "Compare what we built with what was designed, rather than asserting that fifteen of nineteen screens were composed.",
+      "inputs": [
+        "the owner ruling that a composition count is not evidence that a screen matches its reference",
+        "the twenty Stitch references, rendered properly for the first time"
+      ],
+      "changed_artifacts": [
+        "packages/ui/src/components/evidence.ts",
+        "packages/ui/src/styles.ts",
+        "apps/app/src/routes/public/home.ts",
+        "apps/app/src/routes/app/workspacePage.ts",
+        "packages/ui/src/layout/shell.ts",
+        "docs/screen-checklist.md"
+      ],
+      "commit_sha": "4cf097a",
+      "decision_summary": "The exported screen.png is a 351-pixel thumbnail, so no comparison had ever actually been possible; each reference code.html is now rendered in a real browser at the three widths we build to, and ours beside it. Three things were taken. The home page gave the comparison the space the product turns on, as a device with both sources, the verdict and the checks, after two narrower arrangements were tried and measured rather than argued. The steps gained mono blocks of the real field names, so a reader can see the exact shape they would send. The owner panel gained a rail, because thirteen screens in a header nav wrapped onto three lines on a phone. Several reference devices were refused with reasons rather than silently: a centred hero that put the argument below the fold, a fourteen-logo integration matrix for a product that reads two providers, three-tier pricing, and every invented figure on the owner reference. A screen checklist now records per screen what was compared, what was taken, what was refused and why, and eleven screens are recorded as not yet compared rather than folded into a total.",
+      "alternatives_considered": [
+        "trusting the composition count, rejected: it was the thing the owner had just ruled insufficient",
+        "copying the reference devices wholesale, rejected: most of them are excluded styles or figures we cannot measure"
+      ],
+      "decision_reason": "A design reference is evidence of an intention, not an instruction, and a count of composed screens is evidence of neither.",
+      "test_evidence_refs": [
+        "CUST-701",
+        "CUST-703",
+        "OWNER-924",
+        "RESIL-918",
+        "VERIFY-560"
+      ],
+      "limitations": "Eleven screens are rendered and captured but not compared. The owner panel has never been opened signed in on any deployment.",
+      "next_step": "Compare the remaining eleven screens with their references."
+    },
+    {
+      "event_id": "EVT-0062",
+      "timestamp": "2026-09-21T15:15:00Z",
+      "milestone_id": "M-PAYMENTS",
+      "task_id": "T-PORTAL-IDEMPOTENCY",
+      "agent_role": "A05 payments",
+      "model_id": "claude-opus-5[1m]",
+      "status": "tested",
+      "goal": "Find out why the billing portal still returned the same URL twice after the fix for exactly that.",
+      "inputs": [
+        "two portal openings on deployed staging returning byte-identical URLs",
+        "the Stripe idempotency contract: a repeated key replays the stored response for 24 hours"
+      ],
+      "changed_artifacts": [
+        "packages/connectors/src/stripe.ts",
+        "tests/unit/billing/stripe-connector.test.ts"
+      ],
+      "commit_sha": "84d7ce3",
+      "decision_summary": "The page-level fix was right and its case held: a session is minted per click. One layer below, the adapter sent an idempotency key of portal:<customer>:<returnUrl>, which is the same string on every opening for a customer, so Stripe replayed the FIRST session: single-use, short-lived, already spent. That is the expired-session defect reintroduced beneath its own fix, in the one place the existing case could not see because it stubs the gateway. A deterministic key makes a retry safe; a portal opening is not a retry. The key is unique per call now, at the cost of one unused session if a call fails mid-flight, which expires on its own. It was found by running the customer journey against a deployed service rather than by reading the code, which is the only reason it was found at all.",
+      "alternatives_considered": [
+        "dropping the key, rejected: the adapter refuses any mutating POST without one, deliberately",
+        "trusting the existing case, rejected: it stubs the gateway and could never reach this line"
+      ],
+      "decision_reason": "A fix that a lower layer quietly undoes is not a fix.",
+      "test_evidence_refs": [
+        "BILL-675",
+        "BILL-676",
+        "BILL-672"
+      ],
+      "limitations": "Verified against Stripe test mode on deployed staging. Live mode remains switched off and owner-gated.",
+      "next_step": "Nothing here."
     }
   ]
 }

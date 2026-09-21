@@ -501,6 +501,31 @@ deliberately do not move: the large verdict readout, because a verdict that fade
 an effect rather than as a finding, and this page, which tells you nothing is animated and is
 held to that by a test.
 
+**A fix that a lower layer was quietly undoing.** The billing portal used to open on a
+session that had already been spent, so the first thing a customer saw was that their session
+had expired. The obvious cause was fixed days ago: the session is now created when the button
+is pressed rather than when the page is drawn. Running the journey against a deployed service
+rather than reading the code showed it happening anyway. One layer further down, every
+opening was sent to Stripe with the same idempotency key, and Stripe answers a repeated key by
+replaying its stored response for a day: the second press got the first session back, already
+used. The key is now unique for every opening, and two presses on the deployed service produce
+two different sessions. A test that stubs the payment provider could never have seen this, and
+did not.
+
+**The design references were read properly for the first time.** The exported images turned
+out to be 351-pixel thumbnails, which is why nothing had ever really been compared against
+them; each design is now rendered in a browser at the same widths the site is built to, beside
+ours. Three things came out of that and are live: the comparison this product is about now
+takes the space it deserves on the home page instead of three compressed lines, each setup step
+shows the exact shape of what you would send rather than describing it, and the administrative
+panel navigates by a column of sections instead of thirteen links wrapped across the top.
+Several ideas in the references were refused on purpose, and the reasons are written down: a
+centred opening that pushed the argument off the screen, a wall of fourteen integration logos
+for a product that reads two, and every invented number on the administrative design. One real
+defect fell out of the comparison: a reader who asks their system for less motion was being
+shown a card that never became visible. Eleven screens have been rendered and captured but not
+yet compared, and they are listed as such rather than counted as done.
+
 **Not yet true.** Live customer payments, because that needs the owner's approval, and live
 objects in the real Stripe account; the decision page lists each with its evidence. A paying
 stranger: the only workspace on production is the owner's own test workspace, and public
