@@ -623,7 +623,7 @@ export class MemoryOwnerDataPort implements OwnerDataPort {
     this.#record(ctx, 'owner.campaign.pause', campaignId, { campaign_id: campaignId });
     return writeOk(
       '/owner/ads',
-      'Pause requested. This shows as "pause requested" until the ad platform confirms it — assume it may still be spending until then.',
+      'Pause requested. This shows as "pause requested" until the ad platform confirms it; assume it may still be spending until then.',
     );
   }
 
@@ -731,7 +731,7 @@ export class MemoryOwnerDataPort implements OwnerDataPort {
     return writeOk(
       '/owner/controls',
       paused
-        ? 'Paused. Cancelling and getting help keep working — they always do, whatever is paused.'
+        ? 'Paused. Cancelling and getting help keep working; they always do, whatever is paused.'
         : 'Resumed.',
     );
   }
@@ -835,7 +835,7 @@ export class MemoryOwnerDataPort implements OwnerDataPort {
     // what the real one refuses, and the gap would only appear in production.
     if (key === SETTINGS_KEY.budgetLimits) {
       return writeFailed(
-        'A spending ceiling cannot be changed through the ordinary settings save — it needs an approval granted ' +
+        'A spending ceiling cannot be changed through the ordinary settings save: it needs an approval granted ' +
           'for that exact change. Nothing has been saved and the current ceilings still stand.',
       );
     }

@@ -177,7 +177,7 @@ function connectionProblem(
       };
     case 'authorising':
     case 'testing':
-      return { problem: 'Still being checked.', nextStep: 'Nothing to do — refresh in a moment.' };
+      return { problem: 'Still being checked.', nextStep: 'Nothing to do, refresh in a moment.' };
     case 'expired':
       return {
         problem: 'The access we were granted has expired.',
@@ -191,7 +191,7 @@ function connectionProblem(
     case 'unsupported':
       return {
         problem: 'Your plan with this provider does not expose the data we need.',
-        nextStep: 'Nothing you can do here — this combination is not supported.',
+        nextStep: 'Nothing you can do here: this combination is not supported.',
       };
     default:
       return {
@@ -857,7 +857,7 @@ export class D1CustomerDataPort implements CustomerDataPort {
     const current = await this.#currentConfiguredState(scope, workflow);
     if (current.correlationProperty === '') {
       return refuse(
-        'Map your CRM reference field before setting the expected outcome — there is nothing to check against yet.',
+        'Map your CRM reference field before setting the expected outcome: there is nothing to check against yet.',
       );
     }
     const next: ConfiguredWorkflowState = {
@@ -892,7 +892,7 @@ export class D1CustomerDataPort implements CustomerDataPort {
       blockedReason:
         scope === null
           ? 'Sign in to run a proof.'
-          : 'No proof run was performed. The rule compiler is not wired into this environment, so there are no rules to evaluate — and a pass against no rules would mean nothing.',
+          : 'No proof run was performed. The rule compiler is not wired into this environment, so there are no rules to evaluate, and a pass against no rules would mean nothing.',
     };
   }
 
@@ -966,7 +966,7 @@ export class D1CustomerDataPort implements CustomerDataPort {
     // Every value here is resolved from server-side constants. Nothing is read from the
     // request, so a crafted form cannot buy a plan at a price it chose (rule 5).
     return {
-      planName: 'ITISYOU Verify — one workflow',
+      planName: 'ITISYOU Verify: one workflow',
       priceDisplay: formatMoney(money(LIMITS.PLAN_PRICE_PENCE, 'GBP')),
       billingPeriod: 'month',
       runsIncluded: LIMITS.PLAN_RUNS_PER_PERIOD,

@@ -13,7 +13,7 @@ Last updated: **20 September 2026**.
 An automation platform tells you a run succeeded. That claim comes from the automation
 itself. If the step that was supposed to create a CRM record silently did nothing, or the
 acknowledgement email was accepted by the sending service and then bounced, the run still
-reports success — because from the automation's point of view, it finished.
+reports success, because from the automation's point of view, it finished.
 
 Agencies running workflows for clients find out days later, from the client.
 
@@ -25,8 +25,8 @@ cases where nothing throws and the outcome still is not there.
 Go and look.
 
 Read the CRM record back from the CRM. Read the email outcome back from the email
-provider. Check both against rules the customer set. Report what the evidence supports —
-and, crucially, report honestly when the evidence is missing rather than guessing.
+provider. Check both against rules the customer set. Report what the evidence supports, and,
+crucially, report honestly when the evidence is missing rather than guessing.
 
 That last part is the whole design constraint. A verification service that quietly turns
 "we could not check" into "passed" is worse than no service, because it manufactures
@@ -55,28 +55,28 @@ trigger an acknowledgement email_, using HubSpot and Resend.
 
 A connector marketplace would have been more impressive and less useful. Each provider
 brings its own auth model, its own event semantics, its own idea of what "delivered"
-means, and its own rate limits. Getting one pair genuinely right — proving the evidence is
-independent and correlated — is a harder and more valuable thing than wiring ten providers
+means, and its own rate limits. Getting one pair genuinely right, proving the evidence is
+independent and correlated, is a harder and more valuable thing than wiring ten providers
 we cannot prove anything about.
 
 ### Why the rule language is deliberately small
 
-Customers define expectations using a closed set of typed operators — `exists`, `equals`,
-`normalised_email_equals`, `occurred_within`, `provider_status_in`, `one_of` — over an
+Customers define expectations using a closed set of typed operators (`exists`, `equals`,
+`normalised_email_equals`, `occurred_within`, `provider_status_in`, `one_of`) over an
 allowlisted set of fields.
 
 Every operator in that list is implemented in the evaluator and covered by its tests. For
 most of one day that was not the same as every one being used. Until 19 September 2026 the
 composer that turns the onboarding forms into rules emitted `exists` and
 `provider_status_in` only, so a real run checked that the acknowledgement carried _a_
-recipient address — not that it carried _this enquiry's_ address — and a run whose
+recipient address, not that it carried _this enquiry's_ address, and a run whose
 acknowledgement went to the wrong person could come back verified. The reason was
 structural: a rule's expected value is a literal shared by every run a version judges, so
 "the address _this_ enquiry named" could not be written down at all.
 
 The fix widened the language by exactly one thing, and it is not an expression: a rule may
-now name one of two values from the run's own signed event — its correlation reference or
-its expected recipient — as a closed, typed reference (`expected_from`). Server code
+now name one of two values from the run's own signed event, its correlation reference or
+its expected recipient, as a closed, typed reference (`expected_from`). Server code
 resolves it; nothing is parsed or executed. The composer now binds the recipient check to
 the enquiry's address with `normalised_email_equals`, and the correlation check to the
 enquiry's reference with `equals`. A run whose event carries nothing to compare with is
@@ -94,7 +94,7 @@ language is a feature here, not a limitation we plan to remove.
 The email comparison lowercases, trims, and strips display-name brackets. It deliberately
 does **not** strip `+tags`, and it does not strip dots.
 
-Stripping `+tag` would mean `boss+anything@corp.com` — an address the customer controls —
+Stripping `+tag` would mean `boss+anything@corp.com`, an address the customer controls,
 could satisfy a rule about having emailed `boss@corp.com`. Verification must never widen
 an equivalence class. Dot-stripping is a Gmail-specific convention and is simply wrong for
 other providers.
@@ -103,7 +103,7 @@ That reasoning is a property of the `normalised_email_equals` operator. For most
 it was documented here while no customer workflow emitted the operator, so the paragraph
 above described a protection no real run had. Since 19 September 2026 the composer binds the
 recipient check with that operator to the address each enquiry named, so the safeguard
-applies to a real run — proven against the in-process harness, not yet against a live
+applies to a real run: proven against the in-process harness, not yet against a live
 provider account.
 
 ### The line between "wrong" and "unknown"
@@ -127,7 +127,7 @@ authoritatively reporting that no such event occurred. A timeout never qualifies
 Evidence carries an origin: we asked the provider ourselves, the provider called us and we
 verified its signature, or the customer's own system told us.
 
-The third can never support a mandatory check. The result says so in plain language — and
+The third can never support a mandatory check. The result says so in plain language, and
 deliberately does not imply the customer is lying. It says what _we_ do: we check
 everything against the connected systems ourselves, and a system reporting on its own work
 is not something we can count as proof either way.
@@ -136,7 +136,7 @@ is not something we can count as proof either way.
 
 If a workflow is supposed to run and never starts, and the workflow is the thing that tells
 us a run was expected, we will not know a run was missing. Every result shows its coverage
-mode, and "no runs received yet" is displayed as exactly that — never as a perfect score.
+mode, and "no runs received yet" is displayed as exactly that, never as a perfect score.
 
 Being straightforward about this costs us a better-sounding pitch. It is the correct trade.
 
@@ -151,7 +151,7 @@ Background work runs from a one-minute cron trigger over a single indexed query.
 Cloudflare Queues were considered and not used. A due-job table with a partial index is
 deterministic, testable without a network, and adds no delivery semantics we would then
 have to design around. The service runs whether or not any developer machine is switched
-on — that was a requirement, not an aspiration.
+on. That was a requirement, not an aspiration.
 
 ---
 
@@ -164,7 +164,7 @@ run from the customer's allowance, and queue the follow-up work.
 
 The obvious implementation guards the reservation with a conditional `UPDATE`. On D1 that
 is wrong in a way that does not announce itself: a conditional update inside a batch
-**cannot abort the batch**. It reports zero rows changed — after the inserts have already
+**cannot abort the batch**. It reports zero rows changed, after the inserts have already
 committed. The event would have been admitted without consuming an allowance.
 
 The fix writes the reservation so that exhausting the allowance violates a `NOT NULL`
@@ -178,7 +178,7 @@ into the authenticated data, so ciphertext moved to another tenant will not decr
 
 The independent security review found the flaw: the function that opens a credential
 accepted the expected binding as an _optional_ argument. Any helper that looked a
-credential up by its id and forgot to pass it would decrypt any tenant's row — because the
+credential up by its id and forgot to pass it would decrypt any tenant's row, because the
 stored binding travels with the row and satisfies the check on its own.
 
 The binding was real. The API made forgetting it easy. That is the same thing as not
@@ -187,10 +187,10 @@ having it.
 ### Push protection caught us
 
 GitHub's push protection blocked a push because test fixtures were shaped like real API
-keys. They were synthetic — all zeros — but shape is what a scanner sees.
+keys. They were synthetic, all zeros, but shape is what a scanner sees.
 
 The fixtures were rewritten so they are assembled at runtime and no credential-shaped
-literal is committed. The alternative — clicking "allow this secret" — would have trained
+literal is committed. The alternative, clicking "allow this secret", would have trained
 us to dismiss the one warning that will one day be real.
 
 ### 33% that displayed as 100%
@@ -198,7 +198,7 @@ us to dismiss the one warning that will one day be real.
 The demo page shows a workflow health card: a big "33%" with a progress bar underneath.
 The bar was rendering full width and solid green.
 
-The markup was right the whole time — `style="width:33%"`. What was wrong was the
+The markup was right the whole time: `style="width:33%"`. What was wrong was the
 Content-Security-Policy added an hour earlier. A strict policy with no `unsafe-inline`
 blocks inline `style` attributes as well as inline stylesheets, so the fill fell back to
 its default width, which is all of it.
@@ -216,7 +216,7 @@ The first fix was a narrow exception: permit inline style _attributes_, keep blo
 inline scripts and injected stylesheets, and write into the policy why the exception
 existed and what would have to change before it could be removed.
 
-That exception is gone. The better fix was to stop needing it — the computed width moved
+That exception is gone. The better fix was to stop needing it: the computed width moved
 out of a style attribute and into a small set of predefined CSS classes, so the policy
 went back to refusing inline style attributes entirely. The classes round **down**: 33%
 draws as 30, 99% draws as 95, and only a true 100% fills the bar. On a product whose
@@ -228,7 +228,7 @@ the response header, zero inline style attributes in the markup, and the meter r
 as `meter__fill--30`.
 
 _(This paragraph previously described only the exception. It was caught during a later
-audit of the deployed site against the documentation — the story was underselling its own
+audit of the deployed site against the documentation: the story was underselling its own
 fix, which is a smaller sin than the reverse but the same class of drift.)_
 
 ### A pinned action that did not exist
@@ -244,15 +244,15 @@ ritual, not a control.
 
 The first real payment went through on a deployment: £29.00, a sandbox card, through a
 checkout button that had not existed that morning. Stripe took it and redirected the
-browser to the return path — which answered **404**.
+browser to the return path, which answered **404**.
 
 The billing configuration had named that path since the day it was written, along with a
 second one for a cancelled checkout. Neither route existed. Every test drove the checkout
 request and asserted on the redirect it produced, so the journey ended at the provider's
 front door and nothing followed the customer home.
 
-That is this codebase's dominant defect — correct code, thoroughly tested, reached by
-nothing — arriving at the worst moment it had available.
+That is this codebase's dominant defect (correct code, thoroughly tested, reached by
+nothing), arriving at the worst moment it had available.
 
 The page that now exists deliberately does **not** say the subscription is active. It is
 reached the instant the provider redirects, which can be before any webhook has arrived;
@@ -283,12 +283,12 @@ because every part of the code was right.
 ### Three new rules that matched nothing, invisibly
 
 The owner's approved designs were swept through this repository's own claim scanner, which
-reported 34 findings across nine rule classes — a compliance attestation this business
+reported 34 findings across nine rule classes: a compliance attestation this business
 does not hold, monthly prices that are not the plan price, a trial period that is not
 offered. Three new rules were written for gaps the scanner did not already cover.
 
 That count of 34 was wrong, and the scanner was why. It matched each rule against the raw
-markup line, while a comment four lines above it said tags were stripped first — they were
+markup line, while a comment four lines above it said tags were stripped first: they were
 stripped into a variable used only for the exemption check. A claim split across two
 elements was therefore invisible, and that is the ordinary shape of a price on a designed
 page: the figure in one element, the period in its sibling. The real count is **109** in
@@ -333,13 +333,13 @@ that follows, and each step was invisible to the tests that existed.
 The sign-in request had never sent anything. The port passed the notification sender a
 request in a shape it did not read, behind a type cast that hid the mismatch; the recipient
 was `undefined`, `.trim()` threw, the throw was swallowed as "failed" before any row was
-written, and the test for this path asserted the failure message — so it enshrined the bug.
+written, and the test for this path asserted the failure message, so it enshrined the bug.
 Fixed, a real message reached the owner's inbox (Resend: delivered) within a minute.
 
 Then the tables said what the page could not: 0 users, 0 platform owners, 0 workspaces, 11
 sign-in links issued and 0 redeemed. Three absences, all structural. Signup is closed and the
 seed script refuses production by design, so no path could create a workspace at all.
-`enrolTotp` — the function that enrols an authenticator — was written, tested, and called by
+`enrolTotp`, the function that enrols an authenticator, was written, tested, and called by
 nothing, so the two-factor gate in front of every consequential owner action could never be
 passed. And `/admin/verify` called the TOTP check without a session id, so a correct code was
 accepted, audited as accepted, and stamped nothing the gate could see.
@@ -362,7 +362,7 @@ nothing in it should be.
 
 The owner commissioned a design, approved it, and asked for it. The first implementation
 made the approved appearance the default and let a light operating-system preference
-switch away from it — the conventional, polite choice, and one that meant that on most
+switch away from it: the conventional, polite choice, and one that meant that on most
 machines the deployed page was indistinguishable from the page before the change.
 
 An approved redesign implemented so that almost nobody would see it is a change that
@@ -393,14 +393,14 @@ One deliberate duplication: the security reviewer and the data specialist indepe
 implemented webhook signature verification for Stripe and for Resend, from the vendor
 specifications, without seeing each other's code. Both implementations were then tested
 against each other. Two separate readings of a specification agreeing is the strongest
-evidence available without a live provider call — and it is not the same as a live
+evidence available without a live provider call, and it is not the same as a live
 provider call, which is why the report says both things.
 
 Models were chosen by risk rather than by default. Architecture, payments, tenant
 isolation and security review went to the strongest available model. Product copy and
 competitor research went to a cheaper one. Bounded scripting tasks went to cheaper ones
 still. Counting tests, validating a schema and scanning for secrets are done by code, not
-by a model — those are exactly the jobs where a model would be slower, dearer and less
+by a model. Those are exactly the jobs where a model would be slower, dearer and less
 reliable.
 
 ---
@@ -425,7 +425,7 @@ measuring that, and this page says so rather than letting the number speak for i
 
 **Real evidence, on a deployment.** Read out of staging: one `VERIFIED` run backed by a
 provider read-back, and two `UNVERIFIED` runs backed by provider webhooks. The two that
-resolved to "could not check" are the more important half — absence of evidence landing on
+resolved to "could not check" are the more important half: absence of evidence landing on
 unknown rather than on a pass is the entire product.
 
 **Paid once, in sandbox.** A real Checkout Session created by the deployed service and
@@ -435,7 +435,7 @@ disabled.
 **The payment did activate, in the end.** The paragraph that stood here said the provider
 delivered six events and both deployments rejected all six, and that no subscription
 existed. That was true when it was written and stopped being true on 20 September: the
-signing secret was present the whole time and the fault was ours — a trailing newline the
+signing secret was present the whole time and the fault was ours: a trailing newline the
 resolver never trimmed. Resent, the events were accepted, and staging holds one active
 subscription and one allowance of 500 runs, granted exactly once, unchanged by a replay.
 
@@ -445,9 +445,39 @@ retrieved record belonged to a different enquiry was contradicted on the correla
 reference rather than merely reported missing. Against our own accounts and our own
 synthetic records, which proves the providers answer us and nothing about your portal.
 
-**Not yet true.** Live customer payments, because that needs the owner's approval, seven legal-identity values on the terms and privacy pages, a decided VAT position, live objects in the real Stripe account and an alert for the first live charge; the decision page lists each with its evidence. A paying stranger: the only workspace on production is the owner's own test workspace, and public signup stays closed. Ten genuine external visits — the honest count is still zero. Four of nineteen screens remain uncomposed. The demonstration page's runs are still fixtures. Advertising: submitted, the ad under Google's review, not delivering, nothing spent.
+**The product can be entered through its own buttons.** `/app` and the first onboarding step
+rendered a permanently disabled control, so the seven setup steps could only be reached by
+knowing the form routes and posting to them by hand. The reason the disabled control gave was
+about buying the product (live payments off, signup closed), and it was being shown to people
+already signed in to a workspace that exists. Both controls now render on the same condition
+the server enforces on every setup write: the reader is a workspace admin. A viewer sees the
+sentence the server would have answered their first write with. A new test walks from the
+workspace page to the checkout step using only controls the served page offers, submitting the
+forms, and stops at the checkout step because that step needs two connected providers,
+asserting that the page states a reason rather than dead-ending.
 
-**Spent so far: £0.00 confirmed** against the £100 budget — no campaign activated, no new
+**The design exclusions are now enforced by tests, not by good intentions.** The owner gave a
+list of visual devices this product may not use. Nine of them were shipped: a gradient
+headline, a blurred orb behind two panels, drop shadows, a glass header, soft rounded corners,
+an excluded typeface in the font stack, a pure-white surface, coloured left-border callouts,
+and two dead custom properties. Every one had arrived with a comment explaining why the
+approved design wanted it, which is the point: each was defensible alone, and the list was
+nobody's job. They were removed at the token and stylesheet layer so the fix reaches all
+nineteen screens at once, and six new cases now assert each device is absent from the whole
+stylesheet. Three older cases had been written to hold two of those devices in place, and now
+assert the opposite.
+
+**Not yet true.** Live customer payments, because that needs the owner's approval, and live
+objects in the real Stripe account; the decision page lists each with its evidence. A paying
+stranger: the only workspace on production is the owner's own test workspace, and public
+signup stays closed. Ten genuine external visits, the honest count is still zero. Four of
+nineteen screens remain uncomposed; `/security` has no owner-approved reference to compose
+against, which is why it cannot simply be built. The demonstration page's runs are still
+fixtures. Advertising: paused on 21 September 2026 at 08:50 UK by the owner's own account,
+deliberately, visible in the campaign's change history, not under review and not delivering;
+£12.25 total budget, 0 impressions, £0.00 spent.
+
+**Spent so far: £0.00 confirmed** against the £100 budget: no campaign activated, no new
 paid resource, and the £30 contingency untouched and separately gated. That figure rests
 on one assumption the owner has not confirmed: that model usage is a development cost
 rather than a charge against the £100. `docs/spend.md` states the assumption rather than

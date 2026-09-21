@@ -379,7 +379,7 @@ describe('what the customer is told', () => {
       amountMinor: 2900,
       currency: 'GBP',
     });
-    expect(result.customerMessage).toBe('Refund requested — under review');
+    expect(result.customerMessage).toBe('Refund requested: under review');
   });
 
   it('BILL-148 the state machine refuses every move that would skip the owner', () => {

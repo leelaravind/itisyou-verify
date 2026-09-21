@@ -458,7 +458,7 @@ const RESEND_AWAIT_CALLBACK_STEP: ConnectionSetupStep = Object.freeze({
   id: 'resend_await_signed_callback',
   title: 'Send one test message so we can see a signed callback',
   detail:
-    'We have your signing secret, but we have never actually received a message signed with it, so we cannot yet say this connection works. Send one email through Resend — a test to yourself is fine — and we will mark the connection ready the moment a correctly signed delivery event arrives and we can read it.',
+    'We have your signing secret, but we have never actually received a message signed with it, so we cannot yet say this connection works. Send one email through Resend, a test to yourself is fine, and we will mark the connection ready the moment a correctly signed delivery event arrives and we can read it.',
   doc_url: 'https://resend.com/docs/dashboard/webhooks/introduction',
   verifiable_by_us: true,
 });

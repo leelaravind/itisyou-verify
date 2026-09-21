@@ -298,7 +298,7 @@ const signInLink: Renderer<'sign_in_link'> = (vars) =>
       'We never ask for a password, so there is no password for anyone to steal or for you to remember.',
     ],
     action: { url: vars.signInUrl, label: 'Sign in' },
-    reason: `You are receiving this because someone asked ${PRODUCT_NAME} to send a sign-in link to this address. If that was not you, ignore this message — the link is useless without this inbox.`,
+    reason: `You are receiving this because someone asked ${PRODUCT_NAME} to send a sign-in link to this address. If that was not you, ignore this message: the link is useless without this inbox.`,
   });
 
 const welcome: Renderer<'welcome'> = (vars) =>
@@ -342,7 +342,7 @@ const providerDisconnected: Renderer<'provider_disconnected'> = (vars) =>
     subject: `${vars.provider} is no longer connected to ${vars.workspaceName}`,
     paragraphs: [
       `We can no longer read from ${vars.provider}. ${vars.reasonSentence}`,
-      'While this lasts, affected runs are shown as unverified with the reason recorded. They are not shown as passed, and they are not shown as failed — we simply cannot see.',
+      'While this lasts, affected runs are shown as unverified with the reason recorded. They are not shown as passed, and they are not shown as failed: we simply cannot see.',
     ],
     action: { url: vars.reconnectUrl, label: `Reconnect ${vars.provider}` },
     reason: `You are receiving this because you are the owner of ${vars.workspaceName} and one of its connections needs your attention.`,
@@ -415,7 +415,7 @@ const paymentProblem: Renderer<'payment_problem'> = (vars) =>
       vars.reasonSentence,
       'Nothing else has stopped. You can still sign in, read your full run history and every past result, see evidence that is still inside its retention period, export your data, update your payment method, and cancel. All of that stays available throughout.',
       recoveryWindowSentence(vars),
-      'If the window runs out, verification stays suspended and the subscription is marked unpaid. It is not cancelled — we will not end your subscription for you — and nothing of yours is deleted. A missed payment is not a deletion trigger; your data is kept exactly as our published retention policy says and nothing else.',
+      'If the window runs out, verification stays suspended and the subscription is marked unpaid. It is not cancelled (we will not end your subscription for you), and nothing of yours is deleted. A missed payment is not a deletion trigger; your data is kept exactly as our published retention policy says and nothing else.',
       // WIRING (A09, 2026-09-19). The sentence this replaced said checking "starts again
       // when a payment is actually confirmed", full stop. A01 grepped and found
       // `reconcileSubscriptions()` and `runBillingMaintenance()` have no callers, so the
@@ -443,7 +443,7 @@ const paymentProblem: Renderer<'payment_problem'> = (vars) =>
       // met by anyone who has not deployed. **So the sentence stays.** Meeting one of
       // three conditions is not meeting the condition, and the paragraph below is the
       // thing standing between a paused customer and a silent wait.
-      'Checking starts again once a confirmed payment reaches us. Not a retry and not a promise to pay — a payment that has actually gone through. We are still finishing the automatic check for this, so if it feels slow after you have paid, contact us and we will sort it out by hand.',
+      'Checking starts again once a confirmed payment reaches us. Not a retry and not a promise to pay: a payment that has actually gone through. We are still finishing the automatic check for this, so if it feels slow after you have paid, contact us and we will sort it out by hand.',
       'Card details are handled entirely by the payment provider. We never see them, and we cannot update them for you.',
     ],
     action: { url: vars.billingPortalUrl, label: 'Open the billing portal' },

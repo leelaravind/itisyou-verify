@@ -73,7 +73,7 @@ export function planCampaignCreation(request: CreateDraftRequest): RedditPlan {
         method: 'POST',
         path: '/api/v3/ad_accounts/{ad_account_id}/ad_groups',
         purpose:
-          'attach the total (lifetime) budget and the schedule — the only real ceiling we have',
+          'attach the total (lifetime) budget and the schedule, the only real ceiling we have',
         body: {
           campaign_id: '{campaign_id}',
           goal_type: 'LIFETIME_SPEND',
@@ -89,7 +89,7 @@ export function planCampaignCreation(request: CreateDraftRequest): RedditPlan {
         method: 'GET',
         path: '/api/v3/ad_accounts/{ad_account_id}/campaigns/{campaign_id}',
         purpose:
-          'reconcile: read back what the platform actually stored. Only this read may report `active` — the POST above returning 200 may not.',
+          'reconcile: read back what the platform actually stored. Only this read may report `active`; the POST above returning 200 may not.',
         body: null,
         required_scope: 'adsread',
       },
@@ -97,7 +97,7 @@ export function planCampaignCreation(request: CreateDraftRequest): RedditPlan {
     prerequisites: [
       'A Reddit Ads account that has completed whatever identity and payment checks Reddit requires.',
       'An OAuth client registered against that account, with adsread and adsedit granted by the owner.',
-      'A confirmed answer to whether Reddit will bill this account in GBP or USD — the packet cap is in pence.',
+      'A confirmed answer to whether Reddit will bill this account in GBP or USD: the packet cap is in pence.',
       'A confirmed on-screen reading of the minimum total budget Reddit will accept. Our stored figure is secondary and unverified.',
     ],
   };

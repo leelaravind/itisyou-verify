@@ -194,7 +194,7 @@ export function freshness(
       observedAt: null,
       ageSeconds: null,
       stale: true,
-      label: 'never refreshed — treat this as unknown',
+      label: 'never refreshed, treat this as unknown',
     };
   }
   const ms = Date.parse(observedAt);
@@ -208,7 +208,7 @@ export function freshness(
     ageSeconds,
     stale,
     label: stale
-      ? `last refreshed ${describeAge(ageSeconds)} ago — out of date`
+      ? `last refreshed ${describeAge(ageSeconds)} ago, out of date`
       : `last refreshed ${describeAge(ageSeconds)} ago`,
   };
 }

@@ -111,7 +111,7 @@ const HUBSPOT_GUIDE: ProviderSetupGuide = Object.freeze({
     },
     {
       step: 3,
-      text: `On the Scopes tab, tick exactly one scope: ${HUBSPOT_READ_SCOPE}. Do not tick any write scope — we have no use for one.`,
+      text: `On the Scopes tab, tick exactly one scope: ${HUBSPOT_READ_SCOPE}. Do not tick any write scope; we have no use for one.`,
     },
     {
       step: 4,
@@ -139,14 +139,14 @@ const HUBSPOT_GUIDE: ProviderSetupGuide = Object.freeze({
   }),
   weRead: Object.freeze([
     'One contact at a time, found either by an id your automation gives us or by the reference it writes into a property you choose.',
-    'A named list of properties on that contact — the ones your checks mention, plus the email address, the record id and the creation date. Never the whole record.',
+    'A named list of properties on that contact: the ones your checks mention, plus the email address, the record id and the creation date. Never the whole record.',
     'Which HubSpot account your token belongs to, so we can prove the record we read is in your account and not somebody else’s.',
   ]),
   weNeverDo: Object.freeze([
     'Create, update, delete, merge or archive anything in your CRM. There is no code path in this product that could.',
     'Read companies, deals, tickets, notes, timeline events or files.',
     'Enrol a contact in a workflow or change a lifecycle stage.',
-    'Store your token in plain text, or show it back to you — not even masked.',
+    'Store your token in plain text, or show it back to you: not even masked.',
   ]),
   cannotProve: Object.freeze([
     'A contact that was created and then deleted before we looked. That is indistinguishable to us from one that never existed.',
@@ -167,12 +167,12 @@ const RESEND_GUIDE: ProviderSetupGuide = Object.freeze({
   instructions: Object.freeze([
     {
       step: 1,
-      text: 'In Resend, open API Keys and create a key with Full access. Read the note above first — Resend has no read-only option.',
+      text: 'In Resend, open API Keys and create a key with Full access. Read the note above first: Resend has no read-only option.',
     },
     { step: 2, text: 'Copy the key. It starts re_.' },
     {
       step: 3,
-      text: 'Open Webhooks in Resend and add an endpoint pointing at the URL shown beside this step. It is unique to your connection — do not share it, and do not retype it from memory.',
+      text: 'Open Webhooks in Resend and add an endpoint pointing at the URL shown beside this step. It is unique to your connection: do not share it, and do not retype it from memory.',
     },
     {
       step: 4,
@@ -181,7 +181,7 @@ const RESEND_GUIDE: ProviderSetupGuide = Object.freeze({
     { step: 5, text: 'Copy the signing secret for that endpoint. It starts whsec_.' },
     {
       step: 6,
-      text: 'Paste both below. The connection stays unfinished until a correctly signed message actually arrives — we will not mark it working on our own say-so.',
+      text: 'Paste both below. The connection stays unfinished until a correctly signed message actually arrives; we will not mark it working on our own say-so.',
     },
   ]),
   fields: Object.freeze([
@@ -205,14 +205,14 @@ const RESEND_GUIDE: ProviderSetupGuide = Object.freeze({
   permissionNotice: Object.freeze({
     headline: 'Resend has no read-only key, so this key can also send email as your domain',
     body:
-      'Resend offers exactly two permission levels: "sending access", which can only send, and "full access", which can create, delete, get and update any resource. There is nothing in between. Reading a message back therefore needs a full-access key — which means the key you give us could also send mail from your domain and delete resources in your Resend account. We only ever read, and the connector has no send path in it at all, but we are not going to pretend the key is narrower than it is. ' +
+      'Resend offers exactly two permission levels: "sending access", which can only send, and "full access", which can create, delete, get and update any resource. There is nothing in between. Reading a message back therefore needs a full-access key, which means the key you give us could also send mail from your domain and delete resources in your Resend account. We only ever read, and the connector has no send path in it at all, but we are not going to pretend the key is narrower than it is. ' +
       'If you would rather not hand that over: connect the webhook only and leave the key blank. A signed delivery callback is independent evidence and needs no key. You lose the ability for us to re-check a message on demand, which means a run whose callback never arrived stays unverified instead of being resolvable.',
     broaderThanNeeded: true,
   }),
   weRead: Object.freeze([
     'One message at a time, by the message id your automation recorded when it sent the acknowledgement.',
     'The delivery events Resend sends us for that message, after we have verified the signature on them.',
-    'Your list of domains, once, when you connect — only to check the key works.',
+    'Your list of domains, once, when you connect: only to check the key works.',
   ]),
   weNeverDo: Object.freeze([
     'Send an email. The send endpoint is not in this connector and cannot be called from it.',
@@ -222,7 +222,7 @@ const RESEND_GUIDE: ProviderSetupGuide = Object.freeze({
   ]),
   cannotProve: Object.freeze([
     'Which Resend team the evidence came from. Resend publishes no account identifier, so we identify the connection by a fingerprint of the key itself.',
-    'When a delivery happened, if we only have the API read. Resend tells us the latest status but not its timestamp — only a signed webhook carries the event time.',
+    'When a delivery happened, if we only have the API read. Resend tells us the latest status but not its timestamp; only a signed webhook carries the event time.',
     'Anything about a message we were never told the id of.',
   ]),
   whatHappensNext:

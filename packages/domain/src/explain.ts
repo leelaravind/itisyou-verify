@@ -84,7 +84,7 @@ const REASON_TEXT: Record<ReasonCode, { sentence: string; next_step: string | nu
   },
   CLAIM_NOT_INDEPENDENT: {
     sentence:
-      'The only account of this came from your own automation. We are not doubting it — we simply check everything against the connected systems ourselves, and a system telling us about its own work is not something we can count as proof either way.',
+      'The only account of this came from your own automation. We are not doubting it. We simply check everything against the connected systems ourselves, and a system telling us about its own work is not something we can count as proof either way.',
     next_step:
       'Make sure the connected account can see the record or message involved, so the next check can confirm this independently.',
   },
@@ -183,7 +183,7 @@ const RUN_TEXT: Record<
   UNVERIFIED: {
     headline: 'Unverified',
     sentence:
-      'We could not get enough evidence to say either way. This is not a failure — it means we could not look, or what we could see was not conclusive.',
+      'We could not get enough evidence to say either way. This is not a failure: it means we could not look, or what we could see was not conclusive.',
     next_step:
       'Check the connection status for the provider named below; if it is healthy, no action is needed.',
   },

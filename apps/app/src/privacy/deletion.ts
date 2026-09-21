@@ -147,7 +147,7 @@ export interface DeletionSchedule {
  * flagged in the handoff so A01's claims map stays accurate.
  */
 export const BACKUP_STATEMENT =
-  'Our database is backed up. A backup taken before this deletion still contains the data until that backup expires on its own schedule, and we do not rewrite backups to remove individual records — doing so reliably is not something we can honestly promise. We would rather tell you this than claim the data is gone from everywhere the moment you ask.';
+  'Our database is backed up. A backup taken before this deletion still contains the data until that backup expires on its own schedule, and we do not rewrite backups to remove individual records: doing so reliably is not something we can honestly promise. We would rather tell you this than claim the data is gone from everywhere the moment you ask.';
 
 const SCHEDULE_STATEMENT =
   'Nothing has been removed yet. You can stop this at any point before the date above, and you will not have to speak to anyone to do it.';
@@ -349,14 +349,14 @@ export function retainedStatement(workspace: WorkspaceSummary, retained: Retaine
   const parts: string[] = [
     `We have removed the workspace "${workspace.name}", its workflow configuration and rules, its runs and results, the evidence we had retrieved, its support messages, its notification records and everyone's membership of it.`,
     'Your sign-in sessions are revoked, and the provider connections and the credentials you gave us are deleted, so we can no longer read anything from HubSpot or Resend on your behalf.',
-    'Your sign-in identity — the email address you use to log in — is a separate record, because it can belong to more than one workspace and removing it here could lock you out of another. Ask us and we will remove it too.',
+    'Your sign-in identity, the email address you use to log in, is a separate record, because it can belong to more than one workspace and removing it here could lock you out of another. Ask us and we will remove it too.',
   ];
 
   if (retained.billingRecords > 0) {
     parts.push(
       `We still hold ${String(retained.billingRecords)} billing record${
         retained.billingRecords === 1 ? '' : 's'
-      } — ${obligations.join(', ')} — because business and tax records have to be kept for a set period. They contain what was charged and when, never a card number; we never receive one.`,
+      } (${obligations.join(', ')}) because business and tax records have to be kept for a set period. They contain what was charged and when, never a card number; we never receive one.`,
     );
   }
 

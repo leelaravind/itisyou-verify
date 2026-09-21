@@ -427,7 +427,7 @@ export async function executeCleanup(
       ok: false,
       refusal: 'inventory_changed',
       detail:
-        'The list of things to remove is not the list you approved — something has been added or has gone away since ' +
+        'The list of things to remove is not the list you approved: something has been added or has gone away since ' +
         'you looked. Nothing has been deleted. Take a fresh preview and read it.',
     };
   }

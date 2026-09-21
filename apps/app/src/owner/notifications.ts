@@ -73,7 +73,7 @@ export class NotificationHealthUnavailable implements NotificationHealthPort {
       stuck: [],
       inFlight: 0,
       unavailableReason:
-        'We cannot tell you whether any notification is stuck — no support data source is bound to this deployment, ' +
+        'We cannot tell you whether any notification is stuck: no support data source is bound to this deployment, ' +
         'so nothing has been checked. Messages are sent at most once by design, which means a send interrupted halfway ' +
         'is never retried automatically. An empty list here is not reassurance.',
     };

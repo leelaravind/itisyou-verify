@@ -90,14 +90,14 @@ export function customerVisibleRefundState(state: RefundState): string {
   switch (state) {
     case 'requested':
     case 'queued_for_owner':
-      return 'Refund requested — under review';
+      return 'Refund requested: under review';
     case 'submitted':
     case 'pending':
       return 'Refund in progress with our payment provider';
     case 'succeeded':
       return 'Refunded';
     case 'failed':
-      return 'Refund could not be completed — we are looking at it';
+      return 'Refund could not be completed; we are looking at it';
     case 'rejected':
       return 'Refund request declined';
     default: {
@@ -225,7 +225,7 @@ export async function listRefundQueue(
     summary:
       `Refund ${formatMinor(refund.amountMinor, refund.currency)} on order ` +
       `${refund.orderId ?? 'unknown'} for workspace ${refund.workspaceId}` +
-      (refund.reason === null ? '' : ` — "${refund.reason}"`),
+      (refund.reason === null ? '' : `: "${refund.reason}"`),
     maximumAmountMinor: refund.amountMinor,
     currency: refund.currency,
     recommendation: 'no_recommendation',

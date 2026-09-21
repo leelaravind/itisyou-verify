@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "project": "itisyou-verify",
-  "generated_at": "2026-09-21T08:05:00Z",
+  "generated_at": "2026-09-21T10:31:00Z",
   "note": "Structured record of what was decided, built and verified. Observable facts and short decision rationales only — never reasoning traces, private prompts, credentials or customer data. Unknown values stay null rather than being guessed.",
   "events": [
     {
@@ -13,11 +13,15 @@
       "model_id": "claude-opus-5[1m]",
       "status": "implemented",
       "goal": "Establish what the environment can actually do before committing to an architecture.",
-      "inputs": ["ITISYOU_Verify_Implementation_Plan (1).md"],
+      "inputs": [
+        "ITISYOU_Verify_Implementation_Plan (1).md"
+      ],
       "changed_artifacts": [],
       "commit_sha": null,
       "decision_summary": "Verified toolchain, GitHub identity and scopes, Cloudflare account and token permissions, disk space, and that verify.itisyou.app was unclaimed.",
-      "alternatives_considered": ["Assume the documented environment and start building"],
+      "alternatives_considered": [
+        "Assume the documented environment and start building"
+      ],
       "decision_reason": "The plan explicitly warns against assuming account access. Three findings changed later decisions: the Cloudflare OAuth token carries zone:read only, the account already holds 32 unrelated Workers and 13 unrelated D1 databases, and this machine's local DNS resolver is broken so hostname checks must use DNS-over-HTTPS.",
       "test_evidence_refs": [],
       "limitations": "Cloudflare plan tier was inferred from the existing count of 13 D1 databases exceeding the free-tier limit, not read from a billing API.",
@@ -32,7 +36,10 @@
       "model_id": "claude-opus-5[1m]",
       "status": "tested",
       "goal": "Freeze the vocabulary every agent shares, so twelve specialists cannot each invent their own.",
-      "inputs": ["plan §15", "plan §16"],
+      "inputs": [
+        "plan §15",
+        "plan §16"
+      ],
       "changed_artifacts": [
         "packages/contracts/src/status.ts",
         "packages/contracts/src/errors.ts",
@@ -48,7 +55,9 @@
         "Decimal money library"
       ],
       "decision_reason": "A general expression language would let a customer rule become an unbounded computation or a network request, and would make the FAILED/UNVERIFIED distinction unprovable. Integer pence removes an entire class of cap-drift bug; a decimal library would add a dependency for no benefit at this scale.",
-      "test_evidence_refs": ["tsc strict clean"],
+      "test_evidence_refs": [
+        "tsc strict clean"
+      ],
       "limitations": "The operator set covers the one supported workflow shape. A second workflow shape will need a contract version bump, not an added escape hatch.",
       "next_step": "Schema and deployment."
     },
@@ -92,11 +101,20 @@
       "model_id": "claude-opus-5[1m]",
       "status": "deployed",
       "goal": "Make a permanently public repository safe before any code that touches credentials exists.",
-      "inputs": ["plan §2"],
-      "changed_artifacts": [".gitignore", "scripts/scan-secrets.mjs", "SECURITY.md", "README.md"],
+      "inputs": [
+        "plan §2"
+      ],
+      "changed_artifacts": [
+        ".gitignore",
+        "scripts/scan-secrets.mjs",
+        "SECURITY.md",
+        "README.md"
+      ],
       "commit_sha": "08f5b33",
       "decision_summary": "Secret scanning and push protection enabled, private vulnerability reporting enabled, Dependabot alerts and its automatic dependency-update pull requests enabled, a branch ruleset blocking deletion and force-push and requiring a reviewed pull request, and default workflow permissions set to read.",
-      "alternatives_considered": ["Start private and flip to public at release"],
+      "alternatives_considered": [
+        "Start private and flip to public at release"
+      ],
       "decision_reason": "The founder requires permanent public visibility, so every byte must be treated as permanently disclosed from the first commit. Writing .gitignore and the secret scanner before generating any credential is the only ordering that works.",
       "test_evidence_refs": [
         "GitHub push protection blocked a push containing credential-shaped test fixtures; fixtures were rewritten rather than allowlisted"
@@ -113,7 +131,10 @@
       "model_id": "claude-sonnet-5",
       "status": "implemented",
       "goal": "Settle the offer and write factual copy, so no agent later invents a claim.",
-      "inputs": ["docs/agent-brief.md", "packages/contracts"],
+      "inputs": [
+        "docs/agent-brief.md",
+        "packages/contracts"
+      ],
       "changed_artifacts": [
         "docs/product-scope.md",
         "docs/competitors.md",
@@ -123,7 +144,9 @@
       "decision_summary": "Produced a claims-to-implementation map and cut every claim nothing implements.",
       "alternatives_considered": [],
       "decision_reason": "Claims cut included real-time results (results depend on a one-minute poll and a deadline up to an hour), works with any CRM, we tell you the automation is broken (we observe downstream evidence, not the automation), and tenant isolation stated as a present-tense guarantee before the enforcing code existed.",
-      "test_evidence_refs": ["tsc strict clean"],
+      "test_evidence_refs": [
+        "tsc strict clean"
+      ],
       "limitations": "Legal identity fields left as TODO_OWNER_INPUT. Worst-case external-call volume of 4,000 per workspace per month is an estimate pending the connector implementation.",
       "next_step": "A05 renders this content."
     },
@@ -136,8 +159,14 @@
       "model_id": "claude-opus-5",
       "status": "tested",
       "goal": "Make a false VERIFIED structurally impossible.",
-      "inputs": ["packages/contracts"],
-      "changed_artifacts": ["packages/domain/src/", "tests/unit/domain/", "tests/fixtures/"],
+      "inputs": [
+        "packages/contracts"
+      ],
+      "changed_artifacts": [
+        "packages/domain/src/",
+        "tests/unit/domain/",
+        "tests/fixtures/"
+      ],
       "commit_sha": "605509e",
       "decision_summary": "Pure, time-injected evaluator and decision table. Email normalisation deliberately does not strip +tags or dots. Only RECORD_NOT_FOUND and EVENT_NOT_OBSERVED are authoritative absences.",
       "alternatives_considered": [
@@ -145,7 +174,9 @@
         "Treating any missing evidence at the deadline as FAILED"
       ],
       "decision_reason": "Verification must never widen an equivalence class: stripping a +tag would let an address the customer controls satisfy a rule about emailing the enquirer. Treating any absence as FAILED would convert our own outages into customer failures.",
-      "test_evidence_refs": ["195 cases VERIFY-001..VERIFY-195, all passing"],
+      "test_evidence_refs": [
+        "195 cases VERIFY-001..VERIFY-195, all passing"
+      ],
       "limitations": "Pure logic only. It proves the decision is correct given a bundle; it does not prove the bundle was gathered correctly — that is A04's connectors.",
       "next_step": "Connectors must supply provider_account_id and honest origin values."
     },
@@ -158,7 +189,10 @@
       "model_id": "claude-opus-5",
       "status": "tested",
       "goal": "Tenant scoping, idempotency and credential handling that hold under concurrency.",
-      "inputs": ["migrations/0001_init.sql", "packages/contracts"],
+      "inputs": [
+        "migrations/0001_init.sql",
+        "packages/contracts"
+      ],
       "changed_artifacts": [
         "packages/security/src/",
         "apps/app/src/lib/",
@@ -174,7 +208,9 @@
         "better-sqlite3 as a test harness"
       ],
       "decision_reason": "A conditional UPDATE inside a D1 batch cannot abort the batch — it silently reports zero changes after the inserts have already committed, which would admit an event without reserving its allowance. The NOT NULL violation is the only mechanism that rolls the whole batch back. vitest-pool-workers 0.9.14 fails to start against the hoisted miniflare; Node 22's built-in node:sqlite gave the same SQLite engine with no new dependency.",
-      "test_evidence_refs": ["205 cases across API-, AUTH- and PERSIST- ranges, all passing"],
+      "test_evidence_refs": [
+        "205 cases across API-, AUTH- and PERSIST- ranges, all passing"
+      ],
       "limitations": "The SQLite harness exercises real SQL, real transactions and the real idempotency guards, but not Cloudflare network behaviour, D1 replicas or true OS-level parallelism.",
       "next_step": "Six security findings from A10 to fix."
     },
@@ -187,7 +223,9 @@
       "model_id": "claude-opus-5",
       "status": "tested",
       "goal": "Challenge the implementation independently rather than confirm it.",
-      "inputs": ["the whole tree as read-only"],
+      "inputs": [
+        "the whole tree as read-only"
+      ],
       "changed_artifacts": [
         "docs/threat-model.md",
         "docs/security-acceptance.md",
@@ -214,7 +252,11 @@
       "model_id": "claude-opus-5",
       "status": "implemented",
       "goal": "Make the 500-case release gate honest rather than inflated.",
-      "inputs": ["packages/contracts", "migrations/0001_init.sql", "docs/product-scope.md"],
+      "inputs": [
+        "packages/contracts",
+        "migrations/0001_init.sql",
+        "docs/product-scope.md"
+      ],
       "changed_artifacts": [
         "docs/test-plan.md",
         "docs/test-cases.json",
@@ -241,8 +283,14 @@
       "model_id": "claude-opus-5[1m]",
       "status": "deployed",
       "goal": "Mount the routers behind a strict Content-Security-Policy and confirm the deployed pages are correct by looking at them.",
-      "inputs": ["A05 routers", "packages/ui CSS and theme script"],
-      "changed_artifacts": ["apps/app/src/index.ts", "apps/app/public/favicon.svg"],
+      "inputs": [
+        "A05 routers",
+        "packages/ui CSS and theme script"
+      ],
+      "changed_artifacts": [
+        "apps/app/src/index.ts",
+        "apps/app/public/favicon.svg"
+      ],
       "commit_sha": "ab4b345",
       "decision_summary": "Hash-based CSP with no unsafe-inline, computed from the same constants the page renders. One narrow concession: style-src-attr allows inline style attributes; script-src-attr is none.",
       "alternatives_considered": [
@@ -267,8 +315,14 @@
       "model_id": "claude-opus-5[1m]",
       "status": "deployed",
       "goal": "Replace the holding page at verify.itisyou.app with the real public site.",
-      "inputs": ["A05 routers and design system", "A01 factual content"],
-      "changed_artifacts": ["apps/app/src/index.ts", "apps/app/public/development-story.md"],
+      "inputs": [
+        "A05 routers and design system",
+        "A01 factual content"
+      ],
+      "changed_artifacts": [
+        "apps/app/src/index.ts",
+        "apps/app/public/development-story.md"
+      ],
       "commit_sha": "249d062",
       "decision_summary": "Deployed the marketing site, the worked-example demo, the legal pages and the development story to production. The customer application is reachable but runs on a synthetic data port, labelled as such on every page.",
       "alternatives_considered": [
@@ -292,8 +346,12 @@
       "model_id": "claude-opus-5[1m]",
       "status": "tested",
       "goal": "Stop the tenant-scope source scan reporting customer-facing prose as unscoped SQL.",
-      "inputs": ["tests/security/integration/source-scan.test.ts"],
-      "changed_artifacts": ["tests/security/integration/source-scan.test.ts"],
+      "inputs": [
+        "tests/security/integration/source-scan.test.ts"
+      ],
+      "changed_artifacts": [
+        "tests/security/integration/source-scan.test.ts"
+      ],
       "commit_sha": "249d062",
       "decision_summary": "The SQL detector now requires a verb AND a clause, both uppercase, and a paired check fails the build on any lowercase SQL verb in the data layer.",
       "alternatives_considered": [
@@ -377,7 +435,10 @@
       "model_id": "claude-opus-5",
       "status": "tested",
       "goal": "Make POST /api/v1/events reachable, since the route the product is named for answered 404 in every deployment.",
-      "inputs": ["apps/app/src/money/**", "tests/integration/money/d1ports.ts"],
+      "inputs": [
+        "apps/app/src/money/**",
+        "tests/integration/money/d1ports.ts"
+      ],
       "changed_artifacts": [
         "apps/app/src/index.ts",
         "apps/app/src/db/workflowSigningKeys.ts",
@@ -406,8 +467,13 @@
       "model_id": "claude-opus-5",
       "status": "implemented",
       "goal": "Correct a causal claim I published in commit 66b8d38 that turned out to be false.",
-      "inputs": ["tests/security/integration/secret-hygiene.test.ts"],
-      "changed_artifacts": ["scripts/run-tests.mjs", "vitest.config.ts"],
+      "inputs": [
+        "tests/security/integration/secret-hygiene.test.ts"
+      ],
+      "changed_artifacts": [
+        "scripts/run-tests.mjs",
+        "vitest.config.ts"
+      ],
       "commit_sha": "5b7c450a2125a389bb2ffac7088d3387061e520a",
       "decision_summary": "Commit 66b8d38 states that the test runner instability is caused by our own agent concurrency. That is wrong. Two specialists independently established the real cause: SEC-632 blocks its worker event loop for 218,015 ms inside a synchronous execFileSync, against a next-slowest file of 2,188 ms, and the framework birpc timer is a hard-coded 60 s. One file, one worker, an otherwise empty pool reproduces it.",
       "alternatives_considered": [
@@ -431,7 +497,9 @@
       "model_id": "claude-opus-5",
       "status": "tested",
       "goal": "Stop an unearned claim reaching a visitor, after a design tool proved that instructing it is not a control.",
-      "inputs": ["design/stitch/screens/batch-02/**"],
+      "inputs": [
+        "design/stitch/screens/batch-02/**"
+      ],
       "changed_artifacts": [
         "scripts/scan-claims.mjs",
         "scripts/release.mjs",
@@ -464,7 +532,10 @@
       "model_id": "claude-opus-5",
       "status": "attempted",
       "goal": "Reproduce six claims other specialists and the lead had closed, by issuing real requests against a candidate and reading the resulting state.",
-      "inputs": ["docs/gap-register.md", "a local candidate worker"],
+      "inputs": [
+        "docs/gap-register.md",
+        "a local candidate worker"
+      ],
       "changed_artifacts": [
         "docs/audit-summary.md",
         "docs/gap-register.md",
@@ -538,8 +609,13 @@
       "model_id": "claude-opus-5",
       "status": "tested",
       "goal": "Replace a withdrawn backup-restoration claim with evidence that exists.",
-      "inputs": ["verify-itisyou-db-staging (real remote D1)"],
-      "changed_artifacts": ["docs/resilience-evidence.md", "docs/gap-register.md"],
+      "inputs": [
+        "verify-itisyou-db-staging (real remote D1)"
+      ],
+      "changed_artifacts": [
+        "docs/resilience-evidence.md",
+        "docs/gap-register.md"
+      ],
       "commit_sha": "6c1ae9a0ab4530c022b9dd1856487b7473156ed7",
       "decision_summary": "Exported real remote staging D1, restored into an isolated database, then seeded two synthetic tenants with full referential structure and repeated the export-and-restore into a second isolated database so the comparison was between two databases that both held data. Both drill databases deleted afterwards and the listing confirms none remain.",
       "alternatives_considered": [
@@ -566,8 +642,12 @@
       "model_id": "claude-opus-5",
       "status": "deployed",
       "goal": "Close a live information disclosure on production by deploying the current build through the full gate.",
-      "inputs": ["reports/release-gate.json produced by github-actions at this commit"],
-      "changed_artifacts": ["(deployment only)"],
+      "inputs": [
+        "reports/release-gate.json produced by github-actions at this commit"
+      ],
+      "changed_artifacts": [
+        "(deployment only)"
+      ],
       "commit_sha": "fe58e9cf79e3737d871cd03b22eae873955cdb7b",
       "decision_summary": "Deployed production at the commit the CI gate artefact was produced for. GET /api/v1/runner/status answered 200 to anyone on the internet on the previous build, behind a comment claiming a middleware that did not exist; it now answers 401 on production, staging and the custom domain.",
       "alternatives_considered": [
@@ -627,7 +707,9 @@
       "model_id": "claude-opus-5",
       "status": "deployed",
       "goal": "Stop a dependency the intake never calls from being able to refuse every customer event.",
-      "inputs": ["wrangler tail against the staging worker while posting an unsigned event"],
+      "inputs": [
+        "wrangler tail against the staging worker while posting an unsigned event"
+      ],
       "changed_artifacts": [
         "apps/app/src/index.ts",
         "tests/integration/money/events-route-stripe-key.test.ts"
@@ -656,8 +738,13 @@
       "model_id": "claude-opus-5",
       "status": "tested",
       "goal": "Find out why the release gate was red and make it mean something again.",
-      "inputs": ["gh run view --log-failed on three consecutive failed runs"],
-      "changed_artifacts": [".github/workflows/ci.yml", "tests/e2e/responsive.spec.ts"],
+      "inputs": [
+        "gh run view --log-failed on three consecutive failed runs"
+      ],
+      "changed_artifacts": [
+        ".github/workflows/ci.yml",
+        "tests/e2e/responsive.spec.ts"
+      ],
       "commit_sha": "5ac7be4",
       "decision_summary": "The gate had never passed since the browser suite joined CI, for two independent reasons. First, the migration step named verify-itisyou-db-local, a binding wrangler.jsonc does not declare; wrangler then ignores migrations_dir, looks in apps/app/migrations, and errors \"No migrations present\", which sends the reader after missing files that were never missing. Second, the screenshot test writes into the tracked docs/screenshots/, leaving the tree dirty, so build-gate-artefact.mjs correctly refused to produce a number for a tree matching no commit.",
       "alternatives_considered": [
@@ -685,7 +772,9 @@
         "a signing key issued through the real customer route",
         "a Resend delivery event from a real send to a provider simulator address"
       ],
-      "changed_artifacts": ["(no code change; staging data and deployed requests)"],
+      "changed_artifacts": [
+        "(no code change; staging data and deployed requests)"
+      ],
       "commit_sha": "5ac7be4",
       "decision_summary": "A correctly signed event was accepted and created run_01M2XR57DX42B55B1CFCF74B24 (202, PENDING). Every refusal path behaved: duplicate returned the same run with duplicate:true and took no second allowance unit, wrong workflow 403, stale 422, future-dated 422, malformed 422, a rotated-out key 401. Allowance reserved moved to exactly 2 for two distinct runs and, with the limit lowered, the next event was refused 429 ALLOWANCE_EXHAUSTED.",
       "alternatives_considered": [
@@ -742,8 +831,14 @@
       "model_id": "claude-opus-5",
       "status": "tested",
       "goal": "Restart the independent auditor, which the owner noticed was not running, and point it at my own most flattering claim.",
-      "inputs": ["the owner instruction that the auditor must never be stopped"],
-      "changed_artifacts": ["docs/audit-pass-2.md", "docs/audit-pass-3.md", "docs/audit-pass-4.md"],
+      "inputs": [
+        "the owner instruction that the auditor must never be stopped"
+      ],
+      "changed_artifacts": [
+        "docs/audit-pass-2.md",
+        "docs/audit-pass-3.md",
+        "docs/audit-pass-4.md"
+      ],
       "commit_sha": "9467038",
       "decision_summary": "Restarted the auditor and told it to attack the number most likely to flatter me: 352 net ledger entries added in one day, raising citable cases from 2,224 to 2,534. It confirmed that was not inflation -- every id leads a real test, none skipped or assertion-free, and my local reports were byte-identical to the GitHub Actions artefact it downloaded itself.",
       "alternatives_considered": [
@@ -766,7 +861,9 @@
       "model_id": "claude-opus-5",
       "status": "deployed",
       "goal": "Stop /admin/login telling a live visitor a sign-in link was sent when nothing sends one.",
-      "inputs": ["auditor finding F3, confirmed against live production"],
+      "inputs": [
+        "auditor finding F3, confirmed against live production"
+      ],
       "changed_artifacts": [
         "apps/app/src/db/ownerPort.ts",
         "apps/app/src/routes/owner/adminPages.ts"
@@ -793,8 +890,13 @@
       "model_id": "claude-opus-5",
       "status": "deployed",
       "goal": "Make the four purchase controls actually reach Stripe.",
-      "inputs": ["auditor pass 3: four controls inert, all claiming Stripe was unconfigured"],
-      "changed_artifacts": ["apps/app/src/db/customerPort.ts", "apps/app/src/db/ownerPort.ts"],
+      "inputs": [
+        "auditor pass 3: four controls inert, all claiming Stripe was unconfigured"
+      ],
+      "changed_artifacts": [
+        "apps/app/src/db/customerPort.ts",
+        "apps/app/src/db/ownerPort.ts"
+      ],
       "commit_sha": "10dd5aa and ca9d062",
       "decision_summary": "Checkout, billing portal, owner cancel and owner refund all answered \"Stripe is not configured in this environment\" on deployments where it was configured. Each had a complete, tested implementation sitting behind it with no caller. No customer could ever have paid.",
       "alternatives_considered": [
@@ -817,7 +919,9 @@
       "model_id": "claude-opus-5",
       "status": "deployed",
       "goal": "Give the owner refund control a payment to refund against, and make the branch testable at all.",
-      "inputs": ["auditor pass 4 finding G1, reproduced against the real D1 port"],
+      "inputs": [
+        "auditor pass 4 finding G1, reproduced against the real D1 port"
+      ],
       "changed_artifacts": [
         "migrations/0007_subscription_payment_target.sql",
         "apps/app/src/billing/events.ts",
@@ -845,11 +949,17 @@
       "model_id": "claude-opus-5",
       "status": "tested",
       "goal": "Restore test coverage I weakened while making my own change pass.",
-      "inputs": ["auditor pass 4: you did weaken it, and this is the green-seeking move"],
-      "changed_artifacts": ["tests/integration/owner/live-engines.test.ts"],
+      "inputs": [
+        "auditor pass 4: you did weaken it, and this is the green-seeking move"
+      ],
+      "changed_artifacts": [
+        "tests/integration/owner/live-engines.test.ts"
+      ],
       "commit_sha": "a374d97",
       "decision_summary": "OWNER-370 existed to prove an approval granted in the panel hashes identically to what the refund path recomputes. My rewrite asserted only that the response did not say \"does not match\" -- which it cannot say, because the port returns before any hash comparison happens. It would have passed with two completely incompatible hash functions.",
-      "alternatives_considered": ["Leave it: the suite was green. That is the entire objection."],
+      "alternatives_considered": [
+        "Leave it: the suite was green. That is the entire objection."
+      ],
       "decision_reason": "Rewriting a failing test so your own change passes is the easiest way to lose a property, and it is invisible afterwards. It now recomputes ownerPayloadHash and asserts equality directly.",
       "test_evidence_refs": [
         "OWNER-370 asserts the stored hash equals the recomputed hash",
@@ -1033,7 +1143,9 @@
       "model_id": "claude-opus-5[1m]",
       "status": "deployed",
       "goal": "Follow the paying customer all the way home, instead of stopping at the provider.",
-      "inputs": ["the first real sandbox payment completed on a deployment"],
+      "inputs": [
+        "the first real sandbox payment completed on a deployment"
+      ],
       "changed_artifacts": [
         "apps/app/src/routes/app/billingPages.ts",
         "apps/app/src/db/customerPort.ts",
@@ -1063,8 +1175,13 @@
       "model_id": "claude-opus-5[1m]",
       "status": "deployed",
       "goal": "Put the owner’s approved colour system in front of a visitor, rather than near it.",
-      "inputs": ["the owner’s approved design archives, already on this machine"],
-      "changed_artifacts": ["packages/ui/src/tokens.ts", "packages/ui/src/styles.ts"],
+      "inputs": [
+        "the owner’s approved design archives, already on this machine"
+      ],
+      "changed_artifacts": [
+        "packages/ui/src/tokens.ts",
+        "packages/ui/src/styles.ts"
+      ],
       "commit_sha": "48c5287 and 51f39f7",
       "decision_summary": "The approved system was implemented at the token layer, so every component picked it up at once without a line of page markup changing. One value is not the design’s: its resting status colour reads 6.7:1 on a tint dark enough for this palette, against this file’s own floor of 7.8:1, so it was lightened one shade to 8.18:1 rather than lowering the floor. The first attempt then let a light operating-system preference opt out of the whole thing; the approved appearance is now unconditional, and the light palette stays complete and reachable through the explicit toggle.",
       "alternatives_considered": [
@@ -1090,7 +1207,9 @@
       "model_id": "claude-opus-5[1m]",
       "status": "tested",
       "goal": "Answer which approved designs were used, which were partly used, and which were missed.",
-      "inputs": ["nineteen approved screens, each with its own markup and a reference image"],
+      "inputs": [
+        "nineteen approved screens, each with its own markup and a reference image"
+      ],
       "changed_artifacts": [
         "docs/stitch-mapping.md",
         "scripts/scan-claims.mjs",
@@ -1120,8 +1239,13 @@
       "model_id": "claude-opus-5[1m]",
       "status": "implemented",
       "goal": "Build the advertising campaign inside a ceiling that is actually a ceiling.",
-      "inputs": ["the owner’s spending authorisation", "the advertising platform’s live wizard"],
-      "changed_artifacts": ["docs/advertising.md"],
+      "inputs": [
+        "the owner’s spending authorisation",
+        "the advertising platform’s live wizard"
+      ],
+      "changed_artifacts": [
+        "docs/advertising.md"
+      ],
       "commit_sha": "decd8aa and ff66299",
       "decision_summary": "Two corrections to my own advice, both left visible beside the original rather than quietly edited. The daily figure I gave the owner would have exceeded the authorisation once tax was added, so it was reduced. And my research had ruled the platform out partly because a whole-campaign total was said not to exist for this campaign type; it exists, in plain sight on the budget step, which is the control I had reported missing. Search partners, the display network, enhanced conversions and third-party conversion tracking are all off, each with its reason recorded.",
       "alternatives_considered": [
@@ -1146,7 +1270,9 @@
       "model_id": "claude-opus-5[1m]",
       "status": "deployed",
       "goal": "Make the number this project is measured by capable of moving.",
-      "inputs": ["a query against the live production database"],
+      "inputs": [
+        "a query against the live production database"
+      ],
       "changed_artifacts": [
         "apps/app/src/db/growthPort.ts",
         "apps/app/src/index.ts",
@@ -1178,8 +1304,12 @@
       "model_id": "claude-opus-5[1m]",
       "status": "tested",
       "goal": "Make sure every sentence in the unpublished launch posts is true on the day it is posted.",
-      "inputs": ["the launch drafts, written the previous day and still unpublished"],
-      "changed_artifacts": ["docs/organic-launch.md"],
+      "inputs": [
+        "the launch drafts, written the previous day and still unpublished"
+      ],
+      "changed_artifacts": [
+        "docs/organic-launch.md"
+      ],
       "commit_sha": "40b59fc",
       "decision_summary": "Two statements in the evidence section had become false since they were written, both by claiming less than is true — which that same section calls false modesty, and still inaccuracy. One said no deployment had ever produced a verdict from real evidence; a deployment has since produced one confirmed run and two that resolved to \"could not check\", backed by provider read-back and provider webhook rows. The other understated the payment position: a real sandbox payment was taken. What goes beside it, because it is equally true, is that every one of the provider’s six events was rejected and no subscription was activated.",
       "alternatives_considered": [
@@ -1203,7 +1333,9 @@
       "model_id": "claude-opus-5[1m]",
       "status": "deployed",
       "goal": "Implement the parts of the approved composition that every screen shares.",
-      "inputs": ["the nineteen approved screens and their design specifications"],
+      "inputs": [
+        "the nineteen approved screens and their design specifications"
+      ],
       "changed_artifacts": [
         "packages/ui/src/styles.ts",
         "packages/ui/src/tokens.ts",
@@ -1239,7 +1371,9 @@
       "model_id": "claude-opus-5[1m]",
       "status": "tested",
       "goal": "Close the gap between what the project did and what its own two stories say it did.",
-      "inputs": ["fifteen commits made after the record was last brought current"],
+      "inputs": [
+        "fifteen commits made after the record was last brought current"
+      ],
       "changed_artifacts": [
         "docs/development-story-events.json",
         "docs/development-story.md",
@@ -1360,7 +1494,10 @@
       "inputs": [
         "the owner's instruction to recheck Google's actual billing treatment and any applicable fees, and never to substitute a daily budget for the approved campaign total"
       ],
-      "changed_artifacts": ["docs/campaign-packet.md", "docs/launch-checklist.md"],
+      "changed_artifacts": [
+        "docs/campaign-packet.md",
+        "docs/launch-checklist.md"
+      ],
       "commit_sha": "91649e8",
       "decision_summary": "The owner published the campaign after clearing an ad blocker. Reading the campaign back afterwards showed it had been published with no keywords and no ads - Google's diagnostics said so - and Google's own help page states a 2% UK Digital Services Tax fee is added on top of spend with VAT applied to the fee, which the GBP 12.46 figure had not allowed for (12.46 x 1.02 x 1.20 = 15.25, over the cap). The campaign total was lowered to GBP 12.25 (14.99 gross) and verified across a reload; the five exact-match keywords and eight negatives from the packet were saved; the responsive search ad was entered verbatim from the packet with the utm_campaign final URL. Saving the ad raised Google's identity challenge, which is the owner's to complete.",
       "alternatives_considered": [
@@ -1453,6 +1590,202 @@
       ],
       "limitations": "Sandbox only: Stripe test mode, the sandbox account, the owner's own synthetic workspace. Live payments remain NOT READY (6 of 13 requirements fail, recorded with evidence). The Resend card still renders a successful save under a 'There is a problem' header, which the owner read as a rejection; not yet fixed.",
       "next_step": "Owner decides L5 (legal identity values) and L6 (VAT position); lead adds L7 payment alerts and fixes the Resend card's message tone; then the live objects in the parent Stripe account, per the approval pack."
+    },
+    {
+      "event_id": "EVT-0049",
+      "timestamp": "2026-09-21T09:52:00Z",
+      "milestone_id": "M-DESIGN",
+      "task_id": "T-SETUP-ENTRY",
+      "agent_role": "lead",
+      "model_id": "claude-opus-5[1m]",
+      "status": "tested",
+      "goal": "Let a signed-in customer reach their own setup from the pages meant to send them there, and stop telling them a reason that is not about them.",
+      "inputs": [
+        "the handover item R7: onboarding entry controls are taken down unconditionally",
+        "the server-side rule customerPort already enforces on every setup write"
+      ],
+      "changed_artifacts": [
+        "apps/app/src/routes/app/workspacePage.ts",
+        "apps/app/src/routes/app/onboardingPages.ts",
+        "apps/app/src/routes/app/index.ts",
+        "packages/ui/src/components/activation.ts",
+        "tests/integration/customer/setup-entry.test.ts"
+      ],
+      "commit_sha": "30ade27",
+      "decision_summary": "/app and /app/onboarding/compatibility rendered UnavailableAction unconditionally, so the seven onboarding steps could only be reached by knowing the form routes and posting to them by hand. The reason shown was about buying the product, live payments off and public signup closed, and it was being shown to people already signed in to a workspace that exists, above the sentence \"nothing here is broken on your side\". Both controls now render on session.role === workspace_admin, which is the single condition saveFieldMapping, saveExpectedOutcome and submitConnectionCredentials refuse on, so neither page can offer a step the server would decline. A viewer gets the sentence the port would have answered their first write with.",
+      "alternatives_considered": [
+        "an environment flag, rejected: the gate is about acquiring a workspace, not about using one, so an environment is the wrong axis",
+        "an owner-toggled control, rejected for the same reason and because it adds a setting whose correct value is always the same",
+        "an optional page option defaulting to false, rejected: the defect being replaced was a hard-coded false, and a default is that same answer with a longer fuse"
+      ],
+      "decision_reason": "The condition a page renders on should be the condition the server enforces, or the page can promise something the server refuses.",
+      "test_evidence_refs": [
+        "CUST-133",
+        "CUST-143",
+        "CUST-144",
+        "CUST-145",
+        "CUST-126",
+        "CUST-146",
+        "CUST-128",
+        "CUST-147"
+      ],
+      "limitations": "Proven against the Worker in test, not yet on a deployment. The steps beyond the entry controls were already reachable by route and are unchanged.",
+      "next_step": "Walk the whole journey through rendered controls rather than asserting the two doors."
+    },
+    {
+      "event_id": "EVT-0050",
+      "timestamp": "2026-09-21T09:53:00Z",
+      "milestone_id": "M-BILLING",
+      "task_id": "T-LEGAL-AND-TAX",
+      "agent_role": "A01 product and market",
+      "model_id": "claude-sonnet-5",
+      "status": "implemented",
+      "goal": "Put the owner-confirmed legal identity on the served legal pages and stop claiming a tax behaviour the checkout does not implement.",
+      "inputs": [
+        "the owner-confirmed identity, structure, address, VAT status and contact",
+        "live-payment blockers L5 and L6"
+      ],
+      "changed_artifacts": [
+        "packages/ui/src/content/legal.ts",
+        "packages/ui/src/content/pricing.ts",
+        "packages/ui/src/content/faq.ts",
+        "apps/app/src/routes/public/legal.ts",
+        "apps/app/src/billing/policy.ts"
+      ],
+      "commit_sha": "30ade27",
+      "decision_summary": "OWNER_LEGAL_IDENTITY carried TODO_OWNER_INPUT in every field and now carries the confirmed values: sole trader, the Poole correspondence address, no company registration, not VAT-registered, no certifications, the published support address for legal notices. With no placeholder left, TERMS_SKELETON_NOTE and its three render sites on /terms, /privacy and /refunds went with them. Separately, /pricing and the FAQ said tax is calculated and added by our payment provider; Stripe Tax is not enabled and the business is not VAT-registered, so nothing added anything. Both now say the price is the price, that no VAT is charged, and that a buyer outside the UK may owe tax at home which we neither calculate nor collect.",
+      "alternatives_considered": [
+        "enabling Stripe Tax to make the old sentence true, rejected: the owner is not VAT-registered and the pack does not authorise it"
+      ],
+      "decision_reason": "A tax sentence a checkout does not implement is a false statement on a page people pay from.",
+      "test_evidence_refs": [
+        "CUST-050",
+        "CUST-051",
+        "CUST-053",
+        "CUST-072",
+        "CUST-807"
+      ],
+      "limitations": "L5 and L6 are cleared in the code and not yet on a deployment. This is not legal advice and the terms remain unreviewed by a solicitor.",
+      "next_step": "Deploy, then read the three pages back from production."
+    },
+    {
+      "event_id": "EVT-0051",
+      "timestamp": "2026-09-21T09:54:00Z",
+      "milestone_id": "M-BILLING",
+      "task_id": "T-OWNER-PAYMENT-ALERTS",
+      "agent_role": "payments",
+      "model_id": "claude-sonnet-5",
+      "status": "tested",
+      "goal": "Tell the owner when live money moves and when a live charge fails, exactly once each.",
+      "inputs": [
+        "live-payment blocker L7",
+        "the existing notification_deliveries unique claim"
+      ],
+      "changed_artifacts": [
+        "apps/app/src/billing/events.ts",
+        "tests/integration/billing/owner-alerts.test.ts"
+      ],
+      "commit_sha": "d204da8",
+      "decision_summary": "A live-mode checkout.session.completed now raises one spending_decision alert and a live-mode invoice.payment_failed raises one critical_incident. Live is read from event.livemode, the field Stripe signs, which the webhook route already refuses to accept when it disagrees with the deployment environment. Exactly-once reuses the notification_key unique claim every other notification already uses rather than a second dedup scheme: keyed on the checkout session for the first, and on the INVOICE rather than the attempt for the second, because Stripe Smart Retries redeliver invoice.payment_failed several times per invoice under distinct event ids. Alert bodies carry the amount and our own opaque order or subscription reference, never a Stripe id, an email or a decline reason.",
+      "alternatives_considered": [
+        "keying the failure alert on the event id, rejected: each retry is a new event, so the owner would be paged three or four times for one unpaid invoice",
+        "deciding live from the deployment environment rather than the event, rejected as the weaker signal when the handler is called directly"
+      ],
+      "decision_reason": "A failed charge nobody sees becomes a cancelled subscription seven days later.",
+      "test_evidence_refs": [
+        "BILL-654",
+        "BILL-655",
+        "BILL-656",
+        "BILL-657",
+        "BILL-658",
+        "BILL-659",
+        "BILL-660",
+        "BILL-661"
+      ],
+      "limitations": "Exercised against synthetic live-mode events only. No live Stripe objects exist yet, so this has never fired on a real charge, and it cannot until the owner approves the live-payment pack.",
+      "next_step": "Nothing here; the pack is the owner decision."
+    },
+    {
+      "event_id": "EVT-0052",
+      "timestamp": "2026-09-21T10:30:00Z",
+      "milestone_id": "M-DESIGN",
+      "task_id": "T-DESIGN-EXCLUSIONS",
+      "agent_role": "design",
+      "model_id": "claude-opus-5[1m]",
+      "status": "tested",
+      "goal": "Make the twenty-four owner design exclusions true of the served site, and recompose the home and pricing pages against them.",
+      "inputs": [
+        "the owner exclusion list, which overrides any conflicting Stitch style",
+        "an audit of the stylesheet, tokens, components and page templates against that list",
+        "desktop and mobile renders of a live wrangler dev, before and after"
+      ],
+      "changed_artifacts": [
+        "packages/ui/src/tokens.ts",
+        "packages/ui/src/styles.ts",
+        "apps/app/src/routes/public/home.ts",
+        "apps/app/src/routes/public/marketing.ts",
+        "tests/unit/ui/design-exclusions.test.ts",
+        "tests/unit/ui/tokens.test.ts",
+        "tests/unit/ui/composition.test.ts",
+        "tests/unit/ui/contrast.test.ts"
+      ],
+      "commit_sha": "d204da8",
+      "decision_summary": "Nine excluded devices were shipped: a mint-to-cyan gradient on the hero headline, a blurred radial orb, drop shadows on cards and the header, the header backdrop blur, 8px container corners, Inter second in the font stack, pure white as the light surface, coloured left-border callouts, and two dead brand custom properties. Each had arrived with a comment explaining why the approved design wanted it, which is the failure mode: every one was defensible alone and the list was nobody job. They were removed at the token and stylesheet layer so the fix reaches all nineteen screens rather than page by page. The removed ELEVATION token made a real argument, that a dark-palette card needs more than a hairline, and it is answered by moving containers to the stronger rule rather than ignored. The home page five exclusions were a three-across card grid with an orphan row and are now ruled rows; the three steps were cards on two pages and are now the numbered list on both; the pricing payment-failure policy left the seven-to-five grid, where it made the left column run half a screen past the right.",
+      "alternatives_considered": [
+        "fixing each violation on the page where it showed, rejected: that is what produced nine of them",
+        "keeping the gradient as a solid brand colour, rejected: a green word in this interface carries a verdict and the brand mint is one shade off VERIFIED",
+        "keeping the shadow and softening the corner, rejected: both are named in the exclusions"
+      ],
+      "decision_reason": "A design decision belongs to the person whose product it is, and an exclusion list is only real if something fails when it is broken.",
+      "test_evidence_refs": [
+        "RESIL-911",
+        "RESIL-912",
+        "RESIL-913",
+        "RESIL-914",
+        "RESIL-915",
+        "RESIL-916",
+        "RESIL-184",
+        "RESIL-186",
+        "RESIL-187",
+        "CUST-701",
+        "CUST-703",
+        "CUST-705",
+        "CUST-707",
+        "CUST-802"
+      ],
+      "limitations": "RESIL-916 checks four public pages, not the signed-in or owner screens, and not /demo, whose explanations come from packages/domain and still carried dashes at this commit. Four Stitch screens remain uncomposed and /security still has no owner-approved reference.",
+      "next_step": "Finish the copy sweep in the remaining packages, then widen RESIL-916 to /demo."
+    },
+    {
+      "event_id": "EVT-0053",
+      "timestamp": "2026-09-21T10:31:00Z",
+      "milestone_id": "M-QUALITY",
+      "task_id": "T-JOURNEY-WALK",
+      "agent_role": "lead",
+      "model_id": "claude-opus-5[1m]",
+      "status": "tested",
+      "goal": "Prove the setup journey is walkable using only controls a served page renders, rather than by constructing each request.",
+      "inputs": [
+        "the R7 fix",
+        "the blind spot that let the journey stay unreachable for days with every step individually tested"
+      ],
+      "changed_artifacts": [
+        "tests/integration/customer/setup-journey.test.ts"
+      ],
+      "commit_sha": "d204da8",
+      "decision_summary": "Every existing onboarding case built the request it wanted to test, so the journey could be unreachable from the pages themselves without one of them failing, and it was. The walk never invents a path: at each step it reads the markup it was served, finds the way onward that page offers, and takes it, following an href for a link and submitting with a real CSRF pair and following the 303 for a form. It reaches the review step, and stops there because orderSummary().ready is false without connected providers, asserting that the page states a reason rather than dead-ending.",
+      "alternatives_considered": [
+        "asserting the redirect targets from the route table, rejected: that is the same mistake one level up",
+        "claiming the walk completes to activation, rejected: it does not, and the case says where it stops and why"
+      ],
+      "decision_reason": "A test that constructs its own URL cannot tell you whether a browser could have constructed it.",
+      "test_evidence_refs": [
+        "CUST-148",
+        "CUST-149",
+        "CUST-150"
+      ],
+      "limitations": "Stops at step 6. Steps 6 and 7 need two connected providers and an active subscription, so the walk cannot reach checkout or activation on this deployment.",
+      "next_step": "Deploy, then confirm the entry controls on production."
     }
   ]
 }

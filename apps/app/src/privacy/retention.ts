@@ -97,7 +97,7 @@ export const RETENTION_POLICY: readonly RetentionRule[] = [
     columnKind: null,
     graceDays: 0,
     reason:
-      'We verify the signature against the raw bytes, take the few fields our rules need, and discard the rest in the same request. We keep a hash so a duplicate can be recognised, and a minimal validated envelope — never the original payload. Data we never store cannot be leaked, subpoenaed or forgotten about.',
+      'We verify the signature against the raw bytes, take the few fields our rules need, and discard the rest in the same request. We keep a hash so a duplicate can be recognised, and a minimal validated envelope, never the original payload. Data we never store cannot be leaked, subpoenaed or forgotten about.',
   },
   {
     target: 'evidence',
@@ -123,7 +123,7 @@ export const RETENTION_POLICY: readonly RetentionRule[] = [
     columnKind: 'age_from_column',
     graceDays: 0,
     reason:
-      'Ninety days gives you a quarter of result history to look back over. Runs are attached to their source event by a cascading foreign key, so the two cannot be given different periods — deleting the event deletes the run. Evidence inside those runs has already gone at thirty days, so a run older than a month shows its outcome and reasons without the underlying records.',
+      'Ninety days gives you a quarter of result history to look back over. Runs are attached to their source event by a cascading foreign key, so the two cannot be given different periods: deleting the event deletes the run. Evidence inside those runs has already gone at thirty days, so a run older than a month shows its outcome and reasons without the underlying records.',
   },
   {
     target: 'webhook_receipts',
@@ -167,7 +167,7 @@ export const RETENTION_POLICY: readonly RetentionRule[] = [
     target: 'audit_events',
     label: 'Audit records',
     contents:
-      'Who did what and when — sign-ins, permission changes, deletions, owner actions — with metadata redacted.',
+      'Who did what and when (sign-ins, permission changes, deletions, owner actions) with metadata redacted.',
     basis: 'swept_on_expiry',
     retentionDays: 365,
     expiryColumn: 'audit_events.occurred_at',
@@ -235,13 +235,13 @@ export const RETENTION_POLICY: readonly RetentionRule[] = [
     columnKind: null,
     graceDays: 0,
     reason:
-      'Kept while the account exists, because the account is made of them. Removed when you delete the workspace — see the deletion section.',
+      'Kept while the account exists, because the account is made of them. Removed when you delete the workspace: see the deletion section.',
   },
   {
     target: null,
     label: 'Billing and tax records',
     contents:
-      'Orders, subscriptions, refunds and the payment provider’s customer reference. Never a card number — we never receive one.',
+      'Orders, subscriptions, refunds and the payment provider’s customer reference. Never a card number: we never receive one.',
     basis: 'retained_for_obligation',
     retentionDays: null,
     expiryColumn: null,
@@ -518,7 +518,7 @@ export function summariseRetentionReport(report: RetentionReport): string {
   );
   const headline = report.complete
     ? `Retention sweep complete. ${String(report.totalRemoved)} rows removed.`
-    : `Retention sweep incomplete — some targets still have expired rows. ${String(
+    : `Retention sweep incomplete: some targets still have expired rows. ${String(
         report.totalRemoved,
       )} rows removed so far.`;
   return `${headline} ${parts.join('; ')}.`;

@@ -149,7 +149,7 @@ describe('workspace deletion', () => {
     expect(report.statement).toMatch(/everyone's membership of it/i);
     expect(port.rowsIn('memberships')).toHaveLength(0);
     // And the one thing deletion does NOT do is stated rather than glossed over.
-    expect(report.statement).toMatch(/sign-in identity .* is a separate record/i);
+    expect(report.statement).toMatch(/sign-in identity.* is a separate record/i);
   });
 
   it('API-363 an interrupted deletion resumes without double-deleting and without claiming success', async () => {

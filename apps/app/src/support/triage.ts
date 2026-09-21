@@ -394,7 +394,7 @@ export const ESCALATION_STATEMENT: Readonly<Record<EscalationReason, string>> = 
   billing_dispute_needs_a_person:
     'This is about money that has already been taken, so it goes to a person rather than an automatic answer.',
   deletion_request_needs_a_person:
-    'This asks us to delete data. We never action that from a keyword match — a person confirms who is asking and what is covered.',
+    'This asks us to delete data. We never action that from a keyword match: a person confirms who is asking and what is covered.',
   security_report_needs_a_person:
     'This reports a possible security problem. It goes straight to the owner, unanswered by any automation.',
   cancellation_must_not_be_delayed:

@@ -183,7 +183,7 @@ export class PairingUnavailable implements RunnerPairingPort {
       ok: false,
       dependency:
         'Pairing needs the maintenance connector bound to this deployment, and it is not. No pairing code has been ' +
-        'created — there is nothing to type into a runner.',
+        'created. There is nothing to type into a runner.',
     };
   }
 }

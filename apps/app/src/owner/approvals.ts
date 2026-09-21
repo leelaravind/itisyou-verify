@@ -370,7 +370,7 @@ const REJECTION_TEXT: Record<ClaimRejection, string> = {
   expired:
     'This approval has expired. Approvals lapse so that something agreed yesterday cannot be carried out today without you looking again.',
   payload_changed:
-    'Something changed after you approved it — an amount, a date, a destination or the list of things involved. Read the new version and approve that instead.',
+    'Something changed after you approved it: an amount, a date, a destination or the list of things involved. Read the new version and approve that instead.',
   currency_mismatch: 'The currency is not the one you approved.',
   amount_exceeds_approved_maximum:
     'The amount is larger than the maximum you approved. Approve the larger amount explicitly if that is what you want.',
@@ -494,8 +494,8 @@ export async function claimApproval(
       ok: false,
       reason: 'already_consumed',
       detail:
-        'This approval was already used. It authorises one action once, so a second attempt — a double-tapped ' +
-        'button, a retried request, or someone else acting at the same moment — stops here rather than happening twice.',
+        'This approval was already used. It authorises one action once, so a second attempt (a double-tapped ' +
+        'button, a retried request, or someone else acting at the same moment) stops here rather than happening twice.',
     };
   }
   return { ok: true, hash: check.hash, consumedAt: at };
