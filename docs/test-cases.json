@@ -48713,6 +48713,57 @@
       "runner": "vitest",
       "area": "tests/integration/customer/test-verification.test.ts",
       "countable": true
+    },
+    {
+      "category": "owner_panel",
+      "level": "integration",
+      "risk_source": "case",
+      "owner_agent": "A02",
+      "implementation_ref": "tests/integration/db/owner-pages-on-d1.test.ts",
+      "provider_backed": false,
+      "status": "passing",
+      "runner": "vitest",
+      "area": "tests/integration/db/owner-pages-on-d1.test.ts",
+      "countable": true,
+      "id": "OWNER-927",
+      "requirement": "every owner screen renders through the real router on the D1 port, not only on the in-memory stand-in",
+      "risk": "All thirteen owner screens had been rendered, captured and audited every time against MemoryOwnerDataPort. Production runs D1OwnerDataPort. The join between port and page was covered by nothing, and that join is where a port method returning a different shape, an unexpected null, or a column the stand-in invents would break a panel that every existing test says is fine.",
+      "setup": "A real platform owner with a real session row whose id is the SHA-256 of the cookie value, over a real schema.",
+      "expected": "All eleven GET screens answer 200 with a main element, a rail and a real page body."
+    },
+    {
+      "category": "owner_panel",
+      "level": "integration",
+      "risk_source": "case",
+      "owner_agent": "A02",
+      "implementation_ref": "tests/integration/db/owner-pages-on-d1.test.ts",
+      "provider_backed": false,
+      "status": "passing",
+      "runner": "vitest",
+      "area": "tests/integration/db/owner-pages-on-d1.test.ts",
+      "countable": true,
+      "id": "OWNER-928",
+      "requirement": "on a database that cannot answer a figure, the overview says unknown rather than zero",
+      "risk": "The memory port answers everything. An empty deployment is the ordinary state of a new install and the state in which a page is most tempted to print 0 for something nobody measured.",
+      "setup": "Owner session, empty database.",
+      "expected": "The overview renders with data-unknown present and the launch figures rendered as figures."
+    },
+    {
+      "category": "owner_panel",
+      "level": "integration",
+      "risk_source": "case",
+      "owner_agent": "A02",
+      "implementation_ref": "tests/integration/db/owner-pages-on-d1.test.ts",
+      "provider_backed": false,
+      "status": "passing",
+      "runner": "vitest",
+      "area": "tests/integration/db/owner-pages-on-d1.test.ts",
+      "countable": true,
+      "id": "OWNER-929",
+      "requirement": "the same screens are a 404 for a signed-in user who is not the platform owner, and anonymously",
+      "risk": "The port decides the principal by reading the session from the database, so a mistake in that read is an authorisation hole rather than a rendering bug.",
+      "setup": "A signed-in non-owner session, and no session at all.",
+      "expected": "All eleven screens answer 404 with no rail in the body, and anonymous /owner answers 404."
     }
   ]
 }
