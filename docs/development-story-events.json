@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "project": "itisyou-verify",
-  "generated_at": "2026-09-21T10:31:00Z",
+  "generated_at": "2026-09-21T12:00:00Z",
   "note": "Structured record of what was decided, built and verified. Observable facts and short decision rationales only — never reasoning traces, private prompts, credentials or customer data. Unknown values stay null rather than being guessed.",
   "events": [
     {
@@ -1786,6 +1786,75 @@
       ],
       "limitations": "Stops at step 6. Steps 6 and 7 need two connected providers and an active subscription, so the walk cannot reach checkout or activation on this deployment.",
       "next_step": "Deploy, then confirm the entry controls on production."
+    },
+    {
+      "event_id": "EVT-0054",
+      "timestamp": "2026-09-21T11:40:00Z",
+      "milestone_id": "M-BILLING",
+      "task_id": "T-CHECKOUT-AUTHORISATION",
+      "agent_role": "A10 security reviewer",
+      "model_id": "claude-opus-5",
+      "status": "tested",
+      "goal": "Close an authorisation hole on the money path, and prove the regression actually tests authorisation rather than the guard in front of it.",
+      "inputs": [
+        "an independent adversarial review of the two morning commits, run on a second model",
+        "the owner rejecting the first regression as proving CSRF rather than role"
+      ],
+      "changed_artifacts": [
+        "apps/app/src/db/customerPort.ts",
+        "tests/integration/customer/checkout-control.test.ts",
+        "docs/live-payment-approval.md",
+        "docs/launch-checklist.md"
+      ],
+      "commit_sha": "bb28abe",
+      "decision_summary": "Two pages were changed that morning to render their setup controls on role === workspace_admin, with a comment claiming that was the same rule the server uses. It was the rule for saveFieldMapping, saveExpectedOutcome and submitConnectionCredentials. It was not the rule for createCheckout, which refuses only on orderSummary().ready, and orderSummary had never consulted a role. On a workspace with both providers ready and a workflow published, a workspace_viewer was shown a live checkout button and pressing it produced a 303 to Stripe Checkout for a workspace they may only read. Fixed as a blocker inside orderSummary so the page and the route read one answer. The first regression written for it posted no CSRF token and asserted only that the answer was not a 303, which passes with or without any role check because CSRF is refused before the handler runs; the owner rejected it. Rewritten to send a real session and a real double-submit pair, to assert the specific role sentence, zero Stripe calls and zero order rows, and to carry an admin control on the identical fixture that does reach Stripe.",
+      "alternatives_considered": [
+        "a second guard inside createCheckout, rejected: two rules to keep in step is the shape of defect that produced this",
+        "asserting the guard exists in source, rejected: that is not a behaviour test"
+      ],
+      "decision_reason": "A refusal is not evidence of the refusal you wanted. The mutation check is what turns the regression into evidence.",
+      "test_evidence_refs": [
+        "AUTH-514",
+        "AUTH-515",
+        "AUTH-516"
+      ],
+      "limitations": "Exercised against a synthetic workspace. No live Stripe objects exist, so no real money was ever reachable through this path; production has been in test mode throughout.",
+      "next_step": "Deploy to staging, verify both roles there, then production."
+    },
+    {
+      "event_id": "EVT-0055",
+      "timestamp": "2026-09-21T11:54:25Z",
+      "milestone_id": "M-RELEASE",
+      "task_id": "T-RELEASE-D11C271",
+      "agent_role": "A11 QA and release",
+      "model_id": "claude-opus-5[1m]",
+      "status": "deployed",
+      "goal": "Get the day's work onto staging, verify the changed journey and the viewer restriction there, then put the same candidate on production.",
+      "inputs": [
+        "the CI release-gate artefact for d11c271654bd",
+        "the owner's explicit authorisation to deploy, and their instruction to stop deleting evidence"
+      ],
+      "changed_artifacts": [
+        "docs/SESSION_HANDOVER.md",
+        "docs/launch-checklist.md",
+        "docs/live-payment-approval.md"
+      ],
+      "commit_sha": "d11c271",
+      "decision_summary": "The gate refused production for the previous commit and named the reason: two Playwright cases had failed in CI while the artefact reported failing: 0, because that figure is computed from the vitest report and never reads the Playwright one. Both were stale assertions against the day's copy changes, not product defects, and both were fixed before any deploy. Staging was released first at 11:51Z and production at 11:54Z from the same artefact, so both environments run one candidate. On deployed staging, with two seeded synthetic identities on one workspace, an admin reached the connect step and saw a checkout form and a viewer saw neither, and a viewer POST carrying a real session and CSRF pair answered 503 on role. The seeded sessions were revoked afterwards and the revocation confirmed. The release procedure no longer runs rm -rf reports: each release keeps its artefact under reports/release-gate/<sha12>/.",
+      "alternatives_considered": [
+        "releasing production first, rejected: staging is the environment where a wrong answer costs nothing",
+        "keeping rm -rf reports, rejected by the owner: it threw away the gate artefact, both test reports and the served HTML"
+      ],
+      "decision_reason": "A release should leave its evidence behind, and the environment that can be wrong cheaply should be wrong first.",
+      "test_evidence_refs": [
+        "AUTH-514",
+        "AUTH-515",
+        "AUTH-516",
+        "CUST-071",
+        "CUST-072"
+      ],
+      "limitations": "Production remains STRIPE_MODE test with no live Stripe objects, so no payment alert has ever fired and both kinds hold zero rows. Advertising stays paused. The owner panel was verified on staging only: the seed script refuses production by design.",
+      "next_step": "Owner: the organic posts, the support routing rule, L2-L4, and the production owner-panel re-check."
     }
   ]
 }
