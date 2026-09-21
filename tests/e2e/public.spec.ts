@@ -78,7 +78,11 @@ test.describe('public journey', () => {
     await page.goto('/demo');
     const limitation = page.locator('[data-coverage-limitation]');
     await expect(limitation).toBeVisible();
-    await expect(limitation).toContainText('nothing is not the same as everything passing');
+    // Case-insensitive on purpose. The em-dash sweep turned "we receive nothing — and
+    // nothing is not the same..." into two sentences, so the clause now opens one and
+    // starts with a capital. The claim is the thing worth pinning; which punctuation
+    // precedes it is not, and pinning the lower-case N is how this broke.
+    await expect(limitation).toContainText(/nothing is not the same as everything passing/i);
     await expect(page.locator('[data-standing-limitations]')).toBeVisible();
     expect(await page.locator('details').count()).toBe(0);
   });
@@ -91,8 +95,12 @@ test.describe('public journey', () => {
       await expect(
         page.getByText('Lytchett House, 13 Freeland Park, Wareham Road, Poole, Dorset, BH16 6FA, United Kingdom'),
       ).toBeVisible();
-      await expect(page.getByText('Not VAT-registered')).toBeVisible();
-      await expect(page.getByText('Not applicable (sole trader)')).toBeVisible();
+      // Scoped to the identity block's own value, not to the page. The corrected VAT
+      // copy on the same page now also contains "not VAT-registered", so an unscoped
+      // match resolves to two elements and strict mode refuses it. The thing this case
+      // is about is the FIELD carrying a real value, so it asserts the field.
+      await expect(page.getByText('Not VAT-registered', { exact: true })).toBeVisible();
+      await expect(page.getByText('Not applicable (sole trader)', { exact: true })).toBeVisible();
       await expect(page.locator('[data-todo-owner-input]')).toHaveCount(0);
     }
   });
