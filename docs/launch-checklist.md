@@ -150,12 +150,12 @@ reference. One row per thing claimed. `docs/screen-checklist.md` carries the per
 | 7.6 | Reduced-motion defect found and fixed | **done, live** | The fourth status card rendered at opacity 0 for a reader who asked for less motion. RESIL-918 |
 | 7.7 | Billing portal defect found and fixed | **done, live** | A constant Stripe idempotency key replayed the first, spent session. BILL-675, BILL-676, and two openings on deployed staging now produce two different sessions |
 | 7.8 | Independent auditor on the visual work | **done** | Cheap model, read-only, ten claims: 8 PASS, 1 PARTIAL, 1 FAIL. Its one finding was acted on in part and refused in part, in writing |
-| 7.9 | Remaining screens compared | **NOT done** | Eleven screens are still marked pending in `docs/screen-checklist.md`: how-it-works, demo, support, the development story, five customer screens and five owner screens. Rendered and captured, not compared |
+| 7.9 | Remaining screens compared | **done** | All eleven read beside their references at three widths. Four changed (connections, run detail, usage, support) plus the owner customers column; the rest are recorded as compared and unchanged, each with its reason. `docs/screen-checklist.md` |
 | 7.10 | Owner panel seen signed in | **NOT done, owner only** | Every owner render in this work came from the in-memory port. Nobody has opened the panel against production data, and nobody may seed a production session to stand in for that |
 
 ## Launch blockers (only these stop a launch)
 
-Read at 15:31 UTC on 21 September 2026, against production at `4cf097ad5620`.
+Read at 16:10 UTC on 21 September 2026, against production at `954a5a71750f`.
 
 0. **CLEARED at 14:00Z, and left here rather than deleted.** For most of the afternoon this
    read "BLOCKED ON THE OWNER, and it is one command": the production release aborted because
