@@ -311,6 +311,43 @@ describe('owner data reads', () => {
     expect(ops.runner.unavailableReason).not.toBeNull();
   });
 
+  it('OWNER-926 an unanswered support message reaches the exception queue, not only an escalated one', async () => {
+    /*
+     * Nothing pushes a support case anywhere. The six owner alert kinds are deliberately six
+     * and none of them is support, so this queue is the only place an unanswered message
+     * becomes visible to the owner. It listed escalated cases only, which meant an ordinary
+     * open case sat in the database unseen.
+     */
+    const ws = await seedWorkspace(h);
+    for (const [id, state, subject] of [
+      ['case_open', 'open', 'A customer asked why a run is unverified'],
+      ['case_esc', 'escalated', 'A customer says they were charged twice'],
+      ['case_closed', 'closed', 'Answered last week'],
+    ] as const) {
+      h.raw
+        .prepare(
+          `INSERT INTO support_cases
+             (id, workspace_id, contact_email, subject, body_redacted, category, priority, state, created_at, updated_at)
+           VALUES (?, ?, 'a@example.test', ?, 'redacted', 'other', 'normal', ?, ?, ?)`,
+        )
+        .run(id, ws.workspaceId, subject, state, T0, T0);
+    }
+
+    const queue = await port.exceptions();
+    const support = queue.filter((row) => row.kind.startsWith('support_'));
+    expect(support.map((row) => row.id).sort()).toEqual(['case_esc', 'case_open']);
+
+    // Escalated first: it is the one that is already past patience.
+    expect(support[0]?.kind).toBe('support_escalated');
+    const open = support.find((row) => row.id === 'case_open');
+    expect(open?.kind).toBe('support_open');
+    expect(open?.summary).toContain('why a run is unverified');
+    // The suggested action says the true thing about how this case became visible.
+    expect(open?.suggestedAction ?? '').toContain('Nobody is alerted');
+    // A closed case is not an exception.
+    expect(queue.some((row) => row.id === 'case_closed')).toBe(false);
+  });
+
   it('OWNER-607 revoking a connection is genuinely done, not blocked', async () => {
     const ws = seedWorkspace(h, 'alpha');
     h.raw

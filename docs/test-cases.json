@@ -48594,6 +48594,23 @@
       "runner": "vitest",
       "area": "tests/integration/customer/connection-test.test.ts",
       "countable": true
+    },
+    {
+      "id": "OWNER-926",
+      "category": "owner_panel",
+      "level": "integration",
+      "requirement": "an unanswered support message reaches the owner exception queue, not only an escalated one",
+      "risk": "Nothing pushes a support case anywhere: the six owner alert kinds are deliberately six and none is support. The exception queue listed escalated cases only, so an ordinary open case sat in the database unseen and a customer who wrote in got no answer.",
+      "risk_source": "case",
+      "setup": "Three support cases on one workspace: open, escalated and closed.",
+      "expected": "The queue carries the open and the escalated case, escalated first, the open one kinded support_open with a suggested action that says no alert was sent, and the closed case absent.",
+      "owner_agent": "A02",
+      "implementation_ref": "tests/integration/db/ownerPort.test.ts",
+      "provider_backed": false,
+      "status": "passing",
+      "runner": "vitest",
+      "area": "tests/integration/db/ownerPort.test.ts",
+      "countable": true
     }
   ]
 }

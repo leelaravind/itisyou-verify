@@ -641,20 +641,30 @@ export class D1OwnerDataPort implements OwnerDataPort {
     }
 
     // tenant-scope:exempt owner exception queue; rows carry their own workspace_id.
-    const escalated = await this.#db
+    const waiting = await this.#db
       .prepare(
-        `SELECT id, workspace_id, subject, updated_at FROM support_cases
-          WHERE state = 'escalated' ORDER BY updated_at DESC LIMIT 25`,
+        `SELECT id, workspace_id, subject, state, updated_at FROM support_cases
+          WHERE state IN ('escalated', 'open') ORDER BY
+            CASE state WHEN 'escalated' THEN 0 ELSE 1 END, updated_at DESC LIMIT 25`,
       )
-      .all<{ id: string; workspace_id: string | null; subject: string; updated_at: string }>();
-    for (const row of escalated.results) {
+      .all<{
+        id: string;
+        workspace_id: string | null;
+        subject: string;
+        state: string;
+        updated_at: string;
+      }>();
+    for (const row of waiting.results) {
+      const escalatedCase = row.state === 'escalated';
       out.push({
         id: row.id,
-        kind: 'support_escalated',
+        kind: escalatedCase ? 'support_escalated' : 'support_open',
         workspaceId: row.workspace_id,
         summary: row.subject,
         raisedAt: row.updated_at,
-        suggestedAction: 'Answer it, or close it with a reason.',
+        suggestedAction: escalatedCase
+          ? 'Answer it, or close it with a reason.'
+          : 'Nobody is alerted when a message arrives, so this queue is where it becomes visible.',
       });
     }
 
