@@ -624,12 +624,25 @@ export function createStripeClient(options: StripeClientOptions): StripeClient {
     },
 
     async createBillingPortalSession(params) {
-      // A portal session is a read/manage surface, not a mutation of our own state, but
-      // Stripe still accepts an idempotency key and sending one costs nothing.
+      /*
+       * The key is fresh for every opening, and that is the whole point.
+       *
+       * It used to be `portal:<customer>:<returnUrl>`, which is the same string every time
+       * for a given customer. Stripe replays a stored response for a repeated key for 24
+       * hours, so the second opening got back the FIRST session: a single-use, short-lived
+       * URL that had already been spent. That is exactly the "your session has expired"
+       * the customer reported, reintroduced one layer below the fix for it, and no amount
+       * of minting a session per click upstream can survive it.
+       *
+       * A deterministic key makes a RETRY safe. This is not a retry: each press is a new
+       * authorised opening and must get a new session. The cost of the trade is that a
+       * network failure mid-call can leave one unused portal session behind, which expires
+       * on its own and reaches nobody.
+       */
       const session = await request<StripeBillingPortalSession>({
         method: 'POST',
         path: '/billing_portal/sessions',
-        idempotencyKey: `portal:${params.customerId}:${params.returnUrl}`.slice(0, 255),
+        idempotencyKey: `portal:${params.customerId}:${crypto.randomUUID()}`.slice(0, 255),
         body: {
           customer: params.customerId,
           return_url: params.returnUrl,
