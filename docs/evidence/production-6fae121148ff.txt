@@ -1,0 +1,92 @@
+Production release and verification of the 21 September candidate
+Commit 6fae121148ff9b7407f7b37c1c412bd037860f32 (application code identical to a904db086221;
+07a42794620c and 6fae121148ff change documentation and evidence only).
+
+All figures below were read back from the deployed services, not from the repository.
+
+
+=== 1. release, staging first then production, same gate artefact ===
+
+  node scripts/release.mjs --env production --check-gate-artefact \
+    --gate-artefact reports/release-gate/6fae121148ff/release-gate.json
+
+    artefact  6fae121148ff produced by github-actions, tree clean
+    citable   2713 distinct passing cases (minimum 500)
+    browser   15 passed, 0 failed, 0 flaky, 26 skipped
+    OK release gate artefact matches HEAD
+    release - gate artefact accepted for production. Nothing was deployed.
+
+  node scripts/release.mjs --env staging    --gate-artefact <same file>   13:59Z  complete
+  node scripts/release.mjs --env production --gate-artefact <same file>   14:00Z  complete
+
+  The production release ran its full gate, including the database migration step that was
+  refused earlier in the day. Nothing was skipped and no flag was added to get past it; the
+  same command that was refused was accepted on this attempt.
+
+  Post-deploy smoke checks, as printed by the release script:
+    staging     {"environment":"staging","database":"reachable","commit":"6fae121148ff..."}
+    production  {"environment":"production","database":"reachable","commit":"6fae121148ff..."}
+
+  Claim scan over the pages as actually served on production: clean, 7 pages fetched
+  (/ /how-it-works /pricing /demo /terms /privacy /security).
+
+
+=== 2. served commit, read back independently of the release ===
+
+  curl -s https://verify.itisyou.app/health        14:01Z
+    {"service":"itisyou-verify","environment":"production","database":"reachable",
+     "commit":"6fae121148ff9b7407f7b37c1c412bd037860f32"}
+
+
+=== 3. anonymous behaviour on production ===
+
+  401  /app                     signed out, not a redirect that leaks the page
+  404  /owner                   the owner panel does not admit it exists
+  200  /admin/login             the legitimate owner sign-in route answers
+  200  / /pricing /how-it-works /demo /security /support /terms /privacy /development-story
+
+
+=== 4. the motion language, counted in the stylesheet as production serves it ===
+
+  12  --dur-fast                 emitted as a custom property, not an ad hoc number
+   3  --dur-base
+   1  --ease:
+   1  @keyframes enter
+   1  @view-transition
+   2  prefers-reduced-motion     the universal reset, plus the view-transition carve-out
+   9  transition:
+
+  And absent, as the design exclusions require:
+   0  box-shadow      0  backdrop-filter   0  linear-gradient   0  radial-gradient
+   0  Geist           0  Space Grotesk
+   0  the Inter typeface (the string appears only inside the word "pointer")
+
+
+=== 5. screens captured from production ===
+
+  39 full-page captures: 13 routes at 1440, 834 and 390 CSS pixels.
+  0 produced horizontal overflow at any of the three widths.
+  0 were blocked or answered with an unexpected status; /app answers 401 by design and was
+  captured in that state.
+
+  Durable copies: docs/evidence/screenshots/production-6fae121148ff/ (JPEG, tracked).
+  Full-resolution PNGs: reports/screenshots/production-6fae121148ff/ (git-ignored, local).
+
+
+=== 6. what this does NOT show ===
+
+  The signed-in customer screens were NOT re-captured on production. Doing so would mean
+  seeding a session on the production service, which is exactly what the owner ruled out.
+  The identical application code was exercised signed in, in both roles, on deployed staging:
+  see docs/evidence/staging-verification-a904db086221.txt.
+
+  A read-only count of production runs, synthetic runs, owner_test source events and
+  connection.tested audit rows was attempted and refused by the permission classifier:
+
+    npx wrangler d1 execute verify-itisyou-db-production --env production --remote --json \
+      --command "SELECT ... FROM runs ... "
+
+  It was not run another way. Nothing here depends on it.
+
+  The owner panel was not opened signed in. That needs the owner at /admin/login with a TOTP
+  code, and a production session must not be seeded to substitute for it.

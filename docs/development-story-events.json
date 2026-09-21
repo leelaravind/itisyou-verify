@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "project": "itisyou-verify",
-  "generated_at": "2026-09-21T13:50:00Z",
+  "generated_at": "2026-09-21T14:10:00Z",
   "note": "Structured record of what was decided, built and verified. Observable facts and short decision rationales only — never reasoning traces, private prompts, credentials or customer data. Unknown values stay null rather than being guessed.",
   "events": [
     {
@@ -1962,6 +1962,40 @@
       ],
       "limitations": "Deployed to staging and verified there from the served stylesheet. Production has not been promoted.",
       "next_step": "Nothing here; the owner panel remains uncomposed and is recorded as such."
+    },
+    {
+      "event_id": "EVT-0059",
+      "timestamp": "2026-09-21T14:00:00Z",
+      "milestone_id": "M-OPERATE",
+      "task_id": "T-RELEASE-6FAE121",
+      "agent_role": "release",
+      "model_id": "claude-opus-5[1m]",
+      "status": "deployed",
+      "goal": "Put the afternoon candidate in front of real traffic, or say plainly why it could not be.",
+      "inputs": [
+        "the CI gate artefact release-gate-6fae121148ff9b7407f7b37c1c412bd037860f32, produced by github-actions at a clean tree",
+        "the staging verification of the same application code, signed in, in both roles"
+      ],
+      "changed_artifacts": [
+        "docs/launch-checklist.md",
+        "docs/SESSION_HANDOVER.md",
+        "docs/evidence/production-6fae121148ff.txt"
+      ],
+      "commit_sha": "6fae121",
+      "decision_summary": "An earlier attempt on the same candidate aborted at the release step that applies database migrations, because the permission classifier refused the command. That is a permission decision and not a failure, and it was recorded as such: the step is a no-op on this database, scripts/release.mjs runs it unconditionally, and it offers no flag that skips it, so there was no legitimate in-script path around it and none was taken. On this attempt the same command was accepted, the gate ran whole, and one artefact released to staging at 13:59Z and to production at 14:00Z. The served commit was then read back from /health independently of the release script, anonymous access was checked to still answer 401 on the workspace and 404 on the owner panel, the motion language was counted in the stylesheet as production actually serves it, and 39 screens were captured across three viewport widths with no horizontal overflow.",
+      "alternatives_considered": [
+        "adding a flag to skip the refused step, rejected: the step exists so that a deploy cannot outrun its schema, and editing the gate to get past a permission rule is the definition of bypassing it",
+        "reproducing the signed-in checks on production, rejected: that needs a session, and seeding one on production is what the owner ruled out"
+      ],
+      "decision_reason": "A release gate that can be edited when it is inconvenient is not a gate.",
+      "test_evidence_refs": [
+        "BILL-670",
+        "CONN-518",
+        "VERIFY-560",
+        "RESIL-911"
+      ],
+      "limitations": "The signed-in customer screens were verified on deployed staging, not re-exercised on production. The owner panel has still not been opened signed in, and has not been recomposed. A read-only count of production runs was refused by the same classifier and was not obtained another way.",
+      "next_step": "The owner signs in at /admin/login so the owner panel can be walked through and then recomposed."
     }
   ]
 }
