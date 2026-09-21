@@ -61,7 +61,6 @@ export const STORY_BASE = `
 .story-status--unknown{border-style:dashed;text-transform:none;letter-spacing:0}
 
 /* native disclosure: works with JavaScript off, keyboard operable, visible focus ring */
-.disc{border:1px solid var(--c-rule);border-radius:var(--r-control);background:var(--c-surface)}
 /* No transition here, deliberately, and this is the one place in the product where that is
    still true after the owner asked for motion on 21 September 2026. A hover transition was
    added to this selector with the rest of the animation work and is removed again: the
@@ -69,14 +68,8 @@ export const STORY_BASE = `
    labels itself a historical record, and DOC-111 exists to hold the page to what it tells
    the reader. Animating it to match the rest of the product would have made the page's own
    claim false, which is a worse outcome than an unanimated hover. */
-.disc__summary{cursor:pointer;padding:var(--s3) var(--s4);font-weight:600;font-size:var(--t-small);color:var(--c-muted);list-style:none;display:flex;gap:var(--s2);align-items:baseline}
-.disc__summary:hover,.disc[open]>.disc__summary{color:var(--c-ink)}
-.disc__summary::-webkit-details-marker{display:none}
-.disc__summary::before{content:"+";font-family:var(--f-mono);color:var(--c-faint);flex:0 0 1em}
-.disc[open]>.disc__summary::before{content:"\\2212"}
-.disc__summary:focus-visible{outline:2px solid var(--c-focus);outline-offset:-2px;border-radius:var(--r-control)}
-.disc__body{padding:0 var(--s4) var(--s4);font-size:var(--t-small)}
-.disc__body>*+*{margin-top:var(--s3)}
+/* Opens on grid-template-rows rather than height: it stays off the layout path, and it is
+   the same device .callout__detail uses, so a disclosure behaves the same wherever it is. */
 
 /* timeline list — the accessible twin of the timeline figure */
 .tl{list-style:none;padding:0;margin:0}
@@ -113,7 +106,9 @@ export const STORY_BASE = `
 @media (min-width:46rem){.fail__grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 .fail__grid p{font-size:var(--t-small);color:var(--c-muted);margin:0}
 
-/* nothing here moves; this guard exists so a future addition cannot slip past unnoticed */
+/* Nothing on this page moves. The disclosure is a shared component and animates everywhere
+   else, so its stillness here is scoped to this page rather than taken away from everyone. */
+.story-section .disc,.story-section .disc__summary,.story-section .disc__body{transition:none;animation:none}
 @media (prefers-reduced-motion:reduce){
   .disc,.disc__summary,.story-figure svg *{transition:none!important;animation:none!important}
 }

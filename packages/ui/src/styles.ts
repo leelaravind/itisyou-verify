@@ -399,6 +399,21 @@ a:hover{text-decoration-thickness:2px}
   .ediff__col:first-child{border-left:0}
 }
 
+/* ---- the shared disclosure ------------------------------------------------ */
+.disc{border:1px solid var(--c-rule);border-radius:var(--r-control);background:var(--c-surface)}
+.disc__summary{cursor:pointer;padding:var(--s3) var(--s4);font-weight:600;font-size:var(--t-small);color:var(--c-muted);list-style:none;display:flex;gap:var(--s2);align-items:baseline;transition:color var(--dur-fast) var(--ease)}
+.disc__summary:hover,.disc[open]>.disc__summary{color:var(--c-ink)}
+.disc__summary::-webkit-details-marker{display:none}
+.disc__summary::before{content:"+";font-family:var(--f-mono);color:var(--c-faint);flex:0 0 1em}
+.disc[open]>.disc__summary::before{content:"\\2212"}
+.disc__summary:focus-visible{outline:2px solid var(--c-focus);outline-offset:-2px;border-radius:var(--r-control)}
+/* Opens on grid-template-rows rather than height: it stays off the layout path, and it is
+   the same device .callout__detail uses, so a disclosure behaves the same wherever it is. */
+.disc__body{display:grid;grid-template-rows:0fr;visibility:hidden;transition:grid-template-rows var(--dur-base) var(--ease)}
+.disc[open]>.disc__body{grid-template-rows:1fr;visibility:visible}
+.disc__body__inner{overflow:hidden;padding:0 var(--s4) var(--s4);font-size:var(--t-small)}
+.disc__body>*+*{margin-top:var(--s3)}
+
 /* ---- the comparator: the claim rule's multi-field, two-column sibling ------- */
 /* Specified in design/MAPPING.md §8 and built from that specification, not from any
    generated markup. A real table: the field name is a shared row header, so a reader never
@@ -588,6 +603,11 @@ a:hover{text-decoration-thickness:2px}
 .field__label{display:block;font-size:var(--t-small);font-weight:600;margin-bottom:var(--s1)}
 .field__req{font-family:var(--f-mono);font-size:var(--t-micro);color:var(--c-muted);font-weight:400;letter-spacing:0.04em}
 .field__hint{font-size:var(--t-small);color:var(--c-muted);margin:0 0 var(--s2)}
+/* A message that appears because a submission failed settles in over one frame budget,
+   the same entrance the page content uses. It is feedback for a state change the reader
+   caused, which is the one kind of motion that earns its place on a form. A form-level
+   message is a callout and already settles with the other containers. */
+.field__error{animation:enter var(--dur-base) var(--ease) both}
 .field__error{
   display:flex;gap:0.4em;align-items:flex-start;font-size:var(--t-small);
   color:var(--c-failed);margin:var(--s2) 0 0;font-weight:560;

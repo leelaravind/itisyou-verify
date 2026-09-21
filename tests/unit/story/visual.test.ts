@@ -7,7 +7,7 @@
  * rendered bytes, not on a helper having been called.
  */
 import { beforeAll, describe, expect, it } from 'vitest';
-import { PublicLayout, render } from '@verify/ui';
+import { CSS, PublicLayout, render } from '@verify/ui';
 import storyJson from '../../../docs/development-story-events.json';
 import {
   DecisionCard,
@@ -251,8 +251,14 @@ describe('the deployed policy would not have to make an exception for this page'
     expect(body).toContain('<summary class="disc__summary">');
   });
 
-  it('DOC-127 the disclosure summary has a visible focus ring in the story stylesheet', () => {
-    expect(STORY_CSS).toContain('.disc__summary:focus-visible{outline:2px solid var(--c-focus)');
+  it('DOC-127 the disclosure summary has a visible focus ring, wherever the component now lives', () => {
+    // The disclosure moved from the story stylesheet into the main one when the workspace and
+    // the connections page started using it. The focus ring is the part that must not be lost
+    // in a move, so this asserts the served sheet rather than the file it used to sit in.
+    expect(CSS).toContain('.disc__summary:focus-visible{outline:2px solid var(--c-focus)');
+    expect(STORY_CSS, 'the story stylesheet kept a copy of a shared component').not.toContain(
+      '.disc__summary{',
+    );
   });
 });
 
