@@ -187,6 +187,9 @@ describe('the activation path is disabled, visibly', () => {
   async function emptyWorkspace(canStartSetup: boolean): Promise<string> {
     return await render(
       WorkspacePage({
+      testOffer: { canStart: false, reason: null, consumesAllowance: true, runsRemaining: 0, runsIncluded: 500, correlationProperty: 'verify_correlation_id' },
+      csrfToken: null,
+
         workflow: null,
         recentRuns: [],
         connections: [],

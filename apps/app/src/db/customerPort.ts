@@ -32,6 +32,9 @@ import {
 import { scrubSecret, secretKeyIsUsable } from '@verify/connectors/stripe';
 import type {
   ConnectionTestResult,
+  TestVerificationInput,
+  TestVerificationOffer,
+  TestVerificationResult,
   ActivationView,
   ConnectionCredentialsInput,
   ConnectionView,
@@ -1099,6 +1102,236 @@ export class D1CustomerDataPort implements CustomerDataPort {
         scope === null
           ? 'Sign in to run a proof.'
           : 'No proof run was performed. The rule compiler is not wired into this environment, so there are no rules to evaluate, and a pass against no rules would mean nothing.',
+    };
+  }
+
+
+  /* --- guided test verification --- */
+
+  /**
+   * What a test verification would cost, and whether one can be started at all.
+   *
+   * Asked before the customer commits, for the same reason the billing portal's
+   * availability is separate from opening it: a page that has to DO the thing to find out
+   * whether it can would spend a run from the allowance just to decide whether to draw a
+   * form.
+   */
+  async testVerificationOffer(): Promise<TestVerificationOffer> {
+    const usage = await this.usage();
+    const remaining = Math.max(0, usage.runsIncluded - usage.runsUsed);
+    const base = {
+      // Always true, and a field rather than a sentence in the template so the page cannot
+      // quietly stop saying it. It costs one run because it is admitted through the same
+      // path a real enquiry takes; a free side-door would be a different code path, and a
+      // result from a different path proves nothing about the one that matters.
+      consumesAllowance: true,
+      runsRemaining: remaining,
+      runsIncluded: usage.runsIncluded,
+    };
+
+    const scope = await this.#scope();
+    if (scope === null) {
+      return { ...base, canStart: false, reason: 'Sign in to run a test verification.', correlationProperty: '' };
+    }
+    if (scope.role !== 'workspace_admin') {
+      return {
+        ...base,
+        canStart: false,
+        reason:
+          'Only a workspace admin can run a test verification. Your role in this workspace is viewer.',
+        correlationProperty: '',
+      };
+    }
+
+    const workflow = await this.workflow();
+    if (workflow === null) {
+      return {
+        ...base,
+        canStart: false,
+        reason:
+          'There is no workflow to test yet. A test verification is checked against your rules, and there are none to check it against.',
+        correlationProperty: '',
+      };
+    }
+    const correlationProperty = workflow.mapping.correlationProperty;
+    if (correlationProperty === '') {
+      return {
+        ...base,
+        canStart: false,
+        reason:
+          'This workflow has no correlation property set, so nothing could be matched back to the record you name. Finish the field mapping first.',
+        correlationProperty: '',
+      };
+    }
+    if (remaining <= 0) {
+      return {
+        ...base,
+        canStart: false,
+        reason:
+          'This period has no runs left, and a test verification costs one like any other. It becomes available again when the period rolls over.',
+        correlationProperty,
+      };
+    }
+    return { ...base, canStart: true, reason: null, correlationProperty };
+  }
+
+  /**
+   * Start one, from four values the customer supplies.
+   *
+   * ## It is the real pipeline, not a rehearsal of it
+   *
+   * The four fields are exactly the four the real source-event schema carries, so this
+   * writes a genuine source event and admits it through `sourceEvents.admitOnce` — the same
+   * function the signed-event endpoint calls. The scheduler then observes it, reads the
+   * providers, and the same evaluator decides it. Nothing here shortcuts to a verdict.
+   *
+   * ## What it must never do
+   *
+   * It creates no CRM record and sends no email: every field names something that must
+   * ALREADY EXIST, and the connectors have no write path at all. It fabricates no result —
+   * the run starts PENDING and is decided by evidence, which means a test can and should
+   * come back FAILED or UNVERIFIED. And it proves nothing about whether the customer's
+   * automation reports enquiries to us, because the event came from this form rather than
+   * from their automation; the page says so where it is read.
+   *
+   * ## Marked, so it cannot inflate anything
+   *
+   * `isSynthetic: true`. The column existed and was read nowhere, so the flag alone would
+   * have been decoration; the owner's platform run count and the workspace's own
+   * verification rate both exclude it now.
+   */
+  async startTestVerification(input: TestVerificationInput): Promise<TestVerificationResult> {
+    const refuse = (message: string, fieldErrors: Record<string, string> = {}) => ({
+      ok: false,
+      runId: null,
+      fieldErrors,
+      message,
+    });
+
+    const offer = await this.testVerificationOffer();
+    if (!offer.canStart) return refuse(offer.reason ?? 'A test verification cannot be started.');
+
+    const scope = await this.#scope();
+    if (scope === null) return refuse('Sign in to run a test verification.');
+
+    const fieldErrors: Record<string, string> = {};
+    const crmRecordId = input.crmRecordId.trim();
+    const messageId = input.messageId.trim();
+    const expectedRecipient = input.expectedRecipient.trim();
+    const correlationValue = input.correlationValue.trim();
+    if (crmRecordId === '') fieldErrors['crmRecordId'] = 'Name a CRM record that already exists.';
+    if (messageId === '')
+      fieldErrors['messageId'] = 'Give the provider id of a message that was already sent.';
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(expectedRecipient))
+      fieldErrors['expectedRecipient'] = 'Give the address the acknowledgement should have reached.';
+    if (correlationValue === '')
+      fieldErrors['correlationValue'] =
+        'Give the value that should be in the correlation property on that record.';
+    if (Object.keys(fieldErrors).length > 0) {
+      return refuse('Nothing was started. Check the fields below.', fieldErrors);
+    }
+
+    const decision = await consume(
+      this.#db,
+      `test-verification:${scope.workspaceId}`,
+      4,
+      3600,
+      this.#now,
+    );
+    if (!decision.allowed) {
+      return refuse(
+        'That is several test verifications in a short time, and each one costs a run. Wait a while before the next.',
+      );
+    }
+
+    const workflow = await this.workflow();
+    if (workflow === null) return refuse('There is no workflow to test against.');
+    const versionRow = await this.#db
+      .prepare('SELECT current_version_id FROM workflows WHERE workspace_id = ? AND id = ?')
+      .bind(scope.workspaceId, workflow.id)
+      .first<{ current_version_id: string | null }>();
+    const versionId = versionRow?.current_version_id ?? null;
+    if (versionId === null) {
+      return refuse(
+        'This workflow has no published version, so there are no rules to judge a test against.',
+      );
+    }
+
+    const environment = this.#env.STRIPE_MODE === 'live' ? 'live' : 'test';
+    const resolved = await resolveAllowancePeriodKey(new BillingPortSubscriptionSource(this.#db), {
+      workspaceId: scope.workspaceId,
+      atIso: toIso(this.#now),
+      environment,
+    });
+    if (resolved.key === null) {
+      return refuse(
+        'This workspace has no billing period open, so there is no allowance to draw a test run from.',
+      );
+    }
+
+    const at = nowIso(this.#now);
+    const eventId = `test-${newId(ID_PREFIX.sourceEvent, this.#now.getTime())}`;
+    const payload = {
+      schema_version: 1 as const,
+      event_id: eventId,
+      workflow_id: workflow.id,
+      occurred_at: at,
+      correlation_id: correlationValue,
+      expected: {
+        email_recipient: expectedRecipient,
+        crm_record_id: crmRecordId,
+        email_message_id: messageId,
+      },
+    };
+    const payloadJson = JSON.stringify(payload);
+
+    const admitted = await sourceEvents.admitOnce(this.#db, {
+      workspaceId: scope.workspaceId,
+      billingPeriod: resolved.key,
+      workflowId: workflow.id,
+      workflowVersionId: versionId,
+      externalEventId: eventId,
+      // The existing vocabulary, not a new value: this IS an owner-initiated test run,
+      // and the column has a CHECK constraint that a new word would fail at write time.
+      source: 'owner_test',
+      sourceEventId: newId(ID_PREFIX.sourceEvent, this.#now.getTime()),
+      runId: newId(ID_PREFIX.run, this.#now.getTime()),
+      outboxId: newId(ID_PREFIX.outbox, this.#now.getTime()),
+      receivedAt: at,
+      occurredAt: at,
+      correlationKeyHash: await sha256Hex(`${scope.workspaceId}:${correlationValue}`),
+      payloadHash: await sha256Hex(payloadJson),
+      payloadJson,
+      deadlineAt: toIso(new Date(this.#now.getTime() + workflow.deadlineSeconds * 1000)),
+      nextCheckAt: at,
+      // Marked at birth. Nothing downstream has to infer it, and the exclusions in the
+      // owner's run count and the workspace's verification rate read this column.
+      isSynthetic: true,
+    });
+
+    await auditEvents.record(this.#db, {
+      id: newId(ID_PREFIX.auditEvent, this.#now.getTime()),
+      actor: scope.userId,
+      actorKind: 'user',
+      workspaceId: scope.workspaceId,
+      action: 'run.test_verification_started',
+      target: admitted.runId,
+      occurredAt: at,
+      // The shape of what was asked, never the customer's values: a CRM record id and a
+      // recipient address are their data, not ours to copy into an audit row.
+      redactedMetadata: JSON.stringify({
+        workflow_id: workflow.id,
+        synthetic: true,
+        duplicate: admitted.duplicate,
+      }),
+    });
+
+    return {
+      ok: true,
+      runId: admitted.runId,
+      fieldErrors: {},
+      message:
+        'The test verification was admitted and is now waiting to be checked, exactly like a real enquiry. It is decided by reading your providers, so it can come back verified, failed or unverified.',
     };
   }
 

@@ -425,10 +425,18 @@ export class D1OwnerDataPort implements OwnerDataPort {
     return row === null ? null : Number(row.n);
   }
 
-  /** tenant-scope:exempt platform-wide owner metric across every workspace. */
+  /**
+   * Runs since an instant, across every workspace, for the owner's launch figures.
+   *
+   * Genuine customer activity only. `runs.is_synthetic` has marked owner-initiated test
+   * verifications since the column was added and NOTHING read it, so a test run a customer
+   * started in order to learn how the product works counted as platform traffic here. A
+   * flag is only worth setting if something honours it.
+   */
   async #runsSince(since: string): Promise<number | null> {
     const row = await this.#db
-      .prepare('SELECT COUNT(*) AS n FROM runs WHERE created_at >= ?')
+      // tenant-scope:exempt platform-wide owner metric across every workspace.
+      .prepare('SELECT COUNT(*) AS n FROM runs WHERE created_at >= ? AND is_synthetic = 0')
       .bind(since)
       .first<{ n: number }>();
     return row === null ? null : Number(row.n);

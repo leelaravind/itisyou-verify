@@ -127,8 +127,14 @@ export const runs = {
   async countByStatus(db: Db, workspaceId: string, since: string): Promise<Record<string, number>> {
     const result = await db
       .prepare(
+        // Synthetic runs are excluded here too, and for a sharper reason than on the
+        // owner's figures: this feeds the workspace's own verification rate, and a test
+        // verification is a run the CUSTOMER constructed by hand rather than one their
+        // automation produced. Counting it would let somebody raise their own pass rate by
+        // testing, which is the opposite of what the number is for. The runs list still
+        // shows them, labelled.
         `SELECT status, COUNT(*) AS n FROM runs
-          WHERE workspace_id = ? AND created_at >= ? GROUP BY status`,
+          WHERE workspace_id = ? AND created_at >= ? AND is_synthetic = 0 GROUP BY status`,
       )
       .bind(workspaceId, since)
       .all<{ status: string; n: number }>();

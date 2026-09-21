@@ -342,6 +342,47 @@ export interface ConnectionTestResult {
   readonly blockedReason: string | null;
 }
 
+/**
+ * What a test verification will cost, said before the customer starts one.
+ *
+ * It costs exactly one run from the monthly allowance, because it is admitted through the
+ * same path a real enquiry is. That is not an oversight: a free side-door would be a
+ * different code path, and a result from a different path would not tell the customer
+ * anything about the one their automation will use.
+ */
+export interface TestVerificationOffer {
+  /** False when something would refuse it; `reason` then says what. */
+  readonly canStart: boolean;
+  readonly reason: string | null;
+  /** Always true today, and a field so the page cannot stop saying it. */
+  readonly consumesAllowance: boolean;
+  readonly runsRemaining: number;
+  readonly runsIncluded: number;
+  /** The correlation property the workflow is configured to match on, for the form's hint. */
+  readonly correlationProperty: string;
+}
+
+/**
+ * The four values a customer supplies, which are exactly the four the real source-event
+ * schema carries. The form is a guided way of writing one, not a new shape.
+ */
+export interface TestVerificationInput {
+  /** A CRM record that ALREADY EXISTS. We never create one. */
+  readonly crmRecordId: string;
+  /** The provider's own id for an acknowledgement message that was already sent. */
+  readonly messageId: string;
+  readonly expectedRecipient: string;
+  readonly correlationValue: string;
+}
+
+export interface TestVerificationResult {
+  readonly ok: boolean;
+  /** Where the customer can watch it resolve. Null when nothing was started. */
+  readonly runId: string | null;
+  readonly fieldErrors: Readonly<Record<string, string>>;
+  readonly message: string;
+}
+
 export interface ConnectionCredentialsInput {
   readonly provider: ProviderKey;
   /** Never echoed back to the page, never logged, never stored unsealed. */
@@ -419,6 +460,27 @@ export interface CustomerDataPort {
 
   /** Run the configured rules against synthetic evidence, so the customer sees a result first. */
   runProof(): Promise<ProofRunView>;
+
+  /**
+   * What a test verification would cost and whether it can be started, asked before the
+   * customer commits to one.
+   *
+   * Separate from starting it for the same reason the billing portal's availability is
+   * separate from opening it: a page that has to DO the thing to find out whether it can
+   * spends the customer's allowance to render a button.
+   */
+  testVerificationOffer(): Promise<TestVerificationOffer>;
+
+  /**
+   * Start a test verification from four values the customer supplies.
+   *
+   * It goes through the SAME admission path a real signed event takes and is decided by
+   * the same evaluator against the same provider evidence. That is the whole point: a
+   * parallel "test mode" that simulated a result would prove nothing about the pipeline
+   * the customer is buying, and a green tick from it would be exactly the kind of claim
+   * this product exists to refuse.
+   */
+  startTestVerification?(input: TestVerificationInput): Promise<TestVerificationResult>;
 
   orderSummary(): Promise<OrderSummaryView>;
   /** Create a Stripe Checkout session. The price is resolved server-side, never posted. */
