@@ -321,6 +321,29 @@ a:hover{text-decoration-thickness:2px}
 .claimrule__split::before,.claimrule__split::after{content:"";flex:1 1 auto;border-top:1px solid var(--c-rule-strong)}
 .claimrule__verdict{flex:0 0 auto}
 
+/* ---- a panel rail: one nav, in the place that suits the width ------------ */
+/* The wrapper is .shell-rail, NOT .panel: .panel is already the launch-figures section and
+   every other framed section on the owner screens, and a grid declared on it turned each of
+   them into a two-column layout with its own heading as the first column. */
+/* Below 78rem there is no room for a column of links beside the content, so the rail is
+   not rendered at all and the header nav is the navigation. At and above it the rail
+   takes the links and the header nav is hidden, so a reader meets thirteen links once
+   either way. display:none on the hidden one keeps it out of the accessibility tree. */
+.rail{display:none}
+@media (min-width:78rem){
+  .shell-rail{display:grid;grid-template-columns:minmax(0,13rem) minmax(0,1fr);align-items:start;max-width:var(--w-wide);margin-inline:auto;padding-inline:var(--s8);gap:var(--s8)}
+  .shell-rail .wrap{padding-inline:0;max-width:none}
+  .rail{display:flex;flex-direction:column;gap:var(--s1);position:sticky;top:var(--s6);padding-top:var(--s8);border-right:1px solid var(--c-rule);padding-right:var(--s4)}
+  /* The current item is marked by weight, full-contrast ink and a sunken ground, not by a
+     bar down its left edge: that device is excluded, and a nav item is not the place to
+     reintroduce it. aria-current carries the same fact to a reader who sees none of this. */
+  .rail a{color:var(--c-muted);text-decoration:none;font-size:var(--t-small);padding:var(--s2) var(--s3);transition:color var(--dur-fast) var(--ease),background-color var(--dur-fast) var(--ease)}
+  .rail a:hover{color:var(--c-ink)}
+  .rail a[aria-current="page"]{color:var(--c-ink);background:var(--c-sunken);font-weight:600}
+  .site .nav a{display:none}
+  .site .nav .micro, .site .nav form, .site .nav button{display:revert}
+}
+
 /* ---- a shape, shown rather than described ------------------------------- */
 /* Not a terminal and not a code editor: no window chrome, no traffic lights, no prompt,
    no caret. A ruled block of aligned mono, which is what the thing being shown actually

@@ -19,7 +19,7 @@ import { OperationsPage } from '@app/routes/owner/opsPages';
 import { OwnerLayout } from '@app/routes/owner/chrome';
 import { MemoryOwnerDataPort, syntheticOwnerPrincipal } from '@app/owner/memory';
 import type { OverviewView } from '@app/owner/port';
-import { html, renderSync } from '@verify/ui';
+import { CSS, html, renderSync } from '@verify/ui';
 
 const NOW = new Date('2026-09-20T12:00:00.000Z');
 
@@ -115,6 +115,50 @@ describe('the owner panel reserves error styling for problems', () => {
 
     // And the check that did not run says so in the same register.
     expect(toneOfCallout(html, 'Not checked'), 'an unchecked queue was drawn as a failure').toBe('limit');
+  });
+
+  it('OWNER-924 the panel navigates by a rail at desktop width and by the header below it, never both', () => {
+    /*
+     * Thirteen screens. The header nav ran the full width of a desktop and wrapped onto
+     * three lines on a phone, which is what the approved owner reference solves with a rail
+     * and what every panel with this many screens solves the same way.
+     *
+     * The risk in adding one is that a reader now meets the same thirteen links twice. So
+     * only one is ever visible: the rail is display:none until there is room for it, and at
+     * that width the header links are display:none instead. display:none, not opacity or
+     * visibility, because it is the one that also removes them from the accessibility tree.
+     */
+    const page = renderSync(
+      OwnerLayout({
+        title: 'Overview',
+        path: '/owner',
+        body: html`<p>body</p>`,
+        accountLabel: 'owner@example.invalid',
+      }),
+    );
+
+    const rails = page.match(/<nav class="rail"/g) ?? [];
+    expect(rails.length, 'the panel rail is not rendered exactly once').toBe(1);
+
+    // The current screen is marked for a reader who sees the rail and for one who does not.
+    const railAt = page.indexOf('<nav class="rail"');
+    const rail = page.slice(railAt, page.indexOf('</nav>', railAt));
+    expect(rail).toContain('aria-current="page"');
+    expect(
+      (rail.match(/aria-current="page"/g) ?? []).length,
+      'two rail items claim to be the current page',
+    ).toBe(1);
+
+    // Exactly one of the two navigations is visible at any width.
+    expect(CSS).toContain('.rail{display:none}');
+    const wide = CSS.slice(CSS.indexOf('@media (min-width:78rem){'));
+    expect(wide).toContain('.rail{display:flex');
+    expect(wide, 'the header links stay beside the rail').toContain('.site .nav a{display:none}');
+
+    // The current item is marked without the excluded left-edge bar.
+    const current = /\.rail a\[aria-current="page"\]\{([^}]*)\}/.exec(CSS)?.[1] ?? '';
+    expect(current, 'the rail marks the current item with nothing at all').not.toBe('');
+    expect(current, 'the rail grew a left-edge accent bar').not.toContain('border-left');
   });
 
   it('OWNER-923 the placeholder-deployment banner is one sentence with the rest behind a disclosure', () => {

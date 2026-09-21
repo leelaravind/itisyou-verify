@@ -94,6 +94,8 @@ export function OwnerLayout(options: OwnerPageOptions): Html {
     title: options.title,
     path: options.path,
     nav: OWNER_NAV,
+    // Thirteen screens: a rail at desktop width, the header nav below it. See ShellOptions.
+    rail: true,
     noindex: true,
     ...(accountLabel === undefined
       ? {}

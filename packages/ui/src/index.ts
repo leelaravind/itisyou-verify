@@ -69,3 +69,7 @@ export { CSS, CSS_BYTES, THEME_SCRIPT } from './styles.js';
 export * from './components/index.js';
 export * from './layout/index.js';
 export { STITCH_SCREENS, designProgress, type DesignProgress } from './designProgress.js';
+/* The native disclosure lives in the story package because that page needed it first. It is
+   re-exported here because the workspace needs the same one: a second <details> with the same
+   classes would be a copy, and this codebase has been bitten by copies of devices before. */
+export { Disclosure, type DisclosureOptions } from './story/components.js';

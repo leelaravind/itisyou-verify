@@ -95,6 +95,23 @@ describe('the guided test verification', () => {
     expect(text).toMatch(/uses one of your \d+ runs/);
     // And the refusal of the inference somebody would most like to draw.
     expect(text).toContain('It proves nothing about whether your automation reports its enquiries');
+
+    /*
+     * The four fields sit behind a closed disclosure so the page answers "is my automation
+     * working" before it offers an occasional action. Neither of the two sentences above may
+     * follow them in: a limitation behind a disclosure is one a reader can honestly say they
+     * never saw, and the cost has to be stated BEFORE the test is started.
+     */
+    const disclosureAt = served.html.indexOf('<details');
+    expect(disclosureAt, 'the form is no longer behind a disclosure').toBeGreaterThan(-1);
+    const openText = visibleText(served.html.slice(0, disclosureAt));
+    expect(openText, 'the allowance cost moved inside the disclosure').toMatch(
+      /uses one of your \d+ runs/,
+    );
+    const afterDisclosure = visibleText(served.html.slice(served.html.indexOf('</details>')));
+    expect(afterDisclosure, 'the refusal of the inference moved inside the disclosure').toContain(
+      'It proves nothing about whether your automation reports its enquiries',
+    );
   });
 
   it('VERIFY-561 every guided field names something that must already exist, and nothing is written anywhere', async () => {
