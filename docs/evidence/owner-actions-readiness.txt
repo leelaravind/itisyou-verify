@@ -1,0 +1,72 @@
+What is verified about the two owner-blocked items, and what is left
+21 September 2026, against production at c2972fb85489.
+
+The point of this file is to shrink both items to the smallest possible action, and to be
+exact about which part genuinely cannot be done by anyone but the owner.
+
+
+=== B9. The owner panel, signed in ===
+
+Everything around the sign-in is verified. The sign-in itself is not, and cannot be.
+
+  /admin/login on production                    200, serves the form
+  platform owners in the production database    1
+  of those with TOTP enrolled                   1
+  auth.totp.enrolled (production audit)         1, 2026-09-20 11:09Z
+  auth.totp.accepted (production audit)         1, 2026-09-20 11:37Z
+  auth.signin (production audit)                5, latest 2026-09-21 12:30Z
+  sign_in_link mail delivered from production   11 rows, every one state=sent,
+                                                latest 2026-09-21 12:29Z
+  anonymous /owner                              404
+  anonymous /app                                401
+  the panel rendered at three widths            13 screens, no overflow, exclusion-clean
+
+So: the account exists, the second factor is enrolled and has been accepted on production
+before, the mail that carries the link is being delivered from production, and the panel
+renders. What has never happened is a person opening that link and typing the code, and
+nobody may do it for them. A production session must not be seeded and authentication must
+not be bypassed, which is the owner's own instruction and the right one.
+
+THE ACTION, in full:
+  1. Open https://verify.itisyou.app/admin/login
+  2. Type the owner address, press "Email me a link"
+  3. Open the link from the mailbox
+  4. When prompted, enter the six-digit code from the authenticator app
+  5. Say so, and the panel gets walked against production data in this session
+
+
+=== B10. support@itisyou.app ===
+
+DNS is verified and the routing rule is not, because it cannot be read from here.
+
+  MX      route1/2/3.mx.cloudflare.net    (Cloudflare Email Routing)
+  SPF     v=spf1 include:_spf.mx.cloudflare.net ~all
+
+Whether a rule ACCEPTS support@ is observable from outside, by offering the recipient over
+SMTP without sending a message. That was attempted, and the exact refusal is the finding:
+
+  connected to route1.mx.cloudflare.net:25
+  <= 550 Sender IP reverse lookup rejected (2a01:4b00:...)
+
+Cloudflare refuses the session before any recipient can be offered, because this machine is
+on a connection with no reverse DNS. That is a fact about where the probe runs, not about the
+routing rule, and no amount of retrying changes it. A host with reverse DNS could answer the
+question; this one cannot.
+
+THE ACTION, in full:
+  1. Cloudflare dashboard, itisyou.app, Email, Email Routing, Routes
+  2. Confirm a rule whose custom address is support@itisyou.app and whose destination is a
+     mailbox you actually read
+  3. Send one message to support@itisyou.app from any account and confirm it arrives
+
+Replying AS support@itisyou.app is a separate thing and needs an outbound identity: either
+that address verified as a sending identity in Resend, or a "send as" identity in the mail
+client. Cloudflare Email Routing is receive-only and cannot send.
+
+
+=== A thing worth noting while reading production ===
+
+The owner alert channel is live right now. notification_deliveries carries 19
+milestone_reached rows, every one state=sent, the most recent at 2026-09-21 17:36Z, which is
+the release notification for this afternoon's deploy. The path that would carry a payment
+alert is therefore delivering today, not merely correct in the code.
