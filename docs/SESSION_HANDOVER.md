@@ -3,7 +3,11 @@
 Written 21 September 2026, 08:40 UTC. **Corrected at 14:10 UTC** after an independent
 meta-audit found this file, the first in its own prescribed reading order, still describing
 as open several defects that the same day had already fixed and deployed. Every figure below
-is re-read, or says it could not be.
+is re-read, or says it could not be. **Updated again for the afternoon candidate**, with the
+machine clock reading 13:53Z on 21 September: staging serves that candidate, production does
+not, and the reason production does not is a permission decision rather than a failure. (The
+14:10 UTC stamps above were written before that clock reading and are ahead of it; they are
+left as written rather than quietly re-dated.)
 Figures are read from the repository, the deployed services or their databases; where
 something could not be read, it says so. No credentials, cookies or codes appear here.
 
@@ -18,9 +22,9 @@ live-payment decision) → `docs/handover-evidence.md` (one page of sourced clai
 | Branch                      | `main`                                                                                                         |
 | HEAD                        | see `git rev-parse HEAD`; this row went stale twice on 21 Sept and is no longer pinned here                   |
 | Working tree                | single worktree `H:/itisyou-verify`, no stashes. Check it; do not trust a recorded state    |
-| Production                  | `d11c271654bd` at 11:54Z, verified by `GET https://verify.itisyou.app/health`                                 |
-| Staging                     | `d11c271654bd` at 11:51Z, released BEFORE production from the same gate artefact                              |
-| Undeployed work             | At 14:10Z the tree carries the billing-portal fix and its tests, uncommitted. Not deployed  |
+| Production                  | `d11c271654bd`, read back from `GET https://verify.itisyou.app/health` at 13:53Z on 21 Sept. **Behind staging by one candidate** |
+| Staging                     | `a904db086221`, read back from `GET https://verify-itisyou-staging.kpleelaaravind.workers.dev/health` at 13:53Z. This is the candidate |
+| Undeployed work             | The application code in `a904db086221` (connection test, guided test verification, billing-portal fix, motion) is on staging and NOT on production. `07a42794620c` sits on top of it and changes documentation and evidence only, no application code |
 | Last CI run used to release | `gh run list` — releases require the CI artefact `release-gate-<fullsha>` for HEAD (see §6)                    |
 
 **Release procedure that works** (all four traps hit this weekend are avoided by it).
@@ -95,7 +99,10 @@ Telegram message goes to the owner once per deployed commit (proof: a
 | R9  | Remaining Stitch screens (4 of 19)                                                                        | lead         | design references; batch-03 retrieval (§5) | `/security` (no approved reference — needs one), `/admin/login`, `/support`, `/development-story/visual`; also `/owner/cleanup`. Follow §5 exclusions                                                                                                                                                                                                                 |
 | R10 | Stitch batch-03 retrieval                                                                                 | lead         | Stitch MCP (session `d63ebe`'s work)       | `design/stitch/screens/batch-03/README.md` — list project `12603262649263949929`, diff against `INVENTORY.md`, export only new screens                                                                                                                                                                                                                                |
 | R11 | Ten genuine external visits                                                                               | —            | organic posts / ads                        | Honest count: 0 attributable. Ads paused by owner; posts unapproved                                                                                                                                                                                                                                                                                                   |
-| R12 | Development stories for the next work                                                                     | lead         | as work lands                              | Append events after EVT-0048 with `commit_sha` and `test_evidence_refs`; keep `apps/app/public/development-story.md` identical to `docs/development-story.md` (DOC-130)                                                                                                                                                                                               |
+| R15 | **Promote `a904db086221` (as `07a42794620c`) to production**                                                 | owner        | one command approval                       | `node scripts/release.mjs --env production --gate-artefact …` aborts at its **database migrations** step: `npx wrangler d1 migrations apply verify-itisyou-db-production --env production --remote` is refused by the permission classifier. `wrangler d1 migrations list … --remote` answers "No migrations to apply!", so the step is a no-op, and `scripts/release.mjs` has no flag that skips it (`--skip-tests` is refused for production; `--dry-run` deploys nothing). Approve that one command, then run the release unchanged. Recorded as blocker 0 in the checklist |
+| R16 | Owner panel walkthrough on production                                                                     | owner + lead | none                                       | Owner signs in at `https://verify.itisyou.app/admin/login` and confirms a TOTP code; the lead then reads `/owner`, `/owner/customers`, the billing and approval controls and the alert log, and records which are implemented and which are placeholders. **A production session must not be seeded and authentication must not be bypassed**, so this cannot start without the owner |
+| R17 | Owner and admin panel recomposition                                                                       | lead         | R16 (so the panel can be seen signed in)   | The owner panel renders and is exclusion-clean, and its layout is unchanged by this work. Recorded as NOT done in checklist row 6.13 rather than folded into "full UI" |
+| R12 | Development stories for the next work                                                                     | lead         | as work lands                              | Append events after EVT-0058 (21 Sept added EVT-0056 connection test, EVT-0057 guided test verification, EVT-0058 motion) with `commit_sha` and `test_evidence_refs`; keep `apps/app/public/development-story.md` identical to `docs/development-story.md` (DOC-130)                                                                                                                                                                                               |
 | R13 | Cleanup                                                                                                   | lead         | none                                       | Browser tabs left open on Resend/Stripe/HubSpot/Google Ads dashboards (owner's profile) — close them; scratch scripts live under this session's scratchpad only                                                                                                                                                                                                       |
 | R14 | Owner dashboard re-check with the owner's own session                                                     | owner        | none                                       | The owner's session was rotated out by the customer sign-in on 20 Sept. Sign in at `/admin/login`, confirm a code, open `/owner` and one control; record                                                                                                                                                                                                              |
 
@@ -156,14 +163,16 @@ to migrate it.
 
 | Command (from `H:/itisyou-verify`)                                                                                                                     | Latest result                                                                                             |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
-| `pnpm typecheck`                                                                                                                                       | clean (21 Sept ~08:10Z)                                                                                   |
+| `pnpm typecheck`                                                                                                                                       | clean (21 Sept 13:4xZ, at `07a42794620c`)                                                                 |
 | `pnpm lint`                                                                                                                                            | clean                                                                                                     |
-| `pnpm exec vitest run tests/unit/ui tests/integration/customer`                                                                                        | 249 passed, 1 skipped (08:10Z)                                                                            |
+| `pnpm exec vitest run tests/unit tests/integration tests/security`                                                                                     | 2,789 passed / 4 skipped across 190 files, 2 files skipped (21 Sept 13:4xZ)                               |
 | `pnpm test` (full, via `scripts/run-tests.mjs`)                                                                                                        | last full run 20 Sept 09:5xZ: 2,737 passed / 4 skipped; since then every commit passed CI (`gh run list`) |
-| `node scripts/verify-test-cases.mjs --strict`                                                                                                          | Ledger integrity PASS; 2,797 cases                                                                        |
-| `node scripts/verify-story.mjs`                                                                                                                        | record well-formed, EVT-0001..0048                                                                        |
+| `node scripts/verify-test-cases.mjs --strict`                                                                                                          | Ledger integrity PASS; 2,845 cases                                                                        |
+| `node scripts/verify-story.mjs`                                                                                                                        | record well-formed, EVT-0001..0058                                                                        |
 | `node scripts/scan-claims.mjs` / `scan-secrets.mjs`                                                                                                    | clean (run inside every release too)                                                                      |
-| `curl -s https://verify.itisyou.app/health`                                                                                                            | commit `a89f60e`                                                                                          |
+| `curl -s https://verify.itisyou.app/health`                                                                                                            | commit `d11c271654bd` (13:53Z, 21 Sept)                                                                  |
+| `curl -s https://verify-itisyou-staging.kpleelaaravind.workers.dev/health`                                                                              | commit `a904db086221` (13:53Z, 21 Sept), the candidate                                                   |
+| `node scripts/scan-secrets.mjs`                                                                                                                         | clean, 798 tracked files                                                                                  |
 | `curl -sI https://verify.itisyou.app/pricing \| grep -i form-action`                                                                                   | `form-action 'self' https://checkout.stripe.com https://billing.stripe.com`                               |
 | Production DB reads (from `apps/app`): `pnpm exec wrangler d1 execute verify-itisyou-db-production --env production --remote --json --command "<SQL>"` | see §2 for the rows read; never select secret columns                                                     |
 
@@ -195,8 +204,25 @@ next reader to trust it less, not more.
   live/test gate.
 - ~~Legal pages carry placeholders (R1) and a tax sentence the checkout does not implement (R2)~~
   **fixed and deployed**, read back from the served pages.
-- **Still open:** the billing portal fix and the connection/test-verification actions are in the
-  working tree and NOT yet deployed at the time of writing.
+- **Still open (13:53Z):** the billing-portal fix and the connection and test-verification
+  actions are committed, released to staging and verified there
+  (`docs/evidence/staging-verification-a904db086221.txt`). They are **not on production**: the
+  release aborted at a no-op migration step the permission classifier refuses. R15 carries the
+  exact command.
+- The **owner panel has not been recomposed** (R17) and has not been walked through signed in
+  (R16). Neither is claimed as done anywhere; checklist row 6.13 records the first and R16 the
+  second. "The whole UI is finished" would be false while R17 stands.
+- The **missing Stitch screens were not generated** (R9, checklist 6.14). A generation run stalled
+  after roughly 140k tokens and was stopped on the owner's cost instruction. `/security` still has
+  no owner-approved reference, so it cannot be composed against one.
+- The **guided test verification proves the pipeline, not the customer's automation.** It writes a
+  real source event through `sourceEvents.admitOnce`, spends one run from the allowance and is
+  decided by the real evaluator against real provider reads. The page says a pass proves nothing
+  about whether the customer's own automation reports its enquiries. Do not let that sentence be
+  edited out.
+- The **connection test checks API access and webhook readiness only.** `workflowVerification` is a
+  field on the result type whose value is always `not_checked`, so the page structurally cannot
+  claim the workflow is verified. Do not collapse the three findings into one tick.
 - Support mailbox unverified (R8): DNS proves Cloudflare Email Routing; whether a routing rule
   exists for `support@` could not be determined from this machine and is an owner action.
 - Four screens not composed; `/security` has no owner-approved reference.
