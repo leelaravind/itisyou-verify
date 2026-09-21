@@ -38,7 +38,7 @@ Status: `done` · `active` · `blocked` · `queued`
 | #   | Item                                                                             | Owner          | Status                               | Next action | Evidence to close                                                                                                                                                                                                                                                                                                                                                          |
 | --- | -------------------------------------------------------------------------------- | -------------- | ------------------------------------ | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 3.1 | Essential Stitch screens (`/app`, onboarding, runs, usage, billing, connections) | A-UI           | **done, deployed `5da4766`**         | —           | 36 screenshots at 390/820/1440, viewport read back; each opened beside its reference                                                                                                                                                                                                                                                                                       |
-| 3.2 | Public screens                                                                   | A-UI           | **done, production verified**        | —           | `/`, `/pricing`, `/how-it-works`, `/demo` composed and re-captured; `/security` has **no approved reference** and is honestly marked not composed                                                                                                                                                                                                                          |
+| 3.2 | Public screens                                                                   | A-UI           | **recomposed and deployed `d11c271654bd`** | —           | `/` and `/pricing` recomposed against the owner exclusions and captured from production at 1440 and 390: `reports/screenshots/production-d11c271654bd/`. Nine excluded devices removed at the token and stylesheet layer, so the fix reaches all nineteen screens; RESIL-911..917 assert each is absent from the whole sheet. Zero reader-visible em or en dashes on all nine public pages, measured against the served HTML. `/security` still has **no owner-approved reference** and stays marked not composed |
 | 3.3 | Owner journey stays authenticated, MFA on consequential actions                  | auditor + lead | **done, production verified 12:00Z** | —           | production: `owner.bootstrap granted` 10:59:25Z; `auth.totp.enrolled` 11:09:28Z; `auth.totp.accepted` 11:37:55Z with `mfa_verified_at` stamped; first consequential action (workspace.create) succeeded 11:39:29Z inside the window; second bootstrap paste refused `already_bootstrapped` 11:59:01Z; anonymous `/owner`, `/owner/customers`, `/admin/authenticator` → 404 |
 | 3.4 | Owner dashboard shows launch figures                                             | A-UI           | **done, deployed `5da4766`**         | —           | eight tiles from live ports, `unknown` (no numeral) on a failed read, OWNER-901..907; cannot label sandbox vs live orders because no mode column exists, and the tile says so                                                                                                                                                                                              |
 
@@ -47,18 +47,18 @@ Status: `done` · `active` · `blocked` · `queued`
 | #   | Item                                     | Owner        | Status                                                                                   | Next action                                                       | Evidence to close                                                                                                                                                                                                                                                                                              |
 | --- | ---------------------------------------- | ------------ | ---------------------------------------------------------------------------------------- | ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 4.1 | Release gate sees Playwright failures    | lead         | **done, exercised**                                                                      | —                                                                 | gate refused the `e0aa820` artefact naming the 3 failures; passed `cff4749` at 15/0/0                                                                                                                                                                                                                          |
-| 4.2 | Deploy the verified version              | lead         | **done, production verified**                                                            | —                                                                 | `cff4749` deployed 07:42Z through the full gate; `/health` commit matches; all five pages free of the stale claims                                                                                                                                                                                             |
+| 4.2 | Deploy the verified version              | lead         | **done, production verified `d11c271654bd`**                                             | —                                                                 | Staging first at 11:51Z, then production at 11:54Z, from the **same** gate artefact (`reports/release-gate/d11c271654bd/`), so both run one candidate. Gate: 2,692 citable passing cases, browser 15 passed / 0 failed / 0 flaky. `/health` on both environments returns `d11c271654bd`. Rendered claim scan clean over 7 served pages on each. Deploy alert delivered: `milestone_reached:release_deployed:production:d11c27`, telegram, `sent`, 11:54:25Z |
 | 4.3 | Campaign budget within GBP 15 all-in     | lead         | **done**                                                                                 | —                                                                 | Campaign total lowered GBP 12.46 → **GBP 12.25** at 08:40Z, verified across a reload: 12.25 + 2% DST fee = 12.50, + 20% VAT = **14.99**                                                                                                                                                                        |
 | 4.4 | Account tax/fee treatment                | lead         | **done**                                                                                 | —                                                                 | Billing settings: Individual, UK, no VAT number, Postpay, GBP 7.50 threshold (a trigger, not a cap), no account ceiling. Google's own help (answer 9750227): UK DST fee **2% added on top of** media spend, VAT applies to the fee. Caveat unchanged: the invoice rate is only provable from the first invoice |
 | 4.5 | Submit campaign                          | owner + lead | **submitted 20 Sept; ad saved; campaign PAUSED 21 Sept 08:50 UK by the owner's account** | Owner decides whether to re-enable; lead touches nothing          | Change history: "21 Sept 2026 08:50:18 — kpleelaaravind@gmail.com — 1 campaign paused". Ad row: "Not eligible — Campaign is paused". Budget £12.25 total, 0 impressions, spend GBP 0.00. States: drafted ✓, submitted ✓, approved ✗ (review not completed before the pause), delivering ✗                      |
-| 4.6 | Live-payment approval pack for the owner | lead         | **decision updated 08:05Z: NOT READY, 6 of 13 FAIL**                                     | Owner: L5 legal identity values, L6 VAT decision; lead: L7 alerts | `docs/live-payment-approval.md`: P1/P2 now PASS on production; open: L2 live price, L3 live secrets/destination, L4 mode flip (last), L5 seven legal fields, L6 tax wording vs. checkout config, L7 payment alerts                                                                                             |
+| 4.6 | Live-payment approval pack for the owner | lead         | **decision updated 12:00Z: NOT READY, 3 of 13 FAIL**                                     | Owner only, in order: L2, L3, then L4                            | `docs/live-payment-approval.md`: L5, L6 and L7 moved to PASS and are deployed and read back from production. The three that remain are the owner's to authorise: L2 a live £29.00 price in the parent account, L3 live secrets and a webhook destination, L4 the `STRIPE_MODE` flip, which is last |
 
 ## D5 — Handover
 
 | #   | Item                             | Owner | Status                        | Next action             | Evidence to close                                                                       |
 | --- | -------------------------------- | ----- | ----------------------------- | ----------------------- | --------------------------------------------------------------------------------------- |
 | 5.1 | One evidence report              | lead  | queued                        | Replaces scattered docs | single file, every claim sourced                                                        |
-| 5.2 | Both development stories current | lead  | queued                        | End                     | events carry commit SHAs                                                                |
+| 5.2 | Both development stories current | lead  | **done, deployed**            | —                       | EVT-0049..EVT-0053 appended with commit SHAs and test-evidence refs, `verify-story` well-formed; the served `/development-story` page corrected in the three places today's work made false and swept of its 40 dashes; `apps/app/public/development-story.md` byte-identical to `docs/development-story.md` (DOC-130) |
 | 5.3 | Correct public claims            | lead  | **done, production verified** | —                       | five live pages: 0 stale strings, corrected notice present (07:43Z)                     |
 | 5.4 | Cleanup: worktree, temp files    | lead  | **done 10:15Z**               | —                       | `git worktree list` shows only the main tree; releases now run from the clean main tree |
 
@@ -107,10 +107,53 @@ Status: `done` · `active` · `blocked` · `queued`
 
 ## Launch blockers (only these stop a launch)
 
-1. **Nothing on the payment path blocks a sandbox launch any more.** D1.1–1.6 are production verified (21 Sept 07:54–07:57Z). Live payments remain a separate decision: NOT READY, 6 of 13 FAIL, in `docs/live-payment-approval.md`.
-2. **Two product defects found and fixed on the way** (both would have stopped every customer): the connect page's false "webhook address does not exist" sentence (`e35c2b8`), and CSP `form-action 'self'` swallowing the redirect to Stripe Checkout (`953e9c5`). Both production verified.
-3. **4.5, campaign**: PAUSED at 08:50 UK on 21 Sept by the owner's account (change history); not delivering; £0.00. The lead does not enable ads.
-4. **Still open and not launch-blocking:** the "There is a problem" header shown above a _successful_ Resend save (tone defect); L5–L7 for live payments; four Stitch screens not composed.
+Read at 12:00 UTC on 21 September 2026, against production at `d11c271654bd`.
+
+1. **Nothing on the sandbox payment path blocks a launch.** D1.1-1.6 are production verified
+   (21 Sept 07:54-07:57Z). Live payments remain a separate, owner-gated decision.
+
+2. **An authorisation hole on the money path was found and closed today, and it is the most
+   important thing on this page.** `createCheckout` enforced no role and `orderSummary()`
+   never consulted one, so on a workspace with both providers ready and a workflow published,
+   a `workspace_viewer` was shown a live "Continue to secure checkout" button and pressing it
+   produced a **303 to Stripe Checkout** for a workspace they may only read. Found by an
+   independent review on a second model, not by the suite. Closed as a blocker inside
+   `orderSummary` so the page and the route read one answer. Evidence, in the order it is
+   worth trusting:
+   - **deployed staging, both roles, same workspace**: an admin sees a checkout form, a viewer
+     does not; a viewer's hand-built POST carrying a real session and a real double-submit CSRF
+     pair answers **503 with the role refusal**, no `Location`, and creates no order
+     (`reports/evidence/staging-verification-d11c271654bd.txt`).
+   - **mutation check**: with the guard removed, AUTH-514 fails and AUTH-515 fails with
+     *expected 303 to be 503*, which is the vulnerability reproduced; AUTH-516, the admin
+     control on the identical fixture, passes throughout
+     (`reports/evidence/mutation-check-auth-478-480.txt`).
+   - the first regression written for this was **rejected by the owner** because it posted no
+     CSRF token and so proved the CSRF guard rather than role enforcement. That is recorded
+     because the lesson is the point: a refusal is not evidence of the refusal you wanted.
+
+3. **The release gate caught a red browser suite that the vitest count could not see.** Two
+   Playwright cases had gone stale against today's copy changes while `failing: 0` was
+   reported, because that figure never reads the Playwright report. Production refuses on it
+   and staging warns; both fixed before the deploy. Run the whole browser suite locally, not
+   one spec.
+
+4. **4.5, advertising**: PAUSED at 08:50 UK on 21 Sept by the owner's own account (change
+   history), not delivering, £12.25 total budget, 0 impressions, £0.00 spent. **The lead does
+   not enable ads.**
+
+5. **Still open, and none of it is launch-blocking for a sandbox launch:**
+   - L2, L3, L4 for live payments, all owner-only, in that order.
+   - four of nineteen screens not composed; `/security` has no owner-approved reference to
+     compose against, so it cannot simply be built.
+   - `support@itisyou.app`: DNS proves Cloudflare Email Routing (MX route1/2/3, SPF, DMARC
+     `p=none`). Whether a **routing rule** exists for `support@` could not be determined from
+     here: the wrangler OAuth token carries `zone (read)` and not email-routing scope, and an
+     SMTP `RCPT TO` probe connected to the MX but would not complete a conversation from this
+     machine. Owner action, one look: Cloudflare, Email, Email Routing, Routes. Replying **as**
+     `support@` needs an outbound identity and is a second, separate decision.
+   - ten genuine external visits: honest count still **zero**.
+   - the demonstration page's runs are still fixtures.
 
 ## Improvements that can wait
 
@@ -118,25 +161,17 @@ Webhook evidence reaching the evaluator (fails safe today); `transport` column; 
 `detail` persistence; 13 ledger rows on borrowed ids; stale gap-register rows; the Stitch
 logo; owner-screen composition.
 
-## Owner-only actions — all of them, together
+## Owner-only actions, all of them, together
 
-The full version, with the exact command or page for each, is **`docs/owner-actions.md`**.
+Read 21 September 2026 at 12:00 UTC. Everything the lead can do without you is done and
+deployed at `d11c271654bd`. These four are yours, and nothing else is waiting on you.
 
-| #   | Action                                                                                              | State                                                                           |
-| --- | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| O1  | ~~Google identity challenge~~                                                                       | **done**                                                                        |
-| O2  | ~~EU political ads declaration~~                                                                    | **done**                                                                        |
-| O5  | ~~Confirm tax treatment~~                                                                           | **done** — budget lowered to GBP 12.25 on the account's own DST + VAT treatment |
-| O7  | ~~Publish the campaign~~                                                                            | **done** by owner; it was empty, lead is filling it                             |
-| O10 | Set `OWNER_BOOTSTRAP_EMAIL` on production (`wrangler secret put … --env production`)                | **do now** — not configured, bootstrap refuses everyone                         |
-| O11 | Set an `OWNER_BOOTSTRAP_TOKEN` you hold                                                             | **do now**                                                                      |
-| O12 | Install an authenticator app                                                                        | **do now**                                                                      |
-| O4  | Approve the two organic posts                                                                       | ready — shortened versions in `docs/organic-launch.md` §4.3, §5.3               |
-| O8  | Claim the owner account: `/admin/login` → link → `/admin/bootstrap` + token                         | after `569e8e3` deploys                                                         |
-| O13 | Enrol the authenticator at `/admin/authenticator`, confirm a code                                   | after O8                                                                        |
-| O14 | Create the isolated test workspace at `/owner/customers` (outlook address, "Test workspace" ticked) | after O13                                                                       |
-| O6  | Sign in as that customer at `/app/sign-in`, tell the lead                                           | after O14 — unblocks D1.2–1.6                                                   |
-| O3  | Approve live customer payments (`docs/live-payment-approval.md`)                                    | only after O6 is proven                                                         |
-| O9  | Nothing: the budget is not to be increased, and it is not                                           | —                                                                               |
+| #   | Action                                                                                                                                                                                                                                     | Why only you                                                        |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| O4  | **Approve or edit the two organic posts.** Shortened, no client stories, read-back-only wording; `docs/organic-launch.md` §4.3 and §5.3. The lead posts nothing.                                                                            | They publish under your name.                                       |
+| O15 | **Confirm the `support@itisyou.app` routing rule.** Cloudflare, Email, Email Routing, Routes: is there a rule for `support@`, and where does it forward? One look. Then the lead sends one test message and records receipt. Reply-as is a separate decision after that. | The Cloudflare dashboard needs your sign-in; the token here has `zone (read)` only. |
+| O3  | **Live customer payments**, in order: L2 a live £29.00 monthly price in the parent account `acct_1UHU2QP8C4JrYWQF`, L3 a restricted live key, a new opaque webhook path id and a live destination with the six event types, then L4 the `STRIPE_MODE` flip. Exact steps: `docs/live-payment-approval.md` §4. L5, L6 and L7 are now PASS and deployed, so those three are all that remain. | Spending real money and taking it from strangers is your decision.  |
+| O14b| **Re-check the owner dashboard in your own session.** Your session was rotated out by the customer sign-in on 20 Sept. Sign in at `/admin/login`, confirm a code, open `/owner` and use one control. The lead verified the panel renders and that anonymous access is refused, but did that on **staging** with a seeded synthetic identity: the seed script refuses production by design, so production's panel has not been opened since the rotation. | Only your identity can hold a platform-owner session on production. |
 
-Live charges stay disabled until O3.
+**Ads stay paused and live payments stay disabled** until you say otherwise, on both counts.
+
