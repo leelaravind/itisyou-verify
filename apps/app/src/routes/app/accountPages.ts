@@ -56,7 +56,8 @@ function connectionTally(connections: readonly ConnectionView[]): Html {
   for (const connection of connections) {
     const presentation = connectionPresentation(connection.status);
     const group = groups.get(presentation.label);
-    if (group === undefined) groups.set(presentation.label, { status: presentation.status, count: 1 });
+    if (group === undefined)
+      groups.set(presentation.label, { status: presentation.status, count: 1 });
     else group.count += 1;
   }
   return html`<ul class="tally" aria-label="Connections by state">
@@ -84,7 +85,7 @@ export function ConnectionsPage(options: {
       })}
       ${options.connections.length === 0 ? null : connectionTally(options.connections)}
     </div>
-    ${formMessage(options.submitted?.message ?? null)}
+    ${formMessage(options.submitted?.message ?? null, options.submitted?.ok ? 'note' : 'warn')}
 
     ${Callout({
       tone: 'limit',
@@ -109,13 +110,13 @@ export function ConnectionsPage(options: {
               'No connection could be read for this workspace, so we cannot tell you whether evidence ' +
               'can be retrieved. This is not a statement that your connections are healthy. Nothing has ' +
               'been changed, and no run has been decided on the strength of this page.',
-            actions: [
-              Button({ label: 'Contact support', href: '/app/support', variant: 'quiet' }),
-            ],
+            actions: [Button({ label: 'Contact support', href: '/app/support', variant: 'quiet' })],
           })
         : html`<div class="grid grid-2">
             ${options.connections.map(
-              (connection) => html`<section class="card stack" data-connection-card="${connection.provider}">
+              (
+                connection,
+              ) => html`<section class="card stack" data-connection-card="${connection.provider}">
                 <div class="card__head">
                   <h2 class="card__title">${connection.displayName}</h2>
                   ${StatusBadge(connectionPresentation(connection.status))}
@@ -273,7 +274,7 @@ export function SupportFormPage(options: {
             title: `Message recorded — reference ${options.submitted?.reference ?? 'none'}`,
             body: html`<p>${options.submitted?.message ?? ''}</p>`,
           })
-        : formMessage(options.submitted?.message ?? null)
+        : formMessage(options.submitted?.message ?? null, options.submitted?.ok ? 'note' : 'warn')
     }
 
     <form method="post" action="/app/support" class="stack">

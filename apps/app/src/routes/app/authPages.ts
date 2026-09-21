@@ -51,7 +51,7 @@ export function SignInPage(options: SignInPageOptions): Html {
          taken. Signing in is untouched — an existing account must still be able to get to
          its workspace, so the form below stays exactly as it was. CUST-340. -->
     ${ActivationNotice()}
-    ${formMessage(options.submitted?.message ?? null)}
+    ${formMessage(options.submitted?.message ?? null, options.submitted?.ok ? 'note' : 'warn')}
     <form method="post" action="/app/sign-in" class="stack">
       ${CsrfField(options.csrfToken)}
       ${Field({

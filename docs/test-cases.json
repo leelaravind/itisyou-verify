@@ -28900,6 +28900,23 @@
       "countable": true
     },
     {
+      "id": "CUST-484",
+      "category": "customer_lifecycle",
+      "level": "unit",
+      "requirement": "a successful save renders as a note, a refusal as a problem",
+      "risk": "formMessage defaulted every message to warn, so a successful Resend save on production rendered under \"There is a problem\" and the owner read it as a rejection, twice (21 September 2026).",
+      "risk_source": "case",
+      "setup": "ConnectPage rendered with an ok:true result and again with an ok:false result on the Resend card.",
+      "expected": "The saved message renders without the \"There is a problem\" heading; the refused message renders with it.",
+      "owner_agent": "A05",
+      "implementation_ref": "tests/unit/ui/connect.test.ts",
+      "provider_backed": false,
+      "status": "passing",
+      "runner": "vitest",
+      "area": "tests/unit/ui/connect.test.ts",
+      "countable": true
+    },
+    {
       "id": "CUST-701",
       "category": "customer_lifecycle",
       "level": "unit",
