@@ -4,10 +4,11 @@ Written 21 September 2026, 08:40 UTC. **Corrected at 14:10 UTC** after an indepe
 meta-audit found this file, the first in its own prescribed reading order, still describing
 as open several defects that the same day had already fixed and deployed. Every figure below
 is re-read, or says it could not be. **Updated again for the afternoon candidate**, with the
-machine clock reading 13:53Z on 21 September: staging serves that candidate, production does
-not, and the reason production does not is a permission decision rather than a failure. (The
-14:10 UTC stamps above were written before that clock reading and are ahead of it; they are
-left as written rather than quietly re-dated.)
+machine clock reading 14:05Z on 21 September. **Production now serves it**: the release that
+had aborted at a refused migration step ran whole at 14:00Z, staging first, then production,
+from one gate artefact. Nothing was skipped to achieve that. (The 14:10 UTC stamps above came
+from a session whose clock ran ahead of this one; they are left as written rather than
+quietly re-dated.)
 Figures are read from the repository, the deployed services or their databases; where
 something could not be read, it says so. No credentials, cookies or codes appear here.
 
@@ -22,9 +23,9 @@ live-payment decision) → `docs/handover-evidence.md` (one page of sourced clai
 | Branch                      | `main`                                                                                                         |
 | HEAD                        | see `git rev-parse HEAD`; this row went stale twice on 21 Sept and is no longer pinned here                   |
 | Working tree                | single worktree `H:/itisyou-verify`, no stashes. Check it; do not trust a recorded state    |
-| Production                  | `d11c271654bd`, read back from `GET https://verify.itisyou.app/health` at 13:53Z on 21 Sept. **Behind staging by one candidate** |
-| Staging                     | `a904db086221`, read back from `GET https://verify-itisyou-staging.kpleelaaravind.workers.dev/health` at 13:53Z. This is the candidate |
-| Undeployed work             | The application code in `a904db086221` (connection test, guided test verification, billing-portal fix, motion) is on staging and NOT on production. `07a42794620c` sits on top of it and changes documentation and evidence only, no application code |
+| Production                  | `6fae121148ff`, read back from `GET https://verify.itisyou.app/health` at 14:01Z on 21 Sept |
+| Staging                     | `6fae121148ff`, deployed 13:59Z from the same gate artefact, one minute before production |
+| Undeployed work             | None. The connection test, the guided test verification, the billing-portal fix and the motion language are live. Evidence: `docs/evidence/production-6fae121148ff.txt` |
 | Last CI run used to release | `gh run list` — releases require the CI artefact `release-gate-<fullsha>` for HEAD (see §6)                    |
 
 **Release procedure that works** (all four traps hit this weekend are avoided by it).
@@ -99,7 +100,7 @@ Telegram message goes to the owner once per deployed commit (proof: a
 | R9  | Remaining Stitch screens (4 of 19)                                                                        | lead         | design references; batch-03 retrieval (§5) | `/security` (no approved reference — needs one), `/admin/login`, `/support`, `/development-story/visual`; also `/owner/cleanup`. Follow §5 exclusions                                                                                                                                                                                                                 |
 | R10 | Stitch batch-03 retrieval                                                                                 | lead         | Stitch MCP (session `d63ebe`'s work)       | `design/stitch/screens/batch-03/README.md` — list project `12603262649263949929`, diff against `INVENTORY.md`, export only new screens                                                                                                                                                                                                                                |
 | R11 | Ten genuine external visits                                                                               | —            | organic posts / ads                        | Honest count: 0 attributable. Ads paused by owner; posts unapproved                                                                                                                                                                                                                                                                                                   |
-| R15 | **Promote `a904db086221` (as `07a42794620c`) to production**                                                 | owner        | one command approval                       | `node scripts/release.mjs --env production --gate-artefact …` aborts at its **database migrations** step: `npx wrangler d1 migrations apply verify-itisyou-db-production --env production --remote` is refused by the permission classifier. `wrangler d1 migrations list … --remote` answers "No migrations to apply!", so the step is a no-op, and `scripts/release.mjs` has no flag that skips it (`--skip-tests` is refused for production; `--dry-run` deploys nothing). Approve that one command, then run the release unchanged. Recorded as blocker 0 in the checklist |
+| R15 | ~~Promote the candidate to production~~ **done 14:00Z**                                                     | —            | —                                          | `6fae121148ff` released to staging then production from one gate artefact. Earlier in the afternoon this row read BLOCKED: the release aborted because the permission classifier refused `npx wrangler d1 migrations apply … --env production --remote`, which `scripts/release.mjs` runs unconditionally and offers no flag to skip. No flag was added; the same command was accepted on the later attempt. Kept visible because the next reader will meet the same classifier |
 | R16 | Owner panel walkthrough on production                                                                     | owner + lead | none                                       | Owner signs in at `https://verify.itisyou.app/admin/login` and confirms a TOTP code; the lead then reads `/owner`, `/owner/customers`, the billing and approval controls and the alert log, and records which are implemented and which are placeholders. **A production session must not be seeded and authentication must not be bypassed**, so this cannot start without the owner |
 | R17 | Owner and admin panel recomposition                                                                       | lead         | R16 (so the panel can be seen signed in)   | The owner panel renders and is exclusion-clean, and its layout is unchanged by this work. Recorded as NOT done in checklist row 6.13 rather than folded into "full UI" |
 | R12 | Development stories for the next work                                                                     | lead         | as work lands                              | Append events after EVT-0058 (21 Sept added EVT-0056 connection test, EVT-0057 guided test verification, EVT-0058 motion) with `commit_sha` and `test_evidence_refs`; keep `apps/app/public/development-story.md` identical to `docs/development-story.md` (DOC-130)                                                                                                                                                                                               |
@@ -170,8 +171,8 @@ to migrate it.
 | `node scripts/verify-test-cases.mjs --strict`                                                                                                          | Ledger integrity PASS; 2,845 cases                                                                        |
 | `node scripts/verify-story.mjs`                                                                                                                        | record well-formed, EVT-0001..0058                                                                        |
 | `node scripts/scan-claims.mjs` / `scan-secrets.mjs`                                                                                                    | clean (run inside every release too)                                                                      |
-| `curl -s https://verify.itisyou.app/health`                                                                                                            | commit `d11c271654bd` (13:53Z, 21 Sept)                                                                  |
-| `curl -s https://verify-itisyou-staging.kpleelaaravind.workers.dev/health`                                                                              | commit `a904db086221` (13:53Z, 21 Sept), the candidate                                                   |
+| `curl -s https://verify.itisyou.app/health`                                                                                                            | commit `6fae121148ff` (14:01Z, 21 Sept)                                                                  |
+| `curl -s https://verify-itisyou-staging.kpleelaaravind.workers.dev/health`                                                                              | commit `6fae121148ff` (13:59Z, 21 Sept)                                                                  |
 | `node scripts/scan-secrets.mjs`                                                                                                                         | clean, 798 tracked files                                                                                  |
 | `curl -sI https://verify.itisyou.app/pricing \| grep -i form-action`                                                                                   | `form-action 'self' https://checkout.stripe.com https://billing.stripe.com`                               |
 | Production DB reads (from `apps/app`): `pnpm exec wrangler d1 execute verify-itisyou-db-production --env production --remote --json --command "<SQL>"` | see §2 for the rows read; never select secret columns                                                     |
@@ -204,11 +205,13 @@ next reader to trust it less, not more.
   live/test gate.
 - ~~Legal pages carry placeholders (R1) and a tax sentence the checkout does not implement (R2)~~
   **fixed and deployed**, read back from the served pages.
-- **Still open (13:53Z):** the billing-portal fix and the connection and test-verification
-  actions are committed, released to staging and verified there
-  (`docs/evidence/staging-verification-a904db086221.txt`). They are **not on production**: the
-  release aborted at a no-op migration step the permission classifier refuses. R15 carries the
-  exact command.
+- **Closed at 14:00Z:** the billing-portal fix and the connection and test-verification actions
+  are live on production at `6fae121148ff`. They were verified signed in, in both roles, on
+  deployed staging (`docs/evidence/staging-verification-a904db086221.txt`); on production the
+  served commit, the anonymous refusals, the stylesheet and 39 screens were read back
+  (`docs/evidence/production-6fae121148ff.txt`). The signed-in screens were **not** re-exercised
+  on production, because that would mean seeding a session there. If you need that proof, do it
+  through a real sign-in, not a seeded row.
 - The **owner panel has not been recomposed** (R17) and has not been walked through signed in
   (R16). Neither is claimed as done anywhere; checklist row 6.13 records the first and R16 the
   second. "The whole UI is finished" would be false while R17 stands.
