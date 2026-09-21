@@ -1,8 +1,11 @@
 # Campaign readiness packet — Google Ads Search, September 2026
 
 **Prepared by:** Growth lane, 20 September 2026, 06:57 UTC.
-**Campaign state at 10:20 UTC, 20 September: SUBMITTED by the owner; keywords, negatives and
-the ad now in place; ad UNDER REVIEW.** The owner published at 07:55 UTC; the published
+**Campaign state at 08:20 UTC, 21 September: PAUSED.** The account's change history shows "21 Sept
+2026 08:50:18 (UK) — kpleelaaravind@gmail.com — 1 campaign paused"; the ad row reads "Not eligible —
+Campaign is paused". 0 impressions, spend GBP 0.00. The lead made no change and will not re-enable
+it; that is the owner's decision. Previous state, for the record — at 10:20 UTC on 20 September: SUBMITTED by the owner; keywords, negatives and
+the ad in place; ad UNDER REVIEW. The owner published at 07:55 UTC; the published
 campaign carried no keywords and no ads. The lead saved the five exact-match keywords (§3.2),
 the eight negatives, and the responsive search ad from §3.3 (saved 10:15 UTC after the owner
 cleared Google's identity check). Ads table: one responsive search ad, **Pending — Under
