@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "project": "itisyou-verify",
-  "generated_at": "2026-09-21T15:40:00Z",
+  "generated_at": "2026-09-21T17:15:00Z",
   "note": "Structured record of what was decided, built and verified. Observable facts and short decision rationales only — never reasoning traces, private prompts, credentials or customer data. Unknown values stay null rather than being guessed.",
   "events": [
     {
@@ -2104,6 +2104,43 @@
         "BILL-672"
       ],
       "limitations": "Verified against Stripe test mode on deployed staging. Live mode remains switched off and owner-gated.",
+      "next_step": "Nothing here."
+    },
+    {
+      "event_id": "EVT-0063",
+      "timestamp": "2026-09-21T17:10:00Z",
+      "milestone_id": "M-DESIGN",
+      "task_id": "T-MOTION-CONTRACT",
+      "agent_role": "design",
+      "model_id": "claude-opus-5[1m]",
+      "status": "tested",
+      "goal": "Hold the motion to a contract, after finding it had criteria nowhere.",
+      "inputs": [
+        "the owner requirement for purposeful accessible animation",
+        "the served stylesheet, and a browser to measure it in"
+      ],
+      "changed_artifacts": [
+        "packages/ui/src/styles.ts",
+        "packages/ui/src/story/styles.ts",
+        "packages/ui/src/story/components.ts",
+        "tests/unit/ui/motion.test.ts",
+        "docs/completion-checklist.md"
+      ],
+      "commit_sha": "c1fc3c4",
+      "decision_summary": "The motion had been deployed for hours and nothing held it to a criterion, which is the failure mode that matters here: neither a missing transition nor an excessive one is visible in a screenshot, because both look like a design choice. Writing the criteria down found two real gaps. The shared disclosure had no motion at all, because its rules lived in the development story stylesheet and that page promises readers nothing on it is animated, so the component was still everywhere while its sibling glided; the rules moved to the main sheet and the story page stillness is now scoped to that page rather than taken from everyone. A field error appeared between frames and now settles in. The contract is asserted by occasion rather than by aesthetic: tokens not literals, a disclosure off the layout path, feedback for a press and a hover and a focus, no verdict animating anywhere, and reduced motion removing all of it including the delay. Then it was measured in a browser rather than trusted from the sheet, because a rule is not evidence that anything runs it.",
+      "alternatives_considered": [
+        "asserting the aesthetic, rejected: a test that pins a curve prevents improvement and proves nothing about whether a reader gets feedback",
+        "leaving the disclosure still, rejected: two disclosures behaving differently teaches a reader that one of them is broken"
+      ],
+      "decision_reason": "Motion that nothing holds to a criterion decays, and the decay is invisible.",
+      "test_evidence_refs": [
+        "RESIL-919",
+        "RESIL-920",
+        "RESIL-921",
+        "RESIL-922",
+        "RESIL-923"
+      ],
+      "limitations": "No public page carries a disclosure, so that device is only reachable signed in or on the owner panel. The measurement was taken against served bytes rendered locally, not against a signed-in production session.",
       "next_step": "Nothing here."
     }
   ]

@@ -13,7 +13,7 @@ Status vocabulary, used strictly:
 - **verified** — acceptance criteria met, evidence exists and is named
 - **deployed** — verified AND serving from production at a named commit
 
-Production and staging both serve `38614ab5622d` as of 16:48 UTC. No percentages appear in
+Production and staging both serve `c1fc3c4b5c52` as of 17:09 UTC. No percentages appear in
 this file, deliberately.
 
 ## A. Visual completion
@@ -40,16 +40,16 @@ acceptance criterion, so nothing would have noticed it rotting.
 | # | Occasion | Acceptance criteria | Evidence | Status |
 | --- | --- | --- | --- | --- |
 | M1 | Content arriving | A one-shot settle on a page's own boxes, finished inside 220ms, never re-triggered by scrolling | `@keyframes enter`; RESIL-911 | deployed |
-| M2 | Disclosure expanding | Opens on `grid-template-rows`, not height, so it stays off the layout path; both disclosures behave the same | RESIL-920, mutation-checked | verified |
+| M2 | Disclosure expanding | Opens on `grid-template-rows`, not height, so it stays off the layout path; both disclosures behave the same | RESIL-920, mutation-checked, and measured in a browser: 8.30px at 60ms into a 220ms transition, settling at 52.78px (`docs/evidence/motion-measured.txt`). Reachable signed in and on the owner panel; no public page carries a disclosure | deployed |
 | M3 | A press | The control moves under the finger and the move is transitioned | `.btn:active{transform:translateY(1px)}`; RESIL-921, mutation-checked | deployed |
 | M4 | Hover | Colour and background only, on navigation, buttons, fields and table rows | RESIL-921; CUST-427 for the comparator | deployed |
-| M5 | A form coming back with an error | The message settles in rather than appearing between frames | `.field__error{animation:enter}` | verified |
+| M5 | A form coming back with an error | The message settles in rather than appearing between frames | `.field__error{animation:enter}`, live at c1fc3c4b5c52 | deployed |
 | M6 | Waiting | The spinner runs only while `aria-busy` is genuinely true | `@keyframes spin`; RESIL-911 | deployed |
 | M7 | Page to page | A root crossfade through view transitions, no JavaScript | `@view-transition`; RESIL-911 | deployed |
-| M8 | Tokens, not literals | Every transition names `--dur-fast` or `--dur-base` and `--ease` | RESIL-919 | verified |
+| M8 | Tokens, not literals | Every transition names `--dur-fast` or `--dur-base` and `--ease` | RESIL-919 | deployed |
 | M9 | A verdict | Never animates, anywhere. A verdict that fades in reads as an effect rather than a finding | RESIL-922, mutation-checked | deployed |
-| M10 | The development story | Promises nothing there is animated, and keeps it. Stillness scoped to that page rather than taken from the shared component | DOC-111, RESIL-922 | verified |
-| M11 | Reduced motion | Removes all of it, delay as well as duration | RESIL-918, RESIL-923 | deployed |
+| M10 | The development story | Promises nothing there is animated, and keeps it. Stillness scoped to that page rather than taken from the shared component | DOC-111, RESIL-922 | deployed |
+| M11 | Reduced motion | Removes all of it, delay as well as duration | RESIL-918, RESIL-923, and measured: the computed duration collapses to 0.01ms and the same track is already final at 60ms | deployed |
 | M12 | Dismissals | Nothing in this product is dismissible, so there is nothing to animate. Recorded rather than left looking unaddressed | no dismissible element exists | not applicable |
 
 No new JavaScript was added for any of it. The one script the site ships is still the
