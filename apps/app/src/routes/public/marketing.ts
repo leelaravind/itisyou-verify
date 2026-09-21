@@ -39,6 +39,7 @@ import {
   iconArrow,
 } from '@verify/ui';
 import { LIMITS } from '@verify/contracts';
+import { HUBSPOT_READS, RESEND_READS } from '@verify/connectors';
 /*
  * A06's approved policy, imported rather than restated.
  *
@@ -408,21 +409,25 @@ export function SecurityPage(): Html {
           'The whole list, including the parts that are not ours. We hold no certification and do not claim one.',
         )}
       </div>
-      <div class="split">
-        ${Callout({
-          tone: 'limit',
-          title: 'Certifications',
-          body: html`<p>
-            ${TodoOwnerInput({
+      <div class="panel__intro">
+        <ul class="meta-bar" aria-label="Where the data sits">
+          <li>Data residency <b>Cloudflare D1, EU West</b></li>
+          <li>Evidence retention <b>30 days</b></li>
+          <li>Credentials <b>sealed per workspace</b></li>
+          <li>
+            Certifications
+            <b>${TodoOwnerInput({
               field: 'certifications',
               value: OWNER_LEGAL_IDENTITY.certifications,
-              explanation:
-                'We make no accuracy, security or uptime certification. Any certification claimed here must be one the owner actually holds and can evidence.',
-            })}
-          </p>`,
-        })}
-        ${ProviderProofNotice()}
+            })}</b>
+          </li>
+        </ul>
+        <p class="small muted measure">
+          We make no accuracy, security or uptime certification. Any certification claimed here must be
+          one the owner actually holds and can evidence.
+        </p>
       </div>
+      <div class="panel__intro">${ProviderProofNotice()}</div>
     </section>
 
     <section class="stack">
@@ -440,6 +445,47 @@ export function SecurityPage(): Html {
           </li>`,
         )}
       </ol>
+    </section>
+
+    <section class="stack">
+      <h2>Every call we can make with your credentials</h2>
+      <p class="measure">
+        This is the whole list. The connectors build every request from a fixed table and cannot
+        construct one that is not in it, so there is no path here that writes to your CRM or sends mail.
+      </p>
+      <div class="results">
+        ${Table({
+          caption: 'Method, path and what each call is for',
+          columns: [
+            {
+              key: 'provider',
+              header: 'Provider',
+              rowHeader: true,
+              cell: (row: { provider: string; call: string; purpose: string }) => row.provider,
+            },
+            {
+              key: 'call',
+              header: 'Call',
+              cell: (row: { provider: string; call: string; purpose: string }) =>
+                html`<span class="mono">${row.call}</span>`,
+            },
+            {
+              key: 'purpose',
+              header: 'What it is for',
+              cell: (row: { provider: string; call: string; purpose: string }) => row.purpose,
+            },
+          ],
+          rows: [
+            ...HUBSPOT_READS.map((read) => ({ provider: 'HubSpot', ...read })),
+            ...RESEND_READS.map((read) => ({ provider: 'Resend', ...read })),
+          ],
+        })}
+        <div class="results__bar">
+          <p class="micro mono">
+            ${String(HUBSPOT_READS.length + RESEND_READS.length)} calls, none of them a write
+          </p>
+        </div>
+      </div>
     </section>
 
     <section class="stack">
@@ -461,17 +507,11 @@ export function SecurityPage(): Html {
       </div>
     </section>
 
-    <div class="split">
-      <section class="stack">
-        <h2>Retention</h2>
-        ${Callout({ tone: 'note', body: html`<p>${EVIDENCE_RETENTION_NOTE}</p>` })}
-      </section>
-
-      <section class="stack">
-        <h2>Access we ask for</h2>
-        ${FaqList(['store-customer-data', 'do-you-modify-anything', 'data-used-to-train', 'how-long-evidence-kept'])}
-      </section>
-    </div>
+    <section class="stack">
+      <h2>Retention and access</h2>
+      <p class="measure">${EVIDENCE_RETENTION_NOTE}</p>
+      ${FaqList(['store-customer-data', 'do-you-modify-anything', 'data-used-to-train', 'how-long-evidence-kept'])}
+    </section>
 
     ${StandingLimitations()}
   </div>`;

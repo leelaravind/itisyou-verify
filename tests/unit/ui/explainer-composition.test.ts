@@ -181,15 +181,24 @@ describe('demo — composition', () => {
 });
 
 describe('security — composition', () => {
-  it('CUST-807 the two qualifying notices share the hero split, the data flow is six numbered steps, and the subprocessor table is framed with its count', async () => {
+  it('CUST-807 the head states the facts in a mono bar, the data flow is six numbered steps, and the subprocessor table is framed with its count', async () => {
     const markup = await render(SecurityPage());
     const heroStart = markup.indexOf('<section class="panel">');
     const hero = markup.slice(heroStart, markup.indexOf('</section>', heroStart));
     expect(hero).toContain('<h1>Where your data goes, and who else touches it</h1>');
-    expect(hero).toContain('<div class="split">');
+    // Residency, retention, credential handling and certifications as one scannable bar.
+    // They were two stacked callouts, one of them three words long beside one of forty.
+    expect(hero).toContain('meta-bar');
+    expect(hero).toContain('Data residency');
+    expect(hero).toContain('Evidence retention');
     expect(hero).toContain('<span class="mono">None</span>');
     expect(hero).not.toContain('data-todo-owner-input="certifications"');
     expect(hero).toContain('data-provider-proof-notice');
+
+    // The exhaustive call list, from the connectors' own tables, on the public page too.
+    expect(markup).toContain('Every call we can make with your credentials');
+    expect(markup).toContain('/crm/v3/objects/contacts/');
+    expect(markup, 'a send path is on the security page').not.toContain('POST /emails<');
     /*
      * Six stages, in order, as a numbered list rather than a card grid.
      *
@@ -210,10 +219,12 @@ describe('security — composition', () => {
     expect(results).toContain('<div class="tablewrap"');
     expect(results).toContain('<p class="micro mono">5 subprocessors</p>');
     expect(results.indexOf('<div class="results__bar">')).toBeGreaterThan(results.indexOf('</table>'));
-    // Retention and access sit side by side; the standing limitations close the page.
-    expect(markup).toContain('<h2>Retention</h2>');
-    expect(markup).toContain('<h2>Access we ask for</h2>');
-    expect(markup.lastIndexOf('data-standing-limitations')).toBeGreaterThan(markup.lastIndexOf('<h2>Access we ask for</h2>'));
+    // Retention and access are one full-width section: as a two-column split the retention
+    // side was a single sentence beside a four-question list, so most of that row was empty.
+    expect(markup).toContain('<h2>Retention and access</h2>');
+    expect(markup.lastIndexOf('data-standing-limitations')).toBeGreaterThan(
+      markup.lastIndexOf('<h2>Retention and access</h2>'),
+    );
   });
 });
 

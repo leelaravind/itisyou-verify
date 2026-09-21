@@ -121,7 +121,9 @@ describe('testing a stored connection against the provider', () => {
 
     expect(served.html, 'the call list is not rendered').toContain('data-provider-reads');
     const text = visibleText(served.html);
-    expect(text).toContain('Every call we can make with this key');
+    expect(text).toContain('Every call we can make with this HubSpot key');
+    // Behind a disclosure: proof, not daily reading.
+    expect(served.html).toContain('<details');
     // A real path from the HubSpot table and a real purpose beside it.
     expect(text).toContain('/crm/v3/objects/contacts/');
     expect(text).toContain('reads back the one contact an enquiry names');

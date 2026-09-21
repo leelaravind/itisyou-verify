@@ -454,12 +454,25 @@ export function CustomersPage(options: {
   readonly exceptions: readonly ExceptionRow[];
   readonly csrfToken: string | null;
 }): Html {
+  const total = options.customers.length;
+  const real = options.customers.filter((row) => !row.isSynthetic).length;
+  const eligible = options.customers.filter((row) => row.eligible).length;
+  const subscribed = options.customers.filter((row) => row.subscriptionStatus === 'active').length;
+
   return html`<div class="wrap section stack-lg">
-    ${PageHead({
-      eyebrow: 'Customers',
-      title: 'Customers and orders',
-      lede: 'Who is signed up, whether they can actually use the product, and what needs a decision.',
-    })}
+    <div class="section-head">
+      ${PageHead({
+        eyebrow: 'Customers',
+        title: 'Customers and orders',
+        lede: 'Who is signed up, whether they can actually use the product, and what needs a decision.',
+      })}
+      <ul class="meta-bar" aria-label="Customers at a glance">
+        <li>Workspaces <b>${String(total)}</b></li>
+        <li>Not synthetic <b>${String(real)}</b></li>
+        <li>Eligible to run <b>${String(eligible)}</b></li>
+        <li>Subscribed <b>${String(subscribed)}</b></li>
+      </ul>
+    </div>
 
     ${Card({
       title: 'Exception queue',
@@ -494,7 +507,16 @@ export function CustomersPage(options: {
     ${Card({
       title: 'Customers',
       headingLevel: 2,
-      body: Table({
+      body:
+        options.customers.length === 0
+          ? html`<div class="stack-sm" data-customers-empty>
+              <p>No workspace exists on this deployment yet.</p>
+              <p class="small muted">
+                Public signup is closed, so the only way one comes to exist is the form below. This is
+                the real state of the deployment, not a table that failed to load.
+              </p>
+            </div>`
+          : Table({
         caption: 'Every workspace, its eligibility and its subscription state',
         columns: [
           {
@@ -561,7 +583,6 @@ export function CustomersPage(options: {
           },
         ],
         rows: options.customers,
-        empty: html`<p class="muted">No workspaces yet.</p>`,
       }),
     })}
 
