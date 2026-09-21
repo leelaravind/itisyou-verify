@@ -47,7 +47,7 @@ describe('how it works — composition', () => {
   it('CUST-801 the hero is one framed panel carrying the head and a two-pane split of A01’s own questions', async () => {
     const markup = await render(HowItWorksPage());
     // One hero panel, and the two panes sit inside it rather than beside it.
-    const heroStart = markup.indexOf('<section class="panel panel--hero">');
+    const heroStart = markup.indexOf('<section class="panel">');
     expect(heroStart).toBeGreaterThanOrEqual(0);
     const heroEnd = markup.indexOf('</section>', heroStart);
     const hero = markup.slice(heroStart, heroEnd);
@@ -159,8 +159,8 @@ describe('demo — composition', () => {
   it('CUST-806 the hero panel keeps the synthetic banner first and states only facts read from the demo rules', async () => {
     const markup = await render(DemoPage());
     const hero = markup.slice(
-      markup.indexOf('<section class="panel panel--hero">'),
-      markup.indexOf('</section>', markup.indexOf('<section class="panel panel--hero">')),
+      markup.indexOf('<section class="panel">'),
+      markup.indexOf('</section>', markup.indexOf('<section class="panel">')),
     );
     // The synthetic banner comes before the heading inside the same panel.
     expect(hero.indexOf('Synthetic workspace')).toBeLessThan(hero.indexOf('<h1>'));
@@ -181,18 +181,28 @@ describe('demo — composition', () => {
 });
 
 describe('security — composition', () => {
-  it('CUST-807 the two qualifying notices share the hero split, the data flow is six numbered cards, and the subprocessor table is framed with its count', async () => {
+  it('CUST-807 the two qualifying notices share the hero split, the data flow is six numbered steps, and the subprocessor table is framed with its count', async () => {
     const markup = await render(SecurityPage());
-    const heroStart = markup.indexOf('<section class="panel panel--hero">');
+    const heroStart = markup.indexOf('<section class="panel">');
     const hero = markup.slice(heroStart, markup.indexOf('</section>', heroStart));
     expect(hero).toContain('<h1>Where your data goes, and who else touches it</h1>');
     expect(hero).toContain('<div class="split">');
     expect(hero).toContain('<span class="mono">None</span>');
     expect(hero).not.toContain('data-todo-owner-input="certifications"');
     expect(hero).toContain('data-provider-proof-notice');
-    // Six stages, in order, as cards in an ordered list.
-    expect(markup).toContain('<ol class="step-cards grid grid-3">');
-    expect(markup.match(/<li class="card step-card">/g)?.length).toBe(6);
+    /*
+     * Six stages, in order, as a numbered list rather than a card grid.
+     *
+     * This case asserted the card grid until 21 September 2026 and so was pinning the
+     * violation in place: an independent review pointed out that six cards across three
+     * columns is the same device the owner's exclusions name, and that a card grid is
+     * markup, so the token-layer sweep that removed the other eight devices could not
+     * have reached it. The data flow carries its own order, which is what .steps is for.
+     */
+    expect(markup).toContain('<ol class="steps">');
+    expect(markup, 'the data flow is a card grid again').not.toContain('step-card');
+    const flow = markup.indexOf('<ol class="steps">');
+    expect(markup.slice(flow, markup.indexOf('</ol>', flow)).match(/<li>/g)?.length).toBe(6);
     expect(markup.indexOf('<h3>Browser</h3>')).toBeLessThan(markup.indexOf('<h3>HubSpot</h3>'));
     expect(markup.indexOf('<h3>Stripe</h3>')).toBeLessThan(markup.indexOf('<h3>Optional model provider</h3>'));
     // The table is framed, and the count under it is the real length of the list.

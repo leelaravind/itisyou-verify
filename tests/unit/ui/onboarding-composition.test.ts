@@ -218,8 +218,13 @@ describe('the compatibility step composition', () => {
 
     const head = markup.indexOf('<div class="section-head">');
     const tally = markup.indexOf('<ul class="tally" aria-label="Providers by state">', head);
-    const notice = markup.indexOf('data-activation-notice', tally);
-    const grid = markup.indexOf('<div class="grid grid-7-5">', notice);
+    // The public activation banner used to sit between the tally and the grid. It is gone
+    // from this step: half of what it said was false to a reader who is signed in to a
+    // workspace. CUST-123 holds that; the order below is what remains.
+    expect(markup, 'the public banner is back on an authenticated step').not.toContain(
+      'data-activation-notice',
+    );
+    const grid = markup.indexOf('<div class="grid grid-7-5">', tally);
     const providers = markup.indexOf('<div class="stack" data-compatibility-providers>', grid);
     const control = markup.indexOf('<div class="stack" data-compatibility-control>', providers);
     const commitment = markup.indexOf('>One more thing, and it is real work<', control);
@@ -228,7 +233,6 @@ describe('the compatibility step composition', () => {
     for (const at of [
       head,
       tally,
-      notice,
       grid,
       providers,
       control,
@@ -289,11 +293,12 @@ describe('the compatibility step composition', () => {
     expect(mixedTally).toContain('badge--failed');
     expect(count(mixedTally, '<span class="tally__count">1</span>')).toBe(2);
 
-    // No providers: no tally and no cards, but the notice and the control still stand.
+    // No providers: no tally and no cards, but the control still stands and still says
+    // why. The banner is not here for any provider count (CUST-123).
     const none = await render(CompatibilityPage([], { canContinue: false }));
     expect(none).not.toContain('aria-label="Providers by state"');
     expect(none).not.toContain('<div class="pane">');
-    expect(none).toContain('data-activation-notice');
+    expect(none).not.toContain('data-activation-notice');
     expect(none).toContain('data-unavailable');
   });
 });

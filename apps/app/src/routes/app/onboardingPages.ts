@@ -9,7 +9,6 @@
 import {
   SETUP_UNAVAILABLE_VIEWER_REASON,
   SETUP_UNAVAILABLE_VIEWER_WHEN,
-  ActivationNotice,
   AssertionRow,
   Button,
   UnavailableAction,
@@ -140,7 +139,25 @@ export function CompatibilityPage(
     lede: 'Version one checks exactly one workflow shape, using exactly two providers. Read this before you connect anything: if your automation does something else, we cannot verify it yet.',
     aside: entries.length === 0 ? null : compatibilityTally(entries),
     body: html`<div class="stack-lg">
-      ${ActivationNotice()}
+      <!--
+        The public activation banner is NOT rendered here, and its absence is deliberate.
+
+        Half of what it says is false to this reader. It states that no customer workspace
+        exists on this deployment and that public signup is closed, and it says that to
+        somebody who is signed in to a workspace that exists, on a page they reached by
+        being a member of it. On 21 September that exact sentence was corrected where it
+        appeared in the taken-down control's reason and left standing in the banner
+        directly above it, which is the same defect twice on one screen; an independent
+        review found the second half.
+
+        The half that is true, that live payments are off, is carried where it matters and
+        where it is unambiguous: step 6 says the checkout hands you to Stripe's sandbox and
+        that no card is charged, immediately above the control that would do it. A banner
+        four steps earlier is not what stops somebody paying by mistake.
+
+        The banner stays on every anonymous surface: the home page, /pricing and the
+        sign-in page, where both of its claims are true of the person reading it.
+      -->
       ${
         blocked.length === 0
           ? null

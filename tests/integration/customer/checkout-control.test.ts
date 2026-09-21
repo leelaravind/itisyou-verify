@@ -131,6 +131,76 @@ describe('the review page offers a control that reaches checkout', () => {
     expect(form, 'the checkout form carries no CSRF token').toMatch(/name="csrf_token"/);
   });
 
+  /*
+   * The hole an independent review found on 21 September 2026, hours after two other
+   * pages were changed to render their setup controls on `role === 'workspace_admin'`
+   * with a comment claiming that was "the same rule the server uses".
+   *
+   * It was the rule for `saveFieldMapping`, `saveExpectedOutcome` and
+   * `submitConnectionCredentials`. It was not the rule for `createCheckout`, which
+   * refuses only on `orderSummary().ready`, and `orderSummary` had never consulted a
+   * role at all. So on a workspace that was otherwise ready to buy, a `workspace_viewer`
+   * was shown a live "Continue to secure checkout" submit button and pressing it created
+   * a real Stripe Checkout Session for a workspace they may only read.
+   *
+   * Fixed as a blocker inside `orderSummary` rather than as a second guard inside
+   * `createCheckout`, so the page and the route read the same answer. These two cases
+   * assert both ends of that: nothing to click, and nothing that works if you build the
+   * request by hand anyway.
+   */
+  it('AUTH-478 a workspace viewer is shown no checkout control on a workspace that is otherwise ready', async () => {
+    connectBoth(h, ws);
+    expect(checkoutForm(await reviewPage(h, ws)), 'the fixture is not a ready order').not.toBeNull();
+
+    h.raw
+      .prepare("UPDATE memberships SET role = 'workspace_viewer' WHERE workspace_id = ?")
+      .run(ws.workspaceId);
+
+    const body = await reviewPage(h, ws);
+    expect(checkoutForm(body), 'a viewer is offered a form that reaches checkout').toBeNull();
+    expect(body).toContain('Only a workspace admin can subscribe');
+  });
+
+  it('AUTH-479 and posting the checkout route by hand as a viewer creates no session', async () => {
+    connectBoth(h, ws);
+    h.raw
+      .prepare("UPDATE memberships SET role = 'workspace_viewer' WHERE workspace_id = ?")
+      .run(ws.workspaceId);
+
+    // Any call to Stripe at all would be the defect: the refusal has to happen before it.
+    let stripeCalls = 0;
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      if (String(input).includes('stripe.com')) stripeCalls += 1;
+      return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } });
+    }) as typeof fetch;
+    try {
+      const response = (await worker.fetch(
+        new Request(`${BASE}/app/onboarding/checkout`, {
+          method: 'POST',
+          headers: {
+            cookie: await signedInCookie(h, ws),
+            'content-type': 'application/x-www-form-urlencoded',
+            origin: BASE,
+          },
+          body: '',
+        }),
+        envFor(h),
+        ctx,
+      )) as Response;
+      // 403 from the CSRF check or a refusal from the port: either is a refusal, and what
+      // matters is that no Checkout Session exists and Stripe was never called.
+      expect(response.status).not.toBe(303);
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+    expect(stripeCalls, 'Stripe was called for a viewer').toBe(0);
+    const orders = h.raw
+      .prepare('SELECT COUNT(*) AS n FROM orders WHERE workspace_id = ?')
+      .get(ws.workspaceId) as { n: number };
+    expect(orders.n, 'an order row was created for a viewer').toBe(0);
+  });
+
   it('CONN-478 the control leaves when a connection does, because the server would refuse', async () => {
     connectBoth(h, ws);
     expect(checkoutForm(await reviewPage(h, ws))).not.toBeNull();

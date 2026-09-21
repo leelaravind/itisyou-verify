@@ -97,7 +97,7 @@ function faqPane(id: string): Html {
  */
 export function HowItWorksPage(): Html {
   return html`<div class="wrap section stack-lg">
-    <section class="panel panel--hero">
+    <section class="panel">
       <div class="panel__intro">
         ${pageHead(
           'How it works',
@@ -398,7 +398,7 @@ export function PricingPage(): Html {
  */
 export function SecurityPage(): Html {
   return html`<div class="wrap section stack-lg">
-    <section class="panel panel--hero">
+    <section class="panel">
       <div class="panel__intro">
         ${pageHead(
           'Security and data handling',
@@ -425,11 +425,14 @@ export function SecurityPage(): Html {
 
     <section class="stack">
       <h2>The data flow, end to end</h2>
-      <!-- An ordered list still: the stages happen in this order. Six cards fall as two
-           rows of three at desktop, three rows of two on a tablet, one column on a phone. -->
-      <ol class="step-cards grid grid-3">
+      <!-- The numbered list, not a card grid. Six cards across three columns is a weaker
+           match for the excluded three-feature-card row than the two this page's siblings
+           carried, and an independent review was right that it is the same device: a card
+           grid is markup, so the token-layer fix could not reach it. It is also a genuine
+           sequence, which is what .steps is for, and DATA_FLOW carries its own order. -->
+      <ol class="steps">
         ${DATA_FLOW.map(
-          (stage) => html`<li class="card step-card">
+          (stage) => html`<li>
             <h3>${stage.stage}</h3>
             <p>${stage.description}</p>
           </li>`,

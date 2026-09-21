@@ -308,9 +308,25 @@ export const BRAND = {
  * (#0f131c), so a hairline was carrying the whole job of separating a card from the page,
  * and a shadow was helping it. The answer is not a shadow, because shadow was never the
  * dependable half of that pair: it disappears in forced-colors mode and under several
- * high-contrast settings, so a card had to survive without it anyway. Containers now take
- * `--c-rule-strong` instead of `--c-rule` for their border, which is the same separation
- * done with the signal that does not vanish.
+ * high-contrast settings, so a card had to survive without it anyway.
+ *
+ * What actually changed, stated exactly, because the first version of this comment
+ * overstated it and an independent review measured the overstatement:
+ *
+ *  - FOUR rules moved from `--c-rule` to `--c-rule-strong`: `.card`, `.panel`, `.results`
+ *    and `.site`, which are the surfaces that were carrying a shadow. Other containers
+ *    (`.claimrule`, `.callout`, `.disclosure`, `.band`) keep `--c-rule` and were never
+ *    elevated, so nothing about them changed or needed to.
+ *  - it is a MORE VISIBLE hairline, not a compliant boundary. Measured: on DARK,
+ *    `ruleStrong` on `surface` is 1.75:1 where `rule` was 1.28:1; on LIGHT, 2.09:1 against
+ *    1.45:1. Both stay below 3:1 deliberately, and `RESIL-180` asserts that they do,
+ *    because a container edge here is decoration and no meaning depends on seeing it. The
+ *    thing a reader must always be able to find is the content, and every card's heading,
+ *    badge and label carry their own contrast.
+ *
+ * So this is the better half of a pair being strengthened, not a replacement of equal
+ * weight. Saying so is the point: a comment claiming the shadow's job was taken over would
+ * be exactly the sort of unearned claim this repository keeps catching in its own copy.
  *
  * Nothing imports ELEVATION any more. If a shadow is ever wanted again it needs the
  * owner's exclusion list changed first, not a token added back quietly.

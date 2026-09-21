@@ -189,8 +189,14 @@ a:hover{text-decoration-thickness:2px}
  * What replaces it is not "the gradient minus the gradient". The sentence has two clauses
  * and the second one is the argument, so the first is set in the muted ink and the second
  * in the full ink: the headline starts quieter and lands on the claim. That is a real
- * hierarchy, it survives greyscale, forced colours and a failed font load, and it needs no
- * colour at all. Nothing here is the only carrier of meaning either way. */
+ * hierarchy, it survives greyscale and a failed font load, and it needs no colour at all.
+ *
+ * What it does NOT survive is forced-colors mode, which paints both clauses CanvasText and
+ * collapses the distinction. An earlier version of this comment claimed it did, and an
+ * independent review caught the claim sitting three lines above the rule that contradicts
+ * it. The behaviour is right and the sentence was wrong: forced colours exist to replace an
+ * author's palette with the reader's, and this headline is one sentence that reads the same
+ * either way. Nothing here is the only carrier of meaning in any mode. */
 .display__lead{color:var(--c-muted)}
 .accent{color:var(--c-ink)}
 @media (forced-colors:active){.display__lead,.accent{color:CanvasText}}
@@ -620,7 +626,14 @@ a:hover{text-decoration-thickness:2px}
    table keeps its own scroll region and loses only the frame it would otherwise double. */
 .results{background:var(--c-surface);border:1px solid var(--c-rule-strong);border-radius:var(--r-container);overflow:hidden}
 .results>*+*{margin-top:0}
-.results>.callout{border-radius:0;border-top:0;border-right:0;border-bottom:1px solid var(--c-rule)}
+/* A callout inside the results frame loses its side edges to sit flush, and KEEPS its top
+   rule. It used to lose the top one instead, which was right while the tone lived on the
+   left border and became a silent deletion the moment the tone moved to the top: this
+   selector is 0,2,0 and .callout--limit is 0,1,0, so /demo's amber callout inside the
+   frame quietly lost its colour, and a todo callout there would have lost the dash that
+   is the only non-hue thing separating it from limit. Found by an independent review, not
+   by RESIL-915, which asserts the tone rules exist and not that nothing overrides them. */
+.results>.callout{border-radius:0;border-right:0;border-left:0;border-bottom:1px solid var(--c-rule)}
 .results>.tablewrap{border:0;border-radius:0}
 .results__bar{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:var(--s2) var(--s4);padding:var(--s3) var(--s4);background:var(--c-sunken);border-top:1px solid var(--c-rule)}
 /* The tally: one count per status, all four always present, so a reader counts them and
@@ -657,8 +670,6 @@ a:hover{text-decoration-thickness:2px}
 .faq>div{border-bottom:1px solid var(--c-rule);padding-block:var(--s4)}
 .faq h3{margin:0 0 var(--s2)}
 .faq p{margin:0;color:var(--c-muted);font-size:var(--t-small)}
-/* The pricing screen lays its questions out two abreast at tablet width and above. The
-   list keeps its own class so the single-column FAQ page is untouched. */
 /* The questions as ruled rows in one column, not a two-across grid of cards.
    Five answers in two columns leaves an orphan, the cards were the soft rounded kind the
    owner's exclusions name, and a reader scanning for one question reads a single column
@@ -680,10 +691,6 @@ a:hover{text-decoration-thickness:2px}
    there is none, and never grows past a comfortable measure. */
 .section-head>p{flex:1 1 20rem;max-width:28rem;margin:0}
 
-/* The centred hero. The landing stacks its hero in one column, centred, and sets the
-   evidence card full width beneath the calls to action rather than beside the copy.
-   Text inside the card and inside any callout stays left-aligned: a verdict is read,
-   not admired. */
 /* Below phone-landscape width the two calls to action stack full width, as drawn. */
 @media (max-width:39.99rem){
   .btn-row--stack{flex-direction:column;align-items:stretch}
@@ -705,8 +712,11 @@ a:hover{text-decoration-thickness:2px}
 .status-card--unverified{border-top-color:var(--c-unverified);border-top-style:dashed}
 .status-card--pending{border-top-color:var(--c-pending)}
 
-/* The three steps as a card row reuse .step-cards / .step-card from the how-it-works
-   screen above, so both screens draw the same step the same way. */
+/* .step-cards / .step-card are no longer used by any screen. The home page, the
+   how-it-works steps and the security data flow were all card rows and are all the
+   numbered .steps list now. The rules are kept for one release rather than deleted in
+   the same commit that stopped using them, so a screen that turns out to need them is a
+   revert and not a rebuild; delete them if nothing claims them. */
 
 /* The pricing screen's main grid: plan and policy in the wider left column, the
    purchase summary in the narrower right one, seven parts to five of the twelve-column
