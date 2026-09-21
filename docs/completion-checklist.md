@@ -65,10 +65,10 @@ nine-line theme toggle.
 | B4 | Synthetic separation | coordinator | Test runs excluded from the workspace rate and the owner total, AND a reader can tell a test run from customer traffic on the run itself | VERIFY-563 and VERIFY-566. A verifier could not tell them apart when the only marker was a field value four cards down; the run page now names it above the verdict, live and read back | deployed |
 | B5 | Billing portal, fresh session per opening | coordinator | Two openings produce two different Stripe sessions | BILL-675/676; staging evidence section 5 | deployed |
 | B6 | Viewer permissions | coordinator | All three actions refused at the route, naming the role | staging evidence section 6 | deployed |
-| B7 | Payment alert delivery | Agent C | Test mode alerts nobody; a live checkout alerts once however many times Stripe redelivers it; a failed charge alerts once per INVOICE, so Smart Retries of the same invoice collapse into that one alert and a new failed invoice raises its own | `docs/evidence/functional-closure.txt`: both raise paths sit inside `if (event.livemode)` (`billing/events.ts:238,562`); idempotency is a UNIQUE `notification_key` claimed in `notifications/send.ts`, keyed on the checkout session id for the payment alert and on the invoice id for the failure alert; BILL-657..662 separate live from test. 9 of 9 passing | verified |
+| B7 | Payment alert delivery | Agent C | Test mode alerts nobody; a live checkout alerts once however many times Stripe redelivers it; a failed charge alerts once per INVOICE, so Smart Retries of the same invoice collapse into that one alert and a new failed invoice raises its own | `docs/evidence/functional-closure.txt`: both raise paths sit inside `if (event.livemode)` (`billing/events.ts:238,562`); idempotency is a UNIQUE `notification_key` claimed in `notifications/send.ts`, keyed on the checkout session id for the payment alert and on the invoice id for the failure alert; BILL-657..662 separate live from test. 9 of 9 passing. The channel is also delivering today: 19 milestone_reached rows on production, every one state=sent, latest 17:36Z, which is this afternoon release notification | verified |
 | B8 | Support receipt and reply | Agent C + coordinator | Either a path exists and is evidenced, or its absence is stated plainly | same file: nothing pushes a support case anywhere, and the queue listed escalated cases only. Open cases now reach it, OWNER-926, mutation-checked, live at 38614ab5622d. Replying as support@ still needs an outbound identity (B10) | deployed, with a stated limit |
-| B9 | Owner panel through real login | owner + coordinator | Owner signs in at `/admin/login` with a TOTP code; panel read against production data | none yet | blocked on the owner |
-| B10 | `support@itisyou.app` routing rule | owner | Rule exists in Cloudflare Email Routing; one test message received | none yet | blocked on the owner |
+| B9 | Owner panel through real login | owner + coordinator | Owner signs in at `/admin/login` with a TOTP code; panel read against production data | Everything around it verified on production (`docs/evidence/owner-actions-readiness.txt`): one platform owner, TOTP enrolled and accepted before, 11 sign-in emails delivered with every one state=sent, the form serving 200, the panel rendering at three widths, anonymous refused. The sign-in itself has never happened and nobody may do it for the owner | blocked on the owner, one action |
+| B10 | `support@itisyou.app` routing rule | owner | Rule exists in Cloudflare Email Routing; one test message received | DNS verified (MX to Cloudflare, SPF present). The rule itself cannot be read from here: an SMTP probe that offers the recipient without sending a message is refused at connection with `550 Sender IP reverse lookup rejected`, because this machine has no reverse DNS. A fact about the prober, not the rule | blocked on the owner, one dashboard check |
 
 ## C. Deployment
 
@@ -120,9 +120,15 @@ code to, and the code is right.
 
 ## E. Exactly what is needed from the owner
 
-1. **Sign in at `https://verify.itisyou.app/admin/login`** and confirm a TOTP code. That
-   unblocks B9. Nobody may seed a production session to stand in for it.
-2. **Cloudflare, Email, Email Routing, Routes**: confirm a rule for `support@itisyou.app`.
-   That unblocks B10.
+1. **Sign in at `https://verify.itisyou.app/admin/login`**: type the owner address, press
+   "Email me a link", open it, enter the six-digit code. Then say so. Everything else about
+   that path is already verified on production and recorded in
+   `docs/evidence/owner-actions-readiness.txt`; the only unverified step is a person doing it,
+   and nobody may seed a production session to stand in for that.
+2. **Cloudflare, itisyou.app, Email, Email Routing, Routes**: confirm a rule whose custom
+   address is `support@itisyou.app` and whose destination is a mailbox you read, then send one
+   message to it. The rule cannot be read from here: Cloudflare refuses an SMTP probe from this
+   machine at connection, before a recipient can be offered, because the connection has no
+   reverse DNS.
 
 Nothing else is waiting on the owner. Ads stay paused and live payments stay disabled.
