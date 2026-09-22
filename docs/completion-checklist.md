@@ -13,7 +13,7 @@ Status vocabulary, used strictly:
 - **verified** — acceptance criteria met, evidence exists and is named
 - **deployed** — verified AND serving from production at a named commit
 
-Production and staging both serve `9563df87e6fe` as of 17:48 UTC. No percentages appear in
+Production and staging both serve `58c46184f339` as of 06:38 UTC on 22 September. No percentages appear in
 this file, deliberately.
 
 ## A. Visual completion
@@ -145,8 +145,11 @@ code to, and the code is right.
    above, held by OWNER-930.
 2. **Done on 22 September**: the owner sent a test message to `support@itisyou.app` and received
    it at the configured destination. Receipt is therefore confirmed by the only person who could
-   confirm it. One thing is still open and is smaller than the item was: replying AS that address
-   needs an outbound identity, either the address verified as a sending identity in Resend or a
-   send-as identity in the mail client. Cloudflare Email Routing is receive-only.
+   confirm it. One thing is still open and may already be solved: replying AS that address needs a
+   verified sending domain, and production has delivered 11 sign-in emails, every one sent.
+   Resend refuses to send from an unverified domain and verifies DOMAINS rather than addresses,
+   so if `RESEND_FROM_ADDRESS` is on itisyou.app then support@ can already send and nothing
+   further is needed. **Look at the From line of any sign-in email you have received.** If it
+   ends @itisyou.app, this is done; if not, that is the one thing to set up.
 
 Nothing else is waiting on the owner. Ads stay paused and live payments stay disabled.
