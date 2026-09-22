@@ -64,6 +64,7 @@
  * second unit of allowance.
  */
 import { Hono } from 'hono';
+import { checkCustomerAdmissionControls } from '../db/admissionControls';
 import {
   AppError,
   EVENT_FRESHNESS_WINDOW_SECONDS,
@@ -89,6 +90,8 @@ export const FIRST_CHECK_DELAY_SECONDS = 0;
 
 /** Machine reasons, for the log only. None of these is ever returned to a caller. */
 export type EventRejection =
+  /** The customer paused admissions, or hit the per-period ceiling they set. */
+  | 'admission_controls_refused'
   | 'body_too_large_declared'
   | 'body_too_large'
   | 'missing_key_id'
@@ -336,6 +339,33 @@ export function createEventsRoute(deps: EventsRouteDeps): Hono {
         },
         verdict.httpStatus === 200 ? 402 : verdict.httpStatus,
         headers,
+      );
+    }
+
+    /*
+     * (5b) The customer's own controls, after the money question and before the write.
+     *
+     * Separate from `checkAdmission` because the answers are different and a customer needs
+     * to know which they got: "you paused this" is undone in a click, "your automation hit
+     * the ceiling you set" is a safety catch working, and neither is "you have used your
+     * plan". Reads only — nothing is written and no allowance moves — so the same event id
+     * can be sent again once they resume, and will be admitted then.
+     */
+    const controls = await checkCustomerAdmissionControls(deps.db, {
+      workspaceId: key.workspaceId,
+      workflowId: key.workflowId,
+      billingPeriod: verdict.billingPeriod,
+    });
+    if (!controls.admit) {
+      reject({
+        reason: 'admission_controls_refused' satisfies EventRejection,
+        workspace_id: key.workspaceId,
+        refusal: controls.refusal,
+      });
+      return c.json(
+        { error: { code: 'ADMISSION_PAUSED', message: controls.message ?? 'Not accepted.' } },
+        429,
+        { 'cache-control': 'no-store' },
       );
     }
 

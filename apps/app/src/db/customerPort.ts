@@ -31,6 +31,7 @@ import {
 } from '@verify/connectors';
 import { scrubSecret, secretKeyIsUsable } from '@verify/connectors/stripe';
 import type {
+  AutomationStatus,
   ConnectionTestResult,
   TestVerificationInput,
   TestVerificationOffer,
@@ -914,8 +915,40 @@ export class D1CustomerDataPort implements CustomerDataPort {
       }
     }
 
+    /*
+     * The admission controls, read from the workflow row.
+     *
+     * `admittedThisPeriod` counts runs whose event was a signed customer event — the ones a
+     * ceiling is for. Test verifications are the customer pressing a button themselves and
+     * are not what a runaway automation looks like, so they are counted for billing and not
+     * against this ceiling.
+     */
+    const controls = await this.#db
+      .prepare(
+        `SELECT admissions_paused_at, admission_limit_per_period
+           FROM workflows WHERE workspace_id = ? AND id = ?`,
+      )
+      .bind(scope.workspaceId, row.id)
+      .first<{ admissions_paused_at: string | null; admission_limit_per_period: number | null }>();
+
+    // What the ceiling is measured against: the period's own entitlement counters, which is
+    // the same number `checkCustomerAdmissionControls` compares. A date comparison here was
+    // silently always zero, because the period KEY is its END date and no START is exported
+    // — the A13-010 shape. Counting the authoritative row needs no arithmetic.
+    const period = await this.usage();
+
+    const pausedAt = controls?.admissions_paused_at ?? null;
+    const automationStatus: AutomationStatus =
+      pausedAt !== null ? 'paused' : summary.lastEventAt === null ? 'awaiting_setup' : 'receiving';
+
     return {
       ...summary,
+      admission: {
+        status: automationStatus,
+        pausedAt,
+        limitPerPeriod: controls?.admission_limit_per_period ?? null,
+        admittedThisPeriod: period.runsUsed,
+      },
       mapping: {
         correlationProperty,
         // Empty until a CRM connection can actually list properties. An invented list

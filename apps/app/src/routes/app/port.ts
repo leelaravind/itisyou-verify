@@ -127,7 +127,29 @@ export interface ExpectedOutcomeView {
   readonly coverageMode: CoverageMode;
 }
 
+/**
+ * Whether this workflow is admitting what the customer's automation sends.
+ *
+ * `paused` is a choice the customer made and can undo. `awaiting_setup` means we have
+ * never heard from their automation and there is nothing to receive yet. `receiving` means
+ * events are arriving. The three are distinguishable because a customer who sees nothing
+ * arriving needs to know which of "I turned it off", "I never finished setting it up" and
+ * "it broke" they are looking at, and those have different next steps.
+ */
+export type AutomationStatus = 'receiving' | 'awaiting_setup' | 'paused';
+
+export interface AdmissionControls {
+  readonly status: AutomationStatus;
+  /** When the customer paused new admissions, or null while admitting normally. */
+  readonly pausedAt: string | null;
+  /** A customer-set ceiling for the period, below the plan allowance. Null for none. */
+  readonly limitPerPeriod: number | null;
+  /** Admissions counted against that ceiling this period. */
+  readonly admittedThisPeriod: number;
+}
+
 export interface WorkflowDetail extends WorkflowSummary {
+  readonly admission: AdmissionControls;
   readonly mapping: FieldMappingView;
   readonly outcome: ExpectedOutcomeView;
   /** A freshly generated mask of the signing key, or null when none has been issued. */

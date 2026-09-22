@@ -455,6 +455,7 @@ export class SyntheticCustomerDataPort implements CustomerDataPort {
       lastEventAt: new Date(T_EVENT.getTime() + 11 * 3_600_000).toISOString(),
       counts: counts(),
       testCounts: { verified: 0, failed: 0, unverified: 0, pending: 0 },
+      admission: { status: 'awaiting_setup', pausedAt: null, limitPerPeriod: null, admittedThisPeriod: 0 },
       mapping: {
         correlationProperty: rules.crm_correlation_property,
         availableProperties: [
