@@ -13,7 +13,7 @@ Status vocabulary, used strictly:
 - **verified** — acceptance criteria met, evidence exists and is named
 - **deployed** — verified AND serving from production at a named commit
 
-Production and staging both serve `58c46184f339` as of 06:38 UTC on 22 September. No percentages appear in
+Production and staging both serve `b954bbcb101c` as of 07:27 UTC on 22 September. No percentages appear in
 this file, deliberately.
 
 ## A. Visual completion
@@ -94,7 +94,7 @@ removed, the write reaches validation and answers 422 instead of being refused 4
 | C1 | Release gate on the exact commit | coordinator | CI artefact matches HEAD; browser suite green | release output per commit | deployed |
 | C2 | Staging first, then production | coordinator | Same artefact, staging verified before promotion | `docs/evidence/production-954a5a71750f.txt` | deployed |
 | C3 | Served commit confirmed | coordinator | `/health` read independently of the release script | same file | deployed |
-| C4 | Screenshots preserved durably | coordinator | Tracked copies under `docs/evidence/screenshots/` for the commit that is live | `production-9563df87e6fe/`, 39 files. Earlier commits' sets are replaced rather than accumulated, so this row always names one directory and it is the current one | deployed |
+| C4 | Screenshots preserved durably | coordinator | Tracked copies under `docs/evidence/screenshots/` for the commit that is live | `production-b954bbcb101c/`, 39 files. Earlier commits' sets are replaced rather than accumulated, so this row always names one directory and it is the current one | deployed |
 | C5 | Test sessions revoked | coordinator | `revoked_at` set; cookies answer 401 | same file, section 5 and 7 | deployed |
 | C6 | This candidate (A7, A8, A9, B8) released | coordinator | Full suite, staging, production, served commit | `docs/evidence/production-38614ab5622d.txt` | deployed |
 | C7 | Ads paused, live payments disabled | owner | Unchanged, and the decision document re-validated rather than assumed | `docs/live-payment-approval.md`: verdict NOT READY, 3 of 13 FAIL, structure and every drift-prone PASS row re-read against production 9563df87e6fe at 17:50Z. STRIPE_MODE is test in every environment block; production holds one subscription, none live, and zero rows of either live-payment alert | verified |
