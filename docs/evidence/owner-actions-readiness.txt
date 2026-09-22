@@ -126,3 +126,30 @@ So if RESEND_FROM_ADDRESS is on itisyou.app, sending as support@itisyou.app need
 verification at all, and the remaining work is a choice rather than a setup task. The secret's
 value is not read here, and the owner can settle it in one second: look at the From line of
 any sign-in email they have received. If it ends @itisyou.app, nothing further is needed.
+
+
+=== replying as support@itisyou.app: closed by public DNS ===
+
+The question was whether itisyou.app is a verified sending domain in Resend. It is, and this
+is readable by anyone without a secret or a dashboard:
+
+  TXT  resend._domainkey.itisyou.app   p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCjYhs9pIzF7Iob...
+  TXT  send.itisyou.app                v=spf1 include:amazonses.com ~all
+  MX   send.itisyou.app                feedback-smtp.eu-west-1.amazonses.com
+
+That is exactly the record set Resend asks for when a domain is added: its own DKIM selector,
+and the bounce and SPF records for the Amazon SES infrastructure behind it. Combined with the
+11 sign_in_link emails production has already delivered, every one state=sent, the domain is
+not merely configured but working.
+
+Resend verifies DOMAINS, not individual addresses. So support@itisyou.app can already be sent
+from, and replying as that address needs no new verification. What is left is a choice about
+which identity to reply from, not a task:
+
+  - reply through Resend from support@itisyou.app, which works today, or
+  - add a send-as identity in the mail client, which is a mail-client setting and nothing to
+    do with this deployment.
+
+No secret was read to establish this. RESEND_FROM_ADDRESS is still unread, and its value does
+not matter: whatever address it holds, the DOMAIN is the thing Resend verifies and the domain
+is verified.
