@@ -71,7 +71,7 @@ export const runs = {
   async listByWorkspace(
     db: Db,
     workspaceId: string,
-    page: PageRequest & { status?: RunStatus } = {},
+    page: PageRequest & { status?: RunStatus; source?: 'real' | 'test' } = {},
   ): Promise<Page<RunRow>> {
     const limit = clampLimit(page.limit);
     const cursor = decodeCursor(page.cursor);
@@ -79,16 +79,31 @@ export const runs = {
     // fragment assembled at runtime: a reader — and the AUTH-202 source scan — must be
     // able to see `workspace_id = ?` in the statement that actually runs.
     const statusClause = page.status !== undefined ? ' AND status = ?' : '';
+    // A run is a test when the event that admitted it was one. The source lives on
+    // `source_events`, so the filter is an EXISTS against it rather than a join, which
+    // keeps the page's own columns and its cursor arithmetic untouched. The inner
+    // statement carries its own literal `se.workspace_id = ?`: a subquery is not an
+    // excuse to stop scoping by tenant.
+    // Each clause is one complete literal, `se.workspace_id = ?` included, so the predicate
+    // is visible in the string that actually runs rather than assembled from pieces.
+    const sourceClause =
+      page.source === 'test'
+        ? ' AND EXISTS (SELECT 1 FROM source_events se WHERE se.id = runs.source_event_id AND se.workspace_id = ? AND se.source = ?)'
+        : page.source === 'real'
+          ? ' AND NOT EXISTS (SELECT 1 FROM source_events se WHERE se.id = runs.source_event_id AND se.workspace_id = ? AND se.source = ?)'
+          : '';
     const cursorClause =
       cursor !== null ? ' AND (created_at < ? OR (created_at = ? AND id < ?))' : '';
     const sql =
       `SELECT ${RUN_COLUMNS} FROM runs WHERE workspace_id = ?` +
       statusClause +
+      sourceClause +
       cursorClause +
       ' ORDER BY created_at DESC, id DESC LIMIT ?';
 
     const bindings: unknown[] = [workspaceId];
     if (page.status !== undefined) bindings.push(page.status);
+    if (sourceClause !== '') bindings.push(workspaceId, 'owner_test');
     if (cursor !== null) bindings.push(cursor.createdAt, cursor.createdAt, cursor.id);
     bindings.push(limit + 1);
 

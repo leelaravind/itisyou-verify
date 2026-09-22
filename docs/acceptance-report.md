@@ -120,11 +120,56 @@ Confirmed through the interface, not inferred:
 
 ## Untested, and why
 
-**The success path has never been demonstrated anywhere.** Staging settled UNVERIFIED with
-`CONNECTION_UNAVAILABLE`; production has now produced FAILED. **No deployment of this product
-has ever produced a VERIFIED result.** Proving it needs a real HubSpot contact carrying a known
-`itisyou_verify_ref`, and a real Resend message id with a known recipient — fixtures only the
-account owner can create. Requested; not supplied at time of writing.
+> ### Correction, 22 September
+>
+> An earlier version of this report said **"No deployment of this product has ever produced a
+> VERIFIED result."** That was wrong, and the owner was right to challenge it.
+>
+> **Three VERIFIED runs exist on staging**, all on workflow `wf_slice_proof_0001`, all on real
+> `provider_readback` evidence rather than customer claims:
+>
+> | Run | Created | What it proved |
+> | --- | --- | --- |
+> | `run_01M2XTQ7H8FFAAC8673E6D43A9` | 2026-09-19 21:56:21Z | email: `email_delivered`, `email_recipient_matches` → `delivered@resend.dev` |
+> | `run_01M2YRDJFB4442E1A140C14608` | 2026-09-20 06:35:22Z | (same workflow) |
+> | `run_01M2YTSKKM2DC653F9BA114937` | 2026-09-20 07:16:53Z | CRM: `crm_record_exists` → `871054966976`, `crm_correlation_matches` → `ENQ-MATCH-0001` |
+>
+> The first was recorded and independently confirmed in `docs/audit-pass-2.md` §4 on
+> 19 September, against staging commit `af23e906`. I did not find it before writing the
+> original sentence: I searched the evidence files and the deployed pages, not the audit
+> record or the staging database. The claim was overreaching on evidence I had not looked for.
+>
+> **What is accurate**, stated narrowly:
+>
+> - Staging has produced VERIFIED runs, on both the CRM checks and the email checks, though
+>   **in separate runs against a slice-proof workflow, not one run covering both**.
+> - **Production had produced no VERIFIED run** up to 22 September 14:23Z.
+> - Historical staging proof and fresh production verification are kept separate throughout
+>   this report and are not combined into a single claim.
+
+**Production's success path was unproven until 22 September.** Staging settled UNVERIFIED in
+the acceptance runs quoted above; production produced FAILED twice. The fixtures needed to
+prove it turned out to exist already and to be recoverable through authorised access — see
+"Recovered fixtures" below — so no new fixture had to be created.
+
+### Recovered fixtures
+
+Both were recovered from the staging runs above, through authorised access, without asking
+the owner to recreate anything:
+
+| Fixture | Value | Usable on production? |
+| --- | --- | --- |
+| HubSpot contact | `871054966976`, `itisyou_verify_ref` = `ENQ-MATCH-0001` | **Yes.** Portal `149371406` is the same connected account on staging and production |
+| Resend message | `01a0bbab-7989-776c-8cd6-58278e013380` → `delivered@resend.dev` | **Unconfirmed.** The two environments hold different API keys; different keys do not by themselves establish different accounts, and this has not been tested against production's connection |
+
+`delivered@resend.dev` is Resend's own sandbox address, not a real recipient.
+
+### Why the HubSpot fixture alone was enough
+
+Production's workflow `wf_01M31D1D2C8D20264F1F2A4083@v2` requires exactly two checks, both
+CRM — `crm_record_exists` and `crm_correlation_matches`. It requires no email check at all.
+A production VERIFIED result therefore turns only on the HubSpot fixture. That is also a
+finding in its own right, recorded under "Coverage is narrower than the product says".
 
 Blocked on those same fixtures:
 

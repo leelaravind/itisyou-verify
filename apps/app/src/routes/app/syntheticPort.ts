@@ -623,7 +623,11 @@ export class SyntheticCustomerDataPort implements CustomerDataPort {
     };
   }
 
-  async listRuns(options: { readonly cursor?: string; readonly limit: number }): Promise<RunPage> {
+  async listRuns(options: {
+    readonly cursor?: string;
+    readonly limit: number;
+    readonly source?: 'real' | 'test';
+  }): Promise<RunPage> {
     const runs = [...allRuns()].sort((a, b) => Date.parse(b.occurredAt) - Date.parse(a.occurredAt));
     const offset =
       options.cursor === undefined ? 0 : Math.max(0, Number.parseInt(options.cursor, 10) || 0);
@@ -637,6 +641,8 @@ export class SyntheticCustomerDataPort implements CustomerDataPort {
         correlationId: CORRELATION_VALUE,
         occurredAt: run.occurredAt,
         decidedAt: run.status === 'PENDING' ? null : run.decidedAt,
+        // The synthetic stand-in has no owner-started runs to distinguish.
+        isTest: false,
         mandatorySupported: mandatory.supported,
         mandatoryTotal: mandatory.total,
       };

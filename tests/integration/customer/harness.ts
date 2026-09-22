@@ -101,10 +101,18 @@ export async function signedInWorkspace(options: SignedInOptions = {}): Promise<
 /** Put runs in the workspace. Re-exported so a test does not reach past this harness. */
 export function seedRunsFor(
   session: SignedIn,
-  runs: readonly { readonly id: string; readonly status: string }[],
+  runs: readonly {
+    readonly id: string;
+    readonly status: string;
+    /** `owner_test` marks a run the customer started from their own workspace. */
+    readonly source?: 'signed_customer_event' | 'owner_test';
+  }[],
 ): void {
   for (const run of runs) {
-    seedRun(session.h, session.ws, run.id, { status: run.status });
+    seedRun(session.h, session.ws, run.id, {
+      status: run.status,
+      ...(run.source === undefined ? {} : { source: run.source }),
+    });
   }
 }
 

@@ -813,10 +813,16 @@ export function createAppRoutes(resolve: PortResolver = syntheticResolver): Hono
   routes.get('/runs', async (c) =>
     withSession(c, async (port, session) => {
       const cursor = c.req.query('cursor');
+      // Anything but the two known values is `all`: a filter is not a place to answer a
+      // question the customer did not ask.
+      const asked = c.req.query('show');
+      const source: 'all' | 'real' | 'test' =
+        asked === 'real' || asked === 'test' ? asked : 'all';
       const workflow = await port.workflow();
       const runPage = await port.listRuns({
         limit: RUNS_PER_PAGE,
         ...(cursor === undefined ? {} : { cursor }),
+        ...(source === 'all' ? {} : { source }),
       });
       return page(
         c,
@@ -829,6 +835,7 @@ export function createAppRoutes(resolve: PortResolver = syntheticResolver): Hono
             page: runPage,
             workflowName: workflow?.name ?? 'This workspace',
             basePath: '/app/runs',
+            source,
           }),
         }),
       );

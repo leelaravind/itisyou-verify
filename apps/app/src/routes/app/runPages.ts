@@ -63,6 +63,29 @@ export interface RunListPageOptions {
   readonly page: RunPage;
   readonly workflowName: string;
   readonly basePath: string;
+  /** Which runs this listing is showing. `all` is the default and shows both. */
+  readonly source?: 'all' | 'real' | 'test';
+}
+
+/**
+ * The filter strip, and the sentence that says what is being counted.
+ *
+ * A test run was labelled on its own page and excluded from the verification rate, but the
+ * list showed it with no mark at all, so a customer scanning their runs read their own
+ * tests as customer failures. Naming the filter in the page means the count under the table
+ * can never be mistaken for the whole workspace.
+ */
+function sourceFilter(basePath: string, active: 'all' | 'real' | 'test'): Html {
+  const link = (value: 'all' | 'real' | 'test', label: string): Html => {
+    const href = value === 'all' ? basePath : `${basePath}?show=${value}`;
+    return value === active
+      ? html`<span ${attrs({ class: 'chip chip--on', 'aria-current': 'true' })}>${label}</span>`
+      : html`<a ${attrs({ class: 'chip', href: safeHref(href) })}>${label}</a>`;
+  };
+  return html`<nav ${attrs({ class: 'cluster', 'aria-label': 'Filter runs by origin' })}>
+    <span class="small">Showing</span>
+    ${link('all', 'All runs')} ${link('real', 'From your automation')} ${link('test', 'Your tests')}
+  </nav>`;
 }
 
 export function RunListPage(options: RunListPageOptions): Html {
@@ -74,6 +97,7 @@ export function RunListPage(options: RunListPageOptions): Html {
       title: options.workflowName,
       lede: 'Newest first. A run is one enquiry your automation told us about, checked against the evidence we read back.',
     })}
+    ${sourceFilter(options.basePath, options.source ?? 'all')}
 
     ${
       items.length === 0
@@ -99,7 +123,11 @@ export function RunListPage(options: RunListPageOptions): Html {
                 cell: (run) =>
                   html`<a ${attrs({ class: 'mono', href: safeHref(`/app/runs/${encodeURIComponent(run.id)}`) })}
                     >${run.id}</a
-                  >`,
+                  >${
+                    run.isTest
+                      ? html` <span ${attrs({ class: 'chip chip--test', title: 'You started this one from your workspace. It cost a run and is left out of your verification rate.' })}>TEST</span>`
+                      : null
+                  }`,
               },
               {
                 key: 'summary',
