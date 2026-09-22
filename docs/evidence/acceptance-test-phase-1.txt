@@ -1,0 +1,140 @@
+Customer acceptance test, phase 1: baseline, connection tests, and the defect that ended it
+22 September 2026, production b954bbcb101cfe8a7e49a20a154ffb555cf4e705.
+
+Run entirely through the normal browser interface, signed in as the existing authorised test
+user in their existing workspace. No database edits, no seeded sessions, no developer
+endpoints, no injected evidence, no direct backend submissions, no allowance resets. The
+database reads quoted below are read-only and were taken to explain a customer-visible
+failure, not to substitute for one.
+
+The phase ended at the first defect, as instructed, rather than continuing to spend allowance.
+
+
+=== the baseline, before anything was pressed ===
+
+Read from /app/usage at 2026-09-22T12:46:01Z.
+
+  deployed commit      b954bbcb101cfe8a7e49a20a154ffb555cf4e705
+  account mode         subscription, active
+  allowance            500
+  consumed             0
+  remaining            500
+  period ends          2026-10-21T07:54:09Z
+  runs received        0
+  VERIFIED             0
+  FAILED               0
+  UNVERIFIED           0
+  PENDING              0
+
+The allowance is 500, not 300, and nothing had been consumed. Recorded before starting so the
+reconciliation at the end has something real to reconcile against.
+
+
+=== connection test 1: HubSpot, 12:47:08Z ===
+
+Pressed "Test connection" on the HubSpot card. The card answered:
+
+  API ACCESS             The provider answered our read with this credential, just now
+  WEBHOOK READINESS      This provider is polled rather than received, so there is no
+                         webhook to be ready
+  WORKFLOW VERIFICATION  Not checked, and this button cannot check it
+                         Your stored credential was not changed by this check.
+
+LAST CHECKED moved from 2026-09-21T07:08:59Z to 2026-09-22T12:47:08Z, so the check really ran.
+
+This is the behaviour the button should have. It distinguishes the three things it was asked
+to distinguish — the credential works, there is no webhook to be ready, the workflow was not
+checked and this button cannot check it — and it declines to claim the third. No credential
+appeared on screen at any point.
+
+
+=== connection test 2: Resend, 12:48:31Z — the defect ===
+
+Pressed "Test connection" on the Resend card. The status flipped READY -> NOT FINISHED YET,
+and the card contradicted itself:
+
+  WEBHOOK READINESS   A correctly signed callback from this provider has been received
+                      and understood
+  NEXT STEP           We have your signing secret, but we have never actually received a
+                      message signed with it, so we cannot yet say this connection works.
+
+Both sentences are about the same fact, on the same card, at the same moment, and they
+disagree. Screenshot preserved.
+
+The database, read afterwards, read-only:
+
+  provider  status    webhook_verified_at       last_check_at
+  hubspot   ready     NULL                      2026-09-22T12:47:08.587Z
+  resend    testing   2026-09-21T07:32:50.109Z  2026-09-22T12:48:31.662Z
+
+So the callback did arrive, on 21 September. The webhook readiness line is the true one. The
+status and the next step are wrong, and the status is wrong *in the stored row*: pressing a
+button that only asks how a connection is doing moved that connection backwards.
+
+
+=== why ===
+
+`customerPort.testConnection` called `revalidateConnection` with a connection object of only
+
+  { provider, account_id, reverify_account }
+
+omitting `webhook_verified_at`. That is the single field `resend.ts` decides readiness on:
+
+  const webhookProven = typeof input.connection.webhook_verified_at === 'string' && ...
+  return { ok: hasSecret && webhookProven, ... }
+
+Undefined, so never proven, so `ok: false`, so `RESEND_AWAIT_CALLBACK_STEP` — which is the
+sentence quoted above — and `revalidateConnection` maps not-ready to `testing`, which
+`connections.setStatus` then wrote.
+
+Meanwhile the page's own webhook line came from a *separate* query of the same column, a few
+lines further down the same method, which read the true value. One fact, two sources, one of
+them starved of its input: that is the contradiction, exactly.
+
+Two things make this worse than a wrong label.
+
+**It had already been found once.** The credential-save path in the same file carries the
+value in deliberately, with a comment saying so: "A webhook that has already been proven stays
+proven. Without carrying this in, a customer who re-pastes their API key would silently drop a
+`ready` Resend connection back to `testing`." The identical omission in `testConnection` was
+never noticed, because `testConnection` had no test of any kind — not one case anywhere in the
+tree touched it.
+
+**It was a dead end, not a blip.** `markWebhookVerified` is the only route from `testing` to
+`ready` for a webhook-dependent connection, and the route that calls it fires only while
+`webhook_verified_at IS NULL` (`routes/webhooks/resend.ts:340`). Our row is not null. So no
+later delivery, however correctly signed, could have climbed the connection back out. The only
+customer-reachable escape was re-pasting the API key, because that path does carry the value.
+
+Severity: high. Wrong, persisted, customer-visible, self-contradicting, and unrecoverable by
+the obvious action.
+
+
+=== what phase 1 did not establish ===
+
+Stopped here deliberately, so most of the matrix is untested and is recorded as untested
+rather than passed:
+
+  correct CRM correlation and recipient        not reached
+  wrong recipient                              not reached
+  existing record, wrong correlation           not reached
+  missing or unavailable evidence              not reached
+  pending runs progressing to settled          not reached
+  invalid input, repeated clicks, duplicates   not reached
+
+Two limits found while reading, which no amount of running would have changed:
+
+**300 runs cannot be reached through the customer flow.** The guided test verification is rate
+limited to four per hour per workspace (`consume(db, 'test-verification:<ws>', 4, 3600)`).
+Three hundred runs is seventy-five hours of continuous pressing. So the 300-run volume is
+untested, and the 500-run allowance boundary is untested with it. Raising either would mean
+altering production entitlement data or the limiter, which is exactly what was ruled out.
+
+**The external automation path is untested.** The website's guided path exercises the internal
+pipeline. It does not prove an outside automation signs and sends events correctly. No
+authorised automation was available to trigger, so that path is marked explicitly untested
+rather than inferred from the guided one.
+
+Allowance consumed by phase 1: none. Connection tests do not consume verification allowance,
+and no verification was started. The reconciliation at the end of a resumed run therefore
+starts from the same 0/500 recorded above.
