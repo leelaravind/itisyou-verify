@@ -182,6 +182,13 @@ describe('testing a stored connection against the provider', () => {
     expect(text).toContain('stored credential was not changed');
     expect(credentialCount(open), 'a credential was retired by an outage').toBe(before);
     expect(connectionRow(open)['last_error_code']).toBe('PROVIDER_UNAVAILABLE');
+
+    // The half this case used to leave out, and the gap CONN-905 was met in on production.
+    // "Leaves it alone" has to cover the status as well as the credential: an outage that
+    // demotes a ready connection to `not_connected` has changed something, whatever the
+    // page says, and `not_connected` is outside the scheduler's USABLE_STATUSES, so it
+    // takes the connection out of service for real runs too.
+    expect(connectionRow(open)['status'], 'an outage demoted a ready connection').toBe('ready');
   });
 
   it('CONN-522 a provider that refuses the credential reports it without inventing a cause', async () => {
