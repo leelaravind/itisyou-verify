@@ -343,3 +343,83 @@ entitlement data or the limiter.
 
 **The external automation path remains untested.** No authorised automation was available to
 trigger, and the guided form explicitly proves nothing about it: the page says so itself.
+
+
+=== phase 4, 13:58Z: the fourth defect was mine ===
+
+The phase-3 fix was deployed at 13:51Z and reported as working. It was not. Re-reading the
+deployed run page showed the corrected sentence and the original false one served together:
+
+  Failed
+  We retrieved the evidence and it contradicts at least one of your required checks.   <- band
+  The completion window closed and ... does not exist.                                 <- port
+
+`RunDetailPage` called `explainRunStatus(run.status)` without the results, which it already
+had two lines below for the gaps list. Two surfaces were fixed and the one a customer reads
+was not. VERIFY-901 passed throughout, because it tested the function rather than the page.
+
+That is the second time in this work that a check at one level passed over a defect at
+another: the first was concluding `testConnection` was untested because a search for the
+method name missed tests that drive it through the route. CUST-963 and CUST-964 now assert the
+RENDERED page through the Worker entry point, mutation-checked — restore the old call and
+CUST-963 fails on the sentence itself.
+
+Deployed b6df26b at 13:58Z and re-read the live page rather than assuming. It now reads:
+
+  Failed
+  The completion window closed and the connected systems confirmed the expected record or
+  message does not exist. Nothing contradicted your checks; there was nothing to check against.
+  Next step. ... Check that your automation creates the record, and sends the
+  acknowledgement, before the window closes.
+  2 of 2 items could not be found in the connected systems.
+
+Headline, strip and table now agree.
+
+One thing this introduced: the verdict band and the small line beneath it now say nearly the
+same sentence twice. Before the fix they differed, which was the defect; now the repetition is
+visible. Cosmetic, recorded rather than fixed, to be folded into the next change.
+
+
+=== accounting reconciliation ===
+
+Read from `entitlements` at 13:40Z, after both runs had settled:
+
+  run_limit  500
+  consumed   2
+  reserved   0
+  updated_at 2026-09-22T13:36:26Z   (the moment the second run settled)
+
+  runs admitted   2
+  runs settled    2
+  runs unresolved 0
+
+Two admitted, two consumed, nothing stranded in reserve. The counters reconcile exactly. The
+`reserved` counter moved and returned to zero as the runs settled, so the reserve-then-settle
+path works; it is simply never shown to the customer (see docs/dashboard-metrics.md).
+
+No retry or duplicate double-charged. The two runs with identical enquiry values were charged
+once each, which is one charge per admitted run and not one charge per enquiry — see the
+duplicate-handling note in phase 3.
+
+
+=== customer friction observed, by impact ===
+
+1. **A test run is indistinguishable from a real one in the runs list.** It is labelled on its
+   own page ("You started this one") and correctly excluded from the verification rate, but
+   `/app/runs` shows no badge and offers no real-versus-test filter. Two test runs currently
+   read as two customer failures to anyone scanning the list. Highest impact of the items
+   here, because it misrepresents the workspace's record at a glance.
+
+2. **The allowance panel never shows `reserved`.** The data exists. A customer cannot see how
+   much of their allowance is committed to runs still in flight.
+
+3. **No oldest-pending age.** "3 pending" reads the same at three minutes and three hours.
+
+4. **Duplicate submissions are silent.** No confirmation, no warning, and a second identical
+   enquiry costs a second run.
+
+5. **Invalid input is refused by the browser's native bubble**, which is the one error in the
+   product that does not look like the product.
+
+6. **The verdict sentence now appears twice on a settled run page.** Introduced today.
+
