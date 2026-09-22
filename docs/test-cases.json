@@ -22724,6 +22724,23 @@
       "countable": true
     },
     {
+      "id": "CUST-968",
+      "category": "customer_lifecycle",
+      "level": "integration",
+      "requirement": "the list shows the enquiry reference, not the hash we index on",
+      "risk": "Two list defects met on production, 22 September 2026. The column headed Enquiry carried the run verdict sentence rather than anything about the enquiry: redundant beside the Result badge in the same row, and once the absence verdict gained its fuller wording, tall enough to push one row past ten lines. The column headed Reference carried correlation_key_hash, 64 hex characters, where the run own page shows the readable value the customer entered from the same payload.",
+      "risk_source": "case",
+      "setup": "A signed-in workspace with one seeded run, listed at /app/runs.",
+      "expected": "The reference column is headed Enquiry reference, and neither the VERIFIED nor the FAILED verdict sentence is repeated in the row.",
+      "owner_agent": "A11",
+      "implementation_ref": "tests/integration/customer/states.test.ts",
+      "provider_backed": false,
+      "status": "passing",
+      "runner": "vitest",
+      "area": "tests/integration/customer/states.test.ts",
+      "countable": true
+    },
+    {
       "id": "CUST-963",
       "category": "customer_lifecycle",
       "level": "integration",

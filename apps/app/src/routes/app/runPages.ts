@@ -129,14 +129,13 @@ export function RunListPage(options: RunListPageOptions): Html {
                       : null
                   }`,
               },
-              {
-                key: 'summary',
-                header: 'Enquiry',
-                cell: (run) => html`<span class="mono">${maskValues(run.summary)}</span>`,
-              },
+              // The column headed "Enquiry" carried the run's VERDICT sentence, not its
+              // enquiry -- redundant beside the Result badge in the same row, and, once
+              // the absence verdict gained its longer wording, tall enough to push a row
+              // to ten lines. The sentence lives on the run's own page, one click away.
               {
                 key: 'ref',
-                header: 'Reference',
+                header: 'Enquiry reference',
                 cell: (run) => html`<span class="mono">${run.correlationId}</span>`,
               },
               {
