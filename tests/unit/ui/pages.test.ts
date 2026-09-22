@@ -230,6 +230,7 @@ describe('customer pages', () => {
           lastEventAt: null,
           counts: { verified: 0, failed: 0, unverified: 0, pending: 0 },
           testCounts: { verified: 0, failed: 0, unverified: 0, pending: 0 },
+          admission: { status: 'awaiting_setup', pausedAt: null, limitPerPeriod: null, admittedThisPeriod: 0 },
           mapping: { correlationProperty: 'verify_correlation_id', availableProperties: [] },
           outcome: {
             deadlineSeconds: 600,
@@ -281,6 +282,7 @@ describe('customer pages', () => {
           lastEventAt: null,
           counts: { verified: 1, failed: 0, unverified: 0, pending: 0 },
           testCounts: { verified: 0, failed: 0, unverified: 0, pending: 0 },
+          admission: { status: 'awaiting_setup', pausedAt: null, limitPerPeriod: null, admittedThisPeriod: 0 },
           mapping: { correlationProperty: 'p', availableProperties: [] },
           outcome: {
             deadlineSeconds: 600,

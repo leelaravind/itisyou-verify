@@ -1,0 +1,41 @@
+-- Two customer-held controls over what this workflow admits, and one dedupe key for the
+-- warning that goes with them.
+--
+-- ## Why these live on `workflows`
+--
+-- Admission is a property of the workflow: `sourceEvents.admitOnce` is called with a
+-- workflow id, and it is the workflow that has a signing key an automation posts against.
+-- `settings` is a global key/value table with no `workspace_id`, so scoping a per-customer
+-- switch there would be a naming convention rather than a tenant predicate, and the source
+-- scans are right to want the real thing.
+--
+-- ## `admissions_paused_at`
+--
+-- NULL means admitting normally, which is the correct value for every row that exists
+-- today. A timestamp means the customer has paused NEW automatic admissions from that
+-- instant.
+--
+-- Pausing is deliberately narrow. It stops new events being admitted; it does NOT touch
+-- runs already admitted, which keep their reservation, keep being checked and still reach a
+-- verdict. Cancelling those would throw away allowance the customer has already paid for
+-- and evidence we have already gathered. The pages have to say this, because "paused" reads
+-- to most people as "everything stops".
+--
+-- ## `admission_limit_per_period`
+--
+-- NULL means no limit beyond the plan allowance itself. A number is a customer-set ceiling
+-- on admissions in the current billing period, so a faulty automation looping on its own
+-- events cannot quietly eat a month of runs before anybody looks. It can only ever be
+-- lower than the plan allowance: this is a safety catch the customer owns, not a way to buy
+-- more.
+--
+-- ## `usage_alert_key`
+--
+-- The last usage warning actually sent, as `<period>:<threshold>`. Alerting on a threshold
+-- crossing without remembering the crossing is how one runaway automation produces two
+-- hundred identical emails. Writing the key the alert was sent for makes the send
+-- at-most-once per threshold per period, using the same "remember what you already did"
+-- shape as the outbox's unique event key.
+ALTER TABLE workflows ADD COLUMN admissions_paused_at TEXT;
+ALTER TABLE workflows ADD COLUMN admission_limit_per_period INTEGER;
+ALTER TABLE workflows ADD COLUMN usage_alert_key TEXT;

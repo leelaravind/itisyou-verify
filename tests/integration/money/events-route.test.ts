@@ -349,3 +349,86 @@ describe('entitlement is enforced on the request path', () => {
     expect(response.status).toBe(202);
   });
 });
+
+/**
+ * The customer's own admission controls, through the real signed-event path.
+ *
+ * `billing/admission.ts` answers whether WE should serve this workspace. These answer a
+ * question the customer owns: have they asked us to stop, and have they set a ceiling below
+ * their plan. Both are checked before `admitOnce`, so a refusal writes nothing and moves no
+ * allowance — which is what makes the same event id safe to send again afterwards.
+ */
+describe('the customer can pause admissions and cap them', () => {
+  function pause(m: Awaited<ReturnType<typeof open>>, at: string | null): void {
+    m.h.raw
+      .prepare('UPDATE workflows SET admissions_paused_at = ? WHERE workspace_id = ?')
+      .run(at, m.ws.workspaceId);
+  }
+  function cap(m: Awaited<ReturnType<typeof open>>, limit: number | null): void {
+    m.h.raw
+      .prepare('UPDATE workflows SET admission_limit_per_period = ? WHERE workspace_id = ?')
+      .run(limit, m.ws.workspaceId);
+  }
+
+  it('BILL-901 a paused workflow refuses a signed event and writes nothing at all', async () => {
+    const m = await open();
+    pause(m, NOW);
+
+    const response = await postEvent(m, eventBody(m.ws));
+
+    expect(response.status).toBe(429);
+    const body = (await response.json()) as { error?: { code?: string; message?: string } };
+    expect(body.error?.code).toBe('ADMISSION_PAUSED');
+    // The message has to say what happens to work already under way, because "paused"
+    // reads to most people as "everything stops".
+    expect(body.error?.message).toContain('Runs already under way are unaffected');
+    expect(body.error?.message).toContain('send this same event id again');
+
+    // Nothing written, no allowance moved: that is what makes the retry safe.
+    expect(runRows(m.h, m.ws.workspaceId)).toHaveLength(0);
+    expect(allowanceRow(m.h, m.ws.workspaceId, ALLOWANCE_KEY)).toEqual({
+      run_limit: 500,
+      consumed: 0,
+      reserved: 0,
+    });
+  });
+
+  it('BILL-902 the same event id is admitted once the customer resumes', async () => {
+    const m = await open();
+    pause(m, NOW);
+    const refused = await postEvent(m, eventBody(m.ws));
+    expect(refused.status).toBe(429);
+
+    pause(m, null);
+    const admitted = await postEvent(m, eventBody(m.ws));
+
+    expect(admitted.status).toBe(202);
+    expect(runRows(m.h, m.ws.workspaceId)).toHaveLength(1);
+    expect(allowanceRow(m.h, m.ws.workspaceId, ALLOWANCE_KEY)).toMatchObject({ reserved: 1 });
+  });
+
+  it('BILL-903 a customer ceiling refuses further admissions below the plan allowance', async () => {
+    const m = await open();
+    cap(m, 1);
+
+    const first = await postEvent(m, eventBody(m.ws, { event_id: 'evt-cap-0001' }));
+    expect(first.status).toBe(202);
+
+    const second = await postEvent(m, eventBody(m.ws, { event_id: 'evt-cap-0002' }));
+    expect(second.status).toBe(429);
+    const body = (await second.json()) as { error?: { message?: string } };
+    expect(body.error?.message).toContain('limit of 1 verifications');
+
+    // The plan still has 499 units. This ceiling is the customer's safety catch, and a
+    // faulty automation hitting it must not read as "you have used your plan".
+    expect(runRows(m.h, m.ws.workspaceId)).toHaveLength(1);
+    expect(allowanceRow(m.h, m.ws.workspaceId, ALLOWANCE_KEY)).toMatchObject({ reserved: 1 });
+  });
+
+  it('BILL-904 no ceiling set admits normally, so the control is opt-in', async () => {
+    const m = await open();
+    cap(m, null);
+    const response = await postEvent(m, eventBody(m.ws));
+    expect(response.status).toBe(202);
+  });
+});
