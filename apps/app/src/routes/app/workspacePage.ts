@@ -86,6 +86,15 @@ export interface WorkspacePageOptions {
   readonly csrfToken: string | null;
   /** The outcome of a submitted test form, when this render came from one. */
   readonly testSubmitted?: TestVerificationResult | null;
+  /**
+   * Identity of THIS form, minted per render and carried in a hidden field.
+   *
+   * Two presses of one rendered form are one submission and must cost one run. A newly
+   * loaded form is a new submission and costs another, which the page says before the
+   * button. Passed in rather than generated here so the page stays a pure function of its
+   * options and a test can render it twice and get the same bytes.
+   */
+  readonly submissionId: string;
 }
 
 /**
@@ -165,8 +174,9 @@ function testVerification(options: WorkspacePageOptions): Html {
           Disclosure({
             open: submitted !== null && !submitted.ok,
             summary: 'Describe the enquiry to check',
-            body: html`<form method="post" action="/app/test-verification" class="stack">
+            body: html`<form method="post" action="/app/test-verification" class="stack" data-verify-form>
             ${CsrfField(options.csrfToken)}
+            <input type="hidden" name="submissionId" ${attrs({ value: options.submissionId })} />
             ${Fieldset({
               legend: 'The enquiry to check',
               hint: 'Every value names something that already exists. We create nothing and send nothing.',

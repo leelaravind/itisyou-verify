@@ -375,6 +375,15 @@ export interface TestVerificationInput {
   readonly messageId: string;
   readonly expectedRecipient: string;
   readonly correlationValue: string;
+  /**
+   * Identity of the SUBMISSION, minted when the form rendered.
+   *
+   * A double-click, a browser back-and-resubmit and a refresh all present the same value,
+   * and must therefore reuse the same run rather than buy a second one. "Run another
+   * verification" loads a fresh form and so carries a fresh identity, which is a new run
+   * and is disclosed as costing one before it is pressed.
+   */
+  readonly submissionId?: string;
 }
 
 export interface TestVerificationResult {
@@ -383,6 +392,8 @@ export interface TestVerificationResult {
   readonly runId: string | null;
   readonly fieldErrors: Readonly<Record<string, string>>;
   readonly message: string;
+  /** True when this returned a run an earlier submission already started, unpaid-for twice. */
+  readonly duplicate?: boolean;
 }
 
 export interface ConnectionCredentialsInput {
