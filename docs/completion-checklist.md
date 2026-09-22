@@ -66,10 +66,10 @@ nine-line theme toggle.
 | B5 | Billing portal, fresh session per opening | coordinator | Two openings produce two different Stripe sessions | BILL-675/676; staging evidence section 5 | deployed |
 | B6 | Viewer permissions | coordinator | All three actions refused at the route, naming the role | staging evidence section 6 | deployed |
 | B7 | Payment alert delivery | Agent C | Test mode alerts nobody; a live checkout alerts once however many times Stripe redelivers it; a failed charge alerts once per INVOICE, so Smart Retries of the same invoice collapse into that one alert and a new failed invoice raises its own | `docs/evidence/functional-closure.txt`: both raise paths sit inside `if (event.livemode)` (`billing/events.ts:238,562`); idempotency is a UNIQUE `notification_key` claimed in `notifications/send.ts`, keyed on the checkout session id for the payment alert and on the invoice id for the failure alert; BILL-657..662 separate live from test. 9 of 9 passing. The channel is also delivering today: 19 milestone_reached rows on production, every one state=sent, latest 17:36Z, which is this afternoon release notification | verified |
-| B8 | Support receipt and reply | Agent C + coordinator | Either a path exists and is evidenced, or its absence is stated plainly | same file: nothing pushes a support case anywhere, and the queue listed escalated cases only. Open cases now reach it, OWNER-926, mutation-checked, live at 38614ab5622d. Replying as support@ still needs an outbound identity (B10) | deployed, with a stated limit |
+| B8 | Support receipt and reply | Agent C + coordinator | Either a path exists and is evidenced, or its absence is stated plainly | same file: nothing pushes a support case anywhere, and the queue listed escalated cases only. Open cases now reach it, OWNER-926, mutation-checked, live at 38614ab5622d. Replying as support@ is available: the domain is Resend-verified (B10) | deployed, with a stated limit |
 | B9a | Owner panel on the port production uses | coordinator | Every owner screen renders through the real router on `D1OwnerDataPort`, not only on the in-memory stand-in; unknown figures stay unknown on an empty database; a non-owner session gets 404 on all of them | OWNER-927..929. The panel had been rendered, captured and audited thirteen times, every time against the stand-in. The join between port and page was covered by nothing | verified |
 | B9 | Owner panel through real login | owner + coordinator | Owner signs in at `/admin/login`; panel read against production data | Everything around it verified on production (`docs/evidence/owner-actions-readiness.txt`): one platform owner, TOTP enrolled and accepted before, 11 sign-in emails delivered with every one state=sent, the form serving 200, the panel rendering at three widths, anonymous refused. **The sign-in has happened**: the owner reported signing in on 22 September. What remains is reading the panel against production data, which needs either their session (`scripts/owner-panel-walkthrough.mjs`, GET-only) or their own account of what each screen shows | part done, walkthrough outstanding |
-| B10 | `support@itisyou.app` receipt | owner | Rule exists in Cloudflare Email Routing; a test message arrives at the destination | **Owner-reported, 22 September**: they sent a test message and received it at the configured destination. That is the test this item asked for, done by the only person who could do it. DNS agrees (MX to Cloudflare Email Routing, SPF present). Not verified from here and not claimed to be: an SMTP probe from this machine is refused at connection with `550 Sender IP reverse lookup rejected` | verified by the owner |
+| B10 | `support@itisyou.app` receipt and reply | owner + coordinator | A test message arrives at the destination, and the domain can send replies | **Owner-reported, 22 September**: they sent a test message and received it at the configured destination. That is the test this item asked for, done by the only person who could do it. DNS agrees (MX to Cloudflare Email Routing, SPF present). Not verified from here and not claimed to be: an SMTP probe from this machine is refused at connection with `550 Sender IP reverse lookup rejected`. **Reply capability is settled separately and without a secret**: public DNS carries Resend's DKIM selector at `resend._domainkey.itisyou.app`, `send.itisyou.app` SPF `include:amazonses.com` and its bounce MX to `feedback-smtp.eu-west-1.amazonses.com`, which is the record set Resend requires of a verified domain. Resend verifies domains rather than addresses, so support@ can already send | verified: receipt by the owner, reply capability by DNS |
 
 ### The second factor, and why no code was asked at sign-in
 
@@ -143,13 +143,12 @@ code to, and the code is right.
    their own browser (it only ever GETs and cannot mint a session), or say what each screen
    shows. No code was asked for at sign-in and that is correct: see the second-factor note
    above, held by OWNER-930.
-2. **Done on 22 September**: the owner sent a test message to `support@itisyou.app` and received
-   it at the configured destination. Receipt is therefore confirmed by the only person who could
-   confirm it. One thing is still open and may already be solved: replying AS that address needs a
-   verified sending domain, and production has delivered 11 sign-in emails, every one sent.
-   Resend refuses to send from an unverified domain and verifies DOMAINS rather than addresses,
-   so if `RESEND_FROM_ADDRESS` is on itisyou.app then support@ can already send and nothing
-   further is needed. **Look at the From line of any sign-in email you have received.** If it
-   ends @itisyou.app, this is done; if not, that is the one thing to set up.
+2. **Closed, nothing needed.** Receipt: the owner sent a test message to `support@itisyou.app`
+   on 22 September and received it at the configured destination. Reply capability: public DNS
+   carries Resend's own DKIM selector on `resend._domainkey.itisyou.app`, plus
+   `send.itisyou.app` SPF `include:amazonses.com` and its bounce MX to
+   `feedback-smtp.eu-west-1.amazonses.com` — the record set Resend asks for when a domain is
+   verified. Resend verifies DOMAINS, not addresses, so support@ can already be sent from. No
+   secret was read to establish that and none needed to be.
 
 Nothing else is waiting on the owner. Ads stay paused and live payments stay disabled.
