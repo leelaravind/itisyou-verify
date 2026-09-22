@@ -192,7 +192,7 @@ function checkTally(results: readonly AssertionResult[]): Html {
  */
 export function RunDetailPage(options: RunDetailPageOptions): Html {
   const run = options.run;
-  const explanation = explainRunStatus(run.status);
+  const explanation = explainRunStatus(run.status, run.results);
   const coverage = describeCoverage({ coverage_mode: run.coverageMode });
 
   /**

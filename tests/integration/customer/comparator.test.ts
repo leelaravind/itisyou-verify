@@ -269,3 +269,67 @@ describe('an UNVERIFIED row is an absence with a stated reason, not a blank', ()
     }
   });
 });
+
+/**
+ * A failure that found nothing, as the page actually serves it.
+ *
+ * VERIFY-901 holds the sentence and passed while this page was still wrong, because the page
+ * called `explainRunStatus(run.status)` without the results it already had. The unit test
+ * proved the function; only a rendered page proves the page. That is the second time in this
+ * work that a name-level check passed over a route-level defect, so this one goes through the
+ * Worker entry point.
+ *
+ * On production, 22 September, this page carried "We retrieved the evidence and it contradicts
+ * at least one of your required checks" above a table reading "no reading" twice, and a strip
+ * reading "0 of 2 items did not match what was reported."
+ */
+describe('a failure that found nothing says so on the page itself', () => {
+  async function absentRun(): Promise<SignedIn> {
+    const s = await signedInWorkspace();
+    seedRunsFor(s, [{ id: 'run_absent', status: 'FAILED' }]);
+    seedAssertionsFor(s, 'run_absent', [
+      {
+        ruleId: 'r1_crm',
+        label: 'A CRM record was created',
+        status: 'UNKNOWN',
+        reasonCode: 'RECORD_NOT_FOUND',
+        expected: 'present',
+        observed: null,
+      },
+      {
+        ruleId: 'r2_ref',
+        label: 'The CRM record carries this enquiry reference',
+        status: 'UNKNOWN',
+        reasonCode: 'RECORD_NOT_FOUND',
+        expected: 'enq_0000000000000001',
+        observed: null,
+      },
+    ]);
+    return s;
+  }
+
+  it('CUST-963 the verdict band does not claim a contradiction over a run that retrieved nothing', async () => {
+    open = await absentRun();
+    const { status, html } = await getSignedIn(open, '/app/runs/run_absent');
+    expect(status).toBe(200);
+    const text = visibleText(html);
+
+    // The verdict is still FAILED: an authoritative absence after the deadline is a real
+    // failure, and this case is not an argument for softening it.
+    expect(text).toContain('Failed');
+    // What it must not say, anywhere on the page.
+    expect(text).not.toContain('We retrieved the evidence and it contradicts');
+    expect(text).not.toContain('is contradicted by the evidence we retrieved');
+    // And what it says instead.
+    expect(text).toContain('does not exist');
+  });
+
+  it('CUST-964 the strip counts what could not be found rather than reporting zero mismatches', async () => {
+    open = await absentRun();
+    const { html } = await getSignedIn(open, '/app/runs/run_absent');
+    const text = visibleText(html);
+
+    expect(text).not.toContain('0 of 2 items did not match');
+    expect(text).toContain('2 of 2 items could not be found');
+  });
+});

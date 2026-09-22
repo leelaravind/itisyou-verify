@@ -772,7 +772,7 @@ export function ProofPage(options: ProofPageOptions): Html {
                   body: html`<div class="stack">
                     ${RunVerdict({
                       status: proof.status as StatusKey,
-                      explanation: explainRunStatus(proof.status),
+                      explanation: explainRunStatus(proof.status, proof.results),
                       gaps: gapsFrom(proof.results, (result) => explainAssertion(result).sentence),
                     })}
                     ${proof.statusReason === null ? null : html`<p class="small mono">${proof.statusReason}</p>`}
