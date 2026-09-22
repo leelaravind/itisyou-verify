@@ -1,0 +1,55 @@
+The owner panel's figures, checked against the production database
+22 September 2026, production 58c46184f339 (b97c92f pending release).
+
+The walkthrough that remains needs the owner's own session, because nobody else may have one.
+What does NOT need a session is the substance of it: whether the panel would show correct
+figures, and whether any of them is the kind of number this product exists to refuse.
+
+Each figure below was read with the same query `D1OwnerDataPort` runs for it, read-only.
+
+
+=== the overview ===
+
+  cash received          £29.00      SUM(amount_minor) over orders WHERE status='active'
+  refunded               £0.00       SUM over refunds WHERE state='succeeded'
+  approvals waiting      0           approvals WHERE status='granted'
+  open support cases     0           support_cases WHERE state IN (open, awaiting_owner, escalated)
+  runs in the last 24h   0           runs WHERE created_at >= cutoff AND is_synthetic = 0
+  runs, all time         0
+  workspaces             1
+
+Two of these are worth reading rather than counting.
+
+**Cash received is £29.00 and that is correct, not revenue.** It is the sandbox checkout the
+owner completed on 21 September: one order, status active, 2900 minor units. The overview
+labels it "measured Payments that have actually settled. Not what has been invoiced", and the
+money table carries NET_RECEIPTS_CAVEAT beside the net line. It is not evidence of income and
+the page does not say it is.
+
+**Runs, all time, is 0, and so is the 24-hour figure.** Both because every run this deployment
+has ever decided belongs to staging; production has taken no verification traffic. A page that
+printed a rate here would be inventing one. The workspace count is 1 and that workspace is
+`is_synthetic = 1`, so the customers screen shows it with the synthetic badge and the launch
+figures exclude it.
+
+
+=== the single customer row ===
+
+  name          Owner test workspace
+  is_synthetic  1
+  status        active
+
+Which is the honest state: public signup is closed, and the only workspace on production is
+the owner's own test one, created by hand. Nobody else has an account.
+
+
+=== what this does and does not establish ===
+
+It establishes that the figures behind the panel are real, correctly scoped, and that the two
+that could mislead (£29.00 that is not revenue, and zero runs that is not a failure) are
+labelled as what they are.
+
+It does not establish that the rendered page in the owner's browser looks right, because that
+needs their session. The owner reported on 22 September that they signed in and reached the
+panel; nothing they described was broken. The rendering path itself is held by OWNER-927..930
+against the same D1 port production uses.
