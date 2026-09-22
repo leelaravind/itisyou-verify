@@ -447,11 +447,19 @@ export class D1CustomerDataPort implements CustomerDataPort {
    *
    * ## Credentials survive an outage
    *
-   * `revalidateConnection` answers `degraded` with `PROVIDER_UNAVAILABLE` when the provider
-   * cannot be reached, and this method writes that status without touching the stored
-   * credential. A provider being down is our problem or theirs; it is never evidence that
-   * the customer's key is bad, and making them re-paste a working key because HubSpot had a
-   * bad minute would be the product punishing them for somebody else's outage.
+   * When the provider cannot be reached, `revalidateConnection` returns the status the
+   * connection already had, and this method writes that back unchanged along with the error
+   * code and the check time. A provider being down is our problem or theirs; it is never
+   * evidence that the customer's key is bad, and making them re-paste a working key because
+   * HubSpot had a bad minute would be the product punishing them for somebody else's outage.
+   *
+   * This paragraph used to claim the outage path answered `degraded`, and only the *thrown*
+   * one did. A classified `PROVIDER_UNAVAILABLE` went through `statusForError` to
+   * `not_connected`, which is the state meaning "you have never connected this", so the page
+   * offered "Connect this provider to start checking" directly beneath its own promise that
+   * a key would never have to be pasted again. Worse, `not_connected` is outside the
+   * scheduler's `USABLE_STATUSES`, so a bad minute at Resend took the connection out of
+   * service for real runs. Met on production on 22 September; held now by CONN-905.
    *
    * ## Rate limited, per workspace and provider
    *
@@ -571,6 +579,9 @@ export class D1CustomerDataPort implements CustomerDataPort {
           ? {}
           : { webhook_verified_at: webhook.webhook_verified_at }),
       },
+      // So an unreachable provider returns the health we already had rather than inventing
+      // a worse one we did not measure.
+      currentStatus: row.status,
       now: this.#now,
       ...(this.#fetchImpl === undefined ? {} : { fetchImpl: this.#fetchImpl }),
     });

@@ -391,6 +391,7 @@ describe('revalidateConnection — catching a swapped token', () => {
       provider: 'hubspot',
       credentials: { accessToken: HUBSPOT_TOKEN },
       connection: stored,
+      currentStatus: 'ready',
       now: T_INSIDE_WINDOW,
       fetchImpl,
     });
@@ -407,6 +408,7 @@ describe('revalidateConnection — catching a swapped token', () => {
       provider: 'hubspot',
       credentials: { accessToken: HUBSPOT_TOKEN },
       connection: stored,
+      currentStatus: 'ready',
       now: T_INSIDE_WINDOW,
       fetchImpl,
     });
@@ -423,6 +425,7 @@ describe('revalidateConnection — catching a swapped token', () => {
       provider: 'hubspot',
       credentials: { accessToken: HUBSPOT_TOKEN },
       connection: stored,
+      currentStatus: 'ready',
       now: T_INSIDE_WINDOW,
       fetchImpl,
     });
@@ -439,16 +442,73 @@ describe('revalidateConnection — catching a swapped token', () => {
       provider: 'hubspot',
       credentials: { accessToken: HUBSPOT_TOKEN },
       connection: stored,
+      currentStatus: 'ready',
       now: T_INSIDE_WINDOW,
       fetchImpl,
     });
-    // The check failed, so nothing about the connection is asserted: no account claimed,
-    // no change alleged, and certainly not `ready`.
+    // The check failed, so nothing about the connection is asserted: no account claimed and
+    // no change alleged. "Changes nothing" has to include the status, which is what this
+    // case is named for. It previously asserted `not.toBe('ready')` — the opposite of its
+    // own name, and the reading under which an outage is allowed to rewrite health nobody
+    // measured.
     expect(result.accountChanged).toBe(false);
     expect(result.externalAccountId).toBeNull();
-    expect(result.status).not.toBe('ready');
+    expect(result.status).toBe('ready');
     expect(result.lastErrorCode).toBe('PROVIDER_UNAVAILABLE');
     expect(result.summary).toContain('not with your token');
+  });
+
+  it('CONN-905 a provider that answers 503 does not un-connect a working connection', async () => {
+    const { fetchImpl } = hubspotFetch(() => json({ status: 'error' }, 503));
+    const result = await revalidateConnection({
+      provider: 'hubspot',
+      credentials: { accessToken: HUBSPOT_TOKEN },
+      connection: stored,
+      currentStatus: 'ready',
+      now: T_INSIDE_WINDOW,
+      fetchImpl,
+    });
+
+    // Met on production, 22 September. A classified PROVIDER_UNAVAILABLE went through
+    // `statusForError` to `not_connected` -- the state meaning "you have never connected
+    // this" -- so the page asked the customer to connect a provider they were already
+    // connected to, directly beneath its own promise never to make them paste a working key
+    // again. `not_connected` is also outside the scheduler's USABLE_STATUSES, so a bad
+    // minute at the provider took the connection out of service for real runs.
+    expect(result.status).toBe('ready');
+    expect(result.status).not.toBe('not_connected');
+    expect(result.lastErrorCode).toBe('PROVIDER_UNAVAILABLE');
+    expect(result.accountChanged).toBe(false);
+  });
+
+  it('CONN-906 being rate limited by a provider is not a verdict on the connection either', async () => {
+    const { fetchImpl } = hubspotFetch(() => json({ status: 'error' }, 429));
+    const result = await revalidateConnection({
+      provider: 'hubspot',
+      credentials: { accessToken: HUBSPOT_TOKEN },
+      connection: stored,
+      currentStatus: 'ready',
+      now: T_INSIDE_WINDOW,
+      fetchImpl,
+    });
+    expect(result.status).toBe('ready');
+    expect(result.lastErrorCode).toBe('RATE_LIMITED');
+  });
+
+  it('CONN-907 a failure that IS about the credential still moves the status', async () => {
+    const { fetchImpl } = hubspotFetch(() => json({ status: 'error' }, 401));
+    const result = await revalidateConnection({
+      provider: 'hubspot',
+      credentials: { accessToken: HUBSPOT_TOKEN },
+      connection: stored,
+      currentStatus: 'ready',
+      now: T_INSIDE_WINDOW,
+      fetchImpl,
+    });
+    // The guard against over-correcting CONN-905 into "an outage never changes anything, so
+    // nothing ever changes". An expired token is measured, not merely unreachable.
+    expect(result.status).toBe('expired');
+    expect(result.lastErrorCode).toBe('AUTH_EXPIRED');
   });
 });
 
