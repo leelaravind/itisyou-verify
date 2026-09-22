@@ -19,8 +19,10 @@ deployment separated and an issue register with severity. The launch checklist b
 launch-blocker history and the screen checklist keeps the per-screen comparison detail;
 neither is a competing status list any more.
 
-Two items are blocked on the owner and nothing else is. Both are one action, and everything
-around them is verified: `docs/evidence/owner-actions-readiness.txt`.
+Nothing is blocked on the owner. The two items that were are closed: on 22 September they
+signed in, reached the owner panel and reported it fine, and they sent a test message to
+support@itisyou.app and received it. Live payments remain a separate, owner-gated DECISION
+rather than an open task: `docs/live-payment-approval.md`, NOT READY, 3 of 13.
 
 Then read in this order: this file → `docs/launch-checklist.md` (the one checklist) →
 `docs/owner-actions.md` (what only the owner can do) → `docs/live-payment-approval.md` (the
@@ -33,8 +35,8 @@ live-payment decision) → `docs/handover-evidence.md` (one page of sourced clai
 | Branch                      | `main`                                                                                                         |
 | HEAD                        | see `git rev-parse HEAD`; this row went stale twice on 21 Sept and is no longer pinned here                   |
 | Working tree                | single worktree `H:/itisyou-verify`, no stashes. Check it; do not trust a recorded state    |
-| Production                  | `c2972fb85489`, read back from `GET https://verify.itisyou.app/health` at 17:35Z on 21 Sept |
-| Staging                     | `c2972fb85489`, deployed one minute earlier from the same gate artefact and verified signed in before promotion |
+| Production                  | `58c46184f339` at 06:38Z on 22 Sept; later commits are documentation and evidence. Read it, do not trust this row |
+| Staging                     | the same commit, deployed from the same gate artefact moments before production |
 | Undeployed work             | None at the time of writing; later commits are documentation and evidence only. Per-release evidence lives in `docs/evidence/production-*.txt` |
 | Last CI run used to release | `gh run list` — releases require the CI artefact `release-gate-<fullsha>` for HEAD (see §6)                    |
 
