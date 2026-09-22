@@ -1766,7 +1766,7 @@ export class D1CustomerDataPort implements CustomerDataPort {
       items.push({
         id: row.id,
         status: row.status,
-        summary: summarise(row.status, mandatory.length),
+        summary: summarise(row.status, mandatory),
         correlationId: event?.correlation_key_hash ?? '',
         occurredAt: event?.occurred_at ?? row.created_at,
         decidedAt: row.completed_at,
@@ -1828,7 +1828,7 @@ export class D1CustomerDataPort implements CustomerDataPort {
       workflowId: row.workflow_id,
       workflowName: workflow?.name ?? 'Workflow',
       status: row.status,
-      statusReason: summarise(row.status, results.filter((r) => r.mandatory).length),
+      statusReason: summarise(row.status, results.filter((r) => r.mandatory)),
       correlationId,
       recipient,
       occurredAt: event?.occurred_at ?? row.created_at,
@@ -2147,13 +2147,27 @@ export async function recordAnonymousSupportCase(
   return recordSupportCase(db, { ...input, workspaceId: null });
 }
 
-/** One sentence per status. Deliberately not a decision — it only describes one. */
-function summarise(status: RunStatus, mandatoryTotal: number): string {
+/**
+ * One sentence per status. Deliberately not a decision — it only describes one.
+ *
+ * It describes it from the assertion rows rather than from the status alone, because FAILED
+ * has two causes: a check the evidence contradicts, and a record the provider confirmed does
+ * not exist. Saying "contradicted by the evidence we retrieved" about a run where nothing was
+ * retrieved is false, and sends a customer looking for a data mismatch when the truth is that
+ * nothing was created. See `explainRunStatus`; held by VERIFY-901.
+ */
+function summarise(
+  status: RunStatus,
+  mandatory: readonly { readonly status: string }[],
+): string {
+  const mandatoryTotal = mandatory.length;
   switch (status) {
     case 'VERIFIED':
       return `All ${mandatoryTotal} required checks are supported by evidence we retrieved.`;
     case 'FAILED':
-      return 'At least one required check is contradicted by the evidence we retrieved.';
+      return mandatory.some((a) => a.status === 'CONTRADICTED')
+        ? 'At least one required check is contradicted by the evidence we retrieved.'
+        : 'The completion window closed and the connected systems confirmed the expected record or message does not exist.';
     case 'UNVERIFIED':
       return 'We could not retrieve enough evidence to decide. That is not a failure.';
     case 'PENDING':

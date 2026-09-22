@@ -115,8 +115,17 @@ export function comparatorSentence(rows: readonly ComparatorRow[], verdict: Stat
   switch (verdict) {
     case 'VERIFIED':
       return total === 1 ? 'The item matched.' : 'Every item matched.';
-    case 'FAILED':
-      return `${items(count('CONTRADICTED'))} did not match what was reported.`;
+    case 'FAILED': {
+      // A run can fail because a check was contradicted, or because the provider confirmed
+      // the record does not exist. Counting only contradictions produced "0 of 2 items did
+      // not match what was reported." under a FAILED heading -- a sentence saying nothing
+      // mismatched, above a verdict saying something did.
+      const contradicted = count('CONTRADICTED');
+      if (contradicted > 0) return `${items(contradicted)} did not match what was reported.`;
+      const missing = count('UNKNOWN');
+      if (missing > 0) return `${items(missing)} could not be found in the connected systems.`;
+      return 'The completion window closed without the expected evidence.';
+    }
     case 'UNVERIFIED': {
       const unknown = count('UNKNOWN');
       if (unknown > 0) return `We could not check ${items(unknown)}.`;

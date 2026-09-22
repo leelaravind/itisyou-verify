@@ -195,7 +195,46 @@ const RUN_TEXT: Record<
   },
 };
 
-export function explainRunStatus(status: RunStatus): RunExplanation {
+/**
+ * FAILED has two causes and they are not the same news.
+ *
+ * `decideRunStatus` is careful about this: a mandatory CONTRADICTED ends the question, while
+ * an absence only becomes a failure when the deadline has passed, evidence access was
+ * healthy, and the connector *authoritatively* established the record does not exist. Those
+ * two produce `FAILED_CONTRADICTED` and `FAILED_ABSENT`.
+ *
+ * The customer never saw the difference. The decision's reason is not a column on `runs`, so
+ * every page re-derived a sentence from the status alone and every absence-failure was
+ * reported as "we retrieved the evidence and it contradicts your checks" -- directly above a
+ * table of checks reading "no reading", "no evidence", "we did not retrieve a value". Met on
+ * production on 22 September; held by VERIFY-901.
+ *
+ * Re-deriving from the assertions rather than adding a column keeps the headline and the
+ * table structurally unable to disagree: both now read the same rows.
+ */
+const FAILED_ABSENT_TEXT = Object.freeze({
+  headline: 'Failed',
+  sentence:
+    'The completion window closed and the connected systems confirmed the expected record or message does not exist. Nothing contradicted your checks; there was nothing to check against.',
+  next_step:
+    'Open the checks below to see what we looked for. Check that your automation creates the record, and sends the acknowledgement, before the window closes.',
+});
+
+export function explainRunStatus(
+  status: RunStatus,
+  results?: readonly AssertionResult[],
+): RunExplanation {
+  if (status === 'FAILED' && results !== undefined) {
+    const contradicted = results.some((r) => r.mandatory && r.status === 'CONTRADICTED');
+    if (!contradicted) {
+      return {
+        status,
+        headline: FAILED_ABSENT_TEXT.headline,
+        sentence: FAILED_ABSENT_TEXT.sentence,
+        next_step: FAILED_ABSENT_TEXT.next_step,
+      };
+    }
+  }
   const text = RUN_TEXT[status];
   return { status, headline: text.headline, sentence: text.sentence, next_step: text.next_step };
 }
@@ -205,5 +244,5 @@ export function explainRun(
   status: RunStatus,
   results: readonly AssertionResult[],
 ): { run: RunExplanation; assertions: readonly AssertionExplanation[] } {
-  return { run: explainRunStatus(status), assertions: results.map(explainAssertion) };
+  return { run: explainRunStatus(status, results), assertions: results.map(explainAssertion) };
 }

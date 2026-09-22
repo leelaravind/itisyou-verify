@@ -232,3 +232,114 @@ requirement and whose assertions cover part of it. Two independent tests, both n
 
 CONN-521 now asserts the status is still `ready` after an outage. It was strengthened rather
 than replaced, and it fails without the fix.
+
+
+=== phase 3, 13:22Z onward: the matrix, and a third defect ===
+
+Production moved to e6861bd3a2c504fa12ce747fc214eed032d02ae4 at 13:22:17Z. Baseline re-read
+from /app/usage at 13:22:24Z: 0 of 500, all four verdict counts 0.
+
+**Connections, re-tested cold.** Resend at 13:22:40Z came back READY. API access "answered our
+read with this credential, just now"; webhook readiness "a correctly signed callback has been
+received and understood"; no contradicting next step; the card offers Reconnect rather than
+Connect. Both fixes confirmed on the customer surface, and the connection was repaired by the
+ordinary customer action rather than by any database edit. Because the provider answered
+normally, the 13:04:54Z refusal is recorded as a genuine transient.
+
+**Invalid input.** An address without an "@" was refused before submission and consumed no
+allowance. Correct, though the message is the browser's own native bubble rather than the
+app's error styling — the one place in the product where an error does not look like the rest.
+
+**Accounting.** From the quiet 0/500 baseline, one test verification consumed exactly one run,
+and a second consumed exactly one more. The `got 2, wanted 1` recorded against
+staging 5b21ed2f70ab does not reproduce; it is consistent with two testers running at once.
+
+**Duplicate handling.** The identical enquiry — same CRM id, same correlation value, same
+message id, same recipient — submitted twice produced two distinct runs and two charges.
+Defensible by design, because de-duplication keys on the event id and the form mints a fresh
+one per press. But the usage page tells the customer "One signed event, for one enquiry,
+counted once", there is no confirmation step and no duplicate warning, so a double-press or a
+browser re-submit silently costs a run. Recorded as friction with an accounting consequence
+rather than as a defect.
+
+**Pending to settled.** Both runs were admitted PENDING with a 10-minute window and settled
+within about 40 seconds of their deadlines (13:34:50 -> 13:35:26, and 13:35:46 -> 13:36:26).
+The progression works. Each run reached revision 10, so the scheduler re-checked about once a
+minute inside the window: bounded by the deadline, not runaway, but it is ten provider reads
+per run and worth knowing for cost.
+
+
+=== the third defect: a failure that reports the wrong kind of failure ===
+
+Both runs settled FAILED. The verdict *bucket* is correct and deliberate: `decideRunStatus`
+treats an authoritative absence, after the deadline, with healthy evidence access, as a real
+failure — `isAuthoritativeAbsence` is described in that code as "the only route from unknown
+to failed". The enquiry genuinely did not produce the record. FAILED is right.
+
+The explanation is false. The run page read:
+
+  STATUS   FAILED
+           We retrieved the evidence and it contradicts at least one of your required checks.
+           At least one required check is contradicted by the evidence we retrieved.
+
+directly above its own table of checks:
+
+  COULD NOT CONFIRM   The CRM record carries this enquiry reference
+                      no reading / no evidence / We did not retrieve a value
+                      reason RECORD_NOT_FOUND
+  COULD NOT CONFIRM   A CRM record was created
+                      no reading / no evidence / We did not retrieve a value
+                      reason RECORD_NOT_FOUND
+
+and a counter reading:
+
+  0 of 2 items did not match what was reported.
+
+Three statements on one page: nothing was retrieved, nothing mismatched, and "we retrieved the
+evidence and it contradicts your checks".
+
+**Why.** `decideRunStatus` computes two distinct reasons, `FAILED_CONTRADICTED` and
+`FAILED_ABSENT` — the latter reading "The deadline passed and the connected systems confirmed
+the expected record or message does not exist", which is exactly right for these runs. That
+reason is never stored: `runs` has no `reason` column (columns confirmed by pragma). It
+travels into the scheduler's return value for logging and stops there. Every customer surface
+therefore re-derives a sentence from the status alone — `summarise()` in `customerPort`,
+`RUN_TEXT.FAILED` in `explain.ts`, and `comparatorSentence` in the UI — and all three assume
+FAILED means contradicted.
+
+So this is not an edge case. **Every absence-failure this product has ever reported has told
+the customer their evidence contradicted their checks.** The two send a customer to different
+places: one to hunt a data mismatch, the other to find out why nothing was created.
+
+Severity: high on correctness of a customer-visible verdict explanation, below the first two
+on consequence, because the verdict bucket is right and the table beneath it tells the truth.
+
+**Fixed** by deriving the sentence from the assertion rows the page already renders, rather
+than adding a column — which makes the headline and the table structurally unable to disagree,
+since both now read the same rows. VERIFY-901 holds the sentence, VERIFY-902 the
+over-correction (a real contradiction still says so), VERIFY-903 that `explainRun` passes the
+results through, VERIFY-904 that calling it with no results keeps the old answer rather than
+guessing. CUST-961 and CUST-962 hold the counter, which had no test at all.
+
+Runs spent in phase 3: 2 of 500. Two of this hour's four guided verifications used.
+
+
+=== what remains untested, and why ===
+
+**The success path has never been demonstrated anywhere.** Both staging runs settled UNVERIFIED
+with CONNECTION_UNAVAILABLE; production has now produced two FAILED. No deployment of this
+product has ever produced a VERIFIED result. Proving it needs a real HubSpot contact carrying a
+known `itisyou_verify_ref`, and a real Resend message id with a known recipient — fixtures only
+the account owner can create. Requested; not yet available.
+
+Blocked on the same fixtures, and therefore untested:
+  correct CRM correlation and recipient      needs a real record and message
+  wrong recipient                            needs a real message to mis-address
+  existing CRM record, wrong correlation     needs a real record
+
+**300 runs and the 500 boundary remain unreachable.** Four guided verifications per hour per
+workspace is 75 hours for 300. Untested, and not reachable without altering production
+entitlement data or the limiter.
+
+**The external automation path remains untested.** No authorised automation was available to
+trigger, and the guided form explicitly proves nothing about it: the page says so itself.

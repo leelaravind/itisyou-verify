@@ -10,6 +10,7 @@ import { describe, expect, it } from 'vitest';
 import {
   AssertionBadge,
   AssertionRow,
+  comparatorSentence,
   Breadcrumb,
   Button,
   Callout,
@@ -391,5 +392,34 @@ describe('forms and interaction', () => {
       }),
     );
     expect(markup).toContain('optional');
+  });
+});
+
+/**
+ * The strip's counter, which had no test and read "0 of 2 items did not match what was
+ * reported." under a FAILED heading on production, 22 September. It counted only
+ * contradictions, so a run that failed because the record does not exist announced that
+ * nothing mismatched, directly above a verdict saying something had.
+ */
+describe('comparatorSentence', () => {
+  const row = (status: 'SUPPORTED' | 'CONTRADICTED' | 'UNKNOWN' | 'PENDING') => ({
+    field: 'The CRM record carries this enquiry reference',
+    status,
+    reported: 'acceptance-test-001',
+    retrieved: status === 'SUPPORTED' || status === 'CONTRADICTED' ? 'something' : null,
+  });
+
+  it('CUST-961 a failure with nothing contradicted does not report zero mismatches', () => {
+    const sentence = comparatorSentence([row('UNKNOWN'), row('UNKNOWN')], 'FAILED');
+
+    expect(sentence).not.toContain('0 of 2');
+    expect(sentence).not.toContain('did not match');
+    expect(sentence).toContain('2 of 2');
+    expect(sentence).toContain('could not be found');
+  });
+
+  it('CUST-962 a failure with a real contradiction still counts the contradictions', () => {
+    const sentence = comparatorSentence([row('CONTRADICTED'), row('UNKNOWN')], 'FAILED');
+    expect(sentence).toBe('1 of 2 items did not match what was reported.');
   });
 });
