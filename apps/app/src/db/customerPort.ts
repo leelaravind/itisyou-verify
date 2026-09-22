@@ -1772,7 +1772,10 @@ export class D1CustomerDataPort implements CustomerDataPort {
         id: row.id,
         status: row.status,
         summary: summarise(row.status, mandatory),
-        correlationId: event?.correlation_key_hash ?? '',
+        // The readable reference the customer typed, not the hash we key on. The detail
+        // page already parses it out of the same payload; the list showed 64 hex
+        // characters where the run's own page shows "ENQ-MATCH-0001".
+        correlationId: readableCorrelation(event),
         occurredAt: event?.occurred_at ?? row.created_at,
         decidedAt: row.completed_at,
         mandatorySupported: mandatory.filter((a) => a.status === 'SUPPORTED').length,
@@ -2153,6 +2156,22 @@ export async function recordAnonymousSupportCase(
   },
 ): Promise<SupportResult> {
   return recordSupportCase(db, { ...input, workspaceId: null });
+}
+
+/**
+ * The enquiry reference as the customer would recognise it.
+ *
+ * `correlation_key_hash` is what we index on; it is not what anyone typed. Falling back to
+ * it is right when the payload cannot be read, and wrong as a first choice.
+ */
+function readableCorrelation(event: { payload_json: string; correlation_key_hash: string } | null): string {
+  if (event === null) return '';
+  try {
+    const payload = JSON.parse(event.payload_json) as { correlation_id?: string };
+    return payload.correlation_id ?? event.correlation_key_hash;
+  } catch {
+    return event.correlation_key_hash;
+  }
 }
 
 /**

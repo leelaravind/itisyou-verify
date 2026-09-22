@@ -251,3 +251,29 @@ describe('runs list: a test run says so, and can be filtered out', () => {
     expect(html).toContain('run_test_0001');
   });
 });
+
+/**
+ * The runs list shows the enquiry reference the customer typed, and does not repeat the
+ * verdict sentence beside the verdict badge.
+ *
+ * Both were met on production on 22 September. The column headed "Enquiry" carried the run's
+ * verdict sentence rather than anything about the enquiry, which was redundant next to the
+ * Result badge in the same row and, once the absence verdict gained its fuller wording, tall
+ * enough to push a single row past ten lines. The column headed "Reference" carried
+ * `correlation_key_hash` — 64 hex characters — where the run's own page shows the readable
+ * value the customer had entered.
+ */
+describe('runs list: the reference is readable and the verdict is not repeated', () => {
+  it('CUST-968 the list shows the enquiry reference, not the hash we index on', async () => {
+    open = await signedInWorkspace();
+    seedRunsFor(open, [{ id: 'run_ref_0001', status: 'VERIFIED' }]);
+    const { html } = await getSignedIn(open, '/app/runs');
+
+    // `seedRun` writes 'corr' as the hash and no `correlation_id` in the payload, so the
+    // fallback is what should appear — the point is that the hash is a FALLBACK.
+    expect(html).toContain('Enquiry reference');
+    // The verdict sentence is not repeated in the row beside the badge.
+    expect(html).not.toContain('Every required check has independent supporting evidence');
+    expect(html).not.toContain('is contradicted by the evidence we retrieved');
+  });
+});
