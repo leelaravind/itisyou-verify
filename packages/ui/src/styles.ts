@@ -873,6 +873,12 @@ a:hover{text-decoration-thickness:2px}
 .tally{display:flex;flex-wrap:wrap;gap:var(--s2) var(--s4);align-items:center;margin:0;padding:0;list-style:none;font-family:var(--f-mono);font-size:var(--t-micro);letter-spacing:0.04em;color:var(--c-muted)}
 .tally li{margin:0;display:inline-flex;align-items:center;gap:var(--s2)}
 .tally__count{font-weight:600;color:var(--c-ink);font-variant-numeric:tabular-nums}
+/* A page heading with its primary action beside it. The action wraps underneath rather
+   than squeezing when the heading needs the width. */
+.page-head{display:flex;flex-wrap:wrap;gap:var(--s4);align-items:flex-start;justify-content:space-between}
+.page-head>.stack-sm{flex:1 1 20rem;min-width:0}
+.page-head__action{flex:0 0 auto;display:flex;gap:var(--s3);flex-wrap:wrap;align-items:center}
+@media (max-width:40rem){.page-head__action{width:100%}.page-head__action .btn{width:100%;justify-content:center}}
 /* A filter chip, and the TEST mark on a run a customer started themselves. Both read as
    text with a border rather than colour alone, so neither depends on hue to be legible. */
 .chip{display:inline-flex;align-items:center;gap:var(--s2);padding:0.1rem var(--s3);border:1px solid var(--c-rule);border-radius:var(--r-control);font-family:var(--f-mono);font-size:var(--t-micro);letter-spacing:0.04em;color:var(--c-muted);text-decoration:none}

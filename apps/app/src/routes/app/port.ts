@@ -100,7 +100,15 @@ export interface WorkflowSummary {
   readonly active: boolean;
   /** When the last source event arrived, for the inactivity signal. Null if none ever has. */
   readonly lastEventAt: string | null;
+  /** Runs their automation reported. Test runs are excluded, so this is the honest rate. */
   readonly counts: RunCountsView;
+  /**
+   * Runs the customer started themselves, counted separately.
+   *
+   * Exists so a workspace showing four zeroes beside "7 of 500 used" can explain itself
+   * out of real data rather than leaving a reader to conclude the product is broken.
+   */
+  readonly testCounts: RunCountsView;
 }
 
 /** The mapping between our correlation reference and the customer's CRM property. */
@@ -173,6 +181,19 @@ export interface RunDetailView {
   readonly coverageMode: CoverageMode;
   readonly revision: number;
   readonly lateCompletion: boolean;
+  /**
+   * The four values this enquiry was described with, when they can still be read.
+   *
+   * Used to prefill "Recheck this enquiry" so the customer does not retype four
+   * identifiers. Null for a run whose payload cannot be read, in which case the page
+   * offers a fresh verification instead of a prefill it cannot honestly populate.
+   */
+  readonly enquiry: {
+    readonly crmRecordId: string;
+    readonly messageId: string;
+    readonly expectedRecipient: string;
+    readonly correlationValue: string;
+  } | null;
   readonly results: readonly AssertionResult[];
 }
 
@@ -183,6 +204,20 @@ export interface UsageView {
   readonly periodEnd: string;
   readonly runsUsed: number;
   readonly runsIncluded: number;
+  /**
+   * The two halves of `runsUsed`, kept apart.
+   *
+   * `consumed` is settled: those runs reached a verdict. `reserved` is in flight: admitted,
+   * charged, not yet decided. Both are subtracted from the allowance identically, so a page
+   * showing only their sum is arithmetically right and still hides the thing a customer
+   * asks about when a figure surprises them — how much of this is still happening.
+   */
+  readonly consumed: number;
+  readonly reserved: number;
+  /** `runsIncluded - runsUsed`, never below zero. */
+  readonly runsRemaining: number;
+  /** When these figures were read. Shown, so a stale tab cannot pass for a fresh one. */
+  readonly readAt: string;
   /** True once the allowance is spent and new events are being refused. */
   readonly admissionBlocked: boolean;
   readonly subscriptionStatus: SubscriptionStatus | null;

@@ -84,14 +84,25 @@ export interface PageHeadOptions {
   readonly eyebrow: string;
   readonly title: string;
   readonly lede?: string;
+  /**
+   * The page's primary action, rendered beside the heading.
+   *
+   * The workspace's only way to start a verification used to be a closed disclosure reading
+   * "Describe the enquiry to check", four screens down. A reader looking for the button did
+   * not find one, because there was not one.
+   */
+  readonly action?: Html | null;
 }
 
 export function pageHead(options: PageHeadOptions): Html {
-  return html`<div class="stack-sm">
+  const heading = html`<div class="stack-sm">
     <p class="eyebrow">${options.eyebrow}</p>
     <h1>${options.title}</h1>
     ${options.lede === undefined ? null : html`<p class="lede measure">${options.lede}</p>`}
   </div>`;
+  if (options.action === undefined || options.action === null) return heading;
+  // Wraps under the heading on a narrow screen rather than squeezing beside it.
+  return html`<div class="page-head">${heading}<div class="page-head__action">${options.action}</div></div>`;
 }
 
 /** A form-level error, rendered above the fields it concerns. */

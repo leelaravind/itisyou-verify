@@ -460,6 +460,13 @@ export function createAppRoutes(resolve: PortResolver = syntheticResolver): Hono
             testOffer: await port.testVerificationOffer(),
             csrfToken: session.csrfToken,
             submissionId: crypto.randomUUID(),
+            openVerifyForm: c.req.query('verify') === '1',
+            verdictScope:
+              c.req.query('scope') === 'tests'
+                ? 'tests'
+                : c.req.query('scope') === 'all'
+                  ? 'all'
+                  : 'automation',
           }),
         }),
       );
@@ -866,7 +873,16 @@ export function createAppRoutes(resolve: PortResolver = syntheticResolver): Hono
           path: '/app/runs',
           accountLabel: maskedAccountLabel(session.email),
           csrfToken: session.csrfToken,
-          body: RunDetailPage({ run }),
+          body: RunDetailPage({
+            run,
+            csrfToken: session.csrfToken,
+            // A fresh identity per render: pressing Recheck twice on ONE page is one
+            // submission, while loading the page again is a new one the customer asked for.
+            submissionId: crypto.randomUUID(),
+            runsRemaining: (await port.usage()).runsRemaining,
+            justStarted: c.req.query('started') === 'test',
+            wasDuplicate: c.req.query('again') !== undefined,
+          }),
         }),
       );
     }),
@@ -933,6 +949,7 @@ export function createAppRoutes(resolve: PortResolver = syntheticResolver): Hono
             // Echoed back, not re-minted: correcting a typo and pressing again is the same
             // submission, and must not become a second charged run once it validates.
             submissionId: body['submissionId'] ?? crypto.randomUUID(),
+            openVerifyForm: true,
           }),
         }),
         { status: 422 },

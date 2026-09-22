@@ -57,6 +57,7 @@ import {
 import { formatDuration, formatInstant } from '../public/shared.js';
 import type {
   ConnectionView,
+  RunCountsView,
   RunListItem,
   TestVerificationOffer,
   TestVerificationResult,
@@ -95,6 +96,10 @@ export interface WorkspacePageOptions {
    * options and a test can render it twice and get the same bytes.
    */
   readonly submissionId: string;
+  /** True when the reader pressed "Run verification" and expects the form already open. */
+  readonly openVerifyForm?: boolean;
+  /** Which runs the four verdict cards count. Defaults to the automation's own. */
+  readonly verdictScope?: VerdictScope;
 }
 
 /**
@@ -124,7 +129,7 @@ function testVerification(options: WorkspacePageOptions): Html {
   const offer = options.testOffer;
   const submitted = options.testSubmitted ?? null;
   const errors = submitted?.fieldErrors ?? {};
-  return html`<section class="stack" aria-labelledby="test-verification-heading" data-test-verification>
+  return html`<section class="stack" id="run-verification" aria-labelledby="test-verification-heading" data-test-verification>
     <div class="section-head">
       <div class="section-head__text">
         <p class="eyebrow">Check it end to end</p>
@@ -172,7 +177,7 @@ function testVerification(options: WorkspacePageOptions): Html {
            * errors, because the reader has to see what they typed.
            */
           Disclosure({
-            open: submitted !== null && !submitted.ok,
+            open: options.openVerifyForm || (submitted !== null && !submitted.ok),
             summary: 'Describe the enquiry to check',
             body: html`<form method="post" action="/app/test-verification" class="stack" data-verify-form>
             ${CsrfField(options.csrfToken)}
@@ -261,6 +266,66 @@ function connectionRow(connection: ConnectionView): Html {
   </div>`;
 }
 
+/** Which runs the four verdict cards are counting. */
+export type VerdictScope = 'automation' | 'tests' | 'all';
+
+const SCOPE_HEADING: Readonly<Record<VerdictScope, string>> = {
+  automation: 'Results from your automation',
+  tests: 'Results from your own test verifications',
+  all: 'Results from everything, tests included',
+};
+
+function addCounts(a: RunCountsView, b: RunCountsView): RunCountsView {
+  return {
+    verified: a.verified + b.verified,
+    failed: a.failed + b.failed,
+    unverified: a.unverified + b.unverified,
+    pending: a.pending + b.pending,
+  };
+}
+
+function countsFor(workflow: WorkflowDetail, scope: VerdictScope): RunCountsView {
+  if (scope === 'tests') return workflow.testCounts;
+  if (scope === 'all') return addCounts(workflow.counts, workflow.testCounts);
+  return workflow.counts;
+}
+
+function scopeSelector(active: VerdictScope): Html {
+  const link = (value: VerdictScope, label: string): Html => {
+    const href = value === 'automation' ? '/app' : `/app?scope=${value}`;
+    return value === active
+      ? html`<span ${attrs({ class: 'chip chip--on', 'aria-current': 'true' })}>${label}</span>`
+      : html`<a ${attrs({ class: 'chip', href: safeHref(href) })}>${label}</a>`;
+  };
+  return html`<nav ${attrs({ class: 'cluster', 'aria-label': 'Which runs these results count' })}>
+    ${link('automation', 'Automation')} ${link('tests', 'Tests')} ${link('all', 'All')}
+  </nav>`;
+}
+
+/**
+ * One sentence reconciling the cards above against the runs underneath them.
+ *
+ * Built only from counts that were actually queried. A zero stays a zero and is explained;
+ * it is never dressed up as activity.
+ */
+function scopeReconciliation(workflow: WorkflowDetail, scope: VerdictScope): string {
+  const automation = runTotal(workflow.counts);
+  const tests = runTotal(workflow.testCounts);
+  const testPart =
+    tests === 0
+      ? 'no test verifications run'
+      : `${String(tests)} test ${tests === 1 ? 'run' : 'runs'} completed`;
+  if (scope === 'tests') {
+    return `Counting only verifications you started. ${String(automation)} ${automation === 1 ? 'run' : 'runs'} arrived from your automation and ${automation === 0 ? 'are' : 'are'} counted under Automation. Every run here was charged to your allowance.`;
+  }
+  if (scope === 'all') {
+    return `Counting both: ${String(automation)} from your automation and ${String(tests)} you started. This is the number your allowance was charged for.`;
+  }
+  return automation === 0
+    ? `No automation events received; ${testPart}. Test runs are charged to your allowance but left out of these four, so testing cannot change your verification rate.`
+    : `${String(automation)} ${automation === 1 ? 'run' : 'runs'} from your automation; ${testPart}, counted separately.`;
+}
+
 export function WorkspacePage(options: WorkspacePageOptions): Html {
   if (options.workflow === null) {
     return html`<div class="wrap section stack-lg">
@@ -315,9 +380,32 @@ export function WorkspacePage(options: WorkspacePageOptions): Html {
   const usedPercent = percentFloor(options.usage.runsUsed, options.usage.runsIncluded);
   const total = runTotal(workflow.counts);
 
+  const scope: VerdictScope = options.verdictScope ?? 'automation';
+  const shownCounts = countsFor(workflow, scope);
+
   return html`<div class="wrap section stack-lg">
     <div class="section-head">
-      ${pageHead({ eyebrow: 'Workspace', title: workflow.name })}
+      ${pageHead({
+        eyebrow: 'Workspace',
+        title: workflow.name,
+        /*
+         * The primary action, beside the heading, where a reader looks for it.
+         *
+         * "Run verification" and not "Run automation": this starts OUR checks against
+         * evidence we read back. It does not trigger the customer's own workflow, and a
+         * label implying it did would be the single most misleading word on the page.
+         *
+         * It is a link to the same page with the form open rather than a second form, so
+         * there is exactly one submission path and exactly one submission identity.
+         */
+        action: options.testOffer.canStart
+          ? Button({
+              label: 'Run verification',
+              variant: 'primary',
+              href: '/app?verify=1#run-verification',
+            })
+          : null,
+      })}
       <ul class="meta-bar" aria-label="About this workflow">
         <li>Runs <b>${String(total)}</b></li>
         <li>Completion window <b>${formatDuration(workflow.deadlineSeconds)}</b></li>
@@ -350,17 +438,54 @@ export function WorkspacePage(options: WorkspacePageOptions): Html {
         : null
     }
 
-    ${runCountCards(workflow.counts)}
+    <!--
+      The counters, and what they count.
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      These four excluded test runs from the day they were written, which is right: a run
+      the customer built by hand must not raise their own pass rate. Nothing on the page
+      SAID so, so a workspace reading "7 of 500 used" beside four zeroes looked broken. The
+      heading now names the scope, the line beneath reconciles it against real counts, and
+      the selector lets a reader see the other scope rather than deduce it.
+    -->
+    <section class="stack-sm" aria-labelledby="verdicts-heading" data-verdict-scope="${scope}">
+      <div class="section-head">
+        <div class="section-head__text">
+          <h2 id="verdicts-heading">${SCOPE_HEADING[scope]}</h2>
+        </div>
+        ${scopeSelector(scope)}
+      </div>
+      ${runCountCards(shownCounts)}
+      <p class="small">${scopeReconciliation(workflow, scope)}</p>
+    </section>
 
     <section class="stack-sm" aria-labelledby="period-heading">
       <div class="section-head">
         <div class="section-head__text"><h2 id="period-heading">This period</h2></div>
-        <a href="/app/usage">Usage detail</a>
+        <div class="cluster">
+          <a href="/app/usage">Usage detail</a>
+        </div>
       </div>
       <dl class="metrics" aria-label="This period">
         <div>
           <dt>Runs used</dt>
           <dd>${String(options.usage.runsUsed)} of ${String(options.usage.runsIncluded)} (${String(usedPercent)}%)</dd>
+        </div>
+        <!--
+          The two halves of "used", kept apart. Both are subtracted from the allowance
+          identically, so the sum above is right; it is still not the thing a customer asks
+          about when a figure surprises them, which is how much of this is still happening.
+        -->
+        <div>
+          <dt>Settled</dt>
+          <dd data-allowance="consumed">${String(options.usage.consumed)}</dd>
+        </div>
+        <div>
+          <dt>In flight</dt>
+          <dd data-allowance="reserved">${String(options.usage.reserved)}</dd>
+        </div>
+        <div>
+          <dt>Remaining</dt>
+          <dd data-allowance="remaining">${String(options.usage.runsRemaining)}</dd>
         </div>
         <div>
           <dt>Period ends</dt>
@@ -381,6 +506,14 @@ export function WorkspacePage(options: WorkspacePageOptions): Html {
           </dd>
         </div>
       </dl>
+      <!-- When these figures were read, and how to read them again. A page left open is
+           a page whose numbers have moved; saying WHEN is the difference between a stale
+           figure and a wrong one. Reload rather than poll: nothing here changes fast
+           enough to justify a request every few seconds on somebody else's account. -->
+      <p class="small">
+        Figures read ${formatInstant(options.usage.readAt)}.
+        <a href="/app">Refresh</a>
+      </p>
     </section>
 
     <!-- The next useful action, above the figures.
