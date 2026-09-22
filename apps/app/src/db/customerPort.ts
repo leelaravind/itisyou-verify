@@ -541,6 +541,22 @@ export class D1CustomerDataPort implements CustomerDataPort {
       { keyBase64 },
     );
 
+    // Webhook readiness is a stored fact about what has ARRIVED, never inferred from the
+    // API answering. HubSpot is polled, so it has no webhook to be ready.
+    //
+    // This is read BEFORE the provider call because the connector needs it as well. A
+    // webhook that has already been proven stays proven, exactly as it does when a
+    // credential is re-pasted. Without carrying it in, Resend cannot see that a signed
+    // callback ever arrived, reports the connection unfinished, and the status write below
+    // pushes a `ready` connection back to `testing` -- moving a customer's connection
+    // backwards because they pressed the button that only asks how it is doing. Worse, the
+    // route that promotes on a signed callback fires only while `webhook_verified_at` is
+    // null, so no later delivery would climb it back out.
+    const webhook = await this.#db
+      .prepare(`SELECT webhook_verified_at FROM connections WHERE workspace_id = ? AND id = ?`)
+      .bind(scope.workspaceId, row.id)
+      .first<{ webhook_verified_at: string | null }>();
+
     const result = await revalidateConnection({
       provider: providerId,
       credentials: opened,
@@ -551,6 +567,9 @@ export class D1CustomerDataPort implements CustomerDataPort {
         // swapped for one pointing at a different account is exactly what this check is
         // for, and trusting the stored id would hide it.
         reverify_account: true,
+        ...(webhook?.webhook_verified_at == null
+          ? {}
+          : { webhook_verified_at: webhook.webhook_verified_at }),
       },
       now: this.#now,
       ...(this.#fetchImpl === undefined ? {} : { fetchImpl: this.#fetchImpl }),
@@ -579,13 +598,6 @@ export class D1CustomerDataPort implements CustomerDataPort {
         calls_made: result.callsMade,
       }),
     });
-
-    // Webhook readiness is a stored fact about what has ARRIVED, never inferred from the
-    // API answering. HubSpot is polled, so it has no webhook to be ready.
-    const webhook = await this.#db
-      .prepare(`SELECT webhook_verified_at FROM connections WHERE workspace_id = ? AND id = ?`)
-      .bind(scope.workspaceId, row.id)
-      .first<{ webhook_verified_at: string | null }>();
 
     return {
       provider,

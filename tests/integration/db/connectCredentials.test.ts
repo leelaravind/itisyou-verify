@@ -394,3 +394,116 @@ describe('submitConnectionCredentials against D1', () => {
     expect(all.filter((r) => r.retired_at === null)).toHaveLength(1);
   });
 });
+
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Pressing "Test connection" must not move a connection backwards.
+ *
+ * `testConnection` had no test of any kind, and shipped a defect a customer met on
+ * production: it called the connector with a `connection` object carrying only the provider,
+ * the account id and `reverify_account`, leaving out `webhook_verified_at`. Resend decides
+ * readiness on exactly that field, so a connection whose signed callback had genuinely
+ * arrived was reported unfinished, and the status write moved it from `ready` to `testing`.
+ *
+ * The same screen then contradicted itself, because the page's own webhook line is read
+ * straight from the column: "a correctly signed callback has been received and understood",
+ * directly above "we have never actually received a message signed with it".
+ *
+ * And it was a dead end rather than a blip. `markWebhookVerified` is the only route from
+ * `testing` to `ready` for a webhook-dependent connection, and the route that calls it fires
+ * only while `webhook_verified_at` is null. Once downgraded, no later delivery could climb
+ * the connection back out.
+ */
+describe('testConnection against D1', () => {
+  let h: TestDb;
+  let a: SeededWorkspace;
+
+  /** Resend answers the read; the shape only has to be a 200 with a data array. */
+  const resendOk = (async () =>
+    new Response(JSON.stringify({ data: [] }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    })) as unknown as typeof fetch;
+
+  beforeEach(() => {
+    h = createTestDb();
+    a = seedWorkspace(h, 'alpha');
+  });
+  afterEach(() => {
+    h.close();
+    vi.unstubAllGlobals();
+  });
+
+  /** Connect Resend, then promote it exactly as the webhook route does on a signed callback. */
+  async function connectedAndProven(proven: boolean): Promise<D1CustomerDataPort> {
+    const port = await signIn(h, a, { fetchImpl: resendOk });
+    await port.submitConnectionCredentials!({
+      provider: 'resend',
+      accessToken: RESEND_TOKEN,
+      webhookSecret: RESEND_WEBHOOK_SECRET,
+    });
+    if (proven) {
+      h.raw
+        .prepare(
+          `UPDATE connections SET status = 'ready', webhook_verified_at = ? WHERE workspace_id = ?`,
+        )
+        .run('2026-09-18T09:00:00.000Z', a.workspaceId);
+    }
+    return port;
+  }
+
+  it('CONN-902 a proven Resend webhook survives the test button, and the page does not contradict itself', async () => {
+    const port = await connectedAndProven(true);
+
+    const result = await port.testConnection!('resend');
+
+    // What the customer is told.
+    expect(result.apiAccess).toBe('ok');
+    expect(result.webhookReadiness).toBe('received');
+    expect(result.status).toBe('ready');
+
+    // The contradiction itself, as a fact rather than a description: a connection whose
+    // webhook has been received is never also asked to go and produce one.
+    expect(result.nextStep ?? '').not.toContain('never actually received');
+    if (result.webhookReadiness === 'received') expect(result.nextStep).toBeNull();
+
+    // And the stored row did not move backwards. This is the half that persisted.
+    const row = connectionRows(h)[0]!;
+    expect(row['status']).toBe('ready');
+    expect(row['webhook_verified_at']).toBe('2026-09-18T09:00:00.000Z');
+
+    // Mutation check: drop `webhook_verified_at` from the object handed to the connector in
+    // `customerPort.testConnection` and this case fails on `status` — 'testing', not 'ready'.
+  });
+
+  it('CONN-903 a Resend webhook that never arrived is still reported unfinished', async () => {
+    const port = await connectedAndProven(false);
+
+    const result = await port.testConnection!('resend');
+
+    // The credential works; the connection is not finished, and says so. Carrying the
+    // stored value in must not become "ready on our own say-so" for a connection that has
+    // never had a signed callback.
+    expect(result.apiAccess).toBe('ok');
+    expect(result.webhookReadiness).toBe('never_received');
+    expect(result.status).toBe('testing');
+    expect(result.nextStep ?? '').toContain('never actually received');
+    expect(connectionRows(h)[0]!['status']).toBe('testing');
+  });
+
+  it('CONN-904 a polled provider has no webhook to be ready, and testing it says exactly that', async () => {
+    const port = await signIn(h, a, {
+      fetchImpl: hubspotTokenInfo({ hubId: 24680, scopes: ['crm.objects.contacts.read'] }),
+    });
+    await port.submitConnectionCredentials!({ provider: 'hubspot', accessToken: HUBSPOT_TOKEN });
+
+    const result = await port.testConnection!('hubspot');
+
+    expect(result.apiAccess).toBe('ok');
+    expect(result.webhookReadiness).toBe('not_applicable');
+    expect(result.credentialsPreserved).toBe(true);
+    // The button reports; it does not retire or rewrite the credential it checked with.
+    expect(credentialRows(h).filter((r) => r.retired_at === null)).toHaveLength(1);
+  });
+});
