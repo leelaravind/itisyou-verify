@@ -48764,6 +48764,23 @@
       "risk": "The port decides the principal by reading the session from the database, so a mistake in that read is an authorisation hole rather than a rendering bug.",
       "setup": "A signed-in non-owner session, and no session at all.",
       "expected": "All eleven screens answer 404 with no rail in the body, and anonymous /owner answers 404."
+    },
+    {
+      "id": "OWNER-930",
+      "category": "owner_panel",
+      "level": "integration",
+      "requirement": "a signed-in owner reads the panel without a second factor and cannot change anything without one",
+      "risk": "The owner signed in and was never asked for a code, and asked whether that was right. It is: owner.view is the only read-only capability, so every write is consequential and needs a two-factor check from the last fifteen minutes. The failure this guards against is the opposite of the one it looks like, namely the code being asked for once at sign-in and then never again, which turns a fifteen-minute window into a session-long one.",
+      "risk_source": "case",
+      "setup": "A platform-owner session with mfa_verified_at NULL.",
+      "expected": "GET /owner answers 200 with the rail; POST /owner/settings/business answers 403 naming the two-factor check.",
+      "owner_agent": "A02",
+      "implementation_ref": "tests/integration/db/owner-pages-on-d1.test.ts",
+      "provider_backed": false,
+      "status": "passing",
+      "runner": "vitest",
+      "area": "tests/integration/db/owner-pages-on-d1.test.ts",
+      "countable": true
     }
   ]
 }

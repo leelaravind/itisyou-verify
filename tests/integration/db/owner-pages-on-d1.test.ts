@@ -19,7 +19,7 @@
  * whole. It is not the owner signing in on production, which nobody here may do. It is the
  * part of that which is ours to prove.
  *
- * Case ids `OWNER-927..OWNER-929`.
+ * Case ids `OWNER-927..OWNER-930`.
  */
 import { Hono } from 'hono';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -62,8 +62,9 @@ afterEach(() => {
  * The cookie value is never stored: sessions.id is its SHA-256, so a database dump cannot be
  * replayed as a login. The seed therefore hashes the value it is about to put in the cookie.
  */
-async function seedOwner(): Promise<{ cookie: string }> {
+async function seedOwner(options: { mfa?: boolean } = {}): Promise<{ cookie: string }> {
   const at = T0;
+  const mfaAt = options.mfa === false ? null : NOW.toISOString();
   // Assembled rather than written as a literal. A token-shaped string in a source file
   // trips this project's own secret scanner and GitHub push protection, and the answer is
   // to stop committing the shape rather than to allowlist the warning. It is invented and
@@ -81,7 +82,7 @@ async function seedOwner(): Promise<{ cookie: string }> {
       `INSERT INTO sessions (id, user_id, created_at, expires_at, last_seen_at, mfa_verified_at, is_automation)
        VALUES (?, 'usr_owner', ?, ?, ?, ?, 0)`,
     )
-    .run(id, at, '2099-01-01T00:00:00.000Z', at, NOW.toISOString());
+    .run(id, at, '2099-01-01T00:00:00.000Z', at, mfaAt);
   return { cookie: `verify_session=${token}` };
 }
 
@@ -151,6 +152,49 @@ describe('the owner panel on the port production actually uses', () => {
     );
     // And the launch figures are present as figures rather than missing entirely.
     expect(served.html).toContain('data-launch-figure=');
+  });
+
+  it('OWNER-930 a signed-in owner reads the panel without a second factor, and cannot change anything without one', async () => {
+    /*
+     * The owner signed in and was never asked for a code, and asked whether that was right.
+     * It is, and this is the case that says so rather than a sentence claiming it.
+     *
+     * Reading the panel needs a session and the platform-owner flag. `owner.view` is the
+     * only capability in READ_ONLY_CAPABILITIES, so everything else — every write, every
+     * refund, every switch — is consequential and needs a two-factor check from the last
+     * fifteen minutes. The failure this guards against is the opposite of the one it looks
+     * like: not "the code was skipped", but "the code was asked for at sign-in and then
+     * never again", which is how a fifteen-minute window quietly becomes a session-long one.
+     */
+    const { cookie } = await seedOwner({ mfa: false });
+
+    // Reading is allowed with no second factor on the session at all.
+    const overview = await get('/owner', cookie);
+    expect(overview.status, 'a signed-in owner could not read the panel').toBe(200);
+    expect(overview.html).toContain('<nav class="rail"');
+
+    // Changing something is not.
+    const response = await app().request(
+      `${ORIGIN}/owner/settings/business`,
+      {
+        method: 'POST',
+        headers: {
+          cookie: `${cookie}; verify_csrf=csrf-for-this-test`,
+          'content-type': 'application/x-www-form-urlencoded',
+          origin: ORIGIN,
+        },
+        body: new URLSearchParams({
+          csrf_token: 'csrf-for-this-test',
+          legalName: 'Whatever',
+        }).toString(),
+      },
+      { ENVIRONMENT: 'development', PUBLIC_BASE_URL: ORIGIN },
+    );
+    const html = await response.text();
+
+    expect(response.status, 'a write went through with no second factor').toBe(403);
+    expect(html, 'the refusal does not name the reason').toContain('Confirm it is you');
+    expect(html).toContain('two-factor check');
   });
 
   it('OWNER-929 the same screens are a 404 for a signed-in user who is not the platform owner', async () => {
