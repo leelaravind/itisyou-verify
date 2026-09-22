@@ -53,3 +53,19 @@ It does not establish that the rendered page in the owner's browser looks right,
 needs their session. The owner reported on 22 September that they signed in and reached the
 panel; nothing they described was broken. The rendering path itself is held by OWNER-927..930
 against the same D1 port production uses.
+
+
+=== the rendered panel, 22 September ===
+
+The owner signed in, reached the panel and reported it looking fine.
+
+That is their observation and is recorded as theirs. Nobody else has seen the panel signed in
+on production, and no line in this repository claims otherwise. What is held here independently
+of it: the figures above, read from the production database with the port's own queries, and
+OWNER-927..930, which render every owner screen through the real router on the same D1 port
+production uses, refuse a non-owner with 404, and prove a write is refused without a recent
+second factor.
+
+So the panel is evidenced three ways that do not depend on each other: the data is real, the
+rendering path is tested against the real port, and the person who alone could look at it has
+looked at it.

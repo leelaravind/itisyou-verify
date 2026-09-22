@@ -68,7 +68,7 @@ nine-line theme toggle.
 | B7 | Payment alert delivery | Agent C | Test mode alerts nobody; a live checkout alerts once however many times Stripe redelivers it; a failed charge alerts once per INVOICE, so Smart Retries of the same invoice collapse into that one alert and a new failed invoice raises its own | `docs/evidence/functional-closure.txt`: both raise paths sit inside `if (event.livemode)` (`billing/events.ts:238,562`); idempotency is a UNIQUE `notification_key` claimed in `notifications/send.ts`, keyed on the checkout session id for the payment alert and on the invoice id for the failure alert; BILL-657..662 separate live from test. 9 of 9 passing. The channel is also delivering today: 19 milestone_reached rows on production, every one state=sent, latest 17:36Z, which is this afternoon release notification | verified |
 | B8 | Support receipt and reply | Agent C + coordinator | Either a path exists and is evidenced, or its absence is stated plainly | same file: nothing pushes a support case anywhere, and the queue listed escalated cases only. Open cases now reach it, OWNER-926, mutation-checked, live at 38614ab5622d. Replying as support@ is available: the domain is Resend-verified (B10) | deployed, with a stated limit |
 | B9a | Owner panel on the port production uses | coordinator | Every owner screen renders through the real router on `D1OwnerDataPort`, not only on the in-memory stand-in; unknown figures stay unknown on an empty database; a non-owner session gets 404 on all of them | OWNER-927..929. The panel had been rendered, captured and audited thirteen times, every time against the stand-in. The join between port and page was covered by nothing | verified |
-| B9 | Owner panel through real login | owner + coordinator | Owner signs in at `/admin/login`; panel read against production data | Everything around it verified on production (`docs/evidence/owner-actions-readiness.txt`): one platform owner, TOTP enrolled and accepted before, 11 sign-in emails delivered with every one state=sent, the form serving 200, the panel rendering at three widths, anonymous refused. **The sign-in has happened** (owner-reported, 22 September) and they reached the panel. The FIGURES behind it are now checked against the production database with the same queries the port runs: `docs/evidence/owner-panel-production-figures.txt`. The two that could mislead are labelled as what they are: £29.00 cash received is the sandbox order and is not revenue, and zero runs is no production traffic rather than a failure. What is still not done is a read of the RENDERED page in the owner session, which needs their cookie through the GET-only walkthrough script or their own account of the screens | part done: figures verified, rendered walkthrough outstanding |
+| B9 | Owner panel through real login | owner + coordinator | Owner signs in at `/admin/login`; panel read against production data | Everything around it verified on production (`docs/evidence/owner-actions-readiness.txt`): one platform owner, TOTP enrolled and accepted before, 11 sign-in emails delivered with every one state=sent, the form serving 200, the panel rendering at three widths, anonymous refused. **The sign-in has happened** (owner-reported, 22 September) and they reached the panel. The FIGURES behind it are now checked against the production database with the same queries the port runs: `docs/evidence/owner-panel-production-figures.txt`. The two that could mislead are labelled as what they are: £29.00 cash received is the sandbox order and is not revenue, and zero runs is no production traffic rather than a failure. The RENDERED page was then reported by the owner on 22 September as looking fine. That is their observation, recorded as theirs: nobody else has seen the panel signed in, and this row does not claim otherwise | verified: figures against the database, rendering by the owner |
 | B10 | `support@itisyou.app` receipt and reply | owner + coordinator | A test message arrives at the destination, and the domain can send replies | **Owner-reported, 22 September**: they sent a test message and received it at the configured destination. That is the test this item asked for, done by the only person who could do it. DNS agrees (MX to Cloudflare Email Routing, SPF present). Not verified from here and not claimed to be: an SMTP probe from this machine is refused at connection with `550 Sender IP reverse lookup rejected`. **Reply capability is settled separately and without a secret**: public DNS carries Resend's DKIM selector at `resend._domainkey.itisyou.app`, `send.itisyou.app` SPF `include:amazonses.com` and its bounce MX to `feedback-smtp.eu-west-1.amazonses.com`, which is the record set Resend requires of a verified domain. Resend verifies domains rather than addresses, so support@ can already send | verified: receipt by the owner, reply capability by DNS |
 
 ### The second factor, and why no code was asked at sign-in
@@ -137,12 +137,11 @@ code to, and the code is right.
 
 ## E. Exactly what is needed from the owner
 
-1. **Done on 22 September**: the owner signed in. What is left is reading the panel against
-   production data, which needs one of two things from them: run
-   `node scripts/owner-panel-walkthrough.mjs --cookie-file <file>` with the session cookie from
-   their own browser (it only ever GETs and cannot mint a session), or say what each screen
-   shows. No code was asked for at sign-in and that is correct: see the second-factor note
-   above, held by OWNER-930.
+1. **Closed, nothing needed.** The owner signed in on 22 September, reached the panel, and
+   reported it looking fine. The figures behind it were checked against the production database
+   separately (`docs/evidence/owner-panel-production-figures.txt`), and the rendering path is
+   held by OWNER-927..930 against the same D1 port production uses. No code was asked for at
+   sign-in and that is correct: see the second-factor note above, held by OWNER-930.
 2. **Closed, nothing needed.** Receipt: the owner sent a test message to `support@itisyou.app`
    on 22 September and received it at the configured destination. Reply capability: public DNS
    carries Resend's own DKIM selector on `resend._domainkey.itisyou.app`, plus
@@ -151,4 +150,11 @@ code to, and the code is right.
    verified. Resend verifies DOMAINS, not addresses, so support@ can already be sent from. No
    secret was read to establish that and none needed to be.
 
-Nothing else is waiting on the owner. Ads stay paused and live payments stay disabled.
+Nothing is waiting on the owner. Both items that were are closed: the panel on 22 September
+by their own sign-in and observation, and support@ by their own test plus public DNS.
+
+What remains owner-gated is not on this list and never was, because it is a decision rather
+than a task: **live payments**. `docs/live-payment-approval.md` stands at NOT READY, 3 of 13,
+and those three (a live price, live secrets and a live webhook destination, then the mode flip)
+are the owner's to authorise when they choose to. Ads stay paused and live payments stay
+disabled until they say otherwise, on both counts.
