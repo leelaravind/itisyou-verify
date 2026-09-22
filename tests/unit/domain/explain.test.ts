@@ -170,3 +170,72 @@ describe('explainRunStatus', () => {
     expect(claim.next_step).not.toBeNull();
   });
 });
+
+/**
+ * A failure has two causes and they are not the same news.
+ *
+ * Met on production on 22 September, during the customer acceptance test. A run whose CRM
+ * record simply did not exist settled FAILED, correctly — `decideRunStatus` treats an
+ * authoritative absence after the deadline as a real failure. But the page announced "We
+ * retrieved the evidence and it contradicts at least one of your required checks" directly
+ * above a table of checks reading "no reading", "no evidence", "We did not retrieve a value",
+ * `RECORD_NOT_FOUND`, and a counter reading "0 of 2 items did not match what was reported."
+ *
+ * The decision's own reason (`FAILED_ABSENT` rather than `FAILED_CONTRADICTED`) never reached
+ * the customer: it is not a column on `runs`, so every surface re-derived a sentence from the
+ * status alone. Every absence-failure this product has ever reported said "contradicted".
+ *
+ * The two send a customer to different places: one to find a data mismatch, the other to find
+ * out why nothing was created.
+ */
+describe('a failure says which kind of failure it was', () => {
+  // An absence has no observed value. The shorthand fixture keeps `makeResult`'s default
+  // observed display, which would quietly make this a different case from the production one.
+  const notFound = (rule_id: string) =>
+    makeResult({
+      rule_id,
+      mandatory: true,
+      status: 'UNKNOWN',
+      reason_code: 'RECORD_NOT_FOUND',
+      observed_display: null,
+    });
+  const absent = [notFound('rule_1'), notFound('rule_2')];
+  const contradicted = [
+    mandatoryResult('rule_1', 'CONTRADICTED', 'VALUE_MISMATCH'),
+    mandatoryResult('rule_2', 'UNKNOWN', 'RECORD_NOT_FOUND'),
+  ];
+
+  it('VERIFY-901 a run that found nothing is not described as contradicted', () => {
+    const run = explainRunStatus('FAILED', absent);
+
+    expect(run.status).toBe('FAILED');
+    expect(run.headline).toBe('Failed');
+    // The false claim, named so it cannot come back.
+    expect(run.sentence).not.toContain('contradicts');
+    expect(run.sentence).not.toContain('We retrieved the evidence');
+    // And what is true in its place.
+    expect(run.sentence).toContain('does not exist');
+    expect(run.next_step).not.toBeNull();
+  });
+
+  it('VERIFY-902 a run that really was contradicted still says so', () => {
+    const run = explainRunStatus('FAILED', contradicted);
+    // The guard against over-correcting VERIFY-901 into "a failure never contradicts anything".
+    expect(run.sentence).toContain('contradicts');
+  });
+
+  it('VERIFY-903 explainRun passes the results through, so the page and the table agree', () => {
+    const { run, assertions } = explainRun('FAILED', absent);
+
+    expect(run.sentence).not.toContain('contradicts');
+    // The table that sits directly beneath that sentence, saying the same thing.
+    expect(assertions).toHaveLength(2);
+    for (const a of assertions) expect(a.detail).toContain('did not retrieve a value');
+  });
+
+  it('VERIFY-904 called without results it keeps its old answer rather than guessing', () => {
+    // Two callers ask about a status with no assertions to hand. They must not be told a
+    // record does not exist on the strength of an empty argument.
+    expect(explainRunStatus('FAILED').sentence).toContain('contradicts');
+  });
+});
