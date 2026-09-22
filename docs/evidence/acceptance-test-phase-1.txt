@@ -200,3 +200,35 @@ Note for the resumed run: Resend answering an error at 13:04:54Z is itself unexp
 be a genuine transient, or it may be Resend refusing us after four checks in twenty minutes.
 The acceptance test cannot tell from the customer surface, and the next phase should re-test
 once, cold, before reading anything into it.
+
+
+=== a correction to this record ===
+
+Both entries above, and the commit messages for both fixes, said `testConnection` had no test
+coverage at all — "not one case in the tree touched it". That is wrong, and the mistake was
+mine: I searched the test tree for the method name, and the cases exercise it through the
+route rather than by calling it, so the search found nothing and I believed it.
+
+`tests/integration/customer/connection-test.test.ts` holds eight cases against the real route
+with a stubbed provider: CONN-518 through CONN-523, CONN-526 and AUTH-518.
+
+The accurate account is narrower and more useful than "untested":
+
+**Defect 1 (Resend webhook) was untested.** Not one of those eight cases mentions Resend. They
+are all HubSpot, which is polled and has no `webhook_verified_at`, so the field defect 1 lived
+in could not arise in any of them.
+
+**Defect 2 (outage demotion) was half-tested, and the missing half was the defect.** CONN-521
+is named "a provider that cannot be reached leaves the stored credential alone and says so",
+and it asserts the customer-facing sentence, the credential count and the error code. It never
+asserted the connection's status. Two other cases in the same file do assert status — CONN-519
+that a good check reads `ready`, CONN-522 that a refused credential does not — so status was
+plainly considered; it was simply not checked on the outage path, which is the one path where
+changing it is indefensible.
+
+That is the same shape as CONN-188 in the unit suite: a case whose name states the whole
+requirement and whose assertions cover part of it. Two independent tests, both named for
+"changes nothing", neither checking the thing that changed.
+
+CONN-521 now asserts the status is still `ready` after an outage. It was strengthened rather
+than replaced, and it fails without the fix.
