@@ -484,10 +484,33 @@ export async function establishConnection(
 // Re-validation — how a swapped token gets caught
 // ---------------------------------------------------------------------------
 
+/**
+ * The failures that tell us nothing about the connection.
+ *
+ * A provider that is down, or that is refusing us for going too fast, is a fact about the
+ * provider and about us. It is not evidence that the customer's credential is bad, that
+ * their account changed, or that they never connected in the first place. A re-check that
+ * learns nothing must therefore change nothing: `revalidateConnection` returns the status
+ * the connection already had, and the caller reports the failed *check* separately.
+ *
+ * Getting this wrong is not cosmetic. `not_connected` is outside the scheduler's
+ * `USABLE_STATUSES`, so demoting a healthy connection on a bad minute takes it out of
+ * service for real runs until somebody presses a button at a luckier moment.
+ */
+const UNINFORMATIVE_ERRORS: ReadonlySet<ConnectorErrorCode> = new Set([
+  'PROVIDER_UNAVAILABLE',
+  'RATE_LIMITED',
+]);
+
 export interface RevalidateInput {
   readonly provider: ProviderId;
   readonly credentials: ConnectorCredentials;
   readonly connection: ConnectionConfig;
+  /**
+   * The status this connection already has. Returned unchanged when the check cannot reach
+   * the provider, so an outage never rewrites health we did not actually measure.
+   */
+  readonly currentStatus: ConnectionStatus;
   readonly now: Date;
   readonly fetchImpl?: typeof fetch | undefined;
 }
@@ -537,7 +560,9 @@ export async function revalidateConnection(input: RevalidateInput): Promise<Reva
   } catch {
     return {
       provider: input.provider,
-      status: 'degraded',
+      // "We have not changed anything about it" is the summary, so it had better be true
+      // of the status as well as of the credential.
+      status: input.currentStatus,
       externalAccountId: null,
       accountChanged: false,
       scopes: [],
@@ -552,7 +577,9 @@ export async function revalidateConnection(input: RevalidateInput): Promise<Reva
   if (validation.error !== null) {
     return {
       provider: input.provider,
-      status: statusForError(validation.error.code),
+      status: UNINFORMATIVE_ERRORS.has(validation.error.code)
+        ? input.currentStatus
+        : statusForError(validation.error.code),
       externalAccountId: null,
       accountChanged: false,
       scopes: [],

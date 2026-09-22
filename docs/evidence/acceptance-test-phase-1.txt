@@ -138,3 +138,65 @@ rather than inferred from the guided one.
 Allowance consumed by phase 1: none. Connection tests do not consume verification allowance,
 and no verification was started. The reconciliation at the end of a resumed run therefore
 starts from the same 0/500 recorded above.
+
+
+=== phase 2, 13:04Z: the fix deployed, and the next press found a second defect ===
+
+Production moved to 92ed30dee96255a53a83bb69bbc08d4c43c0fa18 at 13:04:18Z. Baseline re-read
+from /app/usage at 13:04:35Z: unchanged at 0/500, all four verdict counts 0, confirming phase
+1 had spent nothing.
+
+Pressed "Test Resend connection" again at 13:04:54Z. The contradiction from phase 1 was gone —
+no sentence claiming the callback had never arrived. But the card now read:
+
+  STATUS              NOT CONNECTED
+  API ACCESS          The provider refused or could not answer our read
+  WEBHOOK READINESS   A correctly signed callback from this provider has been received
+                      and understood
+  Next step           Connect this provider to start checking
+
+directly beneath its own sentence:
+
+  "Your stored credential was not changed by this check. A provider we cannot reach is our
+   problem or theirs, never a reason to make you paste a working key again."
+
+The page says it will never make you paste a working key again, and then offers "Connect
+Resend" as the only action. The database, read-only:
+
+  provider  status          last_error_code        webhook_verified_at  last_check_at
+  resend    not_connected   PROVIDER_UNAVAILABLE   set                  2026-09-22T13:04:54Z
+
+So the demotion was persisted, on an error that is explicitly not about the customer.
+
+
+=== why, and why it is worse than a wrong label ===
+
+`statusForError` maps PROVIDER_UNAVAILABLE, RATE_LIMITED, NOT_FOUND, AMBIGUOUS_MATCH and
+INVALID_EVIDENCE to `not_connected` by falling through a switch. That is defensible for a
+first-time connect. For a re-check of an established connection it says "you have never
+connected this provider" on the strength of the provider having a bad minute.
+
+`testConnection`'s own doc comment claimed this path answered `degraded`, and said exactly
+why that mattered: "making them re-paste a working key because HubSpot had a bad minute would
+be the product punishing them for somebody else's outage." Only the *thrown* path answered
+`degraded`. And the thrown path is effectively unreachable: the connector catches timeouts and
+returns them as classified errors, so every realistic outage takes the classified branch. The
+documented intent was never the deployed behaviour.
+
+The blast radius is not the label. The scheduler's `USABLE_STATUSES` is `{ready, degraded}`.
+`not_connected` is outside it, so a transient provider error takes the connection out of
+service for real verification runs — every run needing its evidence would come back unverified
+— until a human presses the button again at a luckier moment. Severity: high.
+
+Fixed: an uninformative failure (PROVIDER_UNAVAILABLE, RATE_LIMITED) now returns the status the
+connection already had, so a check that learned nothing changes nothing. CONN-905 and CONN-906
+hold it, mutation-checked at `expected 'not_connected' to be 'ready'` — the production symptom.
+CONN-907 holds the over-correction: an expired token is measured, not merely unreachable, and
+still moves the status. CONN-188 was corrected: it was named "changes nothing when the provider
+is merely unreachable" while asserting `status not.toBe('ready')`, which is the opposite of its
+own name and the reading under which an outage may rewrite health nobody measured.
+
+Note for the resumed run: Resend answering an error at 13:04:54Z is itself unexplained. It may
+be a genuine transient, or it may be Resend refusing us after four checks in twenty minutes.
+The acceptance test cannot tell from the customer surface, and the next phase should re-test
+once, cold, before reading anything into it.
