@@ -195,3 +195,59 @@ async function fetchSignedOut(
   );
   return { status: response.status, html: await response.text() };
 }
+
+/**
+ * A test run a customer started must be distinguishable from an enquiry their automation
+ * reported, in the list as well as on its own page.
+ *
+ * Met on production, 22 September: `/app/runs` showed a test run with no mark and offered no
+ * filter, so two runs the owner started themselves read as two customer failures at a glance.
+ * The run's own page said "You started this one" and the verification rate correctly excluded
+ * it — the list was the one surface that said nothing.
+ */
+describe('runs list: a test run says so, and can be filtered out', () => {
+  async function mixed(): Promise<SignedIn> {
+    const s = await signedInWorkspace();
+    seedRunsFor(s, [
+      { id: 'run_real_0001', status: 'VERIFIED' },
+      { id: 'run_test_0001', status: 'FAILED', source: 'owner_test' },
+    ]);
+    return s;
+  }
+
+  it('CUST-965 the list marks a run the customer started and leaves the others unmarked', async () => {
+    open = await mixed();
+    const { status, html } = await getSignedIn(open, '/app/runs');
+    expect(status).toBe(200);
+
+    // Both runs are listed, and exactly one of them carries the mark.
+    expect(html).toContain('run_real_0001');
+    expect(html).toContain('run_test_0001');
+    // Count the rendered mark, not the stylesheet rule that defines it.
+    expect(html.match(/class="chip chip--test"/g) ?? []).toHaveLength(1);
+    // The mark sits with the test run, not the real one.
+    const testRow = html.slice(html.indexOf('run_test_0001'));
+    expect(testRow.slice(0, 400)).toContain('chip--test');
+  });
+
+  it('CUST-966 filtering to the automation excludes the test run, and the reverse', async () => {
+    open = await mixed();
+
+    const real = await getSignedIn(open, '/app/runs?show=real');
+    expect(real.status).toBe(200);
+    expect(real.html).toContain('run_real_0001');
+    expect(real.html).not.toContain('run_test_0001');
+
+    const tests = await getSignedIn(open, '/app/runs?show=test');
+    expect(tests.status).toBe(200);
+    expect(tests.html).toContain('run_test_0001');
+    expect(tests.html).not.toContain('run_real_0001');
+  });
+
+  it('CUST-967 an unknown filter value shows everything rather than guessing', async () => {
+    open = await mixed();
+    const { html } = await getSignedIn(open, '/app/runs?show=banana');
+    expect(html).toContain('run_real_0001');
+    expect(html).toContain('run_test_0001');
+  });
+});

@@ -1749,13 +1749,18 @@ export class D1CustomerDataPort implements CustomerDataPort {
 
   /* --- results --- */
 
-  async listRuns(options: { cursor?: string; limit: number }): Promise<RunPage> {
+  async listRuns(options: {
+    cursor?: string;
+    limit: number;
+    source?: 'real' | 'test';
+  }): Promise<RunPage> {
     const scope = await this.#scope();
     if (scope === null) return { items: [], nextCursor: null, prevCursor: null };
 
     const page = await runs.listByWorkspace(this.#db, scope.workspaceId, {
       limit: options.limit,
       ...(options.cursor !== undefined ? { cursor: options.cursor } : {}),
+      ...(options.source === undefined ? {} : { source: options.source }),
     });
 
     const items: RunListItem[] = [];
@@ -1772,6 +1777,9 @@ export class D1CustomerDataPort implements CustomerDataPort {
         decidedAt: row.completed_at,
         mandatorySupported: mandatory.filter((a) => a.status === 'SUPPORTED').length,
         mandatoryTotal: mandatory.length,
+        // The list said nothing about this, so a test run a customer started read exactly
+        // like an enquiry their automation reported.
+        isTest: event?.source === 'owner_test',
       });
     }
 

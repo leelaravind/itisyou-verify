@@ -298,6 +298,8 @@ export function seedRun(
     emailRecipient?: string;
     /** The provider message id the enquiry named, when it named one. */
     emailMessageId?: string;
+    /** How the enquiry reached us. `owner_test` is a run the customer started themselves. */
+    source?: 'signed_customer_event' | 'owner_test' | 'synthetic_demo';
   } = {},
 ): string {
   const createdAt = options.createdAt ?? T0;
@@ -314,9 +316,18 @@ export function seedRun(
     .prepare(
       `INSERT INTO source_events
          (id, workspace_id, workflow_id, source, external_event_id, received_at, occurred_at, correlation_key_hash, payload_hash, payload_json)
-       VALUES (?, ?, ?, 'signed_customer_event', ?, ?, ?, 'corr', 'hash', ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'corr', 'hash', ?)`,
     )
-    .run(sourceEventId, ws.workspaceId, ws.workflowId, `ext_${id}`, createdAt, createdAt, payload);
+    .run(
+      sourceEventId,
+      ws.workspaceId,
+      ws.workflowId,
+      options.source ?? 'signed_customer_event',
+      `ext_${id}`,
+      createdAt,
+      createdAt,
+      payload,
+    );
   h.raw
     .prepare(
       `INSERT INTO runs

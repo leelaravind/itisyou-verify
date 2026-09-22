@@ -873,6 +873,12 @@ a:hover{text-decoration-thickness:2px}
 .tally{display:flex;flex-wrap:wrap;gap:var(--s2) var(--s4);align-items:center;margin:0;padding:0;list-style:none;font-family:var(--f-mono);font-size:var(--t-micro);letter-spacing:0.04em;color:var(--c-muted)}
 .tally li{margin:0;display:inline-flex;align-items:center;gap:var(--s2)}
 .tally__count{font-weight:600;color:var(--c-ink);font-variant-numeric:tabular-nums}
+/* A filter chip, and the TEST mark on a run a customer started themselves. Both read as
+   text with a border rather than colour alone, so neither depends on hue to be legible. */
+.chip{display:inline-flex;align-items:center;gap:var(--s2);padding:0.1rem var(--s3);border:1px solid var(--c-rule);border-radius:var(--r-control);font-family:var(--f-mono);font-size:var(--t-micro);letter-spacing:0.04em;color:var(--c-muted);text-decoration:none}
+a.chip:hover{border-color:var(--c-ink);color:var(--c-ink)}
+.chip--on{border-color:var(--c-ink);color:var(--c-ink);font-weight:600}
+.chip--test{border-style:dashed;margin-inline-start:var(--s2)}
 /* Tiles inside a panel, for the four statuses. */
 .tile{display:flex;flex-direction:column;gap:var(--s2);background:var(--c-sunken);border:1px solid var(--c-rule);border-radius:var(--r-control);padding:var(--s4)}
 .tile>*{margin:0}

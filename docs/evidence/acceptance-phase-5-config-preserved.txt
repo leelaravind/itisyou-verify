@@ -1,0 +1,78 @@
+Production workflow configuration, preserved before the CRM-plus-email matrix
+22 September 2026, production b6df26b2376acf04d6bcd194a2af0fee03e2c59e.
+
+Captured read-only from `workflow_versions` BEFORE any change, so the configuration can be
+restored exactly through the customer controls that changed it.
+
+
+=== the configuration as it stood ===
+
+workflow    wf_01M31D1D2C8D20264F1F2A4083
+version     v2  (as the run pages print it: "wf_01M31D1D2C8D20264F1F2A4083@v2 · schema v1")
+
+rules_json, verbatim:
+
+{"schema_version":1,
+ "deadline_seconds":600,
+ "coverage_mode":"customer_triggered",
+ "crm_correlation_property":"itisyou_verify_ref",
+ "assertions":[
+   {"rule_id":"crm_record_exists",
+    "source":"crm_record",
+    "field":"record.id",
+    "operator":"exists",
+    "expected":"",
+    "mandatory":true,
+    "label":"A CRM record was created"},
+   {"rule_id":"crm_correlation_matches",
+    "source":"crm_record",
+    "field":"record.correlation_id",
+    "operator":"equals",
+    "expected":"",
+    "expected_from":"source_event.correlation_id",
+    "mandatory":true,
+    "label":"The CRM record carries this enquiry reference"}]}
+
+In the four toggles the onboarding form writes:
+
+  requireRecordExists     ON
+  requireCorrelationMatch ON
+  requireEmailDelivered   OFF
+  requireRecipientMatch   OFF
+
+To restore: `/app/onboarding/outcome`, select only the two CRM checks, completion window
+600 seconds, coverage mode customer_triggered. That is the same customer control that will
+change it, so restoring needs no developer access.
+
+
+=== production's first VERIFIED run, on this configuration ===
+
+  run          run_01M34R0J1Q66E8B6B5BA00461F
+  admitted     2026-09-22 14:23:42 UTC
+  decided      2026-09-22 14:24:26 UTC   (44 seconds)
+  deadline     2026-09-22 14:33:42 UTC   (settled well inside it)
+  status       VERIFIED
+  source type  owner_test
+  rule version wf_01M31D1D2C8D20264F1F2A4083@v2 · schema v1
+  revision     4
+
+  CONFIRMED  A CRM record was created
+             expected "present", observed "871054966976", reason MATCHED, provider readback
+  CONFIRMED  The CRM record carries this enquiry reference
+             expected "ENQ-MATCH-0001", observed "ENQ-MATCH-0001", reason MATCHED,
+             provider readback
+
+  Evidence timestamp: the CRM record's own, 2026-09-20 07:14:10 UTC.
+
+**This is a CRM-ONLY verification and must not be read as more.** Both required checks are
+CRM checks, because this workflow requires no email check. It proves that the evaluator, the
+HubSpot connection and the correlation binding work end to end on production. It proves
+nothing about acknowledgement email, which this configuration does not check at all.
+
+Fixture used, recovered from staging `run_01M2YTSKKM2DC653F9BA114937` rather than created:
+HubSpot contact `871054966976` carrying `itisyou_verify_ref = ENQ-MATCH-0001`, in portal
+`149371406` — the same connected portal on both staging and production.
+
+The expected correlation value was supplied as explicit input and the rule compares it
+against `source_event.correlation_id`, not against the observed record. Nothing was copied
+from an observation into an expectation.

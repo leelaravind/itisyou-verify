@@ -137,6 +137,8 @@ export interface RunListItem {
   readonly decidedAt: string | null;
   readonly mandatorySupported: number;
   readonly mandatoryTotal: number;
+  /** True when the customer started this from the workspace rather than their automation. */
+  readonly isTest: boolean;
 }
 
 /**
@@ -497,7 +499,11 @@ export interface CustomerDataPort {
   issueSigningKey(): Promise<SigningKeyIssueResult>;
 
   /* results */
-  listRuns(options: { readonly cursor?: string; readonly limit: number }): Promise<RunPage>;
+  listRuns(options: {
+    readonly cursor?: string;
+    readonly limit: number;
+    readonly source?: 'real' | 'test';
+  }): Promise<RunPage>;
   run(runId: string): Promise<RunDetailView | null>;
 
   /* usage and billing */
