@@ -100,3 +100,29 @@ alert is therefore delivering today, not merely correct in the code.
   The contrast is the useful part: the same question, asked with file reads only and a hard
   call budget, cost 39 seconds. Asked with a database command in it, it cost half an hour and
   returned nothing.
+
+
+=== 22 September: what the owner reported, and what follows from it ===
+
+The owner signed in to the panel and was not asked for a six-digit code, and separately sent
+a test message to support@itisyou.app and received it at the configured destination.
+
+The missing code is correct. owner.view is the only read-only capability, so reading the
+panel needs a session and the platform-owner flag; every write, refund, switch and approval
+is consequential and needs a two-factor check inside fifteen minutes. OWNER-930 proves it
+against the D1 port: mfa_verified_at NULL reads /owner at 200 and is refused 403 on a write,
+and removing the gate makes that write answer 422 instead.
+
+Receipt at support@ is closed by the owner's own test, which is the only way it could be
+closed.
+
+On replying AS support@itisyou.app, one inference is now available that was not before.
+Production holds both RESEND_API_KEY and RESEND_FROM_ADDRESS as secrets, and has delivered 11
+sign_in_link emails, every one state=sent. Resend refuses to send from an unverified domain,
+so the domain of that from-address IS verified in Resend. Resend verifies DOMAINS rather than
+individual addresses.
+
+So if RESEND_FROM_ADDRESS is on itisyou.app, sending as support@itisyou.app needs no new
+verification at all, and the remaining work is a choice rather than a setup task. The secret's
+value is not read here, and the owner can settle it in one second: look at the From line of
+any sign-in email they have received. If it ends @itisyou.app, nothing further is needed.
