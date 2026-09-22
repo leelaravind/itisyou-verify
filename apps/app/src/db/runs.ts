@@ -139,20 +139,35 @@ export const runs = {
     return buildPage(result.results, limit);
   },
 
-  async countByStatus(db: Db, workspaceId: string, since: string): Promise<Record<string, number>> {
-    const result = await db
-      .prepare(
-        // Synthetic runs are excluded here too, and for a sharper reason than on the
-        // owner's figures: this feeds the workspace's own verification rate, and a test
-        // verification is a run the CUSTOMER constructed by hand rather than one their
-        // automation produced. Counting it would let somebody raise their own pass rate by
-        // testing, which is the opposite of what the number is for. The runs list still
-        // shows them, labelled.
-        `SELECT status, COUNT(*) AS n FROM runs
-          WHERE workspace_id = ? AND created_at >= ? AND is_synthetic = 0 GROUP BY status`,
-      )
-      .bind(workspaceId, since)
-      .all<{ status: string; n: number }>();
+  /**
+   * Counts by status, for one scope.
+   *
+   * `automation` — the default — excludes test runs, and for a sharper reason than on the
+   * owner's figures: this feeds the workspace's own verification rate, and a test
+   * verification is a run the CUSTOMER constructed by hand rather than one their automation
+   * produced. Counting it would let somebody raise their own pass rate by testing, which is
+   * the opposite of what the number is for.
+   *
+   * `test` counts exactly those excluded runs, so a page showing zero verified can say
+   * WHY it is zero out of real data instead of leaving the reader to guess. `all` is the
+   * two together, and is what the allowance was charged for.
+   */
+  async countByStatus(
+    db: Db,
+    workspaceId: string,
+    since: string,
+    scope: 'automation' | 'test' | 'all' = 'automation',
+  ): Promise<Record<string, number>> {
+    const sql =
+      scope === 'test'
+        ? `SELECT status, COUNT(*) AS n FROM runs
+          WHERE workspace_id = ? AND created_at >= ? AND is_synthetic = 1 GROUP BY status`
+        : scope === 'all'
+          ? `SELECT status, COUNT(*) AS n FROM runs
+          WHERE workspace_id = ? AND created_at >= ? GROUP BY status`
+          : `SELECT status, COUNT(*) AS n FROM runs
+          WHERE workspace_id = ? AND created_at >= ? AND is_synthetic = 0 GROUP BY status`;
+    const result = await db.prepare(sql).bind(workspaceId, since).all<{ status: string; n: number }>();
     const out: Record<string, number> = {};
     for (const row of result.results) out[row.status] = Number(row.n);
     return out;

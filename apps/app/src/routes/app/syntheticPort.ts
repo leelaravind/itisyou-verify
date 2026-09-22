@@ -454,6 +454,7 @@ export class SyntheticCustomerDataPort implements CustomerDataPort {
       active: true,
       lastEventAt: new Date(T_EVENT.getTime() + 11 * 3_600_000).toISOString(),
       counts: counts(),
+      testCounts: { verified: 0, failed: 0, unverified: 0, pending: 0 },
       mapping: {
         correlationProperty: rules.crm_correlation_property,
         availableProperties: [
@@ -677,6 +678,8 @@ export class SyntheticCustomerDataPort implements CustomerDataPort {
       rulesSchemaVersion: rules.schema_version,
       coverageMode: state.coverageMode,
       revision: 1,
+      // Nothing to prefill: these runs are fixtures, not enquiries anybody described.
+      enquiry: null,
       lateCompletion: false,
       results: found.results,
     };
@@ -688,6 +691,10 @@ export class SyntheticCustomerDataPort implements CustomerDataPort {
       periodEnd: '2026-04-01T00:00:00.000Z',
       runsUsed: RUN_SEEDS.length,
       runsIncluded: LIMITS.PLAN_RUNS_PER_PERIOD,
+      consumed: RUN_SEEDS.length,
+      reserved: 0,
+      runsRemaining: Math.max(0, LIMITS.PLAN_RUNS_PER_PERIOD - (RUN_SEEDS.length)),
+      readAt: new Date().toISOString(),
       admissionBlocked: false,
       subscriptionStatus: null,
     };

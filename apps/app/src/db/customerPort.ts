@@ -846,7 +846,11 @@ export class D1CustomerDataPort implements CustomerDataPort {
       current_version_id: string | null;
     },
   ): Promise<WorkflowSummary> {
-    const counts = await runs.countByStatus(this.#db, workspaceId, '1970-01-01T00:00:00.000Z');
+    const EPOCH = '1970-01-01T00:00:00.000Z';
+    const counts = await runs.countByStatus(this.#db, workspaceId, EPOCH, 'automation');
+    // Counted separately rather than inferred, so a page reading "0 verified" can say out
+    // of real data why it is zero instead of leaving the reader to guess.
+    const testCounts = await runs.countByStatus(this.#db, workspaceId, EPOCH, 'test');
     const version =
       row.current_version_id === null
         ? null
@@ -863,6 +867,12 @@ export class D1CustomerDataPort implements CustomerDataPort {
         failed: counts['FAILED'] ?? 0,
         unverified: counts['UNVERIFIED'] ?? 0,
         pending: counts['PENDING'] ?? 0,
+      },
+      testCounts: {
+        verified: testCounts['VERIFIED'] ?? 0,
+        failed: testCounts['FAILED'] ?? 0,
+        unverified: testCounts['UNVERIFIED'] ?? 0,
+        pending: testCounts['PENDING'] ?? 0,
       },
     };
   }
@@ -1324,8 +1334,16 @@ export class D1CustomerDataPort implements CustomerDataPort {
         ? `test-${newId(ID_PREFIX.sourceEvent, this.#now.getTime())}`
         : `test-${submissionId}`;
 
-    /** The run an earlier press of this same form already started, or null. */
-    const runForThisSubmission = async (): Promise<string | null> => {
+    /**
+     * What this submission identity already bought, if anything.
+     *
+     * `mismatch` matters as much as `runId`. Reusing one identity with DIFFERENT
+     * substantive inputs is not a double-click; it is a different question wearing the
+     * previous question's name. Answering it with the earlier run would hand back a result
+     * about an enquiry the customer did not ask about, which is worse than charging twice.
+     * So that case is refused and says why, rather than silently succeeding.
+     */
+    const priorSubmission = async (): Promise<{ runId: string; mismatch: boolean } | null> => {
       if (submissionId === '') return null;
       const prior = await sourceEvents.getByExternalId(this.#db, scope.workspaceId, eventId);
       if (prior === null) return null;
@@ -1333,7 +1351,23 @@ export class D1CustomerDataPort implements CustomerDataPort {
         .prepare(`SELECT id FROM runs WHERE workspace_id = ? AND source_event_id = ?`)
         .bind(scope.workspaceId, prior.id)
         .first<{ id: string }>();
-      return priorRun?.id ?? null;
+      if (priorRun == null) return null;
+      let mismatch = false;
+      try {
+        const before = JSON.parse(prior.payload_json) as {
+          correlation_id?: string;
+          expected?: { email_recipient?: string; crm_record_id?: string; email_message_id?: string };
+        };
+        mismatch =
+          before.correlation_id !== correlationValue ||
+          before.expected?.crm_record_id !== crmRecordId ||
+          before.expected?.email_message_id !== messageId ||
+          before.expected?.email_recipient !== expectedRecipient;
+      } catch {
+        // An unreadable prior payload cannot be compared, so it cannot be claimed to match.
+        mismatch = true;
+      }
+      return { runId: priorRun.id, mismatch };
     };
 
     const alreadyStarted = (runId: string): TestVerificationResult => ({
@@ -1345,8 +1379,19 @@ export class D1CustomerDataPort implements CustomerDataPort {
         'This is the verification you already started, not a second one. Your allowance was charged once. To check a different enquiry, or the same one again, use Run another verification.',
     });
 
-    const seen = await runForThisSubmission();
-    if (seen !== null) return alreadyStarted(seen);
+    const seen = await priorSubmission();
+    if (seen !== null) {
+      if (seen.mismatch) {
+        return {
+          ok: false,
+          runId: null,
+          fieldErrors: {},
+          message:
+            'These details are different from the ones this form was already submitted with, so we have not started anything. Reload the workspace and start a fresh verification: reusing this submission would have shown you a result about the earlier enquiry, not this one.',
+        };
+      }
+      return alreadyStarted(seen.runId);
+    }
     const payload = {
       schema_version: 1 as const,
       event_id: eventId,
@@ -1393,8 +1438,8 @@ export class D1CustomerDataPort implements CustomerDataPort {
       isSynthetic: true,
       });
     } catch (error) {
-      const winner = await runForThisSubmission();
-      if (winner !== null) return alreadyStarted(winner);
+      const winner = await priorSubmission();
+      if (winner !== null && !winner.mismatch) return alreadyStarted(winner.runId);
       throw error;
     }
 
@@ -1875,14 +1920,31 @@ export class D1CustomerDataPort implements CustomerDataPort {
 
     let recipient = '';
     let correlationId = event?.correlation_key_hash ?? '';
+    let enquiry: RunDetailView['enquiry'] = null;
     if (event !== null) {
       try {
         const payload = JSON.parse(event.payload_json) as {
           correlation_id?: string;
-          expected?: { email_recipient?: string };
+          expected?: {
+            email_recipient?: string;
+            crm_record_id?: string;
+            email_message_id?: string;
+          };
         };
         recipient = payload.expected?.email_recipient ?? '';
         correlationId = payload.correlation_id ?? correlationId;
+        const crmRecordId = payload.expected?.crm_record_id ?? '';
+        const messageId = payload.expected?.email_message_id ?? '';
+        // Only offered when all four are present. A half-filled recheck form is worse
+        // than none: it looks like it remembered and quietly did not.
+        if (crmRecordId !== '' && messageId !== '' && recipient !== '' && correlationId !== '') {
+          enquiry = {
+            crmRecordId,
+            messageId,
+            expectedRecipient: recipient,
+            correlationValue: correlationId,
+          };
+        }
       } catch {
         /* a payload we cannot parse still yields a readable run */
       }
@@ -1908,6 +1970,7 @@ export class D1CustomerDataPort implements CustomerDataPort {
       statusReason: summarise(row.status, results.filter((r) => r.mandatory)),
       correlationId,
       recipient,
+      enquiry,
       occurredAt: event?.occurred_at ?? row.created_at,
       deadlineAt: row.deadline_at,
       observedAt: results.find((r) => r.observed_at !== null)?.observed_at ?? null,
@@ -1946,6 +2009,10 @@ export class D1CustomerDataPort implements CustomerDataPort {
       periodEnd: end,
       runsUsed: 0,
       runsIncluded: LIMITS.PLAN_RUNS_PER_PERIOD,
+      consumed: 0,
+      reserved: 0,
+      runsRemaining: LIMITS.PLAN_RUNS_PER_PERIOD,
+      readAt: toIso(this.#now),
       admissionBlocked: false,
       subscriptionStatus: null,
     });
@@ -1990,6 +2057,10 @@ export class D1CustomerDataPort implements CustomerDataPort {
       periodEnd: toIso(periodEnd),
       runsUsed: used,
       runsIncluded: included,
+      consumed: allowance?.consumed ?? 0,
+      reserved: allowance?.reserved ?? 0,
+      runsRemaining: Math.max(0, included - used),
+      readAt: toIso(this.#now),
       // Resolved from the stored allowance, never from anything the browser sent.
       admissionBlocked: allowance !== null && included - used <= 0,
       subscriptionStatus: (subscription?.status as SubscriptionStatus | undefined) ?? null,

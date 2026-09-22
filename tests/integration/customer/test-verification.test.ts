@@ -334,3 +334,95 @@ describe('an accidental resubmission reuses the run it already started', () => {
     expect(spendOf(open) - before).toBe(2);
   });
 });
+
+/**
+ * The click → check → result → run again journey, as served.
+ *
+ * The owner's screenshot on 22 September showed the workspace with no visible way to start
+ * a verification: the only entry was a closed disclosure reading "Describe the enquiry to
+ * check", four screens below the fold. A pushed commit and a passing unit test had not made
+ * a button exist.
+ */
+describe('the verification journey has a visible way in and a way round again', () => {
+  it('VERIFY-580 the workspace offers a primary Run verification button beside the heading', async () => {
+    open = await ready();
+    const served = await getSignedIn(open, '/app');
+    const text = visibleText(served.html);
+
+    expect(text).toContain('Run verification');
+    expect(served.html).toContain('href="/app?verify=1#run-verification"');
+    // It starts OUR checks. It must never claim to trigger the customer's own workflow.
+    expect(text).not.toContain('Run automation');
+  });
+
+  it('VERIFY-581 the runs list carries the same way in', async () => {
+    open = await ready();
+    const served = await getSignedIn(open, '/app/runs');
+    expect(visibleText(served.html)).toContain('Run verification');
+    expect(served.html).toContain('href="/app?verify=1#run-verification"');
+  });
+
+  it('VERIFY-582 arriving with verify=1 opens the form rather than hiding it again', async () => {
+    open = await ready();
+    const closed = await getSignedIn(open, '/app');
+    const opened = await getSignedIn(open, '/app?verify=1');
+
+    // The disclosure carries `open` only when asked for. Matched as an attribute on the
+    // element rather than as exact bytes, because `attrs` decides the spacing.
+    const isOpen = (html: string): boolean => /<details[^>]*\sopen[\s>]/.test(html);
+    expect(isOpen(opened.html), 'verify=1 did not open the form').toBe(true);
+    expect(isOpen(closed.html), 'the form was open without being asked for').toBe(false);
+  });
+
+  it('VERIFY-583 a settled run offers Run another verification and a prefilled recheck', async () => {
+    open = await ready();
+    await start(open, { ...GOOD, submissionId: 'submission-journey-1' });
+    const runId = (runRows(open)[0] as { id: string }).id;
+    open.h.raw.prepare("UPDATE runs SET status = 'VERIFIED' WHERE id = ?").run(runId);
+
+    const served = await getSignedIn(open, `/app/runs/${runId}`);
+    const text = visibleText(served.html);
+
+    expect(text).toContain('Run another verification');
+    expect(text).toContain('Recheck this enquiry');
+    // The cost, stated above the confirm rather than after it.
+    expect(text).toContain('uses one run from your allowance');
+    // Prefilled with what was actually asked, so nobody retypes four identifiers.
+    expect(served.html).toContain(`value="${GOOD.crmRecordId}"`);
+    expect(served.html).toContain(`value="${GOOD.messageId}"`);
+    // And its own identity, so pressing Recheck twice cannot buy two.
+    expect(served.html).toContain('name="submissionId"');
+  });
+
+  it('VERIFY-584 a pending run shows progress and a View result action, not a recheck', async () => {
+    open = await ready();
+    await start(open, { ...GOOD, submissionId: 'submission-journey-2' });
+    const runId = (runRows(open)[0] as { id: string }).id;
+
+    const served = await getSignedIn(open, `/app/runs/${runId}`);
+    const text = visibleText(served.html);
+
+    expect(text).toContain('We are still checking');
+    expect(text).toContain('View result');
+    // Nothing to recheck yet: the first check has not finished.
+    expect(text).not.toContain('Recheck this enquiry');
+  });
+
+  it('VERIFY-585 reusing one identity with different details is refused, not answered with the old run', async () => {
+    open = await ready();
+    const id = 'submission-journey-3';
+    await start(open, { ...GOOD, submissionId: id });
+    const before = runRows(open).length;
+
+    const changed = await start(open, {
+      ...GOOD,
+      crmRecordId: 'crm-rec-DIFFERENT',
+      submissionId: id,
+    });
+
+    // Refused rather than silently handing back a result about the earlier enquiry.
+    expect(changed.status).toBe(422);
+    expect(visibleText(changed.html)).toContain('different from the ones this form was already submitted with');
+    expect(runRows(open)).toHaveLength(before);
+  });
+});

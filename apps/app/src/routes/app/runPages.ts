@@ -17,6 +17,7 @@ import {
   Card,
   ClaimRule,
   Comparator,
+  CsrfField,
   CoverageNotice,
   EmptyState,
   KeyValues,
@@ -96,6 +97,13 @@ export function RunListPage(options: RunListPageOptions): Html {
       eyebrow: 'Runs',
       title: options.workflowName,
       lede: 'Newest first. A run is one enquiry your automation told us about, checked against the evidence we read back.',
+      // The same primary action the workspace carries, so the reader does not have to go
+      // back to find it. It starts Verify's checks; it does not trigger their automation.
+      action: Button({
+        label: 'Run verification',
+        variant: 'primary',
+        href: '/app?verify=1#run-verification',
+      }),
     })}
     ${sourceFilter(options.basePath, options.source ?? 'all')}
 
@@ -182,6 +190,96 @@ export function RunListPage(options: RunListPageOptions): Html {
 
 export interface RunDetailPageOptions {
   readonly run: RunDetailView;
+  readonly csrfToken?: string | null;
+  /** A fresh identity for the recheck form, so a double-click on it cannot charge twice. */
+  readonly submissionId?: string;
+  /** What a recheck would cost, and how much allowance is left. */
+  readonly runsRemaining?: number;
+  /** True when this render is the first sight of a run just started. */
+  readonly justStarted?: boolean;
+  /** True when a press found the run an earlier press had already started. */
+  readonly wasDuplicate?: boolean;
+}
+
+/**
+ * What a reader can do from a run, and what each thing costs.
+ *
+ * Three actions, deliberately distinct:
+ *
+ *  - **View result** while it is still running. It is a plain reload of this page, because
+ *    the result arrives on a schedule rather than over a socket, and a spinner that never
+ *    resolves would be a worse lie than a button.
+ *  - **Run another verification** — a fresh form, a fresh enquiry, one run.
+ *  - **Recheck this enquiry** — the SAME four values again, prefilled. It costs a run,
+ *    because re-reading the providers is a real admission and there is no free side door.
+ *    The cost is stated above the confirm button, never after it.
+ */
+function runActions(options: RunDetailPageOptions): Html {
+  const run = options.run;
+  const settled = run.status !== 'PENDING';
+  const remaining = options.runsRemaining;
+  const costLine =
+    remaining === undefined
+      ? 'This uses one run from your allowance.'
+      : `This uses one run from your allowance. ${String(remaining)} remain.`;
+
+  const recheck =
+    run.enquiry === null || options.csrfToken === undefined || options.submissionId === undefined
+      ? null
+      : html`<form method="post" action="/app/test-verification" class="stack-sm" data-recheck>
+          ${CsrfField(options.csrfToken)}
+          <input type="hidden" name="submissionId" ${attrs({ value: options.submissionId })} />
+          <input type="hidden" name="crmRecordId" ${attrs({ value: run.enquiry.crmRecordId })} />
+          <input type="hidden" name="correlationValue" ${attrs({ value: run.enquiry.correlationValue })} />
+          <input type="hidden" name="messageId" ${attrs({ value: run.enquiry.messageId })} />
+          <input type="hidden" name="expectedRecipient" ${attrs({ value: run.enquiry.expectedRecipient })} />
+          <p class="small">
+            <strong>Recheck this enquiry.</strong> The same four details, read again from your providers.
+            ${costLine}
+          </p>
+          ${Button({ label: 'Recheck this enquiry', variant: 'primary', type: 'submit' })}
+        </form>`;
+
+  return html`<div class="stack" data-run-actions>
+    ${
+      settled
+        ? null
+        : Callout({
+            tone: 'note',
+            title: 'We are still checking',
+            body: html`<p>
+              This result arrives on a schedule rather than instantly, so this page does not move on its own.
+              Reload it to see where the run has got to. Nothing is lost while you wait, and the run keeps
+              going whether or not this page is open.
+            </p>`,
+          })
+    }
+    ${ButtonRow(
+      settled
+        ? [
+            Button({
+              label: 'Run another verification',
+              href: '/app?verify=1#run-verification',
+              variant: 'primary',
+            }),
+            Button({ label: 'Back to all runs', href: '/app/runs', variant: 'quiet' }),
+            Button({
+              label: 'Ask us about this run',
+              href: `/app/support?run=${encodeURIComponent(run.id)}`,
+              variant: 'quiet',
+            }),
+          ]
+        : [
+            Button({
+              label: 'View result',
+              href: `/app/runs/${encodeURIComponent(run.id)}`,
+              variant: 'primary',
+            }),
+            Button({ label: 'Back to all runs', href: '/app/runs', variant: 'quiet' }),
+          ],
+    )}
+    ${settled ? recheck : null}
+  </div>`;
 }
 
 /** The four check outcomes in the domain's order. */
@@ -400,14 +498,7 @@ export function RunDetailPage(options: RunDetailPageOptions): Html {
 
     ${StandingLimitations()}
 
-    ${ButtonRow([
-      Button({ label: 'Back to all runs', href: '/app/runs', variant: 'quiet' }),
-      Button({
-        label: 'Ask us about this run',
-        href: `/app/support?run=${encodeURIComponent(run.id)}`,
-        variant: 'quiet',
-      }),
-    ])}
+    ${runActions(options)}
   </div>`;
 }
 
