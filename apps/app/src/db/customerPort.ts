@@ -1223,6 +1223,13 @@ export class D1CustomerDataPort implements CustomerDataPort {
    * have been decoration; the owner's platform run count and the workspace's own
    * verification rate both exclude it now.
    */
+  /** `sourceEvents.admitOnce`, named so the race handling above reads as one thought. */
+  async #admitTestVerification(
+    params: Parameters<typeof sourceEvents.admitOnce>[1],
+  ): ReturnType<typeof sourceEvents.admitOnce> {
+    return sourceEvents.admitOnce(this.#db, params);
+  }
+
   async startTestVerification(input: TestVerificationInput): Promise<TestVerificationResult> {
     const refuse = (message: string, fieldErrors: Record<string, string> = {}) => ({
       ok: false,
@@ -1293,7 +1300,53 @@ export class D1CustomerDataPort implements CustomerDataPort {
     }
 
     const at = nowIso(this.#now);
-    const eventId = `test-${newId(ID_PREFIX.sourceEvent, this.#now.getTime())}`;
+
+    /*
+     * Accidental resubmission must not buy a second run.
+     *
+     * The form carries a submission id minted when the page rendered, so a double-click, a
+     * browser back-and-resubmit and a refresh all present the SAME id. That id becomes the
+     * external event id, which routes this straight through the admission rule that already
+     * exists and is already tested: exactly one run per (workspace, external_event_id), and
+     * exactly one unit of allowance, never two for a retry (PERSIST-101/102).
+     *
+     * The prior lookup is done here rather than left to `admitOnce`'s own fast path because
+     * the payload carries `occurred_at`. A second press happens at a different instant, so
+     * the payload hash would differ and `admitOnce` would answer 409 IDEMPOTENCY_CONFLICT —
+     * correct for a genuinely different body, wrong for the same person pressing twice.
+     *
+     * "Run another verification" loads a fresh form, so it carries a fresh id and is a new
+     * run. That is deliberate, and the page says it costs one before it is pressed.
+     */
+    const submissionId = (input.submissionId ?? '').trim();
+    const eventId =
+      submissionId === ''
+        ? `test-${newId(ID_PREFIX.sourceEvent, this.#now.getTime())}`
+        : `test-${submissionId}`;
+
+    /** The run an earlier press of this same form already started, or null. */
+    const runForThisSubmission = async (): Promise<string | null> => {
+      if (submissionId === '') return null;
+      const prior = await sourceEvents.getByExternalId(this.#db, scope.workspaceId, eventId);
+      if (prior === null) return null;
+      const priorRun = await this.#db
+        .prepare(`SELECT id FROM runs WHERE workspace_id = ? AND source_event_id = ?`)
+        .bind(scope.workspaceId, prior.id)
+        .first<{ id: string }>();
+      return priorRun?.id ?? null;
+    };
+
+    const alreadyStarted = (runId: string): TestVerificationResult => ({
+      ok: true,
+      runId,
+      fieldErrors: {},
+      duplicate: true,
+      message:
+        'This is the verification you already started, not a second one. Your allowance was charged once. To check a different enquiry, or the same one again, use Run another verification.',
+    });
+
+    const seen = await runForThisSubmission();
+    if (seen !== null) return alreadyStarted(seen);
     const payload = {
       schema_version: 1 as const,
       event_id: eventId,
@@ -1308,7 +1361,15 @@ export class D1CustomerDataPort implements CustomerDataPort {
     };
     const payloadJson = JSON.stringify(payload);
 
-    const admitted = await sourceEvents.admitOnce(this.#db, {
+    /*
+     * A double-click puts two requests in flight at once. Both read no prior event, both
+     * try to admit, and one loses on the unique index over
+     * `(workspace_id, external_event_id)`. The loser must hand back the winner's run, not
+     * a 500: from the customer's side this was one press of one button.
+     */
+    let admitted: Awaited<ReturnType<typeof sourceEvents.admitOnce>>;
+    try {
+      admitted = await this.#admitTestVerification({
       workspaceId: scope.workspaceId,
       billingPeriod: resolved.key,
       workflowId: workflow.id,
@@ -1330,7 +1391,12 @@ export class D1CustomerDataPort implements CustomerDataPort {
       // Marked at birth. Nothing downstream has to infer it, and the exclusions in the
       // owner's run count and the workspace's verification rate read this column.
       isSynthetic: true,
-    });
+      });
+    } catch (error) {
+      const winner = await runForThisSubmission();
+      if (winner !== null) return alreadyStarted(winner);
+      throw error;
+    }
 
     await auditEvents.record(this.#db, {
       id: newId(ID_PREFIX.auditEvent, this.#now.getTime()),

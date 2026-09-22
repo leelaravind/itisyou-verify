@@ -459,6 +459,7 @@ export function createAppRoutes(resolve: PortResolver = syntheticResolver): Hono
             canStartSetup: session.role === 'workspace_admin',
             testOffer: await port.testVerificationOffer(),
             csrfToken: session.csrfToken,
+            submissionId: crypto.randomUUID(),
           }),
         }),
       );
@@ -903,9 +904,13 @@ export function createAppRoutes(resolve: PortResolver = syntheticResolver): Hono
               messageId: body['messageId'] ?? '',
               expectedRecipient: body['expectedRecipient'] ?? '',
               correlationValue: body['correlationValue'] ?? '',
+              submissionId: body['submissionId'] ?? '',
             });
       if (result.ok && result.runId !== null) {
-        return c.redirect(`/app/runs/${encodeURIComponent(result.runId)}?started=test`, 303);
+        // `started=test` is the first sight of a new run; `again=1` says this press found
+        // the one already running, so the page can say so rather than look identical.
+        const marker = result.duplicate === true ? 'again' : 'started=test';
+        return c.redirect(`/app/runs/${encodeURIComponent(result.runId)}?${marker}`, 303);
       }
       const workflow = await port.workflow();
       return page(
@@ -925,6 +930,9 @@ export function createAppRoutes(resolve: PortResolver = syntheticResolver): Hono
             testOffer: await port.testVerificationOffer(),
             csrfToken: session.csrfToken,
             testSubmitted: result,
+            // Echoed back, not re-minted: correcting a typo and pressing again is the same
+            // submission, and must not become a second charged run once it validates.
+            submissionId: body['submissionId'] ?? crypto.randomUUID(),
           }),
         }),
         { status: 422 },

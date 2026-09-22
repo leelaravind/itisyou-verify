@@ -188,6 +188,7 @@ describe('the activation path is disabled, visibly', () => {
     return await render(
       WorkspacePage({
       testOffer: { canStart: false, reason: null, consumesAllowance: true, runsRemaining: 0, runsIncluded: 500, correlationProperty: 'verify_correlation_id' },
+      submissionId: 'submission-fixture-0001',
       csrfToken: null,
 
         workflow: null,

@@ -254,3 +254,83 @@ describe('the guided test verification', () => {
     expect(runRows(session).length, 'a viewer created a run').toBe(before);
   });
 });
+
+/**
+ * Pressing the button twice is one verification, not two charges.
+ *
+ * Met on production, 22 September 2026: the identical enquiry — same CRM id, same
+ * correlation value, same message id, same recipient — submitted twice produced two distinct
+ * runs and two charges. The form minted a fresh external event id on every press, so the
+ * admission rule that exists precisely to stop this (exactly one run and exactly one unit of
+ * allowance per `(workspace, external_event_id)`, PERSIST-101/102) never saw a repeat.
+ *
+ * The fix routes the form through that same rule rather than adding a second mechanism: the
+ * rendered form carries a submission identity, and a double-click, a browser
+ * back-and-resubmit and a refresh all present it again. A newly loaded form is a new
+ * submission, costs another run, and says so before the button.
+ */
+describe('an accidental resubmission reuses the run it already started', () => {
+  /**
+   * Summed across every entitlement row for the workspace.
+   *
+   * The fixture opens two: a calendar-month row from `seedWorkspace` and the paid-period
+   * row admission actually draws from. Reading "the first" silently measured the wrong one
+   * and reported every spend as zero.
+   */
+  function spendOf(session: SignedIn): number {
+    const row = session.h.raw
+      .prepare(
+        'SELECT COALESCE(SUM(consumed), 0) AS c, COALESCE(SUM(reserved), 0) AS r FROM entitlements WHERE workspace_id = ?',
+      )
+      .get(session.workspaceId) as { c: number; r: number };
+    return row.c + row.r;
+  }
+
+  it('VERIFY-570 the rendered form carries a submission identity', async () => {
+    open = await ready();
+    const served = await getSignedIn(open, '/app');
+    expect(served.html).toContain('name="submissionId"');
+  });
+
+  it('VERIFY-571 two presses of one form make one run and spend one unit', async () => {
+    open = await ready();
+    const before = spendOf(open);
+    const fields = { ...GOOD, submissionId: 'submission-aaaa-0001' };
+
+    const first = await start(open, fields);
+    const second = await start(open, fields);
+
+    expect(first.status).toBe(303);
+    expect(second.status).toBe(303);
+    expect(runRows(open)).toHaveLength(1);
+
+    expect(spendOf(open) - before, 'the second press bought a second run').toBe(1);
+  });
+
+  it('VERIFY-572 concurrent identical presses still make one run and spend one unit', async () => {
+    open = await ready();
+    const before = spendOf(open);
+    const fields = { ...GOOD, submissionId: 'submission-bbbb-0002' };
+
+    // Two in flight at once, which is what a double-click actually produces.
+    const [a, b] = await Promise.all([start(open, fields), start(open, fields)]);
+    expect(a.status).toBe(303);
+    expect(b.status).toBe(303);
+
+    expect(runRows(open)).toHaveLength(1);
+    expect(spendOf(open) - before).toBe(1);
+  });
+
+  it('VERIFY-573 a new submission identity is a new run, deliberately', async () => {
+    open = await ready();
+    const before = spendOf(open);
+
+    await start(open, { ...GOOD, submissionId: 'submission-cccc-0003' });
+    await start(open, { ...GOOD, submissionId: 'submission-dddd-0004' });
+
+    // Asking again on purpose must still work: this is the "Run another verification"
+    // path, and it is a real second check of the same enquiry.
+    expect(runRows(open)).toHaveLength(2);
+    expect(spendOf(open) - before).toBe(2);
+  });
+});
