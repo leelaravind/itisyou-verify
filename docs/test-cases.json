@@ -22741,6 +22741,23 @@
       "countable": true
     },
     {
+      "id": "CUST-969",
+      "category": "accessibility_resilience",
+      "level": "e2e",
+      "requirement": "the workspace controls are usable at 390px and 1440px",
+      "risk": "The owner asked for mobile verification and the browser extension could not deliver it: resize_window reported success while window.innerWidth stayed 1920, so the claim could not be made honestly from that route. Playwright sets the viewport for real. The case asserts the primary action, the automation panel and the remaining-allowance figure are all present, and that nothing overflows sideways -- a control pushed off a 390px screen is not a control.",
+      "risk_source": "case",
+      "setup": "A local-only admin session seeded into the local dev database, because the shared e2e identity is deliberately a read-only viewer with no workflow and must stay that way.",
+      "expected": "At both widths the Run verification link, the automation panel and the remaining figure are visible, and scrollWidth does not exceed clientWidth.",
+      "owner_agent": "A11",
+      "implementation_ref": "tests/e2e/admission-controls.spec.ts",
+      "provider_backed": false,
+      "status": "passing",
+      "runner": "playwright",
+      "area": "tests/e2e/admission-controls.spec.ts",
+      "countable": true
+    },
+    {
       "id": "CUST-963",
       "category": "customer_lifecycle",
       "level": "integration",
