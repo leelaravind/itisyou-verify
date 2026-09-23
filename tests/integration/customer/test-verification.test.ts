@@ -398,12 +398,21 @@ describe('the verification journey has a visible way in and a way round again', 
     open = await ready();
     await start(open, { ...GOOD, submissionId: 'submission-journey-2' });
     const runId = (runRows(open)[0] as { id: string }).id;
+    // Admission now starts the first check at once (VERIFY-920), and this fixture's empty
+    // rule set is decided by it. Let that finish, then hold the run where this case is
+    // about: pending, with its next check still ahead.
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    open.h.raw
+      .prepare("UPDATE runs SET status = 'PENDING', next_check_at = '2099-01-01T00:00:00.000Z', completed_at = NULL WHERE id = ?")
+      .run(runId);
 
     const served = await getSignedIn(open, `/app/runs/${runId}`);
     const text = visibleText(served.html);
 
     expect(text).toContain('We are still checking');
-    expect(text).toContain('View result');
+    // The page updates itself now; the button is a manual refresh, not the only way to see.
+    expect(text).toContain('This page updates by itself');
+    expect(text).toContain('Refresh now');
     // Nothing to recheck yet: the first check has not finished.
     expect(text).not.toContain('Recheck this enquiry');
   });

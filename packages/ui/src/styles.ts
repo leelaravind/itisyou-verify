@@ -656,6 +656,10 @@ a:hover{text-decoration-thickness:2px}
 /* The next field's label sat flush under the search bar on production; give it the same
    gap one field keeps from another. */
 .lookup+.field{margin-top:var(--s4)}
+/* The live marker in the workspace fact bar: a steady dot, not a pulse (reduced motion is
+   the default here), and text that says what is happening rather than only that it is. */
+.live-dot{display:inline-flex;align-items:center;gap:0.4em}
+.live-dot::before{content:"";width:0.5em;height:0.5em;background:var(--c-verified)}
 
 /* ---- table --------------------------------------------------------------- */
 .tablewrap{

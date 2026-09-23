@@ -21,6 +21,7 @@
 import {
   Disclosure,
   Callout,
+  LiveScript,
   CsrfField,
   Field,
   Fieldset,
@@ -64,6 +65,7 @@ import {
 } from './lookupPanel.js';
 import type {
   ConnectionView,
+  WorkspaceLiveView,
   LookupView,
   MessageCandidateView,
   RecordCandidateView,
@@ -122,6 +124,12 @@ export interface WorkspacePageOptions {
   readonly messageLookup?: LookupView<MessageCandidateView> | null;
   /** What a pick or an ambiguous Enter did, said at the top of the form. */
   readonly lookupNotice?: string | null;
+  /**
+   * The live fingerprint, on a GET render only. Present, the page updates itself; absent
+   * (a re-render answering a form post), it does not, because re-fetching that URL with a
+   * GET would not return this page.
+   */
+  readonly live?: WorkspaceLiveView | null;
 }
 
 /**
@@ -569,8 +577,20 @@ export function WorkspacePage(options: WorkspacePageOptions): Html {
   const scopeNoun =
     scope === 'all' ? '' : scope === 'tests' ? ' · your tests' : ' · from your automation';
   const shownSummary = `${String(options.recentRuns.length)} of ${String(runTotal(shownCounts))} shown${scopeNoun}`;
+  const live = options.live ?? null;
+  // A pending TEST run is not counted in the automation view, rightly; it must still not be
+  // invisible there. Said in words, with the way to see it.
+  const hiddenPendingTests = live !== null && scope === 'automation' ? live.pendingTests : 0;
 
-  return html`<div class="wrap section stack-lg">
+  return html`<div
+    ${attrs({
+      class: 'wrap section stack-lg',
+      'data-live': live === null ? null : '/app/live',
+      'data-live-token': live === null ? null : live.token,
+      'data-live-active': live === null ? null : live.active ? '1' : '0',
+      'data-next-check': live === null ? null : (live.nextCheckAt ?? ''),
+    })}
+  >
     <div class="section-head">
       ${pageHead({
         eyebrow: 'Workspace',
@@ -594,6 +614,7 @@ export function WorkspacePage(options: WorkspacePageOptions): Html {
           : null,
       })}
       <ul class="meta-bar" aria-label="About this workflow">
+        ${live === null ? null : html`<li class="live-dot"><span data-live-status aria-live="polite">Live</span></li>`}
         <li>Runs <b>${String(total)}</b></li>
         <li>Completion window <b>${formatDuration(workflow.deadlineSeconds)}</b></li>
         <li>Coverage mode <b>${workflow.coverageMode}</b></li>
@@ -623,6 +644,20 @@ export function WorkspacePage(options: WorkspacePageOptions): Html {
               `and nothing here has passed.`,
           })
         : null
+    }
+
+    ${
+      hiddenPendingTests === 0
+        ? null
+        : Callout({
+            tone: 'note',
+            title: `${String(hiddenPendingTests)} test ${hiddenPendingTests === 1 ? 'run is' : 'runs are'} still being checked`,
+            body: html`<p>
+              The counts below are runs from your automation, so tests you started are not in them.
+              <a href="/app?scope=tests">Show your tests</a> or <a href="/app/runs?show=test">open the runs list</a>
+              to watch them. This page updates by itself when they settle.
+            </p>`,
+          })
     }
 
     ${
@@ -831,5 +866,6 @@ export function WorkspacePage(options: WorkspacePageOptions): Html {
     </div>
 
     ${StandingLimitations()}
+    ${live === null ? null : LiveScript()}
   </div>`;
 }
