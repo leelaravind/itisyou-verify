@@ -63,11 +63,47 @@ a warning that would otherwise be sent again.
 for columns with no index, constraint or generated dependency, which these have none of. It
 is not expected to be needed, and I would not run it without asking.
 
-**What cannot be recovered by a rollback**: a pause that a customer set while the feature was
-live would stop being enforced if the worker were rolled back, and their automation's events
-would start being admitted and charged again. That is a real consequence of reverting, not of
-applying, and it is the one thing worth telling a customer about before rolling back rather
-than after.
+### The one thing a rollback does not preserve, and what to do about it
+
+A pause and a ceiling are **stored state that only the new code reads**. Roll the worker back
+and the columns still hold what the customer set — but nothing consults them, so:
+
+- a workspace the customer **paused** starts admitting again, and every admitted event is
+  charged against their allowance;
+- a workspace at a **ceiling** stops being capped and can run to the full plan allowance.
+
+Neither is a data loss. It is worse in kind: usage resumes **without the customer's
+intention**, and the first they would know is the bill.
+
+So a rollback of this candidate is not a neutral act, and must not be treated as one.
+
+**Before rolling back, run this and read the answer:**
+
+```sql
+SELECT id, workspace_id, admissions_paused_at, admission_limit_per_period
+  FROM workflows
+ WHERE admissions_paused_at IS NOT NULL
+    OR admission_limit_per_period IS NOT NULL;
+```
+
+- **No rows.** Nobody has set either control. Roll back freely; the columns are inert.
+- **Any rows.** Each one is a customer instruction the old code cannot honour. Do one of:
+  1. **Preferred — do not roll back.** Fix forward. The controls are additive; a defect in
+     them is unlikely to be worth resuming somebody's billing over.
+  2. **Roll back and preserve the intention by other means.** For a paused workspace, that
+     means stopping admission some other way before the old worker is live — there is no
+     other customer-facing switch, so in practice this means telling the customer their
+     pause is not in force, rather than pretending it is.
+  3. **Roll back and accept it**, only if the affected customer has said they are content.
+
+**Capture the rows before rolling back either way.** The query above, saved, is the record of
+what each customer had asked for, and is what the settings are restored from when the
+candidate is redeployed. The columns themselves survive a rollback untouched — it is only
+their enforcement that stops — so restoring is a matter of redeploying, not of rewriting
+data.
+
+**This asymmetry is the reason to prefer fixing forward.** Applying the migration and not
+deploying changes nothing. Deploying and rolling back changes whether customers are billed.
 
 ## What I am asking for
 

@@ -163,22 +163,15 @@ export function createMoneyRoutes(env: MoneyEnv, parts: MoneyMountParts) {
      * transport still admits events and simply never warns.
      */
     sendUsageAlert: async (request) => {
-      const supportPort = new D1SupportDataPort(db);
       /*
-       * Release a key that failed, before trying it again.
+       * No `releaseUndelivered` here, deliberately.
        *
-       * `dispatchNotification` claims the key BEFORE sending and settles the outcome onto
-       * the same row, so one transient failure takes that key forever: the next attempt
-       * finds it claimed and returns `duplicate`, which is not `failed`, so the caller
-       * marks the threshold announced and the warning is lost silently.
-       *
-       * This project has already paid for that lesson once — `scheduler/tick.ts` releases
-       * the key for owner alerts and its comment names the two stuck rows, one on
-       * production and one on staging, that could never fire again. An independent audit
-       * caught me reproducing it here. `releaseUndelivered` refuses to touch a `sent` row
-       * in SQL, so it cannot become a way to send the same warning twice.
+       * An earlier version released the failed key before retrying, copying the owner-alert
+       * pattern. That helper DELETES the row, and the row is now how attempts are counted —
+       * releasing would reset the bound every time and produce the unbounded retry it was
+       * meant to prevent. Each attempt carries its own key instead, so the history stays.
        */
-      await supportPort.releaseUndeliveredNotification(request.notificationKey);
+      const supportPort = new D1SupportDataPort(db);
       const report = await createNotificationDelivery(env, supportPort).deliver([
         {
           notificationKey: request.notificationKey,

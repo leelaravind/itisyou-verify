@@ -49,6 +49,8 @@ import { createD1CredentialResolver, NOT_CONNECTED_RESOLVER } from './credential
 import { defaultOutboxHandlers, dispatchOutbox, type DispatchReport } from './dispatch';
 import { deferredOutcome, observeRun, type ObservationOutcome } from './observe';
 import { createRetentionSweeper, runRetentionPass, type RetentionPassReport } from './retention';
+import { runUsageAlertPass } from './usageAlertPass';
+import type { UsageAlertRequest } from '../db/usageAlerts';
 import {
   SILENT_LOGGER,
   type ConnectorRegistry,
@@ -146,6 +148,13 @@ export interface TickDeps {
   readonly connectors?: ConnectorRegistry;
   readonly handlers?: ReadonlyMap<string, OutboxHandler>;
   readonly sweeper?: RetentionSweeper | undefined;
+  /** Sends a customer usage warning. Absent on a deployment with no transport wired. */
+  readonly sendUsageAlert?: (
+    request: UsageAlertRequest,
+  ) => Promise<{ outcome: 'sent' | 'duplicate' | 'suppressed' | 'failed' }>;
+  readonly billingContact?: (
+    workspaceId: string,
+  ) => Promise<{ workspaceName: string; email: string } | null>;
   readonly budget?: TickBudget | TickBudgetOptions;
   readonly newId?: IdFactory;
   readonly digest?: DigestFn;
@@ -260,6 +269,32 @@ export async function runSchedulerTick(deps: TickDeps): Promise<TickReport> {
     });
   } catch (caught) {
     error = error ?? messageOf(caught);
+  }
+
+  /*
+   * The usage warning's retry.
+   *
+   * Runs here rather than only on admission because the two moments a customer most needs
+   * this warning are the two where admissions have stopped: an exhausted allowance and a
+   * reached ceiling. A retry that fires only on the next successful admission is no retry
+   * at all at exactly those moments. Optional, like every other alerting dependency here:
+   * a deployment that has not wired a sender still ticks and simply never warns.
+   */
+  try {
+    if (deps.sendUsageAlert !== undefined) {
+      await runUsageAlertPass({
+        db: deps.db,
+        billing: deps.billing,
+        billingEnvironment: deps.billingEnvironment ?? 'test',
+        now: deps.now,
+        billingContact: deps.billingContact ?? (async () => null),
+        send: deps.sendUsageAlert,
+      });
+    }
+  } catch (caught) {
+    // A courtesy warning must never be the reason a tick reports failure: the runs it
+    // shares this tick with are the work that earns money.
+    logger.warn('scheduler.usage_alert.failed', { message: messageOf(caught) });
   }
 
   const report: TickReport = {
