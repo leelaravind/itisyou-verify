@@ -33,6 +33,8 @@ const HUBSPOT_PURPOSES: Readonly<Record<keyof typeof HUBSPOT_OPERATIONS, string>
 const RESEND_PURPOSES: Readonly<Record<keyof typeof RESEND_OPERATIONS, string>> = {
   retrieve_email: 'reads the delivery outcome of one acknowledgement we were told about',
   list_domains: 'checks the key is live, and which sending domains it can see',
+  list_emails:
+    'lists recent messages you have sent, so you can pick one to test rather than hunt for its id',
 };
 
 function describe(
