@@ -13,6 +13,17 @@
  *     https://resend.com/docs/api-reference/emails/retrieve-email
  *   - `GET /domains` returns `{object, has_more, data[]}`; used only as a liveness and
  *     permission probe at setup. https://resend.com/docs/api-reference/domains/list-domains
+ *   - `GET /emails` LISTS emails this team sent: `limit` (1-100, default 20) and cursor
+ *     `after` / `before` (mutually exclusive), returning `{id, message_id, to, from,
+ *     created_at, subject, bcc, cc, reply_to, last_event, scheduled_at}`. Sent mail only;
+ *     it never returns received mail.
+ *     https://resend.com/docs/api-reference/emails/list-emails
+ *
+ *     Recorded late, and the correction matters: this file previously listed only the
+ *     retrieve endpoint, and on the strength of that absence the product told its owner
+ *     twice that a message selector was impossible and that manual entry was the only
+ *     option. The endpoint is documented. "I did not find it" is not "it does not exist",
+ *     and the difference was a feature the customer was told they could not have.
  *   - Webhook events: `email.sent`, `email.delivered`, `email.delivery_delayed`,
  *     `email.bounced`, `email.failed`, `email.opened`, `email.clicked`,
  *     `email.complained`, `email.suppressed`, `email.scheduled`, `email.received`, plus
@@ -174,10 +185,15 @@ export function mapResendLastEvent(lastEvent: unknown): EmailStatus | null {
 export const RESEND_OPERATIONS = Object.freeze({
   retrieve_email: Object.freeze({ method: 'GET' as SafeMethod, path: '/emails/' }),
   list_domains: Object.freeze({ method: 'GET' as SafeMethod, path: '/domains' }),
+  // Sent mail only, and read-only. Used to offer the customer a choice of message rather
+  // than asking them to paste an id they have to go and find.
+  list_emails: Object.freeze({ method: 'GET' as SafeMethod, path: '/emails' }),
 });
 type ResendOperation = keyof typeof RESEND_OPERATIONS;
 
 export interface ResendFetchOptions {
+  /** Query string for a list read. Values are encoded here, never interpolated into a path. */
+  readonly query?: Readonly<Record<string, string>> | undefined;
   readonly fetchImpl?: typeof fetch | undefined;
   readonly sleep?: ((ms: number) => Promise<void>) | undefined;
   readonly jitterSeed?: number | undefined;
@@ -196,8 +212,13 @@ function resendCall(
   if (op === undefined)
     throw new ConnectorTransportError('blocked_url', 'unknown resend operation');
   const path = segment === undefined ? op.path : `${op.path}${pathSegment(segment)}`;
+  const url = providerUrl(RESEND_PROVIDER, path);
+  const withQuery =
+    options.query === undefined
+      ? url
+      : `${url}?${new URLSearchParams(options.query).toString()}`;
   return guardedFetch({
-    url: providerUrl(RESEND_PROVIDER, path),
+    url: withQuery,
     method: op.method,
     headers: { authorization: `Bearer ${token}` },
     secrets: [token],

@@ -432,12 +432,21 @@ export class D1OwnerDataPort implements OwnerDataPort {
    * verifications since the column was added and NOTHING read it, so a test run a customer
    * started in order to learn how the product works counted as platform traffic here. A
    * flag is only worth setting if something honours it.
+   *
+   * It asks the SOURCE EVENT rather than that flag, so the owner's figure and the
+   * customer's own counts, rows, badges and filters all answer "is this a test run?" the
+   * same way. Two definitions of one fact is what produced "5 of 3 runs shown" on the
+   * workspace, and the second definition living here is how it would come back.
    */
   async #runsSince(since: string): Promise<number | null> {
     const row = await this.#db
       // tenant-scope:exempt platform-wide owner metric across every workspace.
-      .prepare('SELECT COUNT(*) AS n FROM runs WHERE created_at >= ? AND is_synthetic = 0')
-      .bind(since)
+      .prepare(
+        `SELECT COUNT(*) AS n FROM runs
+          WHERE created_at >= ?
+            AND NOT EXISTS (SELECT 1 FROM source_events se WHERE se.id = runs.source_event_id AND se.source = ?)`,
+      )
+      .bind(since, 'owner_test')
       .first<{ n: number }>();
     return row === null ? null : Number(row.n);
   }
