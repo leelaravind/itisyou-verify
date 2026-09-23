@@ -55,8 +55,18 @@ import {
   runTotal,
 } from './chrome.js';
 import { formatDuration, formatInstant } from '../public/shared.js';
+import {
+  EMPTY_TEST_FORM,
+  enterDefaultButton,
+  messageFinder,
+  recordFinder,
+  type TestFormValues,
+} from './lookupPanel.js';
 import type {
   ConnectionView,
+  LookupView,
+  MessageCandidateView,
+  RecordCandidateView,
   RunCountsView,
   RunListItem,
   TestVerificationOffer,
@@ -104,6 +114,14 @@ export interface WorkspacePageOptions {
   readonly admissionErrors?: Readonly<Record<string, string>>;
   /** The outcome of an admission-control submission, shown above the panel. */
   readonly admissionNotice?: { readonly message: string; readonly ok: boolean };
+  /** What the reader had typed into the test form, when this render came back from it. */
+  readonly testValues?: TestFormValues;
+  /** A contact search's results, when this render came from one. */
+  readonly recordLookup?: LookupView<RecordCandidateView> | null;
+  /** A sent-message listing, when this render came from one. */
+  readonly messageLookup?: LookupView<MessageCandidateView> | null;
+  /** What a pick or an ambiguous Enter did, said at the top of the form. */
+  readonly lookupNotice?: string | null;
 }
 
 /**
@@ -133,6 +151,8 @@ function testVerification(options: WorkspacePageOptions): Html {
   const offer = options.testOffer;
   const submitted = options.testSubmitted ?? null;
   const errors = submitted?.fieldErrors ?? {};
+  const values = options.testValues ?? EMPTY_TEST_FORM;
+  const cameBackFromForm = options.testValues !== undefined;
   return html`<section class="stack" id="run-verification" aria-labelledby="test-verification-heading" data-test-verification>
     <div class="section-head">
       <div class="section-head__text">
@@ -181,11 +201,13 @@ function testVerification(options: WorkspacePageOptions): Html {
            * errors, because the reader has to see what they typed.
            */
           Disclosure({
-            open: options.openVerifyForm || (submitted !== null && !submitted.ok),
+            open: options.openVerifyForm || (submitted !== null && !submitted.ok) || cameBackFromForm,
             summary: 'Describe the enquiry to check',
             body: html`<form method="post" action="/app/test-verification" class="stack" data-verify-form>
+            ${enterDefaultButton()}
             ${CsrfField(options.csrfToken)}
             <input type="hidden" name="submissionId" ${attrs({ value: options.submissionId })} />
+            ${options.lookupNotice == null ? null : formMessage(options.lookupNotice, 'note')}
             ${Fieldset({
               legend: 'The enquiry to check',
               hint: 'Every value names something that already exists. We create nothing and send nothing.',
@@ -194,13 +216,21 @@ function testVerification(options: WorkspacePageOptions): Html {
                 label: 'An existing CRM record id',
                 hint: 'A contact already in HubSpot. We read it; we never create or edit one.',
                 required: true,
+                mono: true,
+                value: values.crmRecordId,
                 error: errors['crmRecordId'] ?? null,
+              })}
+              ${recordFinder({
+                values,
+                view: options.recordLookup ?? null,
+                correlationProperty: offer.correlationProperty,
               })}
               ${Field({
                 name: 'correlationValue',
                 label: `The value in ${offer.correlationProperty}`,
                 hint: 'What that record carries in your correlation property. This is how we match the record back to the enquiry.',
                 required: true,
+                value: values.correlationValue,
                 error: errors['correlationValue'] ?? null,
               })}
               ${Field({
@@ -208,14 +238,18 @@ function testVerification(options: WorkspacePageOptions): Html {
                 label: 'An existing message id',
                 hint: 'The provider id of an acknowledgement that was already sent. We read its delivery events; we never send mail.',
                 required: true,
+                mono: true,
+                value: values.messageId,
                 error: errors['messageId'] ?? null,
               })}
+              ${messageFinder({ values, view: options.messageLookup ?? null })}
               ${Field({
                 name: 'expectedRecipient',
                 label: 'The address it should have reached',
                 control: 'email',
                 hint: 'Checked after we bind the message, so the right message delivered to the wrong address is a contradiction rather than a miss.',
                 required: true,
+                value: values.expectedRecipient,
                 error: errors['expectedRecipient'] ?? null,
               })}`,
             })}

@@ -25,8 +25,11 @@ import { AppError } from '@verify/contracts';
 import {
   CREDENTIAL_PURPOSE,
   establishConnection,
+  listSentMessages,
+  lookupContacts,
   openConnectionCredentials,
   revalidateConnection,
+  type ClassifiedError,
   type ProviderId,
 } from '@verify/connectors';
 import { scrubSecret, secretKeyIsUsable } from '@verify/connectors/stripe';
@@ -41,6 +44,10 @@ import type {
   ConnectionView,
   ConnectorCompatibility,
   CustomerDataPort,
+  LookupRequest,
+  LookupView,
+  MessageCandidateView,
+  RecordCandidateView,
   ExpectedOutcomeInput,
   FieldMappingInput,
   OrderSummaryView,
@@ -59,6 +66,7 @@ import type {
   WorkflowSummary,
   WriteResult,
 } from '../routes/app/port';
+import { LOOKUP_MAX_PAGES } from '../routes/app/port';
 import type { Env } from '../lib/context';
 import { ID_PREFIX, newId } from '../lib/ids';
 import { resolveSession, type ResolvedSession } from '../lib/session';
@@ -273,6 +281,51 @@ function envelopeOf(row: CredentialEnvelopeRow): {
     aad: row.aad,
     key_version: row.key_version,
   };
+}
+
+/** Lookups per workspace and provider in `LOOKUP_RATE_WINDOW_SECONDS`. */
+export const LOOKUP_RATE_LIMIT = 20;
+export const LOOKUP_RATE_WINDOW_SECONDS = 300;
+/** Per provider call. A person is waiting, and manual entry is always the fallback. */
+export const LOOKUP_TIMEOUT_MS = 6_000;
+const LOOKUP_MAX_QUERY = 100;
+
+const LOOKUP_PAGE_CAP_MESSAGE = `That is as far as a lookup pages (${String(LOOKUP_MAX_PAGES)} pages). Narrow the search, or type the id yourself.`;
+
+/** Printable text only, trimmed and bounded. The query is sent to a provider, never stored. */
+function cleanLookupQuery(raw: string): string {
+  return raw
+    .replace(/[\u0000-\u001f\u007f]/g, ' ')
+    .trim()
+    .slice(0, LOOKUP_MAX_QUERY);
+}
+
+function clampLookupPage(raw: number): number {
+  return Number.isInteger(raw) && raw >= 1 ? Math.min(raw, LOOKUP_MAX_PAGES + 1) : 1;
+}
+
+/**
+ * Why a lookup came back empty-handed, in the customer's terms.
+ *
+ * Every one of these ends in the same place, manual entry, and none says or implies that a
+ * record or message does not exist: a search that failed is silence, not an answer.
+ */
+function lookupFailureMessage(providerName: string, error: ClassifiedError): string {
+  const tail = 'Nothing was charged. You can still type the id yourself.';
+  switch (error.code) {
+    case 'AUTH_EXPIRED':
+      return `${providerName} refused the stored key, so the search did not run. Reconnect ${providerName} on Connections. ${tail}`;
+    case 'PERMISSION_MISSING':
+      return providerName === 'Resend'
+        ? `The Resend key can only send, so it cannot list sent messages. A full-access key can. ${tail}`
+        : `The ${providerName} key cannot read contacts. It needs the contacts read scope. ${tail}`;
+    case 'RATE_LIMITED':
+      return `${providerName} asked us to slow down${error.retryAfterSeconds === null ? '' : ` for ${String(error.retryAfterSeconds)} seconds`}. Try again shortly. ${tail}`;
+    case 'UNSUPPORTED_CAPABILITY':
+      return `${providerName} would not run that search. Most often the correlation property does not exist in this account. ${tail}`;
+    default:
+      return `We could not get an answer from ${providerName} just now. That says nothing about whether the record exists. ${tail}`;
+  }
 }
 
 export class D1CustomerDataPort implements CustomerDataPort {
@@ -1591,6 +1644,244 @@ export class D1CustomerDataPort implements CustomerDataPort {
       fieldErrors: {},
       message:
         'The test verification was admitted and is now waiting to be checked, exactly like a real enquiry. It is decided by reading your providers, so it can come back verified, failed or unverified.',
+    };
+  }
+
+  /* --- lookups: choosing what to name in a test verification --- */
+
+  /**
+   * Open one provider's stored credential for a lookup, or say why not.
+   *
+   * The same gates the connection test applies, in the same order, with one difference that
+   * matters: a lookup never writes the connection's status. It is a person browsing, not a
+   * health check, and a slow search must not move a working connection backwards.
+   */
+  async #lookupToken(
+    providerId: ProviderId,
+    continuation: boolean,
+  ): Promise<
+    | { readonly ok: true; readonly token: string; readonly scope: ResolvedSession }
+    | { readonly ok: false; readonly message: string }
+  > {
+    const displayName = PROVIDER_DETAIL[providerId].displayName;
+    const scope = await this.#scope();
+    if (scope === null) return { ok: false, message: 'Sign in to look anything up.' };
+    if (scope.role !== 'workspace_admin') {
+      return {
+        ok: false,
+        message: `Only a workspace admin can run a test verification, so nothing was looked up in ${displayName}.`,
+      };
+    }
+    const row = await connections.getByProvider(this.#db, scope.workspaceId, providerId);
+    if (row === null || row.revoked_at !== null) {
+      return {
+        ok: false,
+        message: `There is no ${displayName} connection to look in. Connect one, or type the id yourself.`,
+      };
+    }
+    const keyBase64 = this.#env.CREDENTIAL_KEY_V1;
+    if (keyBase64 === undefined || keyBase64.length === 0) {
+      return {
+        ok: false,
+        message: `This deployment cannot open stored credentials (CREDENTIAL_KEY_V1 is not set), so nothing was looked up in ${displayName}. That is our configuration. Type the id yourself.`,
+      };
+    }
+    // Per workspace and provider. Each search is a call to somebody else's API on our
+    // account, and HubSpot's search allows five a second per portal. Twenty in five minutes
+    // is plenty to page through a few searches and too few to be a way of crawling a CRM.
+    const decision = await consume(
+      this.#db,
+      `lookup:${scope.workspaceId}:${providerId}`,
+      LOOKUP_RATE_LIMIT,
+      LOOKUP_RATE_WINDOW_SECONDS,
+      this.#now,
+    );
+    if (!decision.allowed) {
+      return {
+        ok: false,
+        message: `That is a lot of searches in a short time, so nothing was sent to ${displayName}. Wait a few minutes, or type the id yourself.`,
+      };
+    }
+    // The page counter travels in the form, so it bounds an honest reader and nobody else.
+    // This bucket is the server's own bound on following a cursor: at most the pages after
+    // the first that one lookup may show, per window, whatever the form claims. Resend's
+    // cursor is any message id, so without it the rate limit alone would bound how far back
+    // a mailbox could be read.
+    if (continuation) {
+      const deeper = await consume(
+        this.#db,
+        `lookup-more:${scope.workspaceId}:${providerId}`,
+        LOOKUP_MAX_PAGES - 1,
+        LOOKUP_RATE_WINDOW_SECONDS,
+        this.#now,
+      );
+      if (!deeper.allowed) {
+        return { ok: false, message: LOOKUP_PAGE_CAP_MESSAGE };
+      }
+    }
+    const apiEnvelope = await credentials.activeForScope(
+      this.#db,
+      scope.workspaceId,
+      row.id,
+      CREDENTIAL_PURPOSE.API_TOKEN,
+    );
+    if (apiEnvelope === null) {
+      return {
+        ok: false,
+        message: `This ${displayName} connection has no stored API key to search with. Paste the key again on Connections, or type the id yourself.`,
+      };
+    }
+    const opened = await openConnectionCredentials(
+      { apiToken: envelopeOf(apiEnvelope) },
+      { workspaceId: scope.workspaceId, provider: providerId },
+      { keyBase64 },
+    );
+    return { ok: true, token: opened.accessToken, scope };
+  }
+
+  async #auditLookup(
+    scope: ResolvedSession,
+    providerId: ProviderId,
+    outcome: { readonly state: string; readonly count: number; readonly errorCode: string | null },
+    page: number,
+  ): Promise<void> {
+    await auditEvents.record(this.#db, {
+      id: newId(ID_PREFIX.auditEvent, this.#now.getTime()),
+      actor: scope.userId,
+      actorKind: 'user',
+      workspaceId: scope.workspaceId,
+      action: 'connection.lookup',
+      target: providerId,
+      occurredAt: nowIso(this.#now),
+      // What was asked of whom and how it went. Never the query: it is a name or an
+      // address the customer typed, and that is their data, not ours to keep.
+      redactedMetadata: JSON.stringify({
+        provider: providerId,
+        state: outcome.state,
+        results: outcome.count,
+        page,
+        error_code: outcome.errorCode,
+      }),
+    });
+  }
+
+  async lookupRecords(request: LookupRequest): Promise<LookupView<RecordCandidateView>> {
+    const providerName = PROVIDER_DETAIL.hubspot.displayName;
+    const query = cleanLookupQuery(request.query);
+    const page = clampLookupPage(request.page);
+    const empty = { providerName, query, items: [], nextCursor: null, page, pageLimitReached: false, examined: 0 };
+
+    if (page > LOOKUP_MAX_PAGES) {
+      return { ...empty, state: 'refused', message: LOOKUP_PAGE_CAP_MESSAGE };
+    }
+    const workflow = await this.workflow();
+    const correlationProperty = workflow?.mapping.correlationProperty ?? '';
+    if (correlationProperty === '') {
+      return {
+        ...empty,
+        state: 'refused',
+        message:
+          'This workflow has no correlation property yet, so there is nothing to search contacts by. Finish the field mapping first.',
+      };
+    }
+    const opened = await this.#lookupToken('hubspot', request.cursor !== null);
+    if (!opened.ok) return { ...empty, state: 'refused', message: opened.message };
+
+    const outcome = await lookupContacts({
+      token: opened.token,
+      correlationProperty,
+      query,
+      after: request.cursor,
+      options: this.#lookupFetchOptions(),
+    });
+    if (outcome.kind === 'error') {
+      await this.#auditLookup(opened.scope, 'hubspot', { state: 'failed', count: 0, errorCode: outcome.error.code }, page);
+      return { ...empty, state: 'failed', message: lookupFailureMessage(providerName, outcome.error) };
+    }
+    await this.#auditLookup(opened.scope, 'hubspot', { state: 'results', count: outcome.items.length, errorCode: null }, page);
+    const atCap = page >= LOOKUP_MAX_PAGES;
+    return {
+      ...empty,
+      state: 'results',
+      items: outcome.items,
+      examined: outcome.items.length,
+      nextCursor: atCap ? null : outcome.nextCursor,
+      // More exist but no cursor may be followed: say "narrow the search" rather than end
+      // the list in silence.
+      pageLimitReached: outcome.hasMore && (atCap || outcome.nextCursor === null),
+      message:
+        outcome.items.length > 0
+          ? null
+          : query === ''
+            ? `No contacts in ${providerName} carry ${correlationProperty} yet. If you know the record id, type it in.`
+            : `No contacts carrying ${correlationProperty} matched "${query}". Try another name or email, or type the record id in.`,
+    };
+  }
+
+  async lookupMessages(request: LookupRequest): Promise<LookupView<MessageCandidateView>> {
+    const providerName = PROVIDER_DETAIL.resend.displayName;
+    const query = cleanLookupQuery(request.query);
+    const page = clampLookupPage(request.page);
+    const empty = { providerName, query, items: [], nextCursor: null, page, pageLimitReached: false, examined: 0 };
+
+    if (page > LOOKUP_MAX_PAGES) {
+      return { ...empty, state: 'refused', message: LOOKUP_PAGE_CAP_MESSAGE };
+    }
+    const opened = await this.#lookupToken('resend', request.cursor !== null);
+    if (!opened.ok) return { ...empty, state: 'refused', message: opened.message };
+
+    const outcome = await listSentMessages({
+      token: opened.token,
+      after: request.cursor,
+      options: this.#lookupFetchOptions(),
+    });
+    if (outcome.kind === 'error') {
+      await this.#auditLookup(opened.scope, 'resend', { state: 'failed', count: 0, errorCode: outcome.error.code }, page);
+      return { ...empty, state: 'failed', message: lookupFailureMessage(providerName, outcome.error) };
+    }
+    // Resend's list has no search, so the filter runs over the page it returned, and the
+    // page says how many it looked through rather than implying it searched everything.
+    const needle = query.toLowerCase();
+    const items: MessageCandidateView[] = outcome.items
+      .filter(
+        (message) =>
+          needle === '' ||
+          message.to.some((address) => address.toLowerCase().includes(needle)) ||
+          (message.subject ?? '').toLowerCase().includes(needle),
+      )
+      .map((message) => ({
+        id: message.id,
+        to: message.to,
+        subject: message.subject,
+        sentAt: message.createdAt,
+        lastEvent: message.lastEvent,
+      }));
+    await this.#auditLookup(opened.scope, 'resend', { state: 'results', count: items.length, errorCode: null }, page);
+    const atCap = page >= LOOKUP_MAX_PAGES;
+    return {
+      ...empty,
+      state: 'results',
+      items,
+      examined: outcome.items.length,
+      nextCursor: atCap ? null : outcome.nextCursor,
+      // More exist but no cursor may be followed: say "narrow the search" rather than end
+      // the list in silence.
+      pageLimitReached: outcome.hasMore && (atCap || outcome.nextCursor === null),
+      message:
+        items.length > 0
+          ? null
+          : outcome.items.length === 0
+            ? `${providerName} has no sent messages to show${page > 1 ? ' beyond these' : ''}. If you know the message id, type it in.`
+            : `None of these ${String(outcome.items.length)} messages matched "${query}".${outcome.nextCursor === null ? '' : ' Look at older ones,'} or type the message id in.`,
+    };
+  }
+
+  #lookupFetchOptions(): { readonly fetchImpl?: typeof fetch; readonly timeoutMs: number } {
+    return {
+      // Shorter than the evidence path's ten seconds: somebody is waiting on the page, and
+      // manual entry is always the fallback.
+      timeoutMs: LOOKUP_TIMEOUT_MS,
+      ...(this.#fetchImpl === undefined ? {} : { fetchImpl: this.#fetchImpl }),
     };
   }
 

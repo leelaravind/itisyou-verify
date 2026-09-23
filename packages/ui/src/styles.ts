@@ -637,6 +637,23 @@ a:hover{text-decoration-thickness:2px}
 .check input:disabled{cursor:not-allowed}
 .check:has(input:disabled){color:var(--c-muted)}
 
+/* ---- lookup: find a record or message to name in a test ------------------- */
+/* A search box and its button on one line where there is room, stacked on a phone. The
+   finder sits inside the field it fills, set off by a rule so it reads as a way of filling
+   that field rather than a second question. */
+/* The hidden attribute must win over .btn{display:inline-flex}: an author display rule beats the
+   browser's own [hidden] rule, and the form's Enter-default button would show as a stray,
+   unexplained "Search" control. Implicit submission still uses it: a default button does
+   not have to be rendered to be the default. */
+.btn[hidden]{display:none}
+.lookup{margin-top:var(--s3);padding-top:var(--s3);border-top:1px dashed var(--c-rule)}
+.lookup__bar{display:flex;flex-wrap:wrap;gap:var(--s2);align-items:stretch}
+.lookup__bar .input{flex:1 1 14rem;width:auto;min-width:0}
+.lookup__bar .btn{flex:0 0 auto}
+.lookup__results{margin-top:var(--s3)}
+.lookup__results .btn{white-space:nowrap}
+.lookup__note{font-size:var(--t-small);color:var(--c-muted);margin:var(--s2) 0 0}
+
 /* ---- table --------------------------------------------------------------- */
 .tablewrap{
   overflow-x:auto;border:1px solid var(--c-rule);border-radius:var(--r-container);

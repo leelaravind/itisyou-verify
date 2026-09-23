@@ -1,6 +1,107 @@
 # Session handover — ITISYOU Verify
 
-## 23 September 2026 — current state
+## 23 September 2026 (afternoon) — current state
+
+**Everything below the first horizontal rule is older and superseded by this section
+wherever they disagree.** The morning section is kept directly underneath because two of
+its statements were wrong and the corrections below refer to them.
+
+| | |
+| --- | --- |
+| **Production** | see `docs/evidence/production-lookup-release.txt` for the served commit and how it was read. Read `/health`; do not trust a pinned row |
+| Morning release | `52a6688` (layout, counting fix, Resend capability correction) went to staging then production at 10:41-10:44 UTC from CI artefact `release-gate-52a6688b…`; `/health` read back `52a6688b36397056055031cb2ed600827598c20a` |
+| Tests | 2910 passing, 4 skipped (unit + integration + security, `node scripts/run-tests.mjs`) |
+| Migrations | none added. `0009` remains the last, applied everywhere |
+
+### What landed this afternoon: record and message finders on the test form
+
+Built, tested, reviewed and released (see the evidence file for the production check):
+
+- **HubSpot**: `lookupContacts` (`packages/connectors/src/hubspot.ts`), a new frozen
+  operation `contact_lookup` with its own customer-facing purpose. It searches contacts that
+  carry the workflow's correlation property (`HAS_PROPERTY`), by free text, newest first,
+  10 per page, and reads only first name, last name, email and create date. **It never
+  requests the correlation value.**
+- **Resend**: `listSentMessages` (`resend.ts`) calls `GET /emails?limit=20[&after=<uuid>]`.
+  Resend has no search, so the customer's filter runs over the page returned, and the page
+  says how many messages it looked through.
+- **Route**: `POST /app/test-verification/lookup`, which uses the session, CSRF and
+  same-origin checks. It is a POST so that no CSRF token or typed address ends up in a URL.
+- **UI**: `apps/app/src/routes/app/lookupPanel.ts`. The finders sit inside the test form so
+  typed values travel with each search. Their buttons use `formaction` + `formnovalidate`.
+  The form's first submit button is a hidden lookup, so **Enter can search but can never
+  start a charged check**.
+
+The rules it keeps, each held by a test (VERIFY-905..919, CONN-908..927):
+
+- **A pick fills the identifier only.** The correlation value and the expected recipient stay
+  the customer's own input, including when empty (VERIFY-907/908). A pick also clears its
+  finished search, so a later Enter is not ambiguous (found in the browser, not by a test).
+- **No silent choice.** Zero results, one result and every failure explain themselves and
+  leave manual entry open (VERIFY-910/911).
+- **Free.** No lookup, pick, page or Enter press admits an event, creates a run or moves the
+  entitlement row (asserted on every case that makes a call).
+- **Bounded, server-side.** 20 lookups per 5 minutes per workspace and provider. At most 4
+  continuation pages per window, **whatever the form's page counter says**. The HubSpot
+  offset is capped at 40. Queries are cut to 100 characters and cursors are validated before
+  any provider call. One attempt per lookup, no retry, 6 s timeout, 256 KB response cap.
+- **Failures change nothing.** A lookup never writes the connection status, and silence is
+  never reported as "no such record" (VERIFY-911).
+
+An independent review on a second model confirmed the six requirements and found four
+defects, all fixed before release:
+- the hidden Enter button was drawn, because `.btn{display:inline-flex}` beat `[hidden]`;
+- the page cap trusted the form's page counter, now also bounded server-side;
+- the tests did not check the listing form for a second expectation control;
+- the "narrow the search" note could never appear for HubSpot.
+
+### Signed customer events: now verified on production, with one caveat
+
+The morning section said signed-event testing on production was **unverified** and **needed
+the event-signing root key**. **Both statements were wrong.** The three `auto-journey-*` runs
+were submitted to `POST /api/v1/events` and signed with a **workspace-scoped key** issued by
+the ordinary customer route `/app/onboarding/activation`. The root key stays server-side and
+is never needed by a customer or a tester. The runs came back VERIFIED as
+`signed_customer_event`. Retry, conflict, pause and rotation behaviour were all observed.
+Evidence, with its limits: `docs/evidence/production-signed-event-journey-2026-09-23.txt`.
+
+**The caveat: that journey's browser session was seeded directly into production's
+`sessions` table,** not obtained by signing in. That breaks the rule further down this file.
+The signed path is proven; a customer completing it through their own sign-in on
+production is not. **The workflow's current signing key was rotated at the end of that
+journey and nobody holds its secret.** Issue a fresh one, signed in, before connecting real
+automation.
+
+**Supported customer signing setup** (no onboarding gap found):
+1. Sign in as workspace admin.
+2. Go to `/app/onboarding/activation` and issue or rotate the key. The secret is shown once;
+   only its hash and reference are stored.
+3. Sign `X-Verify-Signature: t=<unix>,v1=hex(HMAC-SHA-256(secret, "t.body"))` and send
+   `X-Verify-Key-Id: evk_…` to `POST /api/v1/events`.
+
+### Not done — stated as open, not as complete
+
+| Item | State | Why / next step |
+| --- | --- | --- |
+| Live payments | **blocked on the owner's decision** | `docs/live-payment-approval.md` NOT READY, 3 of 13. Live price, secrets, webhook, mode flip. Not started |
+| Organic posts | **blocked on the owner** | `docs/organic-launch.md` §4.3 and §5.3 await approval or edits |
+| Ten genuine external visits | not met | 0 attributable. Ads paused by the owner; posts unapproved |
+| Signed-event journey through a real sign-in | **unverified** | See the caveat above. Needs the owner's own session; must not be seeded |
+| Current signing secret | **held by nobody** | Rotated on 23 Sept; owner issues a fresh one before real automation |
+| Usage-alert delivery on production | **unobserved** | At 12 of 500 nothing is eligible. Do not burn runs to force it |
+| Local browser run of the finders | partial | See the evidence file. A second local run was refused by the permission classifier |
+| "Start the setup" CTA policy (R7) | pending | Still `UnavailableAction` when no workflow exists. Needs a policy decision |
+| Remaining design screens | pending | `/security` reference, `/admin/login`, `/support`, `/development-story/visual`, `/owner/cleanup` |
+| Development story events | pending | Nothing appended after EVT-0058 for 22-23 Sept work |
+| Mobile screenshots | local evidence only | `wrangler dev` + seeded local fixture |
+
+Deferred by instruction: the design screens and story updates come after the functional work.
+
+Ads paused. Live payments disabled. No migration authorised beyond `0009`, already applied.
+
+---
+
+## 23 September 2026 (morning) — superseded
 
 Written at a clean stopping point: working tree clean, everything pushed, all gates green.
 **Everything below the horizontal rule is the 21 September handover, kept for its history
@@ -58,8 +159,9 @@ commit message of mine.
 
 ### Limitations, stated rather than fixed
 
-- **Signed-event testing on production is unverified**, not passed: the signature gate fires
-  before admission control and completing it needs the event-signing root key.
+- ~~**Signed-event testing on production is unverified**, not passed: the signature gate fires
+  before admission control and completing it needs the event-signing root key.~~ **Wrong on
+  both counts; corrected in the afternoon section above.**
 - **Usage-alert delivery on production is unobserved** — at 12 of 500 nothing is eligible.
   Do not burn runs to force it.
 - **Mobile screenshots are local evidence** (`wrangler dev` + seeded local admin fixture).

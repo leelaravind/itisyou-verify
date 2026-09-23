@@ -453,6 +453,77 @@ export interface TestVerificationResult {
   readonly duplicate?: boolean;
 }
 
+/**
+ * A search for something to name in a test verification.
+ *
+ * `page` is 1-based and carried by the form, so it only bounds a reader who does not edit
+ * the form. The bounds that hold regardless are server-side: HubSpot's cursor is an offset
+ * capped in the connector, following any cursor spends a separate per-window allowance of
+ * `LOOKUP_MAX_PAGES - 1` continuations, and every lookup spends the per-window rate limit.
+ * An admin can therefore read further back over time, through their own key, but never
+ * more than a few pages at a time and never without end in one sitting.
+ */
+export interface LookupRequest {
+  readonly query: string;
+  readonly cursor: string | null;
+  readonly page: number;
+}
+
+/** Pages a single lookup may be followed through before the customer is asked to narrow it. */
+export const LOOKUP_MAX_PAGES = 5;
+
+export interface RecordCandidateView {
+  readonly id: string;
+  readonly name: string | null;
+  readonly email: string | null;
+  readonly createdAt: string | null;
+}
+
+export interface MessageCandidateView {
+  readonly id: string;
+  readonly to: readonly string[];
+  readonly subject: string | null;
+  readonly sentAt: string | null;
+  /** What Resend last reported for it. A hint for choosing, never a verdict. */
+  readonly lastEvent: string | null;
+}
+
+/**
+ * What a lookup found, or why it found nothing.
+ *
+ * ## The rule this shape exists to keep
+ *
+ * Choosing a candidate fills the record id or the message id, and NOTHING ELSE. The expected
+ * correlation value and the intended recipient stay the customer's own statement of what
+ * should be true. They are never taken from the record or message on screen: a check that
+ * compares an observed value with itself proves nothing, and reporting that as a pass is the
+ * exact failure this product exists to refuse. So a candidate carries what a person needs to
+ * RECOGNISE it, and there is deliberately no field here that could be copied into an
+ * expectation by the page.
+ *
+ * `state`:
+ *  - `results`: the provider answered. `items` may be empty; that is an answer, and the page
+ *    says so rather than choosing anything.
+ *  - `refused`: we did not ask the provider (signed out, viewer, no connection, rate limit).
+ *  - `failed`: we asked and did not get an answer we can use. Manual entry stays open.
+ * Neither of the last two ever spends a run; neither does the first.
+ */
+export interface LookupView<T> {
+  readonly state: 'results' | 'refused' | 'failed';
+  readonly providerName: string;
+  readonly query: string;
+  readonly items: readonly T[];
+  readonly nextCursor: string | null;
+  /** 1-based page this view shows. */
+  readonly page: number;
+  /** True when more exist but the paging cap has been reached: narrow the search. */
+  readonly pageLimitReached: boolean;
+  /** How many the provider returned before a local filter, where one was applied. */
+  readonly examined: number;
+  /** Explanation for `refused` and `failed`, and for an empty `results`. */
+  readonly message: string | null;
+}
+
 export interface ConnectionCredentialsInput {
   readonly provider: ProviderKey;
   /** Never echoed back to the page, never logged, never stored unsealed. */
@@ -566,6 +637,17 @@ export interface CustomerDataPort {
    * this product exists to refuse.
    */
   startTestVerification?(input: TestVerificationInput): Promise<TestVerificationResult>;
+
+  /**
+   * Find a HubSpot contact to name in a test verification.
+   *
+   * Free: it touches no allowance, admits nothing and writes no run. It fills an
+   * IDENTIFIER and nothing else; see `LookupView`.
+   */
+  lookupRecords?(request: LookupRequest): Promise<LookupView<RecordCandidateView>>;
+
+  /** Find a message Resend already sent, to name in a test verification. Free, as above. */
+  lookupMessages?(request: LookupRequest): Promise<LookupView<MessageCandidateView>>;
 
   orderSummary(): Promise<OrderSummaryView>;
   /** Create a Stripe Checkout session. The price is resolved server-side, never posted. */

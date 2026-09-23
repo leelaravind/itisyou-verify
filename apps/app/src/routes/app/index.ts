@@ -26,6 +26,8 @@ import { failureBody, page, type RouteBindings } from '../public/shared.js';
 import { syntheticNotice, syntheticStripe } from './chrome.js';
 import { SignInPage } from './authPages.js';
 import { WorkspacePage } from './workspacePage.js';
+import type { TestFormValues } from './lookupPanel.js';
+import { isContactId, isResendEmailId } from '@verify/connectors';
 import {
   ActivationPage,
   CompatibilityPage,
@@ -60,6 +62,10 @@ import type {
   SigningKeyIssueResult,
   SupportResult,
   WriteResult,
+  LookupView,
+  MessageCandidateView,
+  RecordCandidateView,
+  TestVerificationResult,
 } from './port.js';
 import { html, type Html } from '@verify/ui';
 import {
@@ -79,6 +85,21 @@ const syntheticResolver: PortResolver = async () => new SyntheticCustomerDataPor
 const RUNS_PER_PAGE = 25;
 
 /** Read a POST body into a plain map. No JSON, no JavaScript, just a real form. */
+/** What a lookup says on a deployment whose port offers none: refused, never "no matches". */
+function unavailableLookup<T>(providerName: string, query: string): LookupView<T> {
+  return {
+    state: 'refused',
+    providerName,
+    query,
+    items: [],
+    nextCursor: null,
+    page: 1,
+    pageLimitReached: false,
+    examined: 0,
+    message: `Looking things up in ${providerName} is not available on this deployment. Type the id yourself.`,
+  };
+}
+
 async function formBody(c: Context<RouteBindings>): Promise<Record<string, string>> {
   const parsed = await c.req.parseBody();
   const out: Record<string, string> = {};
@@ -992,34 +1013,220 @@ export function createAppRoutes(resolve: PortResolver = syntheticResolver): Hono
         const marker = result.duplicate === true ? 'again' : 'started=test';
         return c.redirect(`/app/runs/${encodeURIComponent(result.runId)}?${marker}`, 303);
       }
-      const workflow = await port.workflow();
-      return page(
+      return renderTestForm(
         c,
-        shell(port, {
-          title: 'Workspace',
-          path: '/app',
-          accountLabel: maskedAccountLabel(session.email),
-          csrfToken: session.csrfToken,
-          body: WorkspacePage({
-            workflow,
-            recentRuns: (await port.listRuns({ limit: 5 })).items,
-            connections: await port.connections(),
-            usage: await port.usage(),
-            now: new Date(),
-            canStartSetup: session.role === 'workspace_admin',
-            testOffer: await port.testVerificationOffer(),
-            csrfToken: session.csrfToken,
-            testSubmitted: result,
-            // Echoed back, not re-minted: correcting a typo and pressing again is the same
-            // submission, and must not become a second charged run once it validates.
-            submissionId: body['submissionId'] ?? crypto.randomUUID(),
-            openVerifyForm: true,
-          }),
-        }),
-        { status: 422 },
+        port,
+        session,
+        {
+          // What they typed comes back with the errors, so fixing a typo is a correction
+          // rather than starting again.
+          values: {
+            crmRecordId: body['crmRecordId'] ?? '',
+            correlationValue: body['correlationValue'] ?? '',
+            messageId: body['messageId'] ?? '',
+            expectedRecipient: body['expectedRecipient'] ?? '',
+            recordQuery: body['recordQuery'] ?? '',
+            messageQuery: body['messageQuery'] ?? '',
+          },
+          testSubmitted: result,
+          // Echoed back, not re-minted: correcting a typo and pressing again is the same
+          // submission, and must not become a second charged run once it validates.
+          submissionId: body['submissionId'] ?? crypto.randomUUID(),
+        },
+        422,
       );
     }),
   );
+
+  /**
+   * The test form, re-rendered with what the reader typed and whatever a search found.
+   *
+   * One assembly for the failed submission and for every search and pick, so what the
+   * reader typed survives all of them in the same way.
+   */
+  async function renderTestForm(
+    c: Context<RouteBindings>,
+    port: CustomerDataPort,
+    session: SessionView,
+    form: {
+      readonly values: TestFormValues;
+      readonly submissionId: string;
+      readonly testSubmitted?: TestVerificationResult;
+      readonly recordLookup?: LookupView<RecordCandidateView> | null;
+      readonly messageLookup?: LookupView<MessageCandidateView> | null;
+      readonly lookupNotice?: string | null;
+    },
+    status: 200 | 422,
+  ): Promise<Response> {
+    const workflow = await port.workflow();
+    return page(
+      c,
+      shell(port, {
+        title: 'Workspace',
+        path: '/app',
+        accountLabel: maskedAccountLabel(session.email),
+        csrfToken: session.csrfToken,
+        body: WorkspacePage({
+          workflow,
+          recentRuns: (await port.listRuns({ limit: 5, source: 'real' })).items,
+          connections: await port.connections(),
+          usage: await port.usage(),
+          now: new Date(),
+          canStartSetup: session.role === 'workspace_admin',
+          testOffer: await port.testVerificationOffer(),
+          csrfToken: session.csrfToken,
+          ...(form.testSubmitted === undefined ? {} : { testSubmitted: form.testSubmitted }),
+          submissionId: form.submissionId,
+          openVerifyForm: true,
+          testValues: form.values,
+          recordLookup: form.recordLookup ?? null,
+          messageLookup: form.messageLookup ?? null,
+          lookupNotice: form.lookupNotice ?? null,
+        }),
+      }),
+      status === 422 ? { status: 422 } : undefined,
+    );
+  }
+
+  /**
+   * Search HubSpot or Resend for something to name in the test form, or take a pick.
+   *
+   * ## Free, and nothing but a lookup
+   *
+   * This admits nothing, creates no run and never touches the allowance, whatever button
+   * brought the reader here. It is a POST, not a GET, because it is an outbound call to the
+   * customer's own provider on our account (a prefetch must not make one), because the form
+   * it re-renders carries a CSRF token that must not end up in a URL, and because what the
+   * reader typed (an address, a reference) does not belong in a query string either.
+   *
+   * ## A pick fills the identifier and nothing else
+   *
+   * `pickRecord` sets `crmRecordId`; `pickMessage` sets `messageId`. The correlation value
+   * and the expected recipient are passed through exactly as the reader left them, and the
+   * port has no field that could supply them. See `lookupPanel.ts`.
+   */
+  routes.post('/test-verification/lookup', async (c) =>
+    withSession(c, async (port, session) => {
+      const body = await formBody(c);
+      const field = (name: string): string => (body[name] ?? '').slice(0, 320);
+      let values: TestFormValues = {
+        crmRecordId: field('crmRecordId'),
+        correlationValue: field('correlationValue'),
+        messageId: field('messageId'),
+        expectedRecipient: field('expectedRecipient'),
+        recordQuery: field('recordQuery').slice(0, 100),
+        messageQuery: field('messageQuery').slice(0, 100),
+      };
+      const submissionId = /^[A-Za-z0-9-]{8,64}$/.test(body['submissionId'] ?? '')
+        ? (body['submissionId'] as string)
+        : crypto.randomUUID();
+      const pageOf = (name: string): number => {
+        const parsed = Number.parseInt(body[name] ?? '', 10);
+        return Number.isFinite(parsed) && parsed >= 1 ? parsed : 1;
+      };
+      const cursorOf = (name: string): string | null => {
+        const raw = (body[name] ?? '').trim();
+        return raw === '' ? null : raw.slice(0, 80);
+      };
+
+      const pickRecord = body['pickRecord'];
+      if (pickRecord !== undefined) {
+        if (!isContactId(pickRecord)) {
+          return renderTestForm(c, port, session, {
+            values,
+            submissionId,
+            lookupNotice: 'That choice was not a HubSpot record id, so nothing was filled in.',
+          }, 200);
+        }
+        // The search that found it is finished; leaving its text in the box would make a
+        // later Enter in the other box ambiguous.
+        values = { ...values, crmRecordId: pickRecord, recordQuery: '' };
+        return renderTestForm(c, port, session, {
+          values,
+          submissionId,
+          lookupNotice: `Record ${pickRecord} is filled in. Only its id: the value in your correlation property is still yours to type, from the enquiry itself.`,
+        }, 200);
+      }
+      const pickMessage = body['pickMessage'];
+      if (pickMessage !== undefined) {
+        if (!isResendEmailId(pickMessage)) {
+          return renderTestForm(c, port, session, {
+            values,
+            submissionId,
+            lookupNotice: 'That choice was not a Resend message id, so nothing was filled in.',
+          }, 200);
+        }
+        values = { ...values, messageId: pickMessage, messageQuery: '' };
+        return renderTestForm(c, port, session, {
+          values,
+          submissionId,
+          lookupNotice: `Message ${pickMessage} is filled in. Only its id: the address it should have reached is still yours to type.`,
+        }, 200);
+      }
+
+      // What was asked for. Enter lands on the hidden default button as `enter`; it is read
+      // from which search box has text, and when that cannot tell, nothing is searched.
+      let lookup = body['lookup'] ?? '';
+      if (lookup === 'enter') {
+        // The box the reader edited since the page was drawn is the one Enter was pressed
+        // in, as near as a form without script can tell. Failing that, the only box with
+        // text in it. Failing that, nothing.
+        const editedRecord = values.recordQuery !== (body['recordQueryWas'] ?? '');
+        const editedMessage = values.messageQuery !== (body['messageQueryWas'] ?? '');
+        const hasRecord = values.recordQuery.trim() !== '';
+        const hasMessage = values.messageQuery.trim() !== '';
+        lookup =
+          editedRecord !== editedMessage
+            ? editedRecord
+              ? 'records'
+              : 'messages'
+            : hasRecord && !hasMessage
+              ? 'records'
+              : hasMessage && !hasRecord
+                ? 'messages'
+                : '';
+        if (lookup === '') {
+          return renderTestForm(c, port, session, {
+            values,
+            submissionId,
+            lookupNotice:
+              'Nothing was started and nothing was searched. To look something up, press one of the find buttons; to run the check, press "Run a test verification".',
+          }, 200);
+        }
+      }
+
+      if (lookup === 'records' || lookup === 'records-more') {
+        const more = lookup === 'records-more';
+        const recordLookup =
+          port.lookupRecords === undefined
+            ? unavailableLookup<RecordCandidateView>('HubSpot', values.recordQuery)
+            : await port.lookupRecords({
+                query: values.recordQuery,
+                cursor: more ? cursorOf('recordCursor') : null,
+                page: more ? pageOf('recordPage') + 1 : 1,
+              });
+        return renderTestForm(c, port, session, { values, submissionId, recordLookup }, 200);
+      }
+      if (lookup === 'messages' || lookup === 'messages-more') {
+        const more = lookup === 'messages-more';
+        const messageLookup =
+          port.lookupMessages === undefined
+            ? unavailableLookup<MessageCandidateView>('Resend', values.messageQuery)
+            : await port.lookupMessages({
+                query: values.messageQuery,
+                cursor: more ? cursorOf('messageCursor') : null,
+                page: more ? pageOf('messagePage') + 1 : 1,
+              });
+        return renderTestForm(c, port, session, { values, submissionId, messageLookup }, 200);
+      }
+      return renderTestForm(c, port, session, {
+        values,
+        submissionId,
+        lookupNotice: 'Nothing was searched: that was not a request this form makes.',
+      }, 200);
+    }),
+  );
+
 
   /**
    * Test one connection, now, against the provider.
