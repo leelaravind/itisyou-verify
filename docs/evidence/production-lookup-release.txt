@@ -1,0 +1,51 @@
+Record and message finders: release and production check, 23 September 2026
+===========================================================================
+
+Release
+-------
+Commit ab46e7f5f2412632fb97cba976c6244bb375fbca, CI run 35853529599 (success), gate
+artefact release-gate-ab46e7f5f241... downloaded from that run.
+  staging     11:21:44 UTC  /health commit ab46e7f5f2412632fb97cba976c6244bb375fbca
+  production  11:23:13 UTC  /health commit ab46e7f5f2412632fb97cba976c6244bb375fbca
+The first staging attempt aborted at "database migrations" with Cloudflare API error 7403
+("account not valid or not authorized"). Nothing was deployed. `wrangler whoami` showed
+the same OAuth login with d1 (write); a read-only `migrations list` then answered "No
+migrations to apply"; the unchanged release was re-run and passed. Recorded as transient.
+No migration was applied by either run: none was pending.
+
+Production check (owner's own signed-in browser session, not a seeded one)
+---------------------------------------------------------------------------
+Driven in the owner's Chrome through the Claude in Chrome extension, 11:24-11:27 UTC, at
+a narrow (638 px) window.
+ 1. /app?verify=1: both finders render inside the form; no stray "Search" control is
+    drawn (the hidden Enter-default button stays hidden).
+ 2. Typed "MY-TYPED-EXPECTATION" into the correlation value, then pressed Find contacts
+    with an empty box. Real HubSpot answered with one contact carrying itisyou_verify_ref:
+    record 871054966976. The correlation property's value is not requested and not shown.
+    NOTE: that test contact's own NAME contains the reference string (it was named that
+    way in HubSpot). That comes from the contact's name fields, not from the property; a
+    customer who names contacts after their references will see it there.
+ 3. The typed expectation survived the search.
+ 4. Use this record: the notice "Record 871054966976 is filled in. Only its id..."; the
+    record id field holds 871054966976; the correlation value still reads
+    MY-TYPED-EXPECTATION; the contact search box is cleared.
+ 5. Show messages: real Resend listed "The 20 most recent messages Resend sent", with
+    recipient, subject, delivered/sent status and id.
+ 6. Use this message on 01a0cd26-98d8-750c-aa68-28cd6efd8dc5: the message id is filled; the
+    expected recipient stays EMPTY although the listing showed that message's real
+    recipient; record id and typed expectation unchanged.
+ 7. Throughout, the cost callout read "This uses one of your 500 runs, and 488 remain",
+    the same as before the check. "Run a test verification" was NOT pressed: no run was
+    started and nothing was charged.
+ 8. No console errors on the page.
+Screenshots were taken in the owner's browser and are not copied into the repository:
+they show the owner's own email address.
+
+Local browser run (earlier, scratch server over the real Worker, stubbed providers)
+------------------------------------------------------------------------------------
+6 of 6 checks passed (contact search, correlation value never shown, typed value kept,
+pick fills id, pick leaves expectation). It then found a real defect: a finished search
+left its text in the box, which made a later Enter ambiguous. Fixed and held by
+VERIFY-907/915. A second local run, to finish the Enter, phone and charged-submit checks,
+was refused by this session's permission classifier. Those behaviours are covered by the
+integration suite and by the production check above; the charged submit is unchanged code.
