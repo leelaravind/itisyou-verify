@@ -532,6 +532,9 @@ export function WorkspacePage(options: WorkspacePageOptions): Html {
 
   const scope: VerdictScope = options.verdictScope ?? 'automation';
   const shownCounts = countsFor(workflow, scope);
+  const scopeNoun =
+    scope === 'all' ? '' : scope === 'tests' ? ' · your tests' : ' · from your automation';
+  const shownSummary = `${String(options.recentRuns.length)} of ${String(runTotal(shownCounts))} shown${scopeNoun}`;
 
   return html`<div class="wrap section stack-lg">
     <div class="section-head">
@@ -593,8 +596,6 @@ export function WorkspacePage(options: WorkspacePageOptions): Html {
         ? null
         : formMessage(options.admissionNotice.message, options.admissionNotice.ok ? 'note' : 'warn')
     }
-    ${automationPanel(options, workflow)}
-
     <!--
       The counters, and what they count.
       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -684,6 +685,15 @@ export function WorkspacePage(options: WorkspacePageOptions): Html {
       ${Card({ title: 'Are enquiries still arriving?', headingLevel: 2, body: InactivityNotice(inactivity) })}
     </div>
 
+    <!--
+      Results left and wider; connection health right and narrower.
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      Results come FIRST in source order, so the single-column stack on a phone puts them
+      above connections with no CSS reordering -- a visual order that disagrees with the
+      reading order is a trap for anyone using a screen reader or tabbing through.
+    -->
+    <div class="split">
+      <div class="split__main stack-lg">
     <section class="stack-sm" aria-labelledby="recent-runs-heading">
       <div class="section-head">
         <div class="section-head__text"><h2 id="recent-runs-heading">Recent runs</h2></div>
@@ -721,17 +731,23 @@ export function WorkspacePage(options: WorkspacePageOptions): Html {
               cell: (run: RunListItem) => StatusBadge({ status: run.status as StatusKey }),
             },
             {
-              key: 'id',
-              header: 'Run',
+              key: 'ref',
+              header: 'Enquiry reference',
               rowHeader: true,
               cell: (run: RunListItem) =>
                 html`<a ${attrs({ class: 'mono', href: safeHref(`/app/runs/${encodeURIComponent(run.id)}`) })}
-                  >${run.id}</a
-                >`,
+                  >${run.correlationId === '' ? run.id : run.correlationId}</a
+                >${
+                  // The same mark the runs list carries. A test the customer ran themselves
+                  // must not read as their automation's record, on any surface that shows it.
+                  run.isTest
+                    ? html` <span ${attrs({ class: 'chip chip--test', title: 'You started this one from your workspace. It cost a run and is left out of your automation figures.' })}>TEST</span>`
+                    : null
+                }`,
             },
             {
               key: 'occurred',
-              header: 'Enquiry received',
+              header: 'Received',
               numeric: true,
               cell: (run: RunListItem) => formatInstant(run.occurredAt),
             },
@@ -745,20 +761,36 @@ export function WorkspacePage(options: WorkspacePageOptions): Html {
           rows: options.recentRuns,
         })}
         <div class="results__bar">
-          ${runTally(workflow.counts)}
-          <p class="micro mono">${String(options.recentRuns.length)} of ${String(total)} runs shown</p>
+          <!--
+            The tally, the total and the rows all read the SAME scope.
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            This line read "5 of 3 runs shown": the rows included the customer's own test
+            verifications while the total counted only their automation, so the panel
+            contradicted itself in four characters. Both now come from the SELECTED scope --
+            Automation, Tests or All -- and the rows are fetched under that same filter.
+            (No backticks in this comment: it sits inside a template literal.)
+          -->
+          ${runTally(shownCounts)}
+          <p class="micro mono">${shownSummary}</p>
         </div>
       </div>
     </section>
-
-    <div class="grid grid-2">
-      ${Card({ title: 'Coverage', headingLevel: 2, body: CoverageNotice(coverage) })}
-      ${Card({
-        title: 'Connection health',
-        headingLevel: 2,
-        aside: html`<a href="/app/connections">Manage connections</a>`,
-        body: html`<div>${options.connections.map((connection) => connectionRow(connection))}</div>`,
-      })}
+      </div>
+      <aside class="split__side stack" aria-label="Connections and automation">
+        ${Card({
+          title: 'Connection health',
+          headingLevel: 2,
+          aside: html`<a href="/app/connections">Manage connections</a>`,
+          body: html`<div class="stack">
+            ${options.connections.map((connection) => connectionRow(connection))}
+            ${ButtonRow([
+              Button({ label: 'Test connection', href: '/app/connections', variant: 'quiet' }),
+            ])}
+          </div>`,
+        })}
+        ${automationPanel(options, workflow)}
+        ${Card({ title: 'Coverage', headingLevel: 2, body: CoverageNotice(coverage) })}
+      </aside>
     </div>
 
     ${StandingLimitations()}

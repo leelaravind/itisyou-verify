@@ -277,3 +277,66 @@ describe('runs list: the reference is readable and the verdict is not repeated',
     expect(html).not.toContain('is contradicted by the evidence we retrieved');
   });
 });
+
+/**
+ * The workspace panel counts what it shows, on mixed automation and test data.
+ *
+ * The owner's screenshot read "5 of 3 runs shown": the rows included the customer's own
+ * test verifications while the total counted only their automation, so the panel
+ * contradicted itself in four characters. Rows, tally, total and the selected scope now all
+ * come from one place.
+ */
+describe('the workspace recent-results panel agrees with itself', () => {
+  async function mixedWorkspace(): Promise<SignedIn> {
+    const s = await signedInWorkspace();
+    seedRunsFor(s, [
+      { id: 'run_auto_0001', status: 'VERIFIED' },
+      { id: 'run_auto_0002', status: 'FAILED' },
+      { id: 'run_test_0001', status: 'VERIFIED', source: 'owner_test' },
+      { id: 'run_test_0002', status: 'VERIFIED', source: 'owner_test' },
+      { id: 'run_test_0003', status: 'UNVERIFIED', source: 'owner_test' },
+    ]);
+    return s;
+  }
+
+  /** The count of rendered run rows in the recent-results table. */
+  function rowCount(html: string): number {
+    return (html.match(/data-label="Enquiry reference"/g) ?? []).length;
+  }
+
+  it('CUST-970 the automation scope shows only automation rows and totals them', async () => {
+    open = await mixedWorkspace();
+    const { html } = await getSignedIn(open, '/app');
+    const text = visibleText(html);
+
+    expect(rowCount(html), 'automation rows').toBe(2);
+    expect(text).toContain('2 of 2 shown');
+    expect(text).toContain('from your automation');
+    // The thing that could never happen again: more shown than exist.
+    expect(text).not.toMatch(/([0-9]+) of (?!\1)([0-9]+) shown · from your automation/);
+  });
+
+  it('CUST-971 the tests scope shows only test rows and totals them', async () => {
+    open = await mixedWorkspace();
+    const { html } = await getSignedIn(open, '/app?scope=tests');
+    const text = visibleText(html);
+
+    expect(rowCount(html), 'test rows').toBe(3);
+    expect(text).toContain('3 of 3 shown');
+    expect(text).toContain('your tests');
+  });
+
+  it('CUST-972 the all scope totals both, which is what billing counted', async () => {
+    open = await mixedWorkspace();
+    const { html } = await getSignedIn(open, '/app?scope=all');
+    expect(rowCount(html)).toBe(5);
+    expect(visibleText(html)).toContain('5 of 5 shown');
+  });
+
+  it('CUST-973 a test run is badged in the workspace recent results, not only in the runs list', async () => {
+    open = await mixedWorkspace();
+    const { html } = await getSignedIn(open, '/app?scope=all');
+    // Three test runs, three marks, and the automation rows carry none.
+    expect((html.match(/class="chip chip--test"/g) ?? []).length).toBe(3);
+  });
+})

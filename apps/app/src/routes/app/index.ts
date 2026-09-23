@@ -451,7 +451,18 @@ export function createAppRoutes(resolve: PortResolver = syntheticResolver): Hono
     outcome?: { message: string; ok: boolean; fieldErrors: Readonly<Record<string, string>> },
   ): Promise<Response> {
     const workflow = await port.workflow();
-    const runs = await port.listRuns({ limit: 5 });
+    const scope: 'automation' | 'tests' | 'all' =
+      c.req.query('scope') === 'tests'
+        ? 'tests'
+        : c.req.query('scope') === 'all'
+          ? 'all'
+          : 'automation';
+    // The recent rows are fetched under the SAME scope the counters use. Fetching all runs
+    // and counting one scope is what produced "5 of 3 runs shown".
+    const runs = await port.listRuns({
+      limit: 5,
+      ...(scope === 'all' ? {} : { source: scope === 'tests' ? 'test' : 'real' }),
+    });
     const connections = await port.connections();
     const usage = await port.usage();
     return page(
@@ -472,12 +483,7 @@ export function createAppRoutes(resolve: PortResolver = syntheticResolver): Hono
           csrfToken: session.csrfToken,
           submissionId: crypto.randomUUID(),
           openVerifyForm: c.req.query('verify') === '1',
-          verdictScope:
-            c.req.query('scope') === 'tests'
-              ? 'tests'
-              : c.req.query('scope') === 'all'
-                ? 'all'
-                : 'automation',
+          verdictScope: scope,
           ...(outcome === undefined
             ? {}
             : { admissionNotice: outcome, admissionErrors: outcome.fieldErrors }),

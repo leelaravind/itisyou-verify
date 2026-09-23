@@ -195,7 +195,9 @@ describe('the workspace dashboard composition', () => {
     // Every body cell carries its column head for the stacked rendering.
     const body = markup.slice(markup.indexOf('<tbody>', table), markup.indexOf('</tbody>', table));
     expect(count(body, 'data-label="Result"')).toBe(recent.length);
-    expect(count(body, 'data-label="Run"')).toBe(recent.length);
+    // The column is headed by the ENQUIRY REFERENCE now, not the run id: a customer
+    // recognises "ENQ-MATCH-0001", not "run_01M36P3F9Y...".
+    expect(count(body, 'data-label="Enquiry reference"')).toBe(recent.length);
     expect(CSS).toContain('@media (max-width:39.99rem){.table--stack,.table--stack caption,.table--stack tbody,.table--stack tr{display:block}');
     expect(CSS).toContain('.table--stack td::before,.table--stack tbody th::before{content:attr(data-label)');
     // The tally under the table is computed from the same counts as the cards above it —
@@ -210,7 +212,11 @@ describe('the workspace dashboard composition', () => {
     expect(tally).toContain(`<span class="tally__count">${String(workflow.counts.failed)}</span>`);
     const total =
       workflow.counts.verified + workflow.counts.failed + workflow.counts.unverified + workflow.counts.pending;
-    expect(text(tally)).toContain(`${String(recent.length)} of ${String(total)} runs shown`);
+    // The line now names the scope it counted, because the rows and the total are both
+    // read under it. Its previous wording could say "5 of 3", which is what this asserts
+    // can no longer happen: the two halves come from the same place.
+    expect(text(tally)).toContain(`${String(recent.length)} of ${String(total)} shown`);
+    expect(text(tally)).toContain('from your automation');
     // The rate and the activity signal are still two blocks, and coverage keeps its limitation.
     expect(markup).toContain('<div class="health">');
     expect(markup).toContain('data-coverage-limitation');

@@ -158,16 +158,36 @@ export const runs = {
     since: string,
     scope: 'automation' | 'test' | 'all' = 'automation',
   ): Promise<Record<string, number>> {
+    /*
+     * One definition of "a test run", shared with the list and the badge.
+     *
+     * These counts used `runs.is_synthetic` while `listByWorkspace` and the TEST badge used
+     * `source_events.source`. Two independent notions of the same fact, and the workspace
+     * panel showed what happens when they disagree: "5 of 3 runs shown", rows counted one
+     * way and totalled the other. The source event is the authority -- it is what admitted
+     * the run and what the badge reads -- so the counts ask it too.
+     */
     const sql =
       scope === 'test'
         ? `SELECT status, COUNT(*) AS n FROM runs
-          WHERE workspace_id = ? AND created_at >= ? AND is_synthetic = 1 GROUP BY status`
+          WHERE workspace_id = ? AND created_at >= ?
+            AND EXISTS (SELECT 1 FROM source_events se WHERE se.id = runs.source_event_id AND se.workspace_id = ? AND se.source = ?)
+          GROUP BY status`
         : scope === 'all'
           ? `SELECT status, COUNT(*) AS n FROM runs
           WHERE workspace_id = ? AND created_at >= ? GROUP BY status`
           : `SELECT status, COUNT(*) AS n FROM runs
-          WHERE workspace_id = ? AND created_at >= ? AND is_synthetic = 0 GROUP BY status`;
-    const result = await db.prepare(sql).bind(workspaceId, since).all<{ status: string; n: number }>();
+          WHERE workspace_id = ? AND created_at >= ?
+            AND NOT EXISTS (SELECT 1 FROM source_events se WHERE se.id = runs.source_event_id AND se.workspace_id = ? AND se.source = ?)
+          GROUP BY status`;
+    const bindings: unknown[] =
+      scope === 'all'
+        ? [workspaceId, since]
+        : [workspaceId, since, workspaceId, 'owner_test'];
+    const result = await db
+      .prepare(sql)
+      .bind(...bindings)
+      .all<{ status: string; n: number }>();
     const out: Record<string, number> = {};
     for (const row of result.results) out[row.status] = Number(row.n);
     return out;
