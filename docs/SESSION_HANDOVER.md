@@ -1,5 +1,79 @@
 # Session handover — ITISYOU Verify
 
+## 23 September 2026 — current state
+
+Written at a clean stopping point: working tree clean, everything pushed, all gates green.
+**Everything below the horizontal rule is the 21 September handover, kept for its history
+and superseded by this section wherever the two disagree.**
+
+| | |
+| --- | --- |
+| `main` | `cb9d726` |
+| **Production** | **`28d11336b14808a6b7b2302e053d6e24389ace8d`** |
+| Staging | `effbe70` (behind main) |
+| Tests | 2875 passing, 4 skipped |
+| Lint / secret scan / ledger | clean, clean, PASS |
+| Migrations | `0009` applied to production, staging and local. **Nothing pending anywhere.** |
+
+**Three commits are on `main` and undeployed**: `1017347`, `cc6eda4`, `cb9d726` — the
+workspace layout, the counting fix and the Resend capability correction. Deploying them
+needs no migration and no new approval beyond the owner naming the candidate.
+
+### The one thing to pick up
+
+**Searchable record and message selectors for the manual test form.** Groundwork is in; the
+feature is not. `GET /emails` is in Resend's frozen operation table with its customer-facing
+purpose; HubSpot's `contact_search` already exists and supports `HAS_PROPERTY`. The port
+methods, the route and the UI are outstanding.
+
+**The constraint that shapes it: selecting a record fills its IDENTIFIER only.** The expected
+correlation reference and intended recipient stay the customer's own input, or come from the
+original enquiry. They are never pre-filled from the record or message just displayed — a
+verification that compares an observed value against itself proves nothing, and reporting
+that as a pass is the exact failure this product exists to refuse. The selector shows
+observed values so a human can choose; it must not turn them into expectations.
+
+Also required: ambiguity gets an explanation and manual entry, never a silent "most recent";
+searching, selecting, refreshing status and opening the form consume no allowance; cost is
+stated before submitting.
+
+### Corrections from this session, so they are not re-learned
+
+1. **Resend DOES list sent messages** (`GET /emails`). I claimed twice it could not, from a
+   connector comment that listed only the retrieve endpoint. Corrected at source.
+2. **"5 of 3 runs shown" was not a display bug.** Two definitions of "a test run" existed —
+   `runs.is_synthetic` for counts, `source_events.source` for rows, badges and filters. The
+   source event is now the single authority everywhere, including the owner's platform
+   count. Billing still counts both kinds.
+3. **Production was never rolled back.** An earlier report said `29164e3` when it was
+   `0db4704`; a stale reading, not a deployment event.
+
+### What caught real defects that a passing suite did not
+
+Reading the **deployed site** (`handleScheduled` never passed `sendUsageAlert`, so a tested
+retry pass would never have run in production); driving the **real layer instead of a stub**
+(a failed notification key is claimed forever, invisible behind a fake sender); and a
+**bounded independent audit** of the diff, which found that defect and an overclaim in a
+commit message of mine.
+
+### Limitations, stated rather than fixed
+
+- **Signed-event testing on production is unverified**, not passed: the signature gate fires
+  before admission control and completing it needs the event-signing root key.
+- **Usage-alert delivery on production is unobserved** — at 12 of 500 nothing is eligible.
+  Do not burn runs to force it.
+- **Mobile screenshots are local evidence** (`wrangler dev` + seeded local admin fixture).
+  Deployed controls were verified by served HTML and live POSTs instead.
+- The three `auto-journey-*` production runs are **real automation traffic** by every
+  definition the product has, identifiable by event id only, and they count in the
+  automation verification rate. Excluding them would be a deliberate change.
+
+Ads paused. Live payments disabled. No migration authorised beyond `0009`, already applied.
+
+---
+
+## 21 September 2026 — superseded
+
 Written 21 September 2026, 08:40 UTC. **Corrected at 14:10 UTC** after an independent
 meta-audit found this file, the first in its own prescribed reading order, still describing
 as open several defects that the same day had already fixed and deployed. Every figure below
