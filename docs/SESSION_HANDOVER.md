@@ -97,6 +97,11 @@ automation.
 
 Deferred by instruction: the design screens and story updates come after the functional work.
 
+**Google Ads skills** for agents working on this project: six advertiser-side skills from
+`google/skills` (pinned commit, Apache-2.0) in `.claude/skills/`. Provenance, and what was
+deliberately left out: `.claude/skills/GOOGLE-SKILLS-SOURCE.md`. Setting up the Google Ads MCP
+server they describe is a machine-wide change: ask the owner first.
+
 Ads paused. Live payments disabled. No migration authorised beyond `0009`, already applied.
 
 ---
