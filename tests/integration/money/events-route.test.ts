@@ -570,7 +570,7 @@ describe('usage warnings reach the transport, once', () => {
     expect(captured).toHaveLength(1);
     expect(captured[0]?.template).toBe('allowance_approaching');
     // Derived from the period and the threshold, never from the clock.
-    expect(captured[0]?.notificationKey).toContain(':75');
+    expect(captured[0]?.notificationKey).toContain(':75#1');
     expect(captured[0]?.notificationKey).not.toMatch(/\d{13}/);
   });
 
@@ -588,8 +588,9 @@ describe('usage warnings reach the transport, once', () => {
      */
     const keys = captured.map((c) => c.notificationKey);
     expect(new Set(keys).size, 'a threshold was announced more than once').toBe(keys.length);
-    expect(keys.filter((k) => k.endsWith(':75'))).toHaveLength(1);
-    expect(keys.filter((k) => k.endsWith(':90'))).toHaveLength(1);
+    // Keys now carry an attempt suffix (`…:75#1`), which is what makes retries countable.
+    expect(keys.filter((k) => k.includes(':75#'))).toHaveLength(1);
+    expect(keys.filter((k) => k.includes(':90#'))).toHaveLength(1);
   });
 
   it('BILL-910 a failed send is not recorded, so the next admission tries again', async () => {

@@ -30,6 +30,34 @@ const WORKFLOW_COLUMNS =
   'id, workspace_id, name, status, current_version_id, coverage_mode, signing_key_hash, signing_key_ref, last_event_at, expected_activity, created_at, archived_at';
 
 export const workflows = {
+  /**
+   * Active workflows the usage-alert pass should look at.
+   *
+   * Deliberately not filtered on "needs an alert": that decision needs the entitlement and
+   * the delivery history, which `usageAlertFor` reads, and duplicating the condition here
+   * would be a second place for it to drift. This is a bounded candidate list, and the pass
+   * answers null for almost all of them.
+   *
+   * Cross-tenant by necessity, like every other due-work query the scheduler runs: each row
+   * carries its own workspace_id and every downstream read is scoped by it.
+   */
+  async listActiveForAlerts(
+    db: Db,
+    limit: number,
+  ): Promise<readonly { id: string; workspace_id: string }[]> {
+    // tenant-scope:exempt bounded cross-tenant scheduler candidate list; every downstream
+    // read is scoped by the workspace_id each row carries.
+    const result = await db
+      .prepare(
+        `SELECT id, workspace_id FROM workflows
+          WHERE status = 'active' AND archived_at IS NULL
+          ORDER BY id LIMIT ?`,
+      )
+      .bind(limit)
+      .all<{ id: string; workspace_id: string }>();
+    return result.results;
+  },
+
   async create(
     db: Db,
     params: {

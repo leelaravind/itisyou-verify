@@ -471,9 +471,10 @@ export function createEventsRoute(deps: EventsRouteDeps): Hono {
         });
         if (alert !== null) {
           const outcome = await deps.sendUsageAlert(alert);
-          // Recorded only when the transport did not hard-fail, so a failed warning is
-          // tried again on the next admission rather than marked done and lost.
-          if (outcome.outcome !== 'failed') {
+          // Recorded only on an actual send. `duplicate` here would mean this exact
+          // attempt was evaluated twice; `failed` and `suppressed` both leave the threshold
+          // open so the scheduler's bounded retry can try it again without an admission.
+          if (outcome.outcome === 'sent') {
             await recordUsageAlertSent(deps.db, {
               workspaceId: key.workspaceId,
               workflowId: key.workflowId,

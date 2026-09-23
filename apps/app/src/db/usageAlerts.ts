@@ -22,6 +22,14 @@
 import { usageAlertKeyFor } from './admissionControls';
 import type { Db } from './d1';
 
+/**
+ * How many times one threshold's warning may be attempted before we stop.
+ *
+ * Bounded because the alternative is a warning that retries every scheduler tick for the
+ * rest of the billing period against a provider that is not going to accept it.
+ */
+export const MAX_USAGE_ALERT_ATTEMPTS = 4;
+
 export interface UsageAlertRequest {
   readonly notificationKey: string;
   readonly workspaceId: string;
@@ -78,15 +86,40 @@ export async function usageAlertFor(
   );
   if (crossing === null) return null;
 
+  /*
+   * Attempts, counted from the delivery rows themselves.
+   *
+   * `releaseUndelivered` DELETES the row it releases, so releasing a failed key and trying
+   * again leaves no memory of having tried — an unbounded loop wearing the same name every
+   * time. Each attempt instead gets its own key, `<base>#<n>`, so the rows ARE the count:
+   * deduplication still holds within an attempt, a `sent` row anywhere in the series ends
+   * the series, and the bound is arithmetic rather than a promise.
+   */
+  const base = `usage:${params.workspaceId}:${crossing.key}`;
+  const attempts = await db
+    .prepare(
+      `SELECT COUNT(*) AS n,
+              SUM(CASE WHEN state = 'sent' THEN 1 ELSE 0 END) AS sent
+         FROM notification_deliveries
+        WHERE workspace_id = ? AND notification_key LIKE ?`,
+    )
+    .bind(params.workspaceId, `${base}#%`)
+    .first<{ n: number; sent: number | null }>();
+
+  const made = Number(attempts?.n ?? 0);
+  if (Number(attempts?.sent ?? 0) > 0) return null; // already delivered; never again
+  if (made >= MAX_USAGE_ALERT_ATTEMPTS) return null; // bounded, and we stop
+
   const contact = await params.billingContact(params.workspaceId);
   // No contact is not an error and must not cost the event its 202. It is a workspace we
   // cannot write to, which the notification layer would record as unusable anyway.
   if (contact === null) return null;
 
   return {
-    // Derived from the event — the period and the threshold — never from the clock, which
-    // is the rule `SendRequest.notificationKey` states.
-    notificationKey: `usage:${params.workspaceId}:${crossing.key}`,
+    // Derived from the event — the period, the threshold and which attempt this is — never
+    // from the clock, which is the rule `SendRequest.notificationKey` states. Two evaluations
+    // of the same attempt produce the same key and the dispatcher sends once.
+    notificationKey: `${base}#${String(made + 1)}`,
     workspaceId: params.workspaceId,
     recipientEmail: contact.email,
     template: crossing.threshold >= 100 ? 'allowance_reached' : 'allowance_approaching',
