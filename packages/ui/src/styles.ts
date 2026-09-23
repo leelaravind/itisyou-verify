@@ -653,6 +653,9 @@ a:hover{text-decoration-thickness:2px}
 .lookup__results{margin-top:var(--s3)}
 .lookup__results .btn{white-space:nowrap}
 .lookup__note{font-size:var(--t-small);color:var(--c-muted);margin:var(--s2) 0 0}
+/* The next field's label sat flush under the search bar on production; give it the same
+   gap one field keeps from another. */
+.lookup+.field{margin-top:var(--s4)}
 
 /* ---- table --------------------------------------------------------------- */
 .tablewrap{
