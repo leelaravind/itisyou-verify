@@ -697,7 +697,7 @@ export function WorkspacePage(options: WorkspacePageOptions): Html {
     <section class="stack-sm" aria-labelledby="recent-runs-heading">
       <div class="section-head">
         <div class="section-head__text"><h2 id="recent-runs-heading">Recent runs</h2></div>
-        <a href="/app/runs">All runs</a>
+        <a href="/app/runs">View all runs</a>
       </div>
       <div class="results">
         ${Table({
@@ -752,8 +752,11 @@ export function WorkspacePage(options: WorkspacePageOptions): Html {
               cell: (run: RunListItem) => formatInstant(run.occurredAt),
             },
             {
+              // "Checks", not "Required checks": this table now lives in the narrower of two
+              // columns, and the longer header was the one thing pushing it wide enough to
+              // need sideways scrolling to read its last value.
               key: 'checks',
-              header: 'Required checks',
+              header: 'Checks',
               numeric: true,
               cell: (run: RunListItem) => `${run.mandatorySupported}/${run.mandatoryTotal}`,
             },
