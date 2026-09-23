@@ -218,6 +218,36 @@ export interface WorkspaceLiveView {
   readonly nextCheckAt: string | null;
 }
 
+/** The most enquiries one batch may run. One press, at most this many runs. */
+export const TEST_BATCH_MAX_ROWS = 10;
+
+/** One enquiry in the customer's saved list: all four values are theirs, none are read back. */
+export interface TestEnquiryRow {
+  readonly crmRecordId: string;
+  readonly correlationValue: string;
+  readonly expectedRecipient: string;
+  /** Empty when there is no message: the email checks then end UNVERIFIED, and are said to. */
+  readonly messageId: string;
+}
+
+export interface SavedTestEnquiries {
+  readonly rows: readonly TestEnquiryRow[];
+  readonly savedAt: string | null;
+}
+
+export interface TestBatchLineError {
+  /** 1-based line of the pasted list; 0 for the list as a whole. */
+  readonly line: number;
+  readonly error: string;
+}
+
+export interface TestBatchResult {
+  readonly ok: boolean;
+  readonly message: string;
+  readonly lineErrors: readonly TestBatchLineError[];
+  readonly runIds: readonly string[];
+}
+
 export interface RunDetailView {
   readonly id: string;
   readonly workflowId: string;
@@ -698,6 +728,13 @@ export interface CustomerDataPort {
    * `scheduler/watched.ts`. Never throws; answers what it did.
    */
   checkRunNow?(runId: string): Promise<string>;
+
+  /** The saved list of test enquiries a batch runs. */
+  savedTestEnquiries?(): Promise<SavedTestEnquiries>;
+  /** Validate and save the list. Free: nothing is run. */
+  saveTestEnquiries?(text: string): Promise<TestBatchResult>;
+  /** Run every saved test enquiry, one run each, under the batch's bounds. */
+  startTestBatch?(batchId: string): Promise<TestBatchResult>;
 
   /** The workspace's live fingerprint; see `WorkspaceLiveView`. */
   workspaceLive?(): Promise<WorkspaceLiveView | null>;

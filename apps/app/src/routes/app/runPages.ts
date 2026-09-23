@@ -67,6 +67,11 @@ export interface RunListPageOptions {
   readonly basePath: string;
   /** Which runs this listing is showing. `all` is the default and shows both. */
   readonly source?: 'all' | 'real' | 'test';
+  /** The workspace's live fingerprint: present, the list updates itself as runs settle. */
+  readonly liveToken?: string | null;
+  readonly liveActive?: boolean;
+  /** Said at the top after a batch was started. */
+  readonly notice?: string | null;
 }
 
 /**
@@ -92,8 +97,18 @@ function sourceFilter(basePath: string, active: 'all' | 'real' | 'test'): Html {
 
 export function RunListPage(options: RunListPageOptions): Html {
   const items = options.page.items;
-  return html`<div class="wrap section stack-lg">
+  const live = options.liveToken != null;
+  return html`<div
+    ${attrs({
+      class: 'wrap section stack-lg',
+      'data-live': live ? '/app/live' : null,
+      'data-live-token': options.liveToken ?? null,
+      'data-live-active': live ? (options.liveActive === true ? '1' : '0') : null,
+    })}
+  >
     ${Breadcrumb([{ label: 'Workspace', href: '/app' }, { label: 'Runs' }])}
+    ${live ? html`<p class="small live-dot"><span data-live-status aria-live="polite">Live</span></p>` : null}
+    ${options.notice == null ? null : Callout({ tone: 'note', body: html`<p role="status">${options.notice}</p>` })}
     ${pageHead({
       eyebrow: 'Runs',
       title: options.workflowName,
@@ -186,6 +201,7 @@ export function RunListPage(options: RunListPageOptions): Html {
     }
 
     ${StandingLimitations()}
+    ${live ? LiveScript() : null}
   </div>`;
 }
 
