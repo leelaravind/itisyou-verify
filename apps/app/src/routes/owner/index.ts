@@ -626,6 +626,23 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
 
   routes.post('/admin/login', async (c) => {
     const form = await readForm(c);
+    // The customer sign-in has checked this pair from the start; this one did not, so any
+    // site could make a visitor's browser ask for an owner sign-in link (audit, 23 Sept).
+    // A refused pair sends nothing and says so, without saying anything about the address.
+    const problem = csrfProblem(c, form);
+    if (problem !== null) {
+      return ownerPage(
+        c,
+        adminLoginDocument({
+          csrfToken: newPageToken(c),
+          submitted: false,
+          delivery: 'no_transport',
+          fieldError: problem,
+          email: '',
+        }),
+        403,
+      );
+    }
     const email = (form.single['email'] ?? '').trim().slice(0, 254);
     const looksLikeAddress = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
     // What the deployment did, not what we would like it to have done. The answer still
@@ -813,6 +830,10 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
 
   routes.post('/admin/sign-out', async (c) => {
     const { principal } = await principalOf(c);
+    // Another site must not be able to sign the owner out (audit, 23 Sept): the form has
+    // always carried the pair, and now it is checked.
+    const form = await readForm(c);
+    if (csrfProblem(c, form) !== null) return c.redirect('/owner', 303);
     await auth.signOut(principal);
     return c.redirect('/admin/login', 303);
   });
@@ -1808,6 +1829,15 @@ export function createOwnerRoutes(options: OwnerRouterOptions = {}): Hono<RouteB
       );
     }),
   );
+
+  /*
+   * Every address under /owner and /admin that no route answers gets the SAME refusal a real
+   * but forbidden one gets. This sub-app is invoked with `.fetch()`, so it never inherited the
+   * Worker's not-found page: an unknown path answered Hono's bare 13-byte "404 Not Found"
+   * while a real one answered the branded 404, and the difference mapped the whole owner
+   * surface for anyone who asked (audit, 23 September).
+   */
+  routes.notFound((c) => refuseNotFound(c));
 
   return routes;
 }

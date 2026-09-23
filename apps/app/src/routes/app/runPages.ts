@@ -95,6 +95,18 @@ function sourceFilter(basePath: string, active: 'all' | 'real' | 'test'): Html {
   </nav>`;
 }
 
+/**
+ * A page link that keeps the filter. Page 2 of "your tests" used to be page 2 of all runs,
+ * because the link carried only the cursor (audit, 23 Sept); and the cursor is encoded.
+ */
+function pageHref(options: RunListPageOptions, cursor: string): string {
+  const params = new URLSearchParams();
+  const source = options.source ?? 'all';
+  if (source !== 'all') params.set('show', source);
+  params.set('cursor', cursor);
+  return `${options.basePath}?${params.toString()}`;
+}
+
 export function RunListPage(options: RunListPageOptions): Html {
   const items = options.page.items;
   const live = options.liveToken != null;
@@ -188,11 +200,11 @@ export function RunListPage(options: RunListPageOptions): Html {
             newerHref:
               options.page.prevCursor === null
                 ? null
-                : `${options.basePath}?cursor=${options.page.prevCursor}`,
+                : pageHref(options, options.page.prevCursor),
             olderHref:
               options.page.nextCursor === null
                 ? null
-                : `${options.basePath}?cursor=${options.page.nextCursor}`,
+                : pageHref(options, options.page.nextCursor),
             shown: items.length,
             noun: 'runs',
             label: 'Run list pages',

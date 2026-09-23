@@ -43,6 +43,8 @@ import type { NotificationDelivery, DeliveryLog } from '../notifications/deliver
 import type { SubscriptionPeriodSource } from '../billing/period';
 import type { Db } from '../db/d1';
 import { newId } from '../lib/ids';
+import { settings } from '../db/audit';
+import { controlSettingKey } from '../owner/controls';
 import { addSecondsIso, toIso } from '../lib/time';
 import { TICK_DEFAULTS, TickBudget, type BudgetStop, type TickBudgetOptions } from './budget';
 import { createD1CredentialResolver, NOT_CONNECTED_RESOLVER } from './credentials';
@@ -502,10 +504,29 @@ export async function handleScheduled(
         NOT_CONNECTED_RESOLVER
       : createD1CredentialResolver({ db, credentialKeyBase64: env.CREDENTIAL_KEY_V1 });
 
+  /*
+   * The owner's pause on provider reads. Declared on `TickDeps` from the start and passed by
+   * nothing, so the switch on /owner said it stopped the tick while the tick carried on (found
+   * by the 23 September audit). Read here, once per tick. A settings read that fails does not
+   * pause anything: the tick's work is the product, and the owner has other ways to stop.
+   */
+  let suspendDueRuns = false;
+  try {
+    const control = await settings.getJson<{ paused?: boolean } | null>(
+      db,
+      controlSettingKey('expensive_verification'),
+      null,
+    );
+    suspendDueRuns = control !== null && control.paused === true;
+  } catch {
+    suspendDueRuns = false;
+  }
+
   const report = await runSchedulerTick({
     db,
     now,
     resolver,
+    suspendDueRuns,
     // The allowance period key is owned by billing and read through this port. The
     // scheduler holds a workspace and an instant, and nothing else about billing.
     billing: new D1BillingDataPort(db),

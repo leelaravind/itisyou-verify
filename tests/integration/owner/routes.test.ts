@@ -785,6 +785,25 @@ describe('owner routes — admin entry point', () => {
     expect(body).not.toMatch(/bootstrap/i);
   });
 
+  it('OWNER-933 asking for an owner sign-in link needs the CSRF pair, and a refused ask sends nothing', async () => {
+    const h = harness({ principal: ANONYMOUS_PRINCIPAL });
+    const refused = await h.post('/admin/login', { email: 'owner@example.invalid' }, { omitCsrf: true });
+    expect(refused.status).toBe(403);
+    const text = await refused.text();
+    // Nothing about the address, and no claim that a link is on its way.
+    expect(text).not.toMatch(/owner@example\.invalid/);
+    expect(text).not.toMatch(/on its way/i);
+  });
+
+  it('OWNER-934 signing the owner out needs the CSRF pair', async () => {
+    const h = harness({});
+    const refused = await h.post('/admin/sign-out', {}, { omitCsrf: true });
+    expect(refused.status).toBe(303);
+    expect(refused.headers.get('location')).toBe('/owner');
+    const accepted = await h.post('/admin/sign-out', {});
+    expect(accepted.headers.get('location')).toBe('/admin/login');
+  });
+
   it('OWNER-058 an unknown and a known address get the identical acknowledgement', async () => {
     const h = harness({ principal: ANONYMOUS_PRINCIPAL });
     const unknown = await h.post('/admin/login', { email: 'nobody@example.invalid' });

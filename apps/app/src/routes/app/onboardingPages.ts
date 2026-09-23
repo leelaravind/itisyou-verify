@@ -328,6 +328,9 @@ function credentialForm(
       body: html`${guide.fields.map((field) =>
         Field({
           name: field.name,
+          // Both providers' forms post `access_token`; their ids must still be unique, or
+          // each label focuses the other provider's input (audit, 23 Sept).
+          id: `${guide.provider}-${field.name}`,
           label: field.label,
           control: field.secret ? 'password' : 'text',
           required: field.required,

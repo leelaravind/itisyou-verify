@@ -18,6 +18,12 @@ export interface SelectOption {
 
 export interface FieldOptions {
   readonly name: string;
+  /**
+   * The element id, when the name alone is not unique on the page: two forms posting the
+   * same field name (one per provider) must not share an id, or each label points at the
+   * other form's input. Defaults to one derived from the name.
+   */
+  readonly id?: string;
   readonly label: string;
   readonly control?: FieldControl;
   readonly value?: string;
@@ -46,7 +52,7 @@ function fieldId(name: string): string {
 }
 
 export function Field(options: FieldOptions): Html {
-  const id = fieldId(options.name);
+  const id = fieldId(options.id ?? options.name);
   const control = options.control ?? 'text';
   const hasError = typeof options.error === 'string' && options.error.length > 0;
   const hintId = options.hint === undefined ? null : `${id}-hint`;

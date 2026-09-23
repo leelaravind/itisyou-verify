@@ -348,9 +348,22 @@ try {
     // The workers.dev origin is probed rather than the custom domain, because this
     // machine's local DNS resolver is unreliable and a DNS failure here would look
     // like a deployment failure.
-    const res = spawnSync('curl', ['-s', '-m', '30', `${base}/health`], { encoding: 'utf8' });
-    const body = (res.stdout ?? '').trim();
+    // It must be THIS commit answering, not merely something. On 23 September the check
+    // passed while /health still reported the previous commit for several seconds of
+    // propagation: "reachable" was true of the old version. So the served commit is compared
+    // with the candidate, retrying for up to a minute while the rollout settles, and a
+    // different commit after that is a failure, not a pass.
+    let body = '';
+    for (let attempt = 1; attempt <= 20; attempt += 1) {
+      const res = spawnSync('curl', ['-s', '-m', '30', `${base}/health`], { encoding: 'utf8' });
+      body = (res.stdout ?? '').trim();
+      if (body.includes(`"commit":"${candidateSha}"`)) break;
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 3000);
+    }
     console.log(`  ${body || '(no response)'}`);
+    if (!body.includes(`"commit":"${candidateSha}"`)) {
+      throw new Error(`health did not report the candidate ${candidateSha.slice(0, 12)} within a minute`);
+    }
     if (!body.includes('"database":"reachable"')) {
       throw new Error('health check did not report a reachable database');
     }
