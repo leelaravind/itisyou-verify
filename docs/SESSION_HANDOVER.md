@@ -97,6 +97,24 @@ automation.
 
 Deferred by instruction: the design screens and story updates come after the functional work.
 
+**Live pages (1b1910c, then 158fdc8).** The run page and the workspace now update themselves
+(hash-pinned `LIVE_SCRIPT`, `/app/runs/:id/live`, `/app/live`), and a watched or newly admitted
+run is checked at its due time instead of the next minute tick (`scheduler/watched.ts`, same
+claim and observation as the tick). A placeholder id (one repeated character) is refused at
+the form before it costs a run: the 12:09 test on 23 Sept failed because its message id was
+all zeros, which Resend correctly reported as not existing.
+
+**Test contacts in HubSpot** (hub 149371406): five synthetic contacts, `verify-test-*@example.com`,
+each with its own `ENQ-TEST-*` reference. The manifest in
+`docs/evidence/hubspot-test-contacts-2026-09-23.json` was written WHEN THEY WERE CREATED, so it is an
+independent source of expected values for a batch test. Reading the values back from HubSpot
+and using them as expectations would not be. They exist only in HubSpot: there is no Resend
+message for them, so a test naming them needs a real sent message id as well.
+
+**Release-gate weakness found:** the post-deploy smoke check passed while `/health` still
+reported the PREVIOUS commit for a few seconds of propagation. It should compare the served
+commit with the candidate and retry briefly; until it does, read `/health` yourself.
+
 **Google Ads skills** for agents working on this project: six advertiser-side skills from
 `google/skills` (pinned commit, Apache-2.0) in `.claude/skills/`. Provenance, and what was
 deliberately left out: `.claude/skills/GOOGLE-SKILLS-SOURCE.md`. Setting up the Google Ads MCP
