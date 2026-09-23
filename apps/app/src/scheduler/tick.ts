@@ -510,6 +510,32 @@ export async function handleScheduled(
     // scheduler holds a workspace and an instant, and nothing else about billing.
     billing: new D1BillingDataPort(db),
     billingEnvironment: env.STRIPE_MODE === 'live' ? 'live' : 'test',
+    /*
+     * The usage warning's sender and the contact it goes to.
+     *
+     * Wired HERE and not only declared on `TickDeps`. Declaring an optional dependency and
+     * never supplying it is how this project has repeatedly ended up with correct, tested
+     * code that no request path consults -- the payment-recovery pass, the owner alerts, the
+     * allowance templates. An audit caught it in this very feature once already; this is the
+     * second half of the same mistake and it is fixed in the same commit that found it.
+     *
+     * `createNotificationDelivery` records every attempt in `notification_deliveries`, and
+     * with no `RESEND_API_KEY` it records `suppressed` and throws nothing -- so a deployment
+     * without a transport still ticks and simply never warns.
+     */
+    billingContact: createBillingContactLookup(db),
+    sendUsageAlert: async (request) => {
+      const report = await createNotificationDelivery(env, new D1SupportDataPort(db)).deliver([
+        {
+          notificationKey: request.notificationKey,
+          workspaceId: request.workspaceId,
+          recipientEmail: request.recipientEmail,
+          template: request.template,
+          vars: request.vars,
+        },
+      ]);
+      return { outcome: report.results[0]?.outcome ?? 'failed' };
+    },
     ...(options.logger === undefined ? {} : { logger: options.logger }),
     ...(options.sweeper === undefined ? {} : { sweeper: options.sweeper }),
   });
