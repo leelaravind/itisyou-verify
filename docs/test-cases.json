@@ -50549,6 +50549,23 @@
       "runner": "vitest",
       "area": "tests/integration/customer/live.test.ts",
       "countable": true
+    },
+    {
+      "id": "VERIFY-928",
+      "category": "verification_logic",
+      "level": "integration",
+      "requirement": "a placeholder message or record id is refused before anything is charged",
+      "risk": "A run was spent on the all-zero message id: the provider correctly reported no such message and the run correctly failed, costing one run for a typo.",
+      "risk_source": "case",
+      "setup": "A test verification submitted with message id 00000000-0000-0000-0000-000000000000 and record id 0000.",
+      "expected": "422 naming both fields as placeholders; no run is created.",
+      "owner_agent": "A11",
+      "implementation_ref": "tests/integration/customer/test-verification.test.ts",
+      "provider_backed": false,
+      "status": "passing",
+      "runner": "vitest",
+      "area": "tests/integration/customer/test-verification.test.ts",
+      "countable": true
     }
   ]
 }
