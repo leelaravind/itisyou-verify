@@ -432,3 +432,193 @@ describe('the customer can pause admissions and cap them', () => {
     expect(response.status).toBe(202);
   });
 });
+
+/**
+ * The two properties a read-before-write check cannot establish on its own.
+ *
+ * `checkCustomerAdmissionControls` reads, then `admitOnce` writes. Between those two the
+ * world can move, so the ceiling has to be proved under real concurrency through the actual
+ * route rather than argued for from the shape of the code. And an event already admitted
+ * must keep answering with its own result after a pause or a ceiling — the refusal is about
+ * NEW work, and a customer's retry of something already paid for must not be turned away.
+ */
+describe('the ceiling and the pause under concurrency and replay', () => {
+  function cap(m: Awaited<ReturnType<typeof open>>, limit: number | null): void {
+    m.h.raw
+      .prepare('UPDATE workflows SET admission_limit_per_period = ? WHERE workspace_id = ?')
+      .run(limit, m.ws.workspaceId);
+  }
+  function pause(m: Awaited<ReturnType<typeof open>>, at: string | null): void {
+    m.h.raw
+      .prepare('UPDATE workflows SET admissions_paused_at = ? WHERE workspace_id = ?')
+      .run(at, m.ws.workspaceId);
+  }
+
+  it('BILL-905 concurrent events against a ceiling of one admit exactly one', async () => {
+    const m = await open();
+    cap(m, 1);
+
+    // Four distinct events in flight together. Every one of them reads the ceiling before
+    // any of them has written, which is precisely the window a read-before-write check
+    // cannot close by itself.
+    const responses = await Promise.all([
+      postEvent(m, eventBody(m.ws, { event_id: 'evt-race-1' })),
+      postEvent(m, eventBody(m.ws, { event_id: 'evt-race-2' })),
+      postEvent(m, eventBody(m.ws, { event_id: 'evt-race-3' })),
+      postEvent(m, eventBody(m.ws, { event_id: 'evt-race-4' })),
+    ]);
+
+    const admitted = responses.filter((r) => r.status === 202);
+    // The allowance reservation is the arbiter, not the ceiling read: whatever the ceiling
+    // let through, the database must still show exactly what was charged.
+    const runs = runRows(m.h, m.ws.workspaceId);
+    const allowance = allowanceRow(m.h, m.ws.workspaceId, ALLOWANCE_KEY);
+
+    expect(runs.length).toBe(admitted.length);
+    expect(allowance?.reserved).toBe(runs.length);
+    // Exactly one, not "at most one": the ceiling rides on the same conditional UPDATE that
+    // arbitrates the allowance, so concurrency is decided by the database rather than by
+    // whichever request happened to read first.
+    expect(runs.length).toBe(1);
+    expect(admitted).toHaveLength(1);
+  });
+
+  it('BILL-906 an already admitted event replays its own result after a pause, unpaid twice', async () => {
+    const m = await open();
+    const body = eventBody(m.ws, { event_id: 'evt-replay-1' });
+
+    const first = await postEvent(m, body);
+    expect(first.status).toBe(202);
+    const firstBody = (await first.json()) as { run_id: string };
+    const spentAfterFirst = allowanceRow(m.h, m.ws.workspaceId, ALLOWANCE_KEY);
+
+    pause(m, NOW);
+    const replay = await postEvent(m, body);
+
+    // 200 with the existing run, not 429: this is not new work, and the customer has
+    // already paid for it. Refusing it would make a retry of settled work look like a
+    // failure to an automation that is behaving correctly.
+    expect(replay.status).toBe(200);
+    const replayBody = (await replay.json()) as { run_id: string; duplicate: boolean };
+    expect(replayBody.duplicate).toBe(true);
+    expect(replayBody.run_id).toBe(firstBody.run_id);
+
+    expect(runRows(m.h, m.ws.workspaceId)).toHaveLength(1);
+    expect(allowanceRow(m.h, m.ws.workspaceId, ALLOWANCE_KEY)).toEqual(spentAfterFirst);
+  });
+
+  it('BILL-907 an already admitted event replays its own result at the ceiling too', async () => {
+    const m = await open();
+    const body = eventBody(m.ws, { event_id: 'evt-replay-2' });
+    const first = await postEvent(m, body);
+    expect(first.status).toBe(202);
+    const firstBody = (await first.json()) as { run_id: string };
+
+    cap(m, 1);
+    const replay = await postEvent(m, body);
+
+    expect(replay.status).toBe(200);
+    expect((await replay.json()) as { run_id: string }).toMatchObject({ run_id: firstBody.run_id });
+    expect(runRows(m.h, m.ws.workspaceId)).toHaveLength(1);
+  });
+});
+
+/**
+ * The usage warning, on the path that actually changes usage.
+ *
+ * `allowance_approaching` and `allowance_reached` existed as templates, with variables and
+ * rendering, and nothing had ever sent one — the same shape as the payment-recovery logic an
+ * auditor found earlier: correct, tested, consulted by no request path.
+ *
+ * These drive the real events route and assert what the transport was asked to send.
+ */
+describe('usage warnings reach the transport, once', () => {
+  interface Captured {
+    readonly notificationKey: string;
+    readonly template: string;
+    readonly recipientEmail: string;
+  }
+
+  async function openWithAlerts(
+    outcome: 'sent' | 'failed' = 'sent',
+    runLimit = 4,
+  ): Promise<{ m: Awaited<ReturnType<typeof open>>; captured: Captured[] }> {
+    const captured: Captured[] = [];
+    const m = await open({
+      runLimit,
+      sendUsageAlert: async (request: Captured) => {
+        captured.push({
+          notificationKey: request.notificationKey,
+          template: request.template,
+          recipientEmail: request.recipientEmail,
+        });
+        return { outcome };
+      },
+    });
+    return { m, captured };
+  }
+
+  it('BILL-908 crossing a threshold asks the transport to send, with an event-derived key', async () => {
+    // A limit of 4 means the third admission is 75%.
+    const { m, captured } = await openWithAlerts('sent', 4);
+    await postEvent(m, eventBody(m.ws, { event_id: 'evt-alert-1' }));
+    expect(captured).toHaveLength(0);
+    await postEvent(m, eventBody(m.ws, { event_id: 'evt-alert-2' }));
+    expect(captured).toHaveLength(0);
+    await postEvent(m, eventBody(m.ws, { event_id: 'evt-alert-3' }));
+
+    expect(captured).toHaveLength(1);
+    expect(captured[0]?.template).toBe('allowance_approaching');
+    // Derived from the period and the threshold, never from the clock.
+    expect(captured[0]?.notificationKey).toContain(':75');
+    expect(captured[0]?.notificationKey).not.toMatch(/\d{13}/);
+  });
+
+  it('BILL-909 further admissions at the same threshold send nothing more', async () => {
+    const { m, captured } = await openWithAlerts('sent', 20);
+    // 20-run plan: the 15th admission is 75%, the 16th..18th are still 75-89%.
+    for (let i = 1; i <= 18; i += 1) {
+      await postEvent(m, eventBody(m.ws, { event_id: `evt-dedupe-${String(i)}` }));
+    }
+    /*
+     * 18 of 20 crosses 75% AND 90%, so two warnings is correct — they are different news.
+     * What must never happen is the SAME threshold twice, which is what an alert keyed on
+     * the state rather than the crossing would do on every admission for the rest of the
+     * period.
+     */
+    const keys = captured.map((c) => c.notificationKey);
+    expect(new Set(keys).size, 'a threshold was announced more than once').toBe(keys.length);
+    expect(keys.filter((k) => k.endsWith(':75'))).toHaveLength(1);
+    expect(keys.filter((k) => k.endsWith(':90'))).toHaveLength(1);
+  });
+
+  it('BILL-910 a failed send is not recorded, so the next admission tries again', async () => {
+    const { m, captured } = await openWithAlerts('failed', 4);
+    await postEvent(m, eventBody(m.ws, { event_id: 'evt-retry-1' }));
+    await postEvent(m, eventBody(m.ws, { event_id: 'evt-retry-2' }));
+    await postEvent(m, eventBody(m.ws, { event_id: 'evt-retry-3' }));
+    expect(captured).toHaveLength(1);
+
+    // The threshold was never marked announced, because the send failed.
+    const stored = m.h.raw
+      .prepare('SELECT usage_alert_key FROM workflows WHERE workspace_id = ?')
+      .get(m.ws.workspaceId) as { usage_alert_key: string | null };
+    expect(stored.usage_alert_key).toBeNull();
+
+    // So the next admission asks again rather than losing the warning.
+    await postEvent(m, eventBody(m.ws, { event_id: 'evt-retry-4' }));
+    expect(captured.length).toBeGreaterThan(1);
+  });
+
+  it('BILL-911 a duplicate event admits nothing and therefore warns about nothing', async () => {
+    const { m, captured } = await openWithAlerts('sent', 4);
+    const body = eventBody(m.ws, { event_id: 'evt-alert-dup' });
+    await postEvent(m, body);
+    await postEvent(m, body);
+    await postEvent(m, body);
+
+    // Three posts, one admission: usage moved once and never crossed 75%.
+    expect(runRows(m.h, m.ws.workspaceId)).toHaveLength(1);
+    expect(captured).toHaveLength(0);
+  });
+});

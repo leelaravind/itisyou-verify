@@ -35,9 +35,20 @@ export interface AdmissionControlVerdict {
   readonly refusal: AdmissionControlRefusal | null;
   /** Plain language for the automation's developer, safe to return in an error body. */
   readonly message: string | null;
+  /**
+   * The customer's ceiling, handed on to `admitOnce` so the SAME conditional update that
+   * arbitrates the plan allowance also arbitrates this. The read below is the policy
+   * answer; the reservation is what actually decides under concurrency.
+   */
+  readonly limitPerPeriod: number | null;
 }
 
-const ADMITTED: AdmissionControlVerdict = { admit: true, refusal: null, message: null };
+const ADMITTED: AdmissionControlVerdict = {
+  admit: true,
+  refusal: null,
+  message: null,
+  limitPerPeriod: null,
+};
 
 /**
  * Ask whether this workflow is accepting new automatic admissions right now.
@@ -52,8 +63,28 @@ export async function checkCustomerAdmissionControls(
     readonly workflowId: string;
     /** The allowance period key `checkAdmission` resolved. Never derived here. */
     readonly billingPeriod: string;
+    /** The arriving event's id, so a replay of admitted work is not mistaken for new work. */
+    readonly externalEventId: string;
   },
 ): Promise<AdmissionControlVerdict> {
+  /*
+   * A replay is not new work.
+   *
+   * Pausing and the ceiling are both about admitting NEW events. An automation retrying
+   * something already admitted — which every well-behaved one does — must still get its own
+   * result back, not a 429. Refusing it would make a retry of settled, already-paid-for work
+   * look like a failure. `admitOnce` will return the existing run; this only has to get out
+   * of the way. Proved by BILL-906/907, which both got 429 before this existed.
+   */
+  const already = await db
+    .prepare(
+      `SELECT 1 AS hit FROM source_events
+        WHERE workspace_id = ? AND external_event_id = ? LIMIT 1`,
+    )
+    .bind(params.workspaceId, params.externalEventId)
+    .first<{ hit: number }>();
+  if (already != null) return ADMITTED;
+
   const row = await db
     .prepare(
       `SELECT admissions_paused_at, admission_limit_per_period
@@ -68,6 +99,7 @@ export async function checkCustomerAdmissionControls(
     return {
       admit: false,
       refusal: 'customer_paused',
+      limitPerPeriod: null,
       message:
         'New verifications are paused for this workflow by the account owner. Nothing has been charged and nothing was written, so you can send this same event id again once they resume and it will be accepted then. Runs already under way are unaffected and will still reach a verdict.',
     };
@@ -100,11 +132,12 @@ export async function checkCustomerAdmissionControls(
     .first<{ consumed: number; reserved: number }>();
 
   const admitted = Number(entitlement?.consumed ?? 0) + Number(entitlement?.reserved ?? 0);
-  if (admitted < limit) return ADMITTED;
+  if (admitted < limit) return { admit: true, refusal: null, message: null, limitPerPeriod: limit };
 
   return {
     admit: false,
     refusal: 'customer_limit_reached',
+    limitPerPeriod: limit,
     message: `This workflow has reached the limit of ${String(limit)} verifications the account owner set for this billing period. Nothing has been charged and nothing was written, so this event id can be sent again once the limit is raised or the period rolls over. Runs already under way are unaffected.`,
   };
 }

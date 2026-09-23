@@ -528,6 +528,21 @@ export interface CustomerDataPort {
   saveFieldMapping(input: FieldMappingInput): Promise<WriteResult>;
   saveExpectedOutcome(input: ExpectedOutcomeInput): Promise<WriteResult>;
 
+  /**
+   * Pause or resume NEW automatic admissions for this workflow.
+   *
+   * Narrow on purpose: runs already admitted keep their reservation and still reach a
+   * verdict. The page has to say so, because "paused" reads to most people as
+   * "everything stops".
+   */
+  setAdmissionsPaused?(paused: boolean): Promise<WriteResult>;
+
+  /**
+   * A ceiling on admissions for the current billing period, below the plan allowance.
+   * `null` removes it. A safety catch the customer owns; never a way to buy more.
+   */
+  setAdmissionLimit?(limit: number | null): Promise<WriteResult>;
+
   /** Run the configured rules against synthetic evidence, so the customer sees a result first. */
   runProof(): Promise<ProofRunView>;
 

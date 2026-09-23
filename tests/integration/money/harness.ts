@@ -88,6 +88,17 @@ export interface HarnessOptions {
   /** Absent means the deployment cannot verify signatures. Used by the 503 case. */
   readonly rootKey?: string;
   readonly now?: string;
+  /**
+   * Captures what the route asks the transport to send, and decides the outcome.
+   *
+   * Absent means the deployment has no transport wired, which is a real configuration: the
+   * route must admit every event correctly and simply never warn.
+   */
+  readonly sendUsageAlert?: (request: {
+    notificationKey: string;
+    template: string;
+    recipientEmail: string;
+  }) => Promise<{ outcome: 'sent' | 'duplicate' | 'suppressed' | 'failed' }>;
 }
 
 export async function createMoneyHarness(options: HarnessOptions = {}): Promise<MoneyHarness> {
@@ -156,9 +167,15 @@ export async function createMoneyHarness(options: HarnessOptions = {}): Promise<
       store: new D1WorkflowSigningKeys(h.db),
       rootKey,
     }),
-    billing,
+    billing: {
+      ...billing,
+      // A workspace we can write to. Without a contact there is nobody to warn, which is a
+      // real state the alert code returns null for — and not the one these cases are about.
+      billingContact: async () => ({ workspaceName: 'Test workspace', email: 'ada@example.test' }),
+    },
     now: () => new Date(now),
     newId: mint,
+    ...(options.sendUsageAlert === undefined ? {} : { sendUsageAlert: options.sendUsageAlert }),
   });
 
   return {

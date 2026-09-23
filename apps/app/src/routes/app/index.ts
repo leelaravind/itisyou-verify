@@ -437,41 +437,57 @@ export function createAppRoutes(resolve: PortResolver = syntheticResolver): Hono
 
   /* ------------------------------------------------------------------ workspace */
 
-  routes.get('/', async (c) =>
-    withSession(c, async (port, session) => {
-      const workflow = await port.workflow();
-      const runs = await port.listRuns({ limit: 5 });
-      const connections = await port.connections();
-      const usage = await port.usage();
-      return page(
-        c,
-        shell(port, {
-          title: 'Workspace',
-          path: '/app',
-          accountLabel: maskedAccountLabel(session.email),
+  /**
+   * The workspace, rendered from freshly read data.
+   *
+   * One path for the GET and for every control that posts back to it. A second assembly of
+   * the same page is a second place for a figure to be read differently, and this page's
+   * whole job is that its figures agree.
+   */
+  async function renderWorkspace(
+    c: Context<RouteBindings>,
+    port: CustomerDataPort,
+    session: SessionView,
+    outcome?: { message: string; ok: boolean; fieldErrors: Readonly<Record<string, string>> },
+  ): Promise<Response> {
+    const workflow = await port.workflow();
+    const runs = await port.listRuns({ limit: 5 });
+    const connections = await port.connections();
+    const usage = await port.usage();
+    return page(
+      c,
+      shell(port, {
+        title: 'Workspace',
+        path: '/app',
+        accountLabel: maskedAccountLabel(session.email),
+        csrfToken: session.csrfToken,
+        body: WorkspacePage({
+          workflow,
+          recentRuns: runs.items,
+          connections,
+          usage,
+          now: new Date(),
+          canStartSetup: session.role === 'workspace_admin',
+          testOffer: await port.testVerificationOffer(),
           csrfToken: session.csrfToken,
-          body: WorkspacePage({
-            workflow,
-            recentRuns: runs.items,
-            connections,
-            usage,
-            now: new Date(),
-            canStartSetup: session.role === 'workspace_admin',
-            testOffer: await port.testVerificationOffer(),
-            csrfToken: session.csrfToken,
-            submissionId: crypto.randomUUID(),
-            openVerifyForm: c.req.query('verify') === '1',
-            verdictScope:
-              c.req.query('scope') === 'tests'
-                ? 'tests'
-                : c.req.query('scope') === 'all'
-                  ? 'all'
-                  : 'automation',
-          }),
+          submissionId: crypto.randomUUID(),
+          openVerifyForm: c.req.query('verify') === '1',
+          verdictScope:
+            c.req.query('scope') === 'tests'
+              ? 'tests'
+              : c.req.query('scope') === 'all'
+                ? 'all'
+                : 'automation',
+          ...(outcome === undefined
+            ? {}
+            : { admissionNotice: outcome, admissionErrors: outcome.fieldErrors }),
         }),
-      );
-    }),
-  );
+      }),
+      outcome !== undefined && !outcome.ok ? { status: 422 } : undefined,
+    );
+  }
+
+  routes.get('/', async (c) => withSession(c, async (port, session) => renderWorkspace(c, port, session)));
 
   /* ----------------------------------------------------------------- onboarding */
 
@@ -813,6 +829,48 @@ export function createAppRoutes(resolve: PortResolver = syntheticResolver): Hono
         }),
         { status: signingKeyStatus(result) },
       );
+    }),
+  );
+
+  /* ------------------------------------------------- the customer's admission controls */
+
+  /**
+   * Pause or resume new automatic admissions.
+   *
+   * A POST, not a link, because it changes what the service accepts. The page renders the
+   * opposite of the current state into a hidden field, so the button says what it will do
+   * rather than what is true now.
+   */
+  routes.post('/admissions', async (c) =>
+    withSession(c, async (port, session) => {
+      const body = await formBody(c);
+      const set = port.setAdmissionsPaused?.bind(port);
+      if (set === undefined) return c.redirect('/app', 303);
+      const result = await set(body['paused'] === '1');
+      return renderWorkspace(c, port, session, {
+        message: result.message ?? '',
+        ok: result.ok,
+        fieldErrors: result.fieldErrors,
+      });
+    }),
+  );
+
+  /** The per-period ceiling. An empty value removes it rather than meaning zero. */
+  routes.post('/admission-limit', async (c) =>
+    withSession(c, async (port, session) => {
+      const body = await formBody(c);
+      const set = port.setAdmissionLimit?.bind(port);
+      if (set === undefined) return c.redirect('/app', 303);
+      const raw = (body['admissionLimit'] ?? '').trim();
+      const parsed = raw === '' ? null : Number(raw);
+      const result = await set(
+        parsed === null ? null : Number.isFinite(parsed) ? Math.trunc(parsed) : Number.NaN,
+      );
+      return renderWorkspace(c, port, session, {
+        message: result.message ?? '',
+        ok: result.ok,
+        fieldErrors: result.fieldErrors,
+      });
     }),
   );
 

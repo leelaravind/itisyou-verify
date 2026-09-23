@@ -1102,6 +1102,98 @@ export class D1CustomerDataPort implements CustomerDataPort {
     return ok('/app/onboarding/outcome', 'The field mapping was saved.');
   }
 
+  /**
+   * Pause or resume new automatic admissions.
+   *
+   * Writes a timestamp, not a boolean, because "since when" is the question a customer asks
+   * next and reconstructing it from an audit row is worse than storing it.
+   */
+  async setAdmissionsPaused(paused: boolean): Promise<WriteResult> {
+    const scope = await this.#scope();
+    if (scope === null) return refuse('Sign in to change this workflow.');
+    if (scope.role !== 'workspace_admin') {
+      return refuse('Only a workspace admin can pause or resume verifications.');
+    }
+    const workflow = await this.#workflowForConfiguration(scope);
+    const at = nowIso(this.#now);
+    await this.#db
+      .prepare(`UPDATE workflows SET admissions_paused_at = ? WHERE workspace_id = ? AND id = ?`)
+      .bind(paused ? at : null, scope.workspaceId, workflow.id)
+      .run();
+
+    await auditEvents.record(this.#db, {
+      id: newId(ID_PREFIX.auditEvent, this.#now.getTime()),
+      actor: scope.userId,
+      actorKind: 'user',
+      workspaceId: scope.workspaceId,
+      action: paused ? 'workflow.admissions_paused' : 'workflow.admissions_resumed',
+      target: workflow.id,
+      occurredAt: at,
+      redactedMetadata: JSON.stringify({ paused }),
+    });
+
+    return {
+      ok: true,
+      fieldErrors: {},
+      redirectTo: '/app',
+      message: paused
+        ? 'New verifications from your automation are paused. Runs already under way keep going and will still reach a verdict, and nothing your automation sends while paused is charged — it can send the same events again when you resume.'
+        : 'New verifications from your automation are being accepted again.',
+    };
+  }
+
+  /** The customer's own ceiling for the period. `null` removes it. */
+  async setAdmissionLimit(limit: number | null): Promise<WriteResult> {
+    const scope = await this.#scope();
+    if (scope === null) return refuse('Sign in to change this workflow.');
+    if (scope.role !== 'workspace_admin') {
+      return refuse('Only a workspace admin can set a verification limit.');
+    }
+    if (limit !== null && (!Number.isInteger(limit) || limit < 1)) {
+      return refuse('A limit has to be a whole number of at least 1.', {
+        admissionLimit: 'Enter a whole number of 1 or more, or leave it empty for no limit.',
+      });
+    }
+    const usage = await this.usage();
+    if (limit !== null && limit > usage.runsIncluded) {
+      // A ceiling above the plan cannot refuse anything the plan would have allowed, so
+      // offering it would be offering a control that does nothing.
+      return refuse(
+        `A limit above your plan allowance would never apply. Your plan includes ${String(usage.runsIncluded)} runs.`,
+        { admissionLimit: `Enter ${String(usage.runsIncluded)} or fewer.` },
+      );
+    }
+
+    const workflow = await this.#workflowForConfiguration(scope);
+    await this.#db
+      .prepare(
+        `UPDATE workflows SET admission_limit_per_period = ? WHERE workspace_id = ? AND id = ?`,
+      )
+      .bind(limit, scope.workspaceId, workflow.id)
+      .run();
+
+    await auditEvents.record(this.#db, {
+      id: newId(ID_PREFIX.auditEvent, this.#now.getTime()),
+      actor: scope.userId,
+      actorKind: 'user',
+      workspaceId: scope.workspaceId,
+      action: 'workflow.admission_limit_set',
+      target: workflow.id,
+      occurredAt: nowIso(this.#now),
+      redactedMetadata: JSON.stringify({ limit }),
+    });
+
+    return {
+      ok: true,
+      fieldErrors: {},
+      redirectTo: '/app',
+      message:
+        limit === null
+          ? 'Removed. Your plan allowance is the only limit now.'
+          : `Set. Your automation can start ${String(limit)} verifications this period; anything beyond that is refused without being charged, and can be sent again once you raise the limit or the period rolls over.`,
+    };
+  }
+
   async saveExpectedOutcome(input: ExpectedOutcomeInput): Promise<WriteResult> {
     const scope = await this.#scope();
     if (scope === null) return refuse('Sign in to change this workflow.');
