@@ -79,10 +79,12 @@ import {
   type ConnectorCredentials,
   type ConnectorFetchResult,
   type FetchEvidenceInput,
+  type LookupOutcome,
   type NormaliseContext,
   type NormaliseResult,
   type ProviderErrorInput,
   type RevokeResult,
+  type SentMessageCandidate,
   type WebhookCapableConnector,
   type WebhookVerification,
   type WebhookVerificationInput,
@@ -329,6 +331,123 @@ export function classifyResendError(input: ProviderErrorInput): ClassifiedError 
     'PROVIDER_UNAVAILABLE',
     detail === '' ? `unexpected status ${input.status}` : detail,
   );
+}
+
+// ---------------------------------------------------------------------------
+// Lookup: the customer choosing a sent message to test with
+// ---------------------------------------------------------------------------
+
+/**
+ * Messages per lookup page. Resend's list has no search parameter, so the customer's filter
+ * is applied to this page; twenty is enough to find a recent test send, and the page says
+ * exactly how many it looked through.
+ */
+export const MESSAGE_LOOKUP_PAGE_SIZE = 20;
+
+export interface SentMessageLookupInput {
+  readonly token: string;
+  /** The id of the last message on the previous page, or null for the most recent page. */
+  readonly after: string | null;
+  readonly options?: ResendFetchOptions;
+}
+
+/** A Resend email id as Resend issues them: a UUID. Nothing else goes into a cursor or a form. */
+export function isResendEmailId(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+}
+
+function recipients(value: unknown): readonly string[] {
+  if (typeof value === 'string' && value.trim() !== '') return [value.trim()];
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((entry): entry is string => typeof entry === 'string' && entry.trim() !== '')
+    .map((entry) => entry.trim())
+    .slice(0, 5);
+}
+
+/**
+ * One page of messages this Resend team has sent, most recent first.
+ *
+ * The recipient is returned because a person cannot tell one acknowledgement from another
+ * without it. It is shown to help them choose and is never copied into the expected
+ * recipient: that field stays the customer's own statement of where the message SHOULD
+ * have gone, which is the thing being checked.
+ *
+ * One attempt, no retry, for the same reason as the HubSpot lookup: somebody is waiting.
+ */
+export async function listSentMessages(
+  input: SentMessageLookupInput,
+): Promise<LookupOutcome<SentMessageCandidate>> {
+  if (input.after !== null && !isResendEmailId(input.after)) {
+    return {
+      kind: 'error',
+      error: classified('UNSUPPORTED_CAPABILITY', 'the page cursor is not one this lookup issues'),
+    };
+  }
+  const query: Record<string, string> = { limit: String(MESSAGE_LOOKUP_PAGE_SIZE) };
+  if (input.after !== null) query['after'] = input.after;
+
+  let response: GuardedResponse;
+  try {
+    response = await resendCall('list_emails', input.token, undefined, {
+      ...(input.options ?? {}),
+      query,
+    });
+  } catch (error) {
+    return { kind: 'error', error: classifyResendError({ status: null, cause: error }) };
+  }
+  if (response.status < 200 || response.status >= 300) {
+    return {
+      kind: 'error',
+      error: classifyResendError({
+        status: response.status,
+        headers: response.headers,
+        bodyText: response.bodyText,
+      }),
+    };
+  }
+  const parsed = parseJsonBody(response.bodyText);
+  if (!parsed.ok || typeof parsed.value !== 'object' || parsed.value === null) {
+    return {
+      kind: 'error',
+      error: classified('PROVIDER_UNAVAILABLE', 'list returned 200 with an unusable body'),
+    };
+  }
+  const body = parsed.value as Record<string, unknown>;
+  const data = body['data'];
+  if (!Array.isArray(data)) {
+    return {
+      kind: 'error',
+      error: classified('PROVIDER_UNAVAILABLE', 'list response had no data array'),
+    };
+  }
+
+  const items: SentMessageCandidate[] = [];
+  for (const entry of data.slice(0, MESSAGE_LOOKUP_PAGE_SIZE)) {
+    if (typeof entry !== 'object' || entry === null) continue;
+    const message = entry as Record<string, unknown>;
+    const id = typeof message['id'] === 'string' ? message['id'] : null;
+    if (id === null || !isResendEmailId(id)) continue;
+    items.push({
+      id,
+      to: recipients(message['to']),
+      subject:
+        typeof message['subject'] === 'string' && message['subject'].trim() !== ''
+          ? message['subject'].trim().slice(0, 200)
+          : null,
+      createdAt: typeof message['created_at'] === 'string' ? message['created_at'] : null,
+      lastEvent:
+        typeof message['last_event'] === 'string' && message['last_event'] !== ''
+          ? message['last_event']
+          : null,
+    });
+  }
+
+  // Resend pages by "after this id". The last message we could offer is the cursor; when
+  // it says there is no more, there is no next page, whatever the page length.
+  const last = items.at(-1);
+  const nextCursor = body['has_more'] === true && last !== undefined ? last.id : null;
+  return { kind: 'page', items, nextCursor, hasMore: body['has_more'] === true };
 }
 
 // ---------------------------------------------------------------------------

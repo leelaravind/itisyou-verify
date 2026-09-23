@@ -27,6 +27,16 @@ export interface ButtonOptions {
   /** For a link that leaves the site. Adds rel and an out-arrow. */
   readonly external?: boolean;
   readonly id?: string;
+  /**
+   * Submit the enclosing form somewhere other than its own action. Lets a free control (a
+   * search) live inside a form whose own action costs something, carrying what the reader
+   * has typed so far, without any script.
+   */
+  readonly formAction?: string;
+  /** Skip the browser's required-field check, for a submit that is not the form's purpose. */
+  readonly formNoValidate?: boolean;
+  /** Present but not shown: the form's default for Enter, when Enter must not spend anything. */
+  readonly hidden?: boolean;
 }
 
 const VARIANT_CLASS: Readonly<Record<ButtonVariant, string>> = {
@@ -84,6 +94,11 @@ export function Button(options: ButtonOptions): Html {
       value: options.value ?? null,
       disabled: options.disabled === true,
       'aria-label': options.ariaLabel ?? null,
+      formaction: options.formAction ?? null,
+      formnovalidate: options.formNoValidate === true,
+      hidden: options.hidden === true,
+      tabindex: options.hidden === true ? '-1' : null,
+      'aria-hidden': options.hidden === true ? 'true' : null,
     })}
   >
     ${options.label}${icon}

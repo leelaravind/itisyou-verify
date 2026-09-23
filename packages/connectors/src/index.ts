@@ -21,14 +21,17 @@ export {
   type ConnectorCapabilities,
   type ConnectorCredentials,
   type ConnectorFetchResult,
+  type ContactCandidate,
   type EvidenceKind,
   type EvidenceLocator,
   type FetchEvidenceInput,
+  type LookupOutcome,
   type NormaliseContext,
   type NormaliseResult,
   type ProviderErrorInput,
   type ProviderId,
   type RevokeResult,
+  type SentMessageCandidate,
   type WebhookCapableConnector,
   type WebhookVerification,
   type WebhookVerificationInput,
@@ -83,6 +86,9 @@ export {
 } from './retry.js';
 
 export {
+  CONTACT_LOOKUP_MAX_OFFSET,
+  CONTACT_LOOKUP_MAX_QUERY,
+  CONTACT_LOOKUP_PAGE_SIZE,
   HUBSPOT_PROVIDER,
   HUBSPOT_READ_SCOPE,
   HubSpotConnector,
@@ -90,26 +96,34 @@ export {
   SEARCH_PROBE_LIMIT,
   classifyHubSpotError,
   hubspotConnector,
+  isContactId,
+  isContactLookupCursor,
+  lookupContacts,
   normaliseHubSpotContact,
   resolveHubSpotAccount,
   selectProperties,
+  type ContactLookupInput,
   type HubSpotAccountIdentity,
   type HubSpotFetchOptions,
 } from './hubspot.js';
 
 export {
+  MESSAGE_LOOKUP_PAGE_SIZE,
   RESEND_EVENT_STATUS,
   RESEND_LAST_EVENT_STATUS,
   RESEND_PROVIDER,
   RESEND_WEBHOOK_TOLERANCE_SECONDS,
   ResendConnector,
   classifyResendError,
+  isResendEmailId,
+  listSentMessages,
   mapResendEventType,
   mapResendLastEvent,
   normaliseResendEvent,
   resendAccountFingerprint,
   resendConnector,
   type ResendFetchOptions,
+  type SentMessageLookupInput,
 } from './resend.js';
 
 export { getConnector, isSupportedProvider, type ConnectorRuntimeOptions } from './registry.js';

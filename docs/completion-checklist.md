@@ -13,8 +13,13 @@ Status vocabulary, used strictly:
 - **verified** — acceptance criteria met, evidence exists and is named
 - **deployed** — verified AND serving from production at a named commit
 
-Production and staging both serve `b954bbcb101c` as of 07:27 UTC on 22 September. No percentages appear in
-this file, deliberately.
+Production and staging served `b954bbcb101c` as of 07:27 UTC on 22 September; that line is history.
+For the commit serving now, read `/health` and `docs/SESSION_HANDOVER.md`. No percentages appear
+in this file, deliberately.
+
+**This list is not the whole project, and not a claim that the project is complete.** The rows
+below are the items this checklist was opened for. The work still open, and the work blocked on
+the owner, are listed in section F and in the table at the top of `docs/SESSION_HANDOVER.md`.
 
 ## A. Visual completion
 
@@ -70,6 +75,8 @@ nine-line theme toggle.
 | B9a | Owner panel on the port production uses | coordinator | Every owner screen renders through the real router on `D1OwnerDataPort`, not only on the in-memory stand-in; unknown figures stay unknown on an empty database; a non-owner session gets 404 on all of them | OWNER-927..929. The panel had been rendered, captured and audited thirteen times, every time against the stand-in. The join between port and page was covered by nothing | verified |
 | B9 | Owner panel through real login | owner + coordinator | Owner signs in at `/admin/login`; panel read against production data | Everything around it verified on production (`docs/evidence/owner-actions-readiness.txt`): one platform owner, TOTP enrolled and accepted before, 11 sign-in emails delivered with every one state=sent, the form serving 200, the panel rendering at three widths, anonymous refused. **The sign-in has happened** (owner-reported, 22 September) and they reached the panel. The FIGURES behind it are now checked against the production database with the same queries the port runs: `docs/evidence/owner-panel-production-figures.txt`. The two that could mislead are labelled as what they are: £29.00 cash received is the sandbox order and is not revenue, and zero runs is no production traffic rather than a failure. The RENDERED page was then reported by the owner on 22 September as looking fine. That is their observation, recorded as theirs: nobody else has seen the panel signed in, and this row does not claim otherwise | verified: figures against the database, rendering by the owner |
 | B10 | `support@itisyou.app` receipt and reply | owner + coordinator | A test message arrives at the destination, and the domain can send replies | **Owner-reported, 22 September**: they sent a test message and received it at the configured destination. That is the test this item asked for, done by the only person who could do it. DNS agrees (MX to Cloudflare Email Routing, SPF present). Not verified from here and not claimed to be: an SMTP probe from this machine is refused at connection with `550 Sender IP reverse lookup rejected`. **Reply capability is settled separately and without a secret**: public DNS carries Resend's DKIM selector at `resend._domainkey.itisyou.app`, `send.itisyou.app` SPF `include:amazonses.com` and its bounce MX to `feedback-smtp.eu-west-1.amazonses.com`, which is the record set Resend requires of a verified domain. Resend verifies domains rather than addresses, so support@ can already send | verified: receipt by the owner, reply capability by DNS |
+| B11 | Record and message finders on the test form | coordinator + independent reviewer | A pick fills the identifier only; no silent choice; free; bounded server-side; failures change nothing | VERIFY-905..919, CONN-908..927; `docs/SESSION_HANDOVER.md` afternoon section; production check in `docs/evidence/production-lookup-release.txt` | verified |
+| B12 | Signed customer events on production | coordinator | A workspace-scoped key issued by the customer route signs events that are admitted and decided | `docs/evidence/production-signed-event-journey-2026-09-23.txt`: three runs VERIFIED as `signed_customer_event`. Caveat: the browser session was seeded, so completing it through a real sign-in is **unverified** | verified (signed path); sign-in step unverified |
 
 ### The second factor, and why no code was asked at sign-in
 
@@ -158,3 +165,17 @@ than a task: **live payments**. `docs/live-payment-approval.md` stands at NOT RE
 and those three (a live price, live secrets and a live webhook destination, then the mode flip)
 are the owner's to authorise when they choose to. Ads stay paused and live payments stay
 disabled until they say otherwise, on both counts.
+
+## F. Open, and not to be read as done
+
+| Item | Status | Owner / waiting on |
+| --- | --- | --- |
+| Live payments (live price, secrets, webhook, mode flip) | blocked | owner's decision; `docs/live-payment-approval.md` NOT READY 3 of 13 |
+| Organic posts | blocked | owner's approval |
+| Ten genuine external visits | pending | depends on posts or ads; ads paused by the owner |
+| Signed-event journey through the owner's own sign-in | pending | owner session; a production session must not be seeded |
+| Fresh signing key (current secret held by nobody) | pending | owner, before real automation |
+| Usage-alert delivery observed on production | pending | occurs naturally at the threshold; not to be forced |
+| "Start the setup" CTA policy (R7) | pending | policy decision |
+| Remaining design screens | pending | after functional work, by instruction |
+| Development story events after EVT-0058 | pending | after functional work, by instruction |

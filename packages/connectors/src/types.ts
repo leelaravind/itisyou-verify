@@ -434,3 +434,48 @@ export function toEvidenceBundle(results: readonly ConnectorFetchResult[]): Evid
 export function totalCalls(results: readonly ConnectorFetchResult[]): number {
   return results.reduce((sum, r) => sum + r.calls_made, 0);
 }
+
+// ---------------------------------------------------------------------------
+// Lookups: choosing a record or message to test with
+// ---------------------------------------------------------------------------
+
+/**
+ * One page of candidates a customer can choose from, or why there is no page.
+ *
+ * A lookup is not evidence. It feeds a human choosing an IDENTIFIER, and nothing it returns
+ * may become an expectation: a verification that compares an observed value with itself
+ * proves nothing. That is why a candidate carries only what a person needs to recognise
+ * the right one, and never the correlation value under test.
+ */
+export type LookupOutcome<T> =
+  | {
+      readonly kind: 'page';
+      readonly items: readonly T[];
+      /** Opaque provider cursor for the next page, or null when none may be followed. */
+      readonly nextCursor: string | null;
+      /**
+       * The provider said there is more, whether or not a cursor is offered. Differs from
+       * `nextCursor !== null` exactly when a paging cap withheld the cursor, which is when
+       * the page should say "narrow the search" rather than fall silent.
+       */
+      readonly hasMore: boolean;
+    }
+  | { readonly kind: 'error'; readonly error: ClassifiedError };
+
+/** A HubSpot contact, as much of it as it takes to recognise, and no more. */
+export interface ContactCandidate {
+  readonly id: string;
+  readonly name: string | null;
+  readonly email: string | null;
+  readonly createdAt: string | null;
+}
+
+/** A message this Resend team sent, as much of it as it takes to recognise. */
+export interface SentMessageCandidate {
+  readonly id: string;
+  readonly to: readonly string[];
+  readonly subject: string | null;
+  readonly createdAt: string | null;
+  /** Resend's `last_event` as reported at lookup time. A hint for choosing, never a verdict. */
+  readonly lastEvent: string | null;
+}

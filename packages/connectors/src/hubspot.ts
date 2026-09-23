@@ -62,7 +62,9 @@ import {
   type ConnectorCapabilities,
   type ConnectorCredentials,
   type ConnectorFetchResult,
+  type ContactCandidate,
   type FetchEvidenceInput,
+  type LookupOutcome,
   type NormaliseContext,
   type NormaliseResult,
   type ProviderErrorInput,
@@ -90,6 +92,13 @@ export const HUBSPOT_OPERATIONS = Object.freeze({
   }),
   contact_by_id: Object.freeze({ method: 'GET' as SafeMethod, path: '/crm/v3/objects/contacts/' }),
   contact_search: Object.freeze({
+    method: 'POST' as SafeMethod,
+    path: '/crm/v3/objects/contacts/search',
+  }),
+  // The same read endpoint, listed separately because it is used for a different reason:
+  // the customer choosing a contact to test with. Its purpose is stated on its own line on
+  // the connections page rather than folded into the evidence search's.
+  contact_lookup: Object.freeze({
     method: 'POST' as SafeMethod,
     path: '/crm/v3/objects/contacts/search',
   }),
@@ -689,6 +698,168 @@ async function searchContactByCorrelation(
   }
 
   return { kind: 'found', contact: results[0], transport: response.transport };
+}
+
+// ---------------------------------------------------------------------------
+// Lookup: the customer choosing a contact to test with
+// ---------------------------------------------------------------------------
+
+/** Contacts per lookup page. Enough to choose from, small enough to read on a phone. */
+export const CONTACT_LOOKUP_PAGE_SIZE = 10;
+/** Longest free-text query we pass on. HubSpot's own limit is far higher; nobody types more. */
+export const CONTACT_LOOKUP_MAX_QUERY = 100;
+/**
+ * HubSpot's search cursor is an offset. Capping it bounds how deep a lookup can page, so a
+ * tampered form cannot walk a customer's whole CRM ten records at a time through us.
+ */
+export const CONTACT_LOOKUP_MAX_OFFSET = 40;
+/** The properties a lookup reads. Enough to recognise a person; nothing that is under test. */
+const CONTACT_LOOKUP_PROPERTIES = Object.freeze(['firstname', 'lastname', 'email', 'createdate']);
+
+export interface ContactLookupInput {
+  readonly token: string;
+  /** The workflow's correlation property: only contacts that carry one are offered. */
+  readonly correlationProperty: string;
+  /** Free text, matched by HubSpot against its default searchable properties. May be empty. */
+  readonly query: string;
+  /** The cursor a previous page returned, or null for the first page. */
+  readonly after: string | null;
+  readonly options?: HubSpotFetchOptions;
+}
+
+function trimmedText(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() !== '' ? value.trim() : null;
+}
+
+/**
+ * One page of contacts the customer can choose from.
+ *
+ * ## What it deliberately does not return
+ *
+ * The correlation property's VALUE. The contacts are filtered to those that carry one
+ * (`HAS_PROPERTY`), because a contact without it could never match an enquiry, but the value
+ * itself is not requested. It is the thing a test verification compares, and a page that
+ * displayed it beside a "use this" button would be inviting the customer to copy the
+ * observed value into the expectation, which turns a check into a tautology.
+ *
+ * ## One attempt, no retry
+ *
+ * The evidence path retries because a verdict depends on it. A lookup is a person waiting
+ * for a list; if HubSpot is slow or refusing, the honest answer is to say so at once and
+ * leave manual entry open, not to hold the page while we back off.
+ */
+export async function lookupContacts(
+  input: ContactLookupInput,
+): Promise<LookupOutcome<ContactCandidate>> {
+  if (!HUBSPOT_PROPERTY_NAME.test(input.correlationProperty)) {
+    return {
+      kind: 'error',
+      error: classified(
+        'UNSUPPORTED_CAPABILITY',
+        'the configured correlation property is not a valid HubSpot property name',
+      ),
+    };
+  }
+  const query = input.query.trim().slice(0, CONTACT_LOOKUP_MAX_QUERY);
+  if (input.after !== null && !isContactLookupCursor(input.after)) {
+    return {
+      kind: 'error',
+      error: classified('UNSUPPORTED_CAPABILITY', 'the page cursor is not one this lookup issues'),
+    };
+  }
+
+  let response: GuardedResponse;
+  try {
+    response = await hubspotCall({
+      operation: 'contact_lookup',
+      token: input.token,
+      body: {
+        ...(query === '' ? {} : { query }),
+        filterGroups: [
+          { filters: [{ propertyName: input.correlationProperty, operator: 'HAS_PROPERTY' }] },
+        ],
+        sorts: [{ propertyName: 'createdate', direction: 'DESCENDING' }],
+        properties: [...CONTACT_LOOKUP_PROPERTIES],
+        limit: CONTACT_LOOKUP_PAGE_SIZE,
+        ...(input.after === null ? {} : { after: input.after }),
+      },
+      options: input.options ?? {},
+    });
+  } catch (error) {
+    return { kind: 'error', error: classifyHubSpotError({ status: null, cause: error }) };
+  }
+
+  if (response.status < 200 || response.status >= 300) {
+    return {
+      kind: 'error',
+      error: classifyHubSpotError({
+        status: response.status,
+        headers: response.headers,
+        bodyText: response.bodyText,
+      }),
+    };
+  }
+  const parsed = parseJsonBody(response.bodyText);
+  if (!parsed.ok || typeof parsed.value !== 'object' || parsed.value === null) {
+    return {
+      kind: 'error',
+      error: classified('PROVIDER_UNAVAILABLE', 'search returned 200 with an unusable body'),
+    };
+  }
+  const body = parsed.value as Record<string, unknown>;
+  const results = body['results'];
+  if (!Array.isArray(results)) {
+    return {
+      kind: 'error',
+      error: classified('PROVIDER_UNAVAILABLE', 'search response had no results array'),
+    };
+  }
+
+  const items: ContactCandidate[] = [];
+  for (const entry of results.slice(0, CONTACT_LOOKUP_PAGE_SIZE)) {
+    if (typeof entry !== 'object' || entry === null) continue;
+    const record = entry as Record<string, unknown>;
+    const id = typeof record['id'] === 'string' ? record['id'] : null;
+    // An id we could not put back into the form verbatim is not offered at all.
+    if (id === null || !isContactId(id)) continue;
+    const properties =
+      typeof record['properties'] === 'object' && record['properties'] !== null
+        ? (record['properties'] as Record<string, unknown>)
+        : {};
+    const name = [trimmedText(properties['firstname']), trimmedText(properties['lastname'])]
+      .filter((part): part is string => part !== null)
+      .join(' ');
+    items.push({
+      id,
+      name: name === '' ? null : name,
+      email: trimmedText(properties['email']),
+      createdAt: trimmedText(properties['createdate']) ?? trimmedText(record['createdAt']),
+    });
+  }
+
+  const paging = body['paging'];
+  const next =
+    typeof paging === 'object' && paging !== null
+      ? (paging as Record<string, unknown>)['next']
+      : undefined;
+  const nextAfter =
+    typeof next === 'object' && next !== null ? (next as Record<string, unknown>)['after'] : undefined;
+  // A cursor past the cap is dropped rather than offered: the page then says there are more
+  // matches and asks for a narrower search, instead of paging on without end.
+  const nextCursor =
+    typeof nextAfter === 'string' && isContactLookupCursor(nextAfter) ? nextAfter : null;
+
+  return { kind: 'page', items, nextCursor, hasMore: typeof nextAfter === 'string' };
+}
+
+/** A HubSpot contact id: digits only, as HubSpot issues them. */
+export function isContactId(value: string): boolean {
+  return /^\d{1,20}$/.test(value);
+}
+
+/** A cursor this lookup would itself have issued: a small offset, within the paging cap. */
+export function isContactLookupCursor(value: string): boolean {
+  return /^\d{1,6}$/.test(value) && Number(value) <= CONTACT_LOOKUP_MAX_OFFSET;
 }
 
 // ---------------------------------------------------------------------------

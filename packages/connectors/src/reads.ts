@@ -28,6 +28,8 @@ const HUBSPOT_PURPOSES: Readonly<Record<keyof typeof HUBSPOT_OPERATIONS, string>
   token_info: 'checks the key is live and reads which scopes it carries',
   contact_by_id: 'reads back the one contact an enquiry names',
   contact_search: 'finds that contact by your correlation property when no id was given',
+  contact_lookup:
+    'searches contacts that carry your correlation property, by name or email, when you are choosing one to test; it reads names, emails and ids only',
 };
 
 const RESEND_PURPOSES: Readonly<Record<keyof typeof RESEND_OPERATIONS, string>> = {
