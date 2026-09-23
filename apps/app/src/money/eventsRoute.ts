@@ -65,6 +65,7 @@
  */
 import { Hono } from 'hono';
 import { checkCustomerAdmissionControls } from '../db/admissionControls';
+import { recordUsageAlertSent, usageAlertFor, type UsageAlertRequest } from '../db/usageAlerts';
 import {
   AppError,
   EVENT_FRESHNESS_WINDOW_SECONDS,
@@ -128,6 +129,17 @@ export interface EventsRouteDeps {
   readonly newId?: (prefix: string) => string;
   readonly maxBodyBytes?: number;
   readonly log?: EventsLog;
+  /**
+   * Sends a usage warning, when the deployment has a transport wired.
+   *
+   * Optional for the same reason owner alerts are: a deployment without it still admits
+   * every event correctly and simply never warns. Returning the outcome lets the route
+   * record the threshold only when the send was not a hard failure, so a failed warning is
+   * retried on the next admission instead of being silently marked done.
+   */
+  readonly sendUsageAlert?: (
+    request: UsageAlertRequest,
+  ) => Promise<{ outcome: 'sent' | 'duplicate' | 'suppressed' | 'failed' }>;
 }
 
 /** One body for every authentication failure. The reason lives in the log. */
@@ -355,6 +367,7 @@ export function createEventsRoute(deps: EventsRouteDeps): Hono {
       workspaceId: key.workspaceId,
       workflowId: key.workflowId,
       billingPeriod: verdict.billingPeriod,
+      externalEventId: parsed.event_id,
     });
     if (!controls.admit) {
       reject({
@@ -383,6 +396,8 @@ export function createEventsRoute(deps: EventsRouteDeps): Hono {
         workflowVersionId: key.workflowVersionId,
         externalEventId: parsed.event_id,
         source: 'signed_customer_event',
+        // The ceiling rides on the reservation, so concurrency is arbitrated once.
+        admissionLimit: controls.limitPerPeriod,
         sourceEventId: mint(ID_PREFIX.sourceEvent),
         runId: mint(ID_PREFIX.run),
         outboxId: mint(ID_PREFIX.outbox),
@@ -436,6 +451,45 @@ export function createEventsRoute(deps: EventsRouteDeps): Hono {
       await workflows.touchLastEvent(deps.db, key.workspaceId, key.workflowId, receivedAt);
     } catch {
       // Swallowed on purpose. The run is committed; `last_event_at` is cosmetic.
+    }
+
+    /*
+     * The usage warning, on the one path where usage actually changes.
+     *
+     * Best-effort and after the durable write, for the same reason `touchLastEvent` is: a
+     * warning is a convenience and must never be the reason an accepted event reports a
+     * failure. Skipped entirely for a duplicate, which admitted nothing and changed no
+     * counter.
+     */
+    if (!admitted.duplicate && deps.sendUsageAlert !== undefined) {
+      try {
+        const alert = await usageAlertFor(deps.db, {
+          workspaceId: key.workspaceId,
+          workflowId: key.workflowId,
+          billingPeriod: verdict.billingPeriod,
+          billingContact: async (id) => deps.billing.billingContact?.(id) ?? null,
+        });
+        if (alert !== null) {
+          const outcome = await deps.sendUsageAlert(alert);
+          // Recorded only when the transport did not hard-fail, so a failed warning is
+          // tried again on the next admission rather than marked done and lost.
+          if (outcome.outcome !== 'failed') {
+            await recordUsageAlertSent(deps.db, {
+              workspaceId: key.workspaceId,
+              workflowId: key.workflowId,
+              alertKey: alert.alertKey,
+            });
+          }
+          log({
+            event: 'usage_alert',
+            workspace_id: key.workspaceId,
+            notification_key: alert.notificationKey,
+            outcome: outcome.outcome,
+          });
+        }
+      } catch {
+        // Swallowed on purpose. The run is committed; the warning is not worth a 503.
+      }
     }
 
     log({

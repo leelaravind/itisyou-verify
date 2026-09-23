@@ -65,6 +65,15 @@ export interface AdmitParams {
   readonly deadlineAt: string;
   /** When the scheduler should first look at this run. */
   readonly nextCheckAt: string;
+  /**
+   * The customer's own ceiling for this period, or null for none.
+   *
+   * Folded into the same conditional UPDATE as the plan allowance rather than checked
+   * beforehand, because a read-before-write ceiling is not a ceiling: four concurrent
+   * events all read "0 admitted, limit 1" and all four were admitted. Proved by BILL-905,
+   * which admitted 4 against a cap of 1 before this existed.
+   */
+  readonly admissionLimit?: number | null;
   readonly isSynthetic?: boolean;
   readonly outboxEventType?: string;
   readonly outboxPayloadJson?: string;
@@ -212,15 +221,29 @@ export const sourceEvents = {
         ),
 
       // 4. Reserve exactly one unit. Becomes a NOT NULL violation — and therefore a
-      //    rollback of statements 1 to 3 — when there is no allowance left.
+      //    rollback of statements 1 to 3 — when there is no allowance left, or when the
+      //    customer's own ceiling for the period is already reached.
+      //
+      //    The ceiling rides on the SAME conditional so it is decided by the same atomic
+      //    arbiter as the allowance. A null `?` limit makes the second clause always true,
+      //    so a workspace with no ceiling behaves exactly as before.
       db
         .prepare(
           `UPDATE entitlements
-              SET reserved = CASE WHEN (run_limit - consumed - reserved) >= 1 THEN reserved + 1 ELSE NULL END,
+              SET reserved = CASE
+                    WHEN (run_limit - consumed - reserved) >= 1
+                     AND (? IS NULL OR (consumed + reserved) < ?)
+                    THEN reserved + 1 ELSE NULL END,
                   updated_at = ?
             WHERE workspace_id = ? AND billing_period = ?`,
         )
-        .bind(params.receivedAt, params.workspaceId, params.billingPeriod),
+        .bind(
+          params.admissionLimit ?? null,
+          params.admissionLimit ?? null,
+          params.receivedAt,
+          params.workspaceId,
+          params.billingPeriod,
+        ),
     ];
 
     let results;

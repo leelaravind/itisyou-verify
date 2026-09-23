@@ -26,6 +26,8 @@
  *
  * None of those is a 200. The route never invents a run id it did not write.
  */
+import { createNotificationDelivery } from '../notifications/delivery';
+import { D1SupportDataPort } from '../db/supportPort';
 import {
   PAYMENT_FAILURE_GRACE_DAYS,
   PLAN,
@@ -138,6 +140,32 @@ export function createMoneyRoutes(env: MoneyEnv, parts: MoneyMountParts) {
       rootKey: env.EVENT_SIGNING_ROOT_KEY ?? '',
     }),
     billing: createAdmissionRuntime(env, parts),
+    /*
+     * The usage warning's transport, wired here so the feature exists on the deployed site
+     * rather than only in a test's captured array.
+     *
+     * `createNotificationDelivery` is the same builder the sign-in link uses, and it records
+     * every attempt in `notification_deliveries` — which is the delivery evidence, and the
+     * reason nobody has to check a mailbox to know whether this worked. With no
+     * `RESEND_API_KEY` it records `suppressed` and throws nothing, so a deployment without a
+     * transport still admits events and simply never warns.
+     */
+    sendUsageAlert: async (request) => {
+      const report = await createNotificationDelivery(
+        env as never,
+        new D1SupportDataPort(db),
+      ).deliver([
+        {
+          notificationKey: request.notificationKey,
+          workspaceId: request.workspaceId,
+          recipientEmail: request.recipientEmail,
+          template: request.template,
+          vars: request.vars,
+        },
+      ] as never);
+      const first = report.results[0];
+      return { outcome: first?.outcome ?? 'failed' };
+    },
     ...(parts.now === undefined ? {} : { now: parts.now }),
     ...(parts.newId === undefined ? {} : { newId: parts.newId }),
     ...(parts.log === undefined ? {} : { log: parts.log }),

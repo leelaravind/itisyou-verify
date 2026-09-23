@@ -100,6 +100,10 @@ export interface WorkspacePageOptions {
   readonly openVerifyForm?: boolean;
   /** Which runs the four verdict cards count. Defaults to the automation's own. */
   readonly verdictScope?: VerdictScope;
+  /** Field errors from an admission-control submission, when this render came from one. */
+  readonly admissionErrors?: Readonly<Record<string, string>>;
+  /** The outcome of an admission-control submission, shown above the panel. */
+  readonly admissionNotice?: { readonly message: string; readonly ok: boolean };
 }
 
 /**
@@ -326,6 +330,152 @@ function scopeReconciliation(workflow: WorkflowDetail, scope: VerdictScope): str
     : `${String(automation)} ${automation === 1 ? 'run' : 'runs'} from your automation; ${testPart}, counted separately.`;
 }
 
+/**
+ * Automatic verification: what is arriving, what is being checked, and the two controls.
+ *
+ * Three states, kept apart because they need different actions from the reader. `paused` is
+ * a choice they made and undo in a click. `awaiting_setup` means we have never heard from
+ * their automation, so the answer is a setup guide rather than a switch. `receiving` means
+ * events are arriving. A single "not working" would collapse all three.
+ *
+ * The last event shown here is the last event their AUTOMATION sent. A test verification the
+ * customer ran themselves is not evidence their integration is alive, and showing one here
+ * would answer the page's own question wrongly.
+ */
+function automationPanel(options: WorkspacePageOptions, workflow: WorkflowDetail): Html {
+  const admission = workflow.admission;
+  const outcome = workflow.outcome;
+  const checks: string[] = [];
+  if (outcome.requireRecordExists) checks.push('a CRM record exists');
+  if (outcome.requireCorrelationMatch) checks.push('it carries this enquiry reference');
+  if (outcome.requireEmailDelivered) checks.push('the acknowledgement was delivered');
+  if (outcome.requireRecipientMatch) checks.push('it went to the address the enquiry named');
+
+  const coverage =
+    checks.length === 0
+      ? 'No checks are required yet, so a verified result would not mean anything.'
+      : `Checking ${String(checks.length)} of 4: ${checks.join('; ')}.`;
+  const half =
+    (outcome.requireEmailDelivered || outcome.requireRecipientMatch) &&
+    (outcome.requireRecordExists || outcome.requireCorrelationMatch);
+
+  const statusLine =
+    admission.status === 'paused'
+      ? 'Paused by you. New events from your automation are refused without being charged.'
+      : admission.status === 'awaiting_setup'
+        ? 'Awaiting setup. We have never received an event from your automation.'
+        : 'Receiving events from your automation.';
+
+  const canWrite = options.canStartSetup && options.csrfToken !== null;
+
+  return html`<section class="stack-sm" aria-labelledby="automation-heading" data-automation-panel>
+    <div class="section-head">
+      <div class="section-head__text"><h2 id="automation-heading">Automatic verification</h2></div>
+      ${StatusBadge(
+        admission.status === 'receiving'
+          ? { status: 'VERIFIED', label: 'Receiving' }
+          : admission.status === 'paused'
+            ? { status: 'UNVERIFIED', label: 'Paused' }
+            : { status: 'PENDING', label: 'Awaiting setup' },
+      )}
+    </div>
+    <p class="small">${statusLine}</p>
+    <dl class="metrics" aria-label="Automatic verification">
+      <div>
+        <dt>Last automation event</dt>
+        <dd data-last-automation-event>
+          ${
+            workflow.lastEventAt === null
+              ? html`<span class="small muted">None received</span>`
+              : formatInstant(workflow.lastEventAt)
+          }
+        </dd>
+      </div>
+      <div>
+        <dt>Active checks</dt>
+        <dd data-active-checks>${String(checks.length)} of 4</dd>
+      </div>
+      <div>
+        <dt>Admitted this period</dt>
+        <dd>
+          ${String(admission.admittedThisPeriod)}${
+            admission.limitPerPeriod === null
+              ? ''
+              : ` of your ${String(admission.limitPerPeriod)} limit`
+          }
+        </dd>
+      </div>
+    </dl>
+    <p class="small">${coverage}</p>
+    ${
+      half
+        ? null
+        : Callout({
+            tone: 'note',
+            title: 'This workflow checks one side only',
+            body: html`<p>
+              Only the ${outcome.requireRecordExists || outcome.requireCorrelationMatch ? 'CRM' : 'email'}
+              side is required, so a verified result says nothing about the other one. Change the required
+              checks if you meant to cover both.
+            </p>`,
+          })
+    }
+    ${
+      workflow.lastEventAt === null
+        ? Callout({
+            tone: 'note',
+            title: 'Your automation has not sent us anything yet',
+            body: html`<p>
+              Until it does there is nothing to verify automatically, and no result here should be read as a
+              pass. The activation step has the signing key and the endpoint your automation posts to.
+              <a href="/app/onboarding/activation">Finish setting up your automation</a>.
+            </p>`,
+          })
+        : null
+    }
+    ${
+      canWrite
+        ? html`<div class="cluster">
+          <form method="post" action="/app/admissions" class="stack-sm">
+            ${CsrfField(options.csrfToken)}
+            <input type="hidden" name="paused" ${attrs({ value: admission.status === 'paused' ? '0' : '1' })} />
+            ${Button({
+              label: admission.status === 'paused' ? 'Resume verifications' : 'Pause new verifications',
+              variant: admission.status === 'paused' ? 'primary' : 'default',
+              type: 'submit',
+            })}
+          </form>
+          <form method="post" action="/app/admission-limit" class="stack-sm">
+            ${CsrfField(options.csrfToken)}
+            ${Field({
+              name: 'admissionLimit',
+              label: 'Limit for this period',
+              hint: 'A safety catch below your plan, so a faulty automation cannot drain it. Leave empty for no limit.',
+              value: admission.limitPerPeriod === null ? '' : String(admission.limitPerPeriod),
+              error: options.admissionErrors?.['admissionLimit'] ?? null,
+            })}
+            ${Button({ label: 'Save limit', type: 'submit' })}
+          </form>
+        </div>`
+        : null
+    }
+    ${
+      admission.status === 'paused'
+        ? Callout({
+            tone: 'note',
+            title: 'What happens while you are paused',
+            body: html`<p>
+              Runs already under way keep going and still reach a verdict — pausing does not cancel work you
+              have already paid for. New events your automation sends are refused with a "not now" your
+              integration can retry, and nothing is written or charged for them, so it can send the same
+              events again when you resume and they will be accepted then.
+            </p>`,
+          })
+        : null
+    }
+  </section>`;
+}
+
 export function WorkspacePage(options: WorkspacePageOptions): Html {
   if (options.workflow === null) {
     return html`<div class="wrap section stack-lg">
@@ -437,6 +587,13 @@ export function WorkspacePage(options: WorkspacePageOptions): Html {
           })
         : null
     }
+
+    ${
+      options.admissionNotice === undefined
+        ? null
+        : formMessage(options.admissionNotice.message, options.admissionNotice.ok ? 'note' : 'warn')
+    }
+    ${automationPanel(options, workflow)}
 
     <!--
       The counters, and what they count.
