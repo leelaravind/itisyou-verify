@@ -80,7 +80,7 @@ describe('the connect card', () => {
 
     // Above the paste box, measured by position rather than asserted by intent.
     const noticeAt = markup.indexOf('data-permission-notice="resend"');
-    const pasteAt = markup.indexOf('id="f-access_token"');
+    const pasteAt = markup.indexOf('id="f-resend-access_token"');
     expect(noticeAt).toBeGreaterThan(-1);
     expect(pasteAt).toBeGreaterThan(-1);
     expect(noticeAt).toBeLessThan(pasteAt);
@@ -113,7 +113,7 @@ describe('the connect card', () => {
     // The signing secret is genuinely optional, and the field says so.
     const secretField = setupGuide('resend').fields.find((f) => f.name === 'webhook_secret');
     expect(secretField?.required).toBe(false);
-    expect(markup).toMatch(/for="f-webhook_secret"[\s\S]{0,120}optional/);
+    expect(markup).toMatch(/for="f-resend-webhook_secret"[\s\S]{0,120}optional/);
   });
 
   it('CUST-113 "testing" reads as unfinished and never wears a tick', async () => {
@@ -152,8 +152,21 @@ describe('the connect card', () => {
     expect(markup).toContain('type="password"');
     expect(markup).toContain('autocomplete="off"');
     // No `value` attribute on either secret field — not the submitted one, not even masked.
-    expect(markup).not.toMatch(/id="f-access_token"[^>]*value=/);
-    expect(markup).not.toMatch(/id="f-webhook_secret"[^>]*value=/);
+    expect(markup).not.toMatch(/id="f-hubspot-access_token"[^>]*value=/);
+    expect(markup).not.toMatch(/id="f-resend-access_token"[^>]*value=/);
+    expect(markup).not.toMatch(/id="f-resend-webhook_secret"[^>]*value=/);
+  });
+
+  it('CUST-975 every id on the connect page is unique, so each label focuses its own input', async () => {
+    // Both providers' forms post `access_token`; both inputs used to be id="f-access_token",
+    // so the Resend label focused the HubSpot input (audit, 23 September).
+    const markup = await renderConnect();
+    const ids = [...markup.matchAll(/\sid="([^"]+)"/g)].map((match) => match[1]);
+    const duplicates = ids.filter((id, index) => ids.indexOf(id) !== index);
+    expect(duplicates).toEqual([]);
+    for (const target of [...markup.matchAll(/\sfor="([^"]+)"/g)].map((match) => match[1])) {
+      expect(ids, `label for="${String(target)}" points at nothing`).toContain(target);
+    }
   });
 
   it('CUST-116 a rejected credential reports that nothing was stored, beside the field it concerns', async () => {
@@ -176,8 +189,8 @@ describe('the connect card', () => {
         canSubmitCredentials: true,
       }),
     );
-    expect(markup).toContain('id="f-access_token-error"');
-    expect(markup).toContain('aria-describedby="f-access_token-hint f-access_token-error"');
+    expect(markup).toContain('id="f-resend-access_token-error"');
+    expect(markup).toContain('aria-describedby="f-resend-access_token-hint f-resend-access_token-error"');
   });
 
   it('CUST-117 a well-shaped credential is still not called working, because nothing checked it', async () => {

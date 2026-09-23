@@ -123,12 +123,15 @@ export const CONTROL_ENFORCEMENT: Readonly<Record<ControlKey, ControlEnforcement
    * seven-day recovery policy, and hiding the terms is not part of pausing sales.
    */
   new_orders: { kind: 'http_paths', paths: ['/app/onboarding/checkout'] },
+  /*
+   * Enforced where the provider reads happen: the minute tick skips its due-run pass, and a
+   * watched run is not checked on demand. Runs keep their state and are observed again as
+   * soon as the pause lifts; nothing is marked failed because of it.
+   */
   expensive_verification: {
-    kind: 'none',
-    why:
-      'This would stop the retries and extra provider reads inside the scheduler tick, which is ' +
-      'where the cost is. Nothing consults it there yet, so pressing this changes nothing.',
-    owner: 'the scheduler owner (apps/app/src/scheduler/)',
+    kind: 'action',
+    sites: ['scheduler/tick.ts handleScheduled', 'scheduler/watched.ts checkWatchedRun'],
+    what: 'No due run is checked against the providers while verification is paused; each is checked where it left off once the pause lifts.',
   },
   chatbot: {
     kind: 'none',

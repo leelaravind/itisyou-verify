@@ -31,8 +31,10 @@ export interface TodoOptions {
  */
 export function TodoOwnerInput(options: TodoOptions): Html {
   if (!isPlaceholder(options.value)) {
-    return html`<span class="mono">${options.value}</span>
-      ${options.explanation === undefined ? null : html`<span class="small muted"> ${options.explanation}</span>`}`;
+    // The explanation describes the GAP, so it belongs only to the placeholder branch. It
+    // used to print here too, and /support showed the real address followed by "the support
+    // address has not been published yet" (audit, 23 Sept).
+    return html`<span class="mono">${options.value}</span>`;
   }
   const qualifier = options.value.replace(/^TODO_OWNER_INPUT\s*(—|-)?\s*/, '').trim();
   return html`<span class="stack-sm" data-todo-owner-input="${options.field}">

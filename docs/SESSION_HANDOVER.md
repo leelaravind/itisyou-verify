@@ -1,6 +1,109 @@
 # Session handover — ITISYOU Verify
 
-## 23 September 2026 (afternoon) — current state
+## 23 September 2026 (evening) — READ THIS FIRST
+
+Everything below the first horizontal rule is older. Where they disagree, this section wins.
+Written at a clean stopping point: all gates green, everything pushed, production released
+from its CI artefact through staging first.
+
+### State
+
+| | |
+| --- | --- |
+| **Production** | the commit that carries this file. **Read `https://verify.itisyou.app/health` and compare `commit` with `git rev-parse HEAD`**; the release script now refuses to pass unless they match |
+| Tests | **2934 passing, 0 failed, 4 skipped** (`node scripts/run-tests.mjs`); ledger `--strict` PASS; lint and typecheck clean |
+| Migrations | none added today. `0009` is still the last, applied everywhere. Batch lists live in the `settings` table, so no migration was needed |
+| Ads / live payments | **paused / disabled**, unchanged. Live payments: `docs/live-payment-approval.md` NOT READY, 3 of 13 |
+| Allowance | 13 of 500 used this period at the time of the audit (3 automation, 10 test) |
+
+### Shipped today, in order (all on production)
+
+1. **`52a6688`** workspace layout, "5 of 3 runs" counting fix, Resend list correction.
+2. **`ab46e7f` / `37d5258`** **record and message finders** on the test form: HubSpot contact
+   search (`contact_lookup`, never requests the correlation value) and Resend sent-message
+   list. **A pick fills the identifier only; expectations stay the customer's.** Free,
+   rate-limited and paging-capped server-side. Enter can search but never charge.
+3. **`1b1910c` / `158fdc8`** **live pages**: run page, workspace and runs list update
+   themselves (hash-pinned `LIVE_SCRIPT` in `packages/ui/src/live.ts`, `/app/live`,
+   `/app/runs/:id/live`). A watched or newly admitted run is checked at its due time instead
+   of the next minute tick (`apps/app/src/scheduler/watched.ts`: same claim and observation
+   as the tick). Placeholder ids (one repeated character) are refused before they cost a run.
+4. **`810b1d9`** **one-click batch**: a saved list of test enquiries (record id, expected
+   reference, expected recipient, optional message id) runs with one press. Cost stated above
+   the button; at most 10 rows; allowance must cover the whole batch; 3 batches an hour;
+   double press buys nothing. Expected values come only from the list.
+5. **Audit fix sprint** (this commit): owner pause honoured by the tick; owner 404 oracle
+   closed; CSRF on owner login and sign-out; support-page copy; unique ids on the connect
+   page; runs pager keeps its filter; release smoke check compares commits.
+
+### The full site audit
+
+`docs/evidence/site-audit-2026-09-23.md`: four parallel tracks (public, signed-in app in the
+owner's browser, API and access edges, code/docs). **42 unique findings: 0 critical, 5 high,
+13 medium, 15 low, 9 info. 8 fixed and released today; 34 open, listed there as a backlog.**
+The two open highs are both "built but not wired": owner settings that nothing reads (D2),
+and customer privacy export and deletion with no routes (D3). Take those first.
+
+### Test data you can use
+
+- **Five synthetic HubSpot contacts** (hub 149371406), `verify-test-*@example.com`, each with its
+  own `ENQ-TEST-*` reference: `docs/evidence/hubspot-test-contacts-2026-09-23.json`, written
+  when they were created. That file is an independent source of expected values; reading
+  values back from HubSpot is not. They were never emailed, so a test naming them without a
+  real message id ends UNVERIFIED on the email checks, which is correct.
+- To run all five: paste them into **Run your test enquiries** on `/app`, save (free), then
+  **Run all 5 (uses 5 runs)**. Not pressed by this session.
+
+### What the owner must do (nobody else can)
+
+1. **Issue a fresh signing key** on `/app/onboarding/activation` while signed in before
+   connecting real automation: the current secret was rotated on 23 Sept and nobody holds it.
+2. **Decide on live payments** (`docs/live-payment-approval.md`).
+3. **Approve or edit the organic posts** (`docs/organic-launch.md` §4.3, §5.3).
+4. Walk the **signed-event journey through your own sign-in** once. The 23 Sept proof used a
+   seeded session (see the caveat below).
+
+### Caveats that must not be lost
+
+- The 23 Sept signed-event proof (`docs/evidence/production-signed-event-journey-2026-09-23.txt`)
+  used a browser session **seeded into production's `sessions` table**. Signed ingest with a
+  workspace key is verified; a customer completing it through their own sign-in is not.
+  Never seed a production session again.
+- Cloudflare answered `7403 account not authorized` twice today at the migrations step. Both
+  times `wrangler whoami` was fine, `migrations list` then answered, and an unchanged re-run
+  passed. Nothing deploys when that step fails.
+- Production database reads from this machine can be refused by the permission classifier.
+  Evidence then comes from the app itself, the logs (`wrangler tail`), or a prior record, and
+  says which.
+- Phone-width checks in the browser tool did not take effect (resize ignored); the layout is
+  mobile-first in code but was not re-seen at 390px today.
+
+### How to release (unchanged, one addition)
+
+```
+SHA=$(git rev-parse HEAD); SHORT=${SHA:0:12}
+git status --short                                   # must print nothing
+gh run list --limit 1                                # wait for CI success on HEAD
+mkdir -p reports/release-gate/$SHORT
+gh run download <runId> -n release-gate-$SHA -D reports/release-gate/$SHORT
+node scripts/release.mjs --env staging    --gate-artefact reports/release-gate/$SHORT/release-gate.json
+node scripts/release.mjs --env production --gate-artefact reports/release-gate/$SHORT/release-gate.json
+curl -s https://verify.itisyou.app/health            # commit must equal $SHA
+```
+
+The addition: the release's own smoke check now waits for `/health` to report the candidate
+commit and fails if it does not within a minute.
+
+### Next, in this order
+
+1. Audit D2 and D3 (wire or honestly relabel).
+2. Audit mediums, cheapest first: D4, D8, C4, D9, D10, D6, D5, D11, D12.
+3. Remaining design screens and development-story events (deferred by instruction).
+4. The lows and infos as capacity allows.
+
+---
+
+## 23 September 2026 (afternoon) — superseded
 
 **Everything below the first horizontal rule is older and superseded by this section
 wherever they disagree.** The morning section is kept directly underneath because two of
