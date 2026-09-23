@@ -1,0 +1,52 @@
+[
+  {
+    "firstname": "Emma",
+    "lastname": "Johnson",
+    "email": "verify-test-1tbbrc@example.com",
+    "itisyou_verify_ref": "ENQ-TEST-AMSRR8A1",
+    "hubspot_record_id": "873152382167",
+    "created_at_utc": "2026-09-23T12:29:00Z",
+    "verified": true,
+    "note": ""
+  },
+  {
+    "firstname": "Liam",
+    "lastname": "Smith",
+    "email": "verify-test-nk7crm@example.com",
+    "itisyou_verify_ref": "ENQ-TEST-NYCYTMIH",
+    "hubspot_record_id": "873158904028",
+    "created_at_utc": "2026-09-23T12:30:00Z",
+    "verified": true,
+    "note": ""
+  },
+  {
+    "firstname": "Olivia",
+    "lastname": "Brown",
+    "email": "verify-test-6t68gc@example.com",
+    "itisyou_verify_ref": "ENQ-TEST-OOWL8D0E",
+    "hubspot_record_id": "870686986478",
+    "created_at_utc": "2026-09-23T12:33:00Z",
+    "verified": true,
+    "note": ""
+  },
+  {
+    "firstname": "Noah",
+    "lastname": "Davis",
+    "email": "verify-test-esl6gz@example.com",
+    "itisyou_verify_ref": "ENQ-TEST-8JLM6YRG",
+    "hubspot_record_id": "873158906073",
+    "created_at_utc": "2026-09-23T12:34:00Z",
+    "verified": true,
+    "note": ""
+  },
+  {
+    "firstname": "Ava",
+    "lastname": "Wilson",
+    "email": "verify-test-xur6d5@example.com",
+    "itisyou_verify_ref": "ENQ-TEST-BQZK03J0",
+    "hubspot_record_id": "870687709426",
+    "created_at_utc": "2026-09-23T12:35:00Z",
+    "verified": true,
+    "note": "Verified via full page reload after save; other 4 contacts verified by the on-screen saved-value confirmation immediately after setting the property (not a separate full reload)."
+  }
+]
