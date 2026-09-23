@@ -166,3 +166,62 @@ describe('the usage-alert pass is actually wired into the production tick', () =
     expect(body, 'handleScheduled does not supply billingContact').toContain('billingContact:');
   });
 });
+
+/**
+ * The scheduled entry point, invoked for real, with nothing admitted.
+ *
+ * BUDGET-916 reads the source and proves the dependency is handed over. That is a guard
+ * against the omission returning; it is not proof the path runs. This calls
+ * `handleScheduled` — the function the Worker's `scheduled()` handler calls — against a real
+ * database with a workspace already over its threshold and NO admission at any point, and
+ * watches whether the transport is asked.
+ *
+ * The distinction matters and is kept: "the scheduler executed" and "an alert was delivered"
+ * are different claims. The second case here asserts the first WITHOUT the second.
+ */
+describe('the scheduled entry point reaches the usage warning with no admission', () => {
+  function schedulerEnv(): never {
+    return {
+      DB: h.db,
+      ENVIRONMENT: 'test',
+      STRIPE_MODE: 'test',
+      // No transport: every send is recorded `suppressed` and nothing throws, which is a
+      // supported deployment. It still proves the PATH was reached.
+    } as never;
+  }
+
+  it('BUDGET-917 handleScheduled runs the usage-alert pass without any admission', async () => {
+    const { handleScheduled } = await import('@app/scheduler/tick');
+
+    // A workspace fully over its allowance, a subscription so the period resolves, and a
+    // billing contact so there is somebody to warn.
+    h.raw
+      .prepare(
+        `INSERT INTO subscriptions (id, workspace_id, provider_subscription_id, environment, status, current_period_end, updated_at)
+         VALUES ('sub_alert', ?, 'sub_p', 'test', 'active', '2026-10-05T00:00:00.000Z', '2026-09-23T00:00:00.000Z')`,
+      )
+      .run(ws.workspaceId);
+
+    const before = h.raw
+      .prepare('SELECT COUNT(*) AS n FROM notification_deliveries')
+      .get() as { n: number };
+
+    const report = await handleScheduled(schedulerEnv(), {
+      now: new Date('2026-09-23T08:00:00.000Z'),
+    });
+
+    // The scheduler executed. That is the claim this assertion makes, and the only one.
+    expect(report.startedAt).toBeTruthy();
+
+    // And the usage path was reached: a delivery row exists that no admission created,
+    // because no admission happened in this test at all.
+    const after = h.raw
+      .prepare(
+        "SELECT COUNT(*) AS n FROM notification_deliveries WHERE notification_key LIKE 'usage:%'",
+      )
+      .get() as { n: number };
+    expect(after.n, 'the scheduled entry point never reached the usage warning').toBeGreaterThan(
+      before.n,
+    );
+  });
+});

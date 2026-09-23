@@ -22979,6 +22979,23 @@
       "countable": true
     },
     {
+      "id": "BUDGET-917",
+      "category": "budgets_models_maintenance",
+      "level": "integration",
+      "requirement": "handleScheduled runs the usage-alert pass without any admission",
+      "risk": "BUDGET-916 reads the source and proves the dependency is handed over; that guards against the omission returning, but it is not proof the path runs. This calls handleScheduled -- the function the Worker scheduled() handler calls -- against a real database with a workspace already over its threshold and NO admission at any point. It is the difference between \"the scheduler executed\" and \"the usage path was reached\", and only the second answers whether a customer at an exhausted allowance would ever be warned.",
+      "risk_source": "case",
+      "setup": "A workspace at 10 of 10 with an active subscription so the period resolves, no transport configured, and no event admitted at any point in the case.",
+      "expected": "The tick reports a start, and a notification_deliveries row keyed usage: exists that no admission created. Mutation-checked: remove the wiring from handleScheduled and this fails.",
+      "owner_agent": "A11",
+      "implementation_ref": "tests/integration/scheduler/usage-alert-pass.test.ts",
+      "provider_backed": false,
+      "status": "passing",
+      "runner": "vitest",
+      "area": "tests/integration/scheduler/usage-alert-pass.test.ts",
+      "countable": true
+    },
+    {
       "id": "BUDGET-916",
       "category": "budgets_models_maintenance",
       "level": "integration",
