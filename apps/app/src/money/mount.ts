@@ -28,6 +28,7 @@
  */
 import { createNotificationDelivery } from '../notifications/delivery';
 import { D1SupportDataPort } from '../db/supportPort';
+import type { EmailTransportEnv } from '../notifications/email';
 import {
   PAYMENT_FAILURE_GRACE_DAYS,
   PLAN,
@@ -45,7 +46,18 @@ import type { SigningKeyStore } from './ports';
 import { createSigningKeyResolver } from './signingKeys';
 
 /** The Worker bindings the money path reads. A structural subset of `Env`. */
-export interface MoneyEnv extends BillingEnv {
+/**
+ * `EmailTransportEnv` is part of this because the events path now sends a usage warning.
+ *
+ * Declared rather than cast. The first version of the alert wiring passed `env as never`
+ * into the delivery builder, which is precisely the hole that produced the production
+ * sign-in failure API-247 exists for: a cast silenced the type, the transport was built
+ * from an env that did not carry `RESEND_API_KEY`, and every notification would have been
+ * recorded `no_email_transport_configured` while looking like it worked. Both fields are
+ * optional, so a deployment with no transport still type-checks and still admits events —
+ * it simply records the warning as suppressed, which is a supported configuration.
+ */
+export interface MoneyEnv extends BillingEnv, EmailTransportEnv {
   readonly DB: D1Database;
   /**
    * The Worker secret every workflow signing key is derived from. Absent on a deployment
@@ -151,10 +163,23 @@ export function createMoneyRoutes(env: MoneyEnv, parts: MoneyMountParts) {
      * transport still admits events and simply never warns.
      */
     sendUsageAlert: async (request) => {
-      const report = await createNotificationDelivery(
-        env as never,
-        new D1SupportDataPort(db),
-      ).deliver([
+      const supportPort = new D1SupportDataPort(db);
+      /*
+       * Release a key that failed, before trying it again.
+       *
+       * `dispatchNotification` claims the key BEFORE sending and settles the outcome onto
+       * the same row, so one transient failure takes that key forever: the next attempt
+       * finds it claimed and returns `duplicate`, which is not `failed`, so the caller
+       * marks the threshold announced and the warning is lost silently.
+       *
+       * This project has already paid for that lesson once — `scheduler/tick.ts` releases
+       * the key for owner alerts and its comment names the two stuck rows, one on
+       * production and one on staging, that could never fire again. An independent audit
+       * caught me reproducing it here. `releaseUndelivered` refuses to touch a `sent` row
+       * in SQL, so it cannot become a way to send the same warning twice.
+       */
+      await supportPort.releaseUndeliveredNotification(request.notificationKey);
+      const report = await createNotificationDelivery(env, supportPort).deliver([
         {
           notificationKey: request.notificationKey,
           workspaceId: request.workspaceId,
@@ -162,7 +187,7 @@ export function createMoneyRoutes(env: MoneyEnv, parts: MoneyMountParts) {
           template: request.template,
           vars: request.vars,
         },
-      ] as never);
+      ]);
       const first = report.results[0];
       return { outcome: first?.outcome ?? 'failed' };
     },
