@@ -22979,6 +22979,23 @@
       "countable": true
     },
     {
+      "id": "BUDGET-916",
+      "category": "budgets_models_maintenance",
+      "level": "integration",
+      "requirement": "handleScheduled supplies the sender and the contact, not just the type",
+      "risk": "An optional dependency declared and never supplied is how this project has repeatedly ended up with correct, tested code that nothing calls: the payment-recovery pass, the owner alerts, the allowance templates. This feature made the same mistake twice -- once in the events route, caught by an independent audit, and once in handleScheduled, caught only by checking the deployed site after a production deploy. The pass would never have run in production. This case is the thing that would have caught both, and it asserts the entry point HANDS the dependency over rather than merely that the type permits it.",
+      "risk_source": "case",
+      "setup": "The source of apps/app/src/scheduler/tick.ts, narrowed to the runSchedulerTick call handleScheduled makes.",
+      "expected": "That call supplies both sendUsageAlert and billingContact. Mutation-checked: delete the wiring and the case fails naming which one is missing.",
+      "owner_agent": "A11",
+      "implementation_ref": "tests/integration/scheduler/usage-alert-pass.test.ts",
+      "provider_backed": false,
+      "status": "passing",
+      "runner": "vitest",
+      "area": "tests/integration/scheduler/usage-alert-pass.test.ts",
+      "countable": true
+    },
+    {
       "id": "BUDGET-911",
       "category": "budgets_models_maintenance",
       "level": "integration",

@@ -139,3 +139,30 @@ describe('the usage warning retries without another admission', () => {
     expect(t.seen[0]).toContain(':75#1');
   });
 });
+
+/**
+ * The wiring, asserted as source rather than as intention.
+ *
+ * An optional dependency declared and never supplied is how this project has repeatedly
+ * ended up with correct, tested code that nothing calls: the payment-recovery pass, the
+ * owner alerts, the allowance templates. This feature made the same mistake twice — once in
+ * the events route, caught by an audit, and once in `handleScheduled`, caught by checking
+ * the deployed site rather than the test suite. This case is the thing that would have
+ * caught both.
+ */
+describe('the usage-alert pass is actually wired into the production tick', () => {
+  it('BUDGET-916 handleScheduled supplies the sender and the contact, not just the type', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { fileURLToPath } = await import('node:url');
+    const source = readFileSync(
+      fileURLToPath(new URL('../../../apps/app/src/scheduler/tick.ts', import.meta.url)),
+      'utf8',
+    );
+    // The tick body may consult the dependency; what matters is that the entry point HANDS
+    // it one. Both must appear inside the runSchedulerTick call handleScheduled makes.
+    const call = source.slice(source.indexOf('const report = await runSchedulerTick({'));
+    const body = call.slice(0, call.indexOf('\n  });'));
+    expect(body, 'handleScheduled does not supply sendUsageAlert').toContain('sendUsageAlert:');
+    expect(body, 'handleScheduled does not supply billingContact').toContain('billingContact:');
+  });
+});
