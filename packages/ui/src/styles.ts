@@ -873,6 +873,15 @@ a:hover{text-decoration-thickness:2px}
 .tally{display:flex;flex-wrap:wrap;gap:var(--s2) var(--s4);align-items:center;margin:0;padding:0;list-style:none;font-family:var(--f-mono);font-size:var(--t-micro);letter-spacing:0.04em;color:var(--c-muted)}
 .tally li{margin:0;display:inline-flex;align-items:center;gap:var(--s2)}
 .tally__count{font-weight:600;color:var(--c-ink);font-variant-numeric:tabular-nums}
+/* Results left and wider, a narrower rail right. One column below 62rem, and because the
+   main column comes first in the markup the phone stack already reads results-then-rail:
+   no order property, so the visual order and the tab order cannot disagree.
+   minmax(0,…) on both tracks lets a wide table scroll inside itself instead of forcing
+   the grid wider than the viewport. */
+.split{display:grid;gap:var(--s6);align-items:start}
+.split__main{min-width:0}
+.split__side{min-width:0}
+@media (min-width:62rem){.split{grid-template-columns:minmax(0,3fr) minmax(0,2fr)}}
 /* A page heading with its primary action beside it. The action wraps underneath rather
    than squeezing when the heading needs the width. */
 .page-head{display:flex;flex-wrap:wrap;gap:var(--s4);align-items:flex-start;justify-content:space-between}
