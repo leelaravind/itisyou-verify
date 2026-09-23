@@ -56,6 +56,7 @@ import {
   runTotal,
 } from './chrome.js';
 import { formatDuration, formatInstant } from '../public/shared.js';
+import { batchPanel, type BatchPanelOptions } from './batchPanel.js';
 import {
   EMPTY_TEST_FORM,
   enterDefaultButton,
@@ -130,6 +131,8 @@ export interface WorkspacePageOptions {
    * GET would not return this page.
    */
   readonly live?: WorkspaceLiveView | null;
+  /** The saved test enquiries and what one press would run; admins only. */
+  readonly batch?: BatchPanelOptions | null;
 }
 
 /**
@@ -748,6 +751,7 @@ export function WorkspacePage(options: WorkspacePageOptions): Html {
          the one action that turns an empty dashboard into an answer, so it sits before
          the readouts rather than at the bottom of the page. -->
     ${testVerification(options)}
+    ${options.batch == null || !options.testOffer.canStart ? null : batchPanel(options.batch)}
 
     <div class="health">
       ${Card({ title: 'Verification rate', headingLevel: 2, body: HealthReadout(health) })}

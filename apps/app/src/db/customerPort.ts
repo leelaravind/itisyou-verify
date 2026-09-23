@@ -56,6 +56,10 @@ import type {
   RunDetailView,
   RunListItem,
   RunProgressView,
+  SavedTestEnquiries,
+  TestBatchLineError,
+  TestBatchResult,
+  TestEnquiryRow,
   WorkspaceLiveView,
   RunPage,
   SessionView,
@@ -68,14 +72,14 @@ import type {
   WorkflowSummary,
   WriteResult,
 } from '../routes/app/port';
-import { LOOKUP_MAX_PAGES } from '../routes/app/port';
+import { LOOKUP_MAX_PAGES, TEST_BATCH_MAX_ROWS } from '../routes/app/port';
 import type { Env } from '../lib/context';
 import { ID_PREFIX, newId } from '../lib/ids';
 import { resolveSession, type ResolvedSession } from '../lib/session';
 import { consume } from '../lib/ratelimit';
 import { nowIso, toIso } from '../lib/time';
 import { issueWorkflowSigningKey, type IssuedSigningKey } from '../money/signingKeys';
-import { auditEvents } from './audit';
+import { auditEvents, settings } from './audit';
 import { connections, credentials, type CredentialEnvelopeRow } from './connections';
 import type { Db } from './d1';
 import { entitlements } from './entitlements';
@@ -334,6 +338,65 @@ function lookupFailureMessage(providerName: string, error: ClassifiedError): str
 export function isPlaceholderId(value: string): boolean {
   const compact = value.replace(/-/g, '');
   return compact.length >= 3 && /^(.)\1+$/.test(compact);
+}
+
+
+function testEnquiriesKey(workspaceId: string): string {
+  return `test-enquiries:${workspaceId}`;
+}
+
+function batchRefused(message: string): TestBatchResult {
+  return { ok: false, message, lineErrors: [], runIds: [] };
+}
+
+/**
+ * Read the customer's list: one enquiry per line,
+ *
+ *     record id, expected reference, expected recipient[, message id]
+ *
+ * separated by commas or tabs. Blank lines and lines starting with `#` are skipped, so a
+ * pasted spreadsheet with a header row can be kept as a comment. Every field is the
+ * customer's statement of what should be true; nothing here is read from a provider.
+ */
+export function parseTestEnquiries(text: string): {
+  readonly rows: readonly TestEnquiryRow[];
+  readonly errors: readonly TestBatchLineError[];
+} {
+  const rows: TestEnquiryRow[] = [];
+  const errors: TestBatchLineError[] = [];
+  const lines = text.replace(/\r\n?/g, '\n').split('\n');
+  lines.forEach((raw, index) => {
+    const line = raw.trim();
+    if (line === '' || line.startsWith('#')) return;
+    const fields = line.split(/\t|,/).map((field) => field.trim());
+    const [crmRecordId = '', correlationValue = '', expectedRecipient = '', messageId = ''] = fields;
+    const at = index + 1;
+    if (fields.length < 3 || fields.length > 4) {
+      errors.push({ line: at, error: 'Give record id, expected reference, expected recipient, and optionally a message id.' });
+      return;
+    }
+    if (crmRecordId === '' || isPlaceholderId(crmRecordId) || crmRecordId.length > 128) {
+      errors.push({ line: at, error: 'The record id is missing or looks like a placeholder.' });
+      return;
+    }
+    if (correlationValue === '' || correlationValue.length > 256) {
+      errors.push({ line: at, error: 'The expected reference is missing.' });
+      return;
+    }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(expectedRecipient) || expectedRecipient.length > 254) {
+      errors.push({ line: at, error: 'The expected recipient is not an email address.' });
+      return;
+    }
+    if (messageId !== '' && (isPlaceholderId(messageId) || messageId.length > 200)) {
+      errors.push({ line: at, error: 'The message id looks like a placeholder. Leave it empty if there is no message.' });
+      return;
+    }
+    rows.push({ crmRecordId, correlationValue, expectedRecipient, messageId });
+  });
+  if (rows.length > TEST_BATCH_MAX_ROWS) {
+    errors.push({ line: 0, error: `At most ${String(TEST_BATCH_MAX_ROWS)} enquiries per batch; this list has ${String(rows.length)}.` });
+  }
+  return { rows, errors };
 }
 
 export class D1CustomerDataPort implements CustomerDataPort {
@@ -1427,6 +1490,22 @@ export class D1CustomerDataPort implements CustomerDataPort {
   }
 
   async startTestVerification(input: TestVerificationInput): Promise<TestVerificationResult> {
+    return this.#startOne(input, { batch: false });
+  }
+
+  /**
+   * One test verification, from the single form or as one row of a batch.
+   *
+   * A batch row differs in exactly two ways, both decided by the batch before it gets here:
+   * it is not rate limited per row (the batch has its own, stricter bound and has already
+   * checked the allowance covers every row), and its message id may be empty, in which case
+   * the email checks cannot bind and the run ends UNVERIFIED, which the batch form says
+   * before anything is run.
+   */
+  async #startOne(
+    input: TestVerificationInput,
+    mode: { readonly batch: boolean },
+  ): Promise<TestVerificationResult> {
     const refuse = (message: string, fieldErrors: Record<string, string> = {}) => ({
       ok: false,
       runId: null,
@@ -1446,14 +1525,14 @@ export class D1CustomerDataPort implements CustomerDataPort {
     const expectedRecipient = input.expectedRecipient.trim();
     const correlationValue = input.correlationValue.trim();
     if (crmRecordId === '') fieldErrors['crmRecordId'] = 'Name a CRM record that already exists.';
-    if (messageId === '')
+    if (messageId === '' && !mode.batch)
       fieldErrors['messageId'] = 'Give the provider id of a message that was already sent.';
     // A placeholder is not an id. On 23 September a run was spent on
     // 00000000-0000-0000-0000-000000000000: Resend answered "no such message", correctly, and
     // the run failed at its deadline, correctly, having cost one run for a typo. Refused here,
     // before anything is charged. Only values made of one repeated character: anything that
     // could be a real id is still the provider's to judge.
-    else if (isPlaceholderId(messageId))
+    else if (messageId !== '' && isPlaceholderId(messageId))
       fieldErrors['messageId'] =
         'That looks like a placeholder, not a real message id. Pick a message from the list, or paste the id Resend gave it.';
     if (crmRecordId !== '' && isPlaceholderId(crmRecordId))
@@ -1468,13 +1547,9 @@ export class D1CustomerDataPort implements CustomerDataPort {
       return refuse('Nothing was started. Check the fields below.', fieldErrors);
     }
 
-    const decision = await consume(
-      this.#db,
-      `test-verification:${scope.workspaceId}`,
-      4,
-      3600,
-      this.#now,
-    );
+    const decision = mode.batch
+      ? { allowed: true }
+      : await consume(this.#db, `test-verification:${scope.workspaceId}`, 4, 3600, this.#now);
     if (!decision.allowed) {
       return refuse(
         'That is several test verifications in a short time, and each one costs a run. Wait a while before the next.',
@@ -1558,7 +1633,7 @@ export class D1CustomerDataPort implements CustomerDataPort {
         mismatch =
           before.correlation_id !== correlationValue ||
           before.expected?.crm_record_id !== crmRecordId ||
-          before.expected?.email_message_id !== messageId ||
+          (before.expected?.email_message_id ?? '') !== messageId ||
           before.expected?.email_recipient !== expectedRecipient;
       } catch {
         // An unreadable prior payload cannot be compared, so it cannot be claimed to match.
@@ -1598,7 +1673,9 @@ export class D1CustomerDataPort implements CustomerDataPort {
       expected: {
         email_recipient: expectedRecipient,
         crm_record_id: crmRecordId,
-        email_message_id: messageId,
+        // Absent rather than empty: the schema allows it missing, and then no email
+        // evidence can bind to this run, so its email checks end UNVERIFIED.
+        ...(messageId === '' ? {} : { email_message_id: messageId }),
       },
     };
     const payloadJson = JSON.stringify(payload);
@@ -1663,6 +1740,144 @@ export class D1CustomerDataPort implements CustomerDataPort {
       fieldErrors: {},
       message:
         'The test verification was admitted and is now waiting to be checked, exactly like a real enquiry. It is decided by reading your providers, so it can come back verified, failed or unverified.',
+    };
+  }
+
+  /* --- a batch of test verifications, from the customer's own saved list --- */
+
+  async savedTestEnquiries(): Promise<SavedTestEnquiries> {
+    const scope = await this.#scope();
+    if (scope === null) return { rows: [], savedAt: null };
+    const row = await settings.get(this.#db, testEnquiriesKey(scope.workspaceId));
+    if (row === null) return { rows: [], savedAt: null };
+    try {
+      const parsed = JSON.parse(row.value_json) as { rows?: TestEnquiryRow[] };
+      return { rows: Array.isArray(parsed.rows) ? parsed.rows : [], savedAt: row.updated_at };
+    } catch {
+      return { rows: [], savedAt: null };
+    }
+  }
+
+  /**
+   * Save the customer's list of test enquiries. Free: it is their own data, stored so a
+   * batch can be run with one press. Every line is validated; one bad line saves nothing.
+   */
+  async saveTestEnquiries(text: string): Promise<TestBatchResult> {
+    const scope = await this.#scope();
+    if (scope === null) return batchRefused('Sign in to save test enquiries.');
+    if (scope.role !== 'workspace_admin') {
+      return batchRefused('Only a workspace admin can keep a list of test enquiries.');
+    }
+    const parsed = parseTestEnquiries(text);
+    if (parsed.errors.length > 0) {
+      return {
+        ok: false,
+        message: 'Nothing was saved. Fix the lines named below.',
+        lineErrors: parsed.errors,
+        runIds: [],
+      };
+    }
+    await settings.set(this.#db, {
+      key: testEnquiriesKey(scope.workspaceId),
+      valueJson: JSON.stringify({ rows: parsed.rows }),
+      updatedAt: nowIso(this.#now),
+      updatedBy: scope.userId,
+    });
+    return {
+      ok: true,
+      message:
+        parsed.rows.length === 0
+          ? 'The list is empty now.'
+          : `Saved ${String(parsed.rows.length)} test ${parsed.rows.length === 1 ? 'enquiry' : 'enquiries'}. Nothing was run and nothing was charged.`,
+      lineErrors: [],
+      runIds: [],
+    };
+  }
+
+  /**
+   * Run every saved test enquiry, one run each.
+   *
+   * ## The bounds, all checked before the first row is admitted
+   *
+   *  - at most `TEST_BATCH_MAX_ROWS` rows, enforced when the list is saved and again here;
+   *  - the allowance must cover EVERY row, so a batch never stops half-charged for want of
+   *    runs;
+   *  - three batches an hour per workspace, instead of the single form's four runs an hour,
+   *    because one press here can be ten runs;
+   *  - each row's submission identity is `batch-<batchId>-<n>`, minted once per rendered
+   *    page, so a double press or a refresh reuses the runs it already bought.
+   *
+   * ## Where the expected values come from
+   *
+   * From the saved list: the customer's statement of each enquiry. Never from the CRM record
+   * or the message being checked, because a check that compares an observed value with
+   * itself proves nothing.
+   */
+  async startTestBatch(batchId: string): Promise<TestBatchResult> {
+    const scope = await this.#scope();
+    if (scope === null) return batchRefused('Sign in to run test verifications.');
+    if (!/^[A-Za-z0-9-]{8,64}$/.test(batchId)) {
+      return batchRefused('This page is out of date. Reload it and press Run again.');
+    }
+    const saved = await this.savedTestEnquiries();
+    if (saved.rows.length === 0) return batchRefused('There are no saved test enquiries to run.');
+    if (saved.rows.length > TEST_BATCH_MAX_ROWS) {
+      return batchRefused(`A batch runs at most ${String(TEST_BATCH_MAX_ROWS)} enquiries. Shorten the list.`);
+    }
+
+    const offer = await this.testVerificationOffer();
+    if (!offer.canStart) return batchRefused(offer.reason ?? 'Test verifications cannot be started.');
+
+    // A retry of a batch already started must not be refused for want of allowance it has
+    // already spent, so only rows not yet admitted count against what remains.
+    let fresh = 0;
+    for (let index = 0; index < saved.rows.length; index += 1) {
+      const prior = await sourceEvents.getByExternalId(
+        this.#db,
+        scope.workspaceId,
+        `test-batch-${batchId}-${String(index + 1)}`,
+      );
+      if (prior === null) fresh += 1;
+    }
+    if (fresh > offer.runsRemaining) {
+      return batchRefused(
+        `This batch needs ${String(fresh)} runs and ${String(offer.runsRemaining)} remain, so nothing was started.`,
+      );
+    }
+    if (fresh > 0) {
+      const decision = await consume(this.#db, `test-batch:${scope.workspaceId}`, 3, 3600, this.#now);
+      if (!decision.allowed) {
+        return batchRefused(
+          'That is several batches in a short time, and each run costs one from your allowance. Wait a while before the next.',
+        );
+      }
+    }
+
+    const runIds: string[] = [];
+    const lineErrors: TestBatchLineError[] = [];
+    for (let index = 0; index < saved.rows.length; index += 1) {
+      const row = saved.rows[index] as TestEnquiryRow;
+      const result = await this.#startOne(
+        {
+          crmRecordId: row.crmRecordId,
+          correlationValue: row.correlationValue,
+          expectedRecipient: row.expectedRecipient,
+          messageId: row.messageId,
+          submissionId: `batch-${batchId}-${String(index + 1)}`,
+        },
+        { batch: true },
+      );
+      if (result.ok && result.runId !== null) runIds.push(result.runId);
+      else lineErrors.push({ line: index + 1, error: result.message });
+    }
+    return {
+      ok: runIds.length > 0,
+      message:
+        lineErrors.length === 0
+          ? `Started ${String(runIds.length)} test ${runIds.length === 1 ? 'verification' : 'verifications'}. Each is checked against your providers and settles on its own.`
+          : `Started ${String(runIds.length)} of ${String(saved.rows.length)}. The rest were not started: see below.`,
+      lineErrors,
+      runIds,
     };
   }
 

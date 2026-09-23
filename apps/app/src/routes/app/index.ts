@@ -27,6 +27,8 @@ import { syntheticNotice, syntheticStripe } from './chrome.js';
 import { SignInPage } from './authPages.js';
 import { WorkspacePage } from './workspacePage.js';
 import type { TestFormValues } from './lookupPanel.js';
+import type { BatchPanelOptions } from './batchPanel.js';
+import { TEST_BATCH_MAX_ROWS } from './port.js';
 import { isContactId, isResendEmailId } from '@verify/connectors';
 import {
   ActivationPage,
@@ -479,11 +481,30 @@ export function createAppRoutes(resolve: PortResolver = syntheticResolver): Hono
    * the same page is a second place for a figure to be read differently, and this page's
    * whole job is that its figures agree.
    */
+  /** The batch panel's data, for an admin; null for anyone else. */
+  async function batchOptions(
+    port: CustomerDataPort,
+    session: SessionView,
+    extra: Partial<Pick<BatchPanelOptions, 'notice' | 'lineErrors' | 'draft'>> = {},
+  ): Promise<BatchPanelOptions | null> {
+    if (session.role !== 'workspace_admin' || port.savedTestEnquiries === undefined) return null;
+    return {
+      saved: await port.savedTestEnquiries(),
+      csrfToken: session.csrfToken,
+      batchId: crypto.randomUUID(),
+      runsRemaining: (await port.testVerificationOffer()).runsRemaining,
+      maxRows: TEST_BATCH_MAX_ROWS,
+      ...extra,
+    };
+  }
+
   async function renderWorkspace(
     c: Context<RouteBindings>,
     port: CustomerDataPort,
     session: SessionView,
     outcome?: { message: string; ok: boolean; fieldErrors: Readonly<Record<string, string>> },
+    batch?: Partial<Pick<BatchPanelOptions, 'notice' | 'lineErrors' | 'draft'>>,
+    status?: 200 | 422,
   ): Promise<Response> {
     const workflow = await port.workflow();
     const scope: 'automation' | 'tests' | 'all' =
@@ -524,16 +545,80 @@ export function createAppRoutes(resolve: PortResolver = syntheticResolver): Hono
             c.req.method === 'GET' && port.workspaceLive !== undefined
               ? await port.workspaceLive()
               : null,
+          batch: await batchOptions(
+            port,
+            session,
+            batch ??
+              (c.req.query('batch') === 'saved'
+                ? { notice: { message: 'Saved. Nothing was run and nothing was charged.', ok: true } }
+                : {}),
+          ),
           ...(outcome === undefined
             ? {}
             : { admissionNotice: outcome, admissionErrors: outcome.fieldErrors }),
         }),
       }),
-      outcome !== undefined && !outcome.ok ? { status: 422 } : undefined,
+      status === 422 || (outcome !== undefined && !outcome.ok) ? { status: 422 } : undefined,
     );
   }
 
   routes.get('/', async (c) => withSession(c, async (port, session) => renderWorkspace(c, port, session)));
+
+  /** Save the customer's list of test enquiries. Free: nothing is admitted or charged. */
+  routes.post('/test-batch/save', async (c) =>
+    withSession(c, async (port, session) => {
+      const body = await formBody(c);
+      const text = (body['enquiries'] ?? '').slice(0, 20_000);
+      const result =
+        port.saveTestEnquiries === undefined
+          ? { ok: false, message: 'Test enquiry lists are not available here.', lineErrors: [], runIds: [] }
+          : await port.saveTestEnquiries(text);
+      if (result.ok) return c.redirect('/app?batch=saved#test-batch', 303);
+      return renderWorkspace(
+        c,
+        port,
+        session,
+        undefined,
+        { notice: { message: result.message, ok: false }, lineErrors: result.lineErrors, draft: text },
+        422,
+      );
+    }),
+  );
+
+  /**
+   * Run every saved test enquiry: one press, one run per enquiry, cost stated above the
+   * button. Each run's first check starts at once, and the reader lands on the live runs
+   * list to watch them settle.
+   */
+  routes.post('/test-batch/run', async (c) =>
+    withSession(c, async (port, session) => {
+      const body = await formBody(c);
+      const result =
+        port.startTestBatch === undefined
+          ? { ok: false, message: 'Batches are not available here.', lineErrors: [], runIds: [] }
+          : await port.startTestBatch(body['batchId'] ?? '');
+      if (result.ok && result.lineErrors.length === 0) {
+        if (port.checkRunNow !== undefined) {
+          const check = port.checkRunNow.bind(port);
+          inBackground(
+            c,
+            (async () => {
+              for (const id of result.runIds) await check(id);
+            })(),
+          );
+        }
+        return c.redirect('/app/runs?show=test&batch=started', 303);
+      }
+      return renderWorkspace(
+        c,
+        port,
+        session,
+        undefined,
+        { notice: { message: result.message, ok: result.ok }, lineErrors: result.lineErrors },
+        result.ok ? 200 : 422,
+      );
+    }),
+  );
 
   /* ----------------------------------------------------------------- onboarding */
 
@@ -948,6 +1033,14 @@ export function createAppRoutes(resolve: PortResolver = syntheticResolver): Hono
             workflowName: workflow?.name ?? 'This workspace',
             basePath: '/app/runs',
             source,
+            ...(await (async () => {
+              const live = port.workspaceLive === undefined ? null : await port.workspaceLive();
+              return live === null ? {} : { liveToken: live.token, liveActive: live.active };
+            })()),
+            notice:
+              c.req.query('batch') === 'started'
+                ? 'Your test enquiries were started. They are checked against your providers now, and this list updates as each one settles.'
+                : null,
           }),
         }),
       );
