@@ -7,7 +7,7 @@
  * written here.
  */
 import { Hono, type Context } from 'hono';
-import { CSS, THEME_SCRIPT, render } from '@verify/ui';
+import { CSS, LIVE_SCRIPT, THEME_SCRIPT, render } from '@verify/ui';
 import { publicRoutes, notFoundPage } from './routes/public/index.js';
 import { storyRoutes } from './routes/public/story/index.js';
 import { createAppRoutes } from './routes/app/index.js';
@@ -133,7 +133,8 @@ async function buildCsp(): Promise<string> {
   const variants = (body: string) => [body, `${SHELL_PADDING.before}${body}${SHELL_PADDING.after}`];
   const [styleHashes, scriptHashes] = await Promise.all([
     Promise.all(variants(CSS).map(sha256Base64)),
-    Promise.all(variants(THEME_SCRIPT).map(sha256Base64)),
+    // The theme toggle, and the live-page updater (rendered bare, so one variant).
+    Promise.all([...variants(THEME_SCRIPT), LIVE_SCRIPT].map(sha256Base64)),
   ]);
   const quote = (hashes: string[]) => hashes.map((h) => `'sha256-${h}'`).join(' ');
 

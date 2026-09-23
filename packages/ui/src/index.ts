@@ -64,6 +64,7 @@ export {
 
 /* The stylesheet. */
 export { CSS, CSS_BYTES, THEME_SCRIPT } from './styles.js';
+export { LIVE_SCRIPT, LiveScript } from './live.js';
 
 /* Components and layouts. */
 export * from './components/index.js';

@@ -55,6 +55,8 @@ import type {
   ProviderKey,
   RunDetailView,
   RunListItem,
+  RunProgressView,
+  WorkspaceLiveView,
   RunPage,
   SessionView,
   SigningKeyIssuanceView,
@@ -2318,6 +2320,105 @@ export class D1CustomerDataPort implements CustomerDataPort {
     return { items, nextCursor: page.nextCursor, prevCursor: null };
   }
 
+  async workspaceLive(): Promise<WorkspaceLiveView | null> {
+    const scope = await this.#scope();
+    if (scope === null) return null;
+    // One scoped aggregate over this workspace's runs, split by source the same way every
+    // count on the dashboard is (source_events.source is the single authority).
+    const row = await this.#db
+      .prepare(
+        `SELECT COUNT(*) AS n,
+                COALESCE(SUM(r.revision), 0) AS revisions,
+                COALESCE(MAX(r.created_at), '') AS newest,
+                COALESCE(SUM(CASE WHEN r.status = 'PENDING' AND s.source = 'owner_test' THEN 1 ELSE 0 END), 0) AS pending_tests,
+                COALESCE(SUM(CASE WHEN r.status = 'PENDING' AND s.source <> 'owner_test' THEN 1 ELSE 0 END), 0) AS pending_automation,
+                MIN(CASE WHEN r.status = 'PENDING' THEN r.next_check_at END) AS next_check
+           FROM runs r JOIN source_events s ON s.id = r.source_event_id
+          WHERE r.workspace_id = ?`,
+      )
+      .bind(scope.workspaceId)
+      .first<{
+        n: number;
+        revisions: number;
+        newest: string;
+        pending_tests: number;
+        pending_automation: number;
+        next_check: string | null;
+      }>();
+    const ent = await this.#db
+      .prepare(
+        'SELECT COALESCE(SUM(consumed), 0) AS consumed, COALESCE(SUM(reserved), 0) AS reserved FROM entitlements WHERE workspace_id = ?',
+      )
+      .bind(scope.workspaceId)
+      .first<{ consumed: number; reserved: number }>();
+    const pendingTests = Number(row?.pending_tests ?? 0);
+    const pendingAutomation = Number(row?.pending_automation ?? 0);
+    return {
+      token: [
+        row?.n ?? 0,
+        row?.revisions ?? 0,
+        row?.newest ?? '',
+        ent?.consumed ?? 0,
+        ent?.reserved ?? 0,
+      ].join(':'),
+      active: pendingTests + pendingAutomation > 0,
+      pendingAutomation,
+      pendingTests,
+      nextCheckAt: row?.next_check ?? null,
+    };
+  }
+
+  async dueRunIds(limit: number): Promise<readonly string[]> {
+    const scope = await this.#scope();
+    if (scope === null) return [];
+    const result = await this.#db
+      .prepare(
+        `SELECT id FROM runs
+          WHERE workspace_id = ? AND status = 'PENDING'
+            AND next_check_at IS NOT NULL AND next_check_at <= ?
+          ORDER BY next_check_at ASC LIMIT ?`,
+      )
+      .bind(scope.workspaceId, nowIso(new Date()), Math.min(Math.max(1, limit), 5))
+      .all<{ id: string }>();
+    return result.results.map((r) => r.id);
+  }
+
+  async runProgress(runId: string): Promise<RunProgressView | null> {
+    const scope = await this.#scope();
+    if (scope === null) return null;
+    const row = await runs.get(this.#db, scope.workspaceId, runId);
+    if (row === null) return null;
+    return {
+      id: row.id,
+      status: row.status,
+      revision: row.revision,
+      observationCount: row.observation_count,
+      // A settled run's due time is its finalisation lease, not a check anybody should
+      // count down to. The page is told there is nothing further planned.
+      nextCheckAt: row.status === 'PENDING' ? row.next_check_at : null,
+      deadlineAt: row.deadline_at,
+      decidedAt: row.completed_at,
+    };
+  }
+
+  async checkRunNow(runId: string): Promise<string> {
+    const scope = await this.#scope();
+    if (scope === null) return 'not_found';
+    const { checkWatchedRun } = await import('../scheduler/watched');
+    return checkWatchedRun({
+      db: this.#db,
+      workspaceId: scope.workspaceId,
+      runId,
+      credentialKeyBase64: this.#env.CREDENTIAL_KEY_V1,
+      billingEnvironment: this.#env.STRIPE_MODE === 'live' ? 'live' : 'test',
+      now: new Date(),
+      logger: {
+        info: () => {},
+        warn: (event, fields) => console.warn(event, fields),
+      },
+    });
+  }
+
   async run(runId: string): Promise<RunDetailView | null> {
     const scope = await this.#scope();
     if (scope === null) return null;
@@ -2396,6 +2497,8 @@ export class D1CustomerDataPort implements CustomerDataPort {
       rulesSchemaVersion: version?.schema_version ?? 1,
       coverageMode: workflow?.coverage_mode ?? 'customer_triggered',
       revision: row.revision,
+      observationCount: row.observation_count,
+      nextCheckAt: row.next_check_at,
       lateCompletion:
         row.completed_at !== null &&
         row.completed_at > row.deadline_at &&

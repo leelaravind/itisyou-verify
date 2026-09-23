@@ -110,6 +110,20 @@ async function formBody(c: Context<RouteBindings>): Promise<Record<string, strin
   return out;
 }
 
+/**
+ * Work that should carry on after the response has gone: a provider check a watcher is
+ * waiting for. Outside a Worker (a test harness without an execution context) it still runs;
+ * it is simply not awaited.
+ */
+function inBackground(c: Context<RouteBindings>, work: Promise<unknown>): void {
+  const settled = work.catch(() => undefined);
+  try {
+    c.executionCtx.waitUntil(settled);
+  } catch {
+    void settled;
+  }
+}
+
 function checked(body: Record<string, string>, name: string): boolean {
   const value = body[name];
   return value !== undefined && value !== '' && value !== 'off';
@@ -505,6 +519,11 @@ export function createAppRoutes(resolve: PortResolver = syntheticResolver): Hono
           submissionId: crypto.randomUUID(),
           openVerifyForm: c.req.query('verify') === '1',
           verdictScope: scope,
+          // Live only on a GET: the page re-fetches its own URL, which a POST's is not.
+          live:
+            c.req.method === 'GET' && port.workspaceLive !== undefined
+              ? await port.workspaceLive()
+              : null,
           ...(outcome === undefined
             ? {}
             : { admissionNotice: outcome, admissionErrors: outcome.fieldErrors }),
@@ -935,6 +954,69 @@ export function createAppRoutes(resolve: PortResolver = syntheticResolver): Hono
     }),
   );
 
+  /**
+   * Where one run has got to, for its page's live update. JSON, tiny, and a read of the run
+   * row. When the run is due for a check, the check starts after the answer is sent, so the
+   * next poll sees its result; a run that is not due is left alone, whatever the poll rate.
+   */
+  routes.get('/runs/:id/live', async (c) =>
+    withSession(c, async (port) => {
+      const progress = port.runProgress === undefined ? null : await port.runProgress(c.req.param('id'));
+      if (progress === null) return c.json({ error: 'not_found' }, 404, { 'cache-control': 'no-store' });
+      const due =
+        progress.status === 'PENDING' &&
+        progress.nextCheckAt !== null &&
+        Date.parse(progress.nextCheckAt) <= Date.now();
+      if (due && port.checkRunNow !== undefined) inBackground(c, port.checkRunNow(progress.id));
+      return c.json(
+        {
+          token: `${String(progress.revision)}:${progress.status}`,
+          active: progress.status === 'PENDING',
+          status: progress.status,
+          nextCheckAt: progress.nextCheckAt,
+          deadlineAt: progress.deadlineAt,
+          checks: progress.observationCount,
+        },
+        200,
+        { 'cache-control': 'no-store' },
+      );
+    }),
+  );
+
+  /**
+   * The workspace dashboard's live fingerprint. Also the watcher for every pending run in
+   * this workspace: up to three that are due are checked after the answer is sent.
+   */
+  routes.get('/live', async (c) =>
+    withSession(c, async (port) => {
+      const live = port.workspaceLive === undefined ? null : await port.workspaceLive();
+      if (live === null) return c.json({ error: 'not_found' }, 404, { 'cache-control': 'no-store' });
+      if (live.active && port.dueRunIds !== undefined && port.checkRunNow !== undefined) {
+        const check = port.checkRunNow.bind(port);
+        const ids = await port.dueRunIds(3);
+        if (ids.length > 0) {
+          inBackground(
+            c,
+            (async () => {
+              for (const id of ids) await check(id);
+            })(),
+          );
+        }
+      }
+      return c.json(
+        {
+          token: live.token,
+          active: live.active,
+          nextCheckAt: live.nextCheckAt,
+          pendingTests: live.pendingTests,
+          pendingAutomation: live.pendingAutomation,
+        },
+        200,
+        { 'cache-control': 'no-store' },
+      );
+    }),
+  );
+
   routes.get('/runs/:id', async (c) =>
     withSession(c, async (port, session) => {
       const run = await port.run(c.req.param('id'));
@@ -1008,6 +1090,9 @@ export function createAppRoutes(resolve: PortResolver = syntheticResolver): Hono
               submissionId: body['submissionId'] ?? '',
             });
       if (result.ok && result.runId !== null) {
+        // Look at it straight away rather than at the next minute boundary: the customer is
+        // about to land on its page and watch it. Same claim, same observation as the tick.
+        if (port.checkRunNow !== undefined) inBackground(c, port.checkRunNow(result.runId));
         // `started=test` is the first sight of a new run; `again=1` says this press found
         // the one already running, so the page can say so rather than look identical.
         const marker = result.duplicate === true ? 'again' : 'started=test';

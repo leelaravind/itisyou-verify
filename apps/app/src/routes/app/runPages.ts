@@ -21,6 +21,7 @@ import {
   CoverageNotice,
   EmptyState,
   KeyValues,
+  LiveScript,
   Pagination,
   RunVerdict,
   StandingLimitations,
@@ -247,11 +248,14 @@ function runActions(options: RunDetailPageOptions): Html {
         : Callout({
             tone: 'note',
             title: 'We are still checking',
-            body: html`<p>
-              This result arrives on a schedule rather than instantly, so this page does not move on its own.
-              Reload it to see where the run has got to. Nothing is lost while you wait, and the run keeps
-              going whether or not this page is open.
-            </p>`,
+            body: html`<p data-live-status aria-live="polite">
+                Next check planned for ${run.nextCheckAt == null ? 'shortly' : formatInstant(run.nextCheckAt)}; the
+                deadline is ${formatInstant(run.deadlineAt)}. This page updates by itself as each check lands.
+              </p>
+              <noscript><p>Scripts are off in this browser, so reload to see where the run has got to.</p></noscript>
+              <p class="small">
+                Nothing is lost if you leave: the run keeps going whether or not this page is open.
+              </p>`,
           })
     }
     ${ButtonRow(
@@ -271,9 +275,9 @@ function runActions(options: RunDetailPageOptions): Html {
           ]
         : [
             Button({
-              label: 'View result',
+              label: 'Refresh now',
               href: `/app/runs/${encodeURIComponent(run.id)}`,
-              variant: 'primary',
+              variant: 'quiet',
             }),
             Button({ label: 'Back to all runs', href: '/app/runs', variant: 'quiet' }),
           ],
@@ -349,8 +353,23 @@ export function RunDetailPage(options: RunDetailPageOptions): Html {
   }));
 
   const statusKey = run.status.toLowerCase();
+  const pending = run.status === 'PENDING';
 
-  return html`<div class="wrap section stack-lg">
+  // The live root: the fingerprint the poll compares, and the instants the countdown reads.
+  // Present on a settled run too, so a page that was pending when it loaded can see the
+  // verdict arrive and stop.
+  return html`<div
+    ${attrs({
+      class: 'wrap section stack-lg',
+      'data-live': `/app/runs/${encodeURIComponent(run.id)}/live`,
+      'data-live-token': `${String(run.revision)}:${run.status}`,
+      'data-live-active': pending ? '1' : '0',
+      'data-status': run.status,
+      'data-next-check': pending ? (run.nextCheckAt ?? '') : '',
+      'data-deadline': pending ? run.deadlineAt : '',
+      'data-checks': run.observationCount === undefined ? null : String(run.observationCount),
+    })}
+  >
     ${Breadcrumb([
       { label: 'Workspace', href: '/app' },
       { label: 'Runs', href: '/app/runs' },
@@ -499,6 +518,7 @@ export function RunDetailPage(options: RunDetailPageOptions): Html {
     ${StandingLimitations()}
 
     ${runActions(options)}
+    ${pending ? LiveScript() : null}
   </div>`;
 }
 

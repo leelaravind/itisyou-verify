@@ -181,6 +181,43 @@ export interface RunPage {
   readonly prevCursor: string | null;
 }
 
+/**
+ * Where a run has got to, cheaply: what the run page polls while it is still checking.
+ *
+ * Every field is read from the run row; nothing here is a prediction. `nextCheckAt` is the
+ * scheduler's own plan, so a countdown drawn from it is a statement about when we will look
+ * again, not about when the answer will arrive.
+ */
+export interface RunProgressView {
+  readonly id: string;
+  readonly status: RunStatus;
+  readonly revision: number;
+  /** How many times the providers have been read for this run. */
+  readonly observationCount: number;
+  /** Null once the run is settled and nothing further is planned. */
+  readonly nextCheckAt: string | null;
+  readonly deadlineAt: string;
+  readonly decidedAt: string | null;
+}
+
+/**
+ * A fingerprint of everything the workspace dashboard shows about runs, for live updates.
+ *
+ * `token` changes whenever a run is admitted, checked or decided, or the allowance moves;
+ * the page swaps itself for a fresh render when it does. The counts are read, never
+ * inferred, and split by source so a pending TEST run is never hidden behind the
+ * automation-only view.
+ */
+export interface WorkspaceLiveView {
+  readonly token: string;
+  /** True while any run in this workspace is still being checked. */
+  readonly active: boolean;
+  readonly pendingAutomation: number;
+  readonly pendingTests: number;
+  /** The soonest planned check among pending runs, or null. */
+  readonly nextCheckAt: string | null;
+}
+
 export interface RunDetailView {
   readonly id: string;
   readonly workflowId: string;
@@ -202,6 +239,10 @@ export interface RunDetailView {
   readonly rulesSchemaVersion: number;
   readonly coverageMode: CoverageMode;
   readonly revision: number;
+  /** How many times the providers have been read for this run. */
+  readonly observationCount?: number;
+  /** When the scheduler plans to look again; null once settled. */
+  readonly nextCheckAt?: string | null;
   readonly lateCompletion: boolean;
   /**
    * The four values this enquiry was described with, when they can still be read.
@@ -648,6 +689,21 @@ export interface CustomerDataPort {
 
   /** Find a message Resend already sent, to name in a test verification. Free, as above. */
   lookupMessages?(request: LookupRequest): Promise<LookupView<MessageCandidateView>>;
+
+  /** Where a run has got to, for the live run page. Null when it is not this workspace's. */
+  runProgress?(runId: string): Promise<RunProgressView | null>;
+
+  /**
+   * Check a run now if it is due, because somebody is watching it. See
+   * `scheduler/watched.ts`. Never throws; answers what it did.
+   */
+  checkRunNow?(runId: string): Promise<string>;
+
+  /** The workspace's live fingerprint; see `WorkspaceLiveView`. */
+  workspaceLive?(): Promise<WorkspaceLiveView | null>;
+
+  /** Pending runs in this workspace whose check is due now, oldest first, at most `limit`. */
+  dueRunIds?(limit: number): Promise<readonly string[]>;
 
   orderSummary(): Promise<OrderSummaryView>;
   /** Create a Stripe Checkout session. The price is resolved server-side, never posted. */
