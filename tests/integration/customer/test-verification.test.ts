@@ -435,3 +435,21 @@ describe('the verification journey has a visible way in and a way round again', 
     expect(runRows(open)).toHaveLength(before);
   });
 });
+
+describe('placeholder ids', () => {
+  it('VERIFY-928 an all-zero message id or record id is refused before anything is charged', async () => {
+    open = await ready();
+    const before = runRows(open).length;
+    const served = await start(open, {
+      ...GOOD,
+      messageId: '00000000-0000-0000-0000-000000000000',
+      crmRecordId: '0000',
+      submissionId: 'submission-placeholder-1',
+    });
+    expect(served.status).toBe(422);
+    const text = visibleText(served.html);
+    expect(text).toContain('looks like a placeholder, not a real message id');
+    expect(text).toContain('looks like a placeholder, not a real record id');
+    expect(runRows(open)).toHaveLength(before);
+  });
+});

@@ -330,6 +330,12 @@ function lookupFailureMessage(providerName: string, error: ClassifiedError): str
   }
 }
 
+/** One character repeated, hyphens aside: 0000..., 00000000-0000-..., xxxx. Never a real id. */
+export function isPlaceholderId(value: string): boolean {
+  const compact = value.replace(/-/g, '');
+  return compact.length >= 3 && /^(.)\1+$/.test(compact);
+}
+
 export class D1CustomerDataPort implements CustomerDataPort {
   readonly synthetic = false;
 
@@ -1442,6 +1448,17 @@ export class D1CustomerDataPort implements CustomerDataPort {
     if (crmRecordId === '') fieldErrors['crmRecordId'] = 'Name a CRM record that already exists.';
     if (messageId === '')
       fieldErrors['messageId'] = 'Give the provider id of a message that was already sent.';
+    // A placeholder is not an id. On 23 September a run was spent on
+    // 00000000-0000-0000-0000-000000000000: Resend answered "no such message", correctly, and
+    // the run failed at its deadline, correctly, having cost one run for a typo. Refused here,
+    // before anything is charged. Only values made of one repeated character: anything that
+    // could be a real id is still the provider's to judge.
+    else if (isPlaceholderId(messageId))
+      fieldErrors['messageId'] =
+        'That looks like a placeholder, not a real message id. Pick a message from the list, or paste the id Resend gave it.';
+    if (crmRecordId !== '' && isPlaceholderId(crmRecordId))
+      fieldErrors['crmRecordId'] =
+        'That looks like a placeholder, not a real record id. Find the contact in HubSpot, or paste its id.';
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(expectedRecipient))
       fieldErrors['expectedRecipient'] = 'Give the address the acknowledgement should have reached.';
     if (correlationValue === '')
