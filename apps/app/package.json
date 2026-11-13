@@ -15,6 +15,6 @@
     "@verify/domain": "workspace:*",
     "@verify/security": "workspace:*",
     "@verify/ui": "workspace:*",
-    "hono": "^4.13.8"
+    "hono": "^4.13.16"
   }
 }
